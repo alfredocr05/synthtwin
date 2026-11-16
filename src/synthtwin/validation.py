@@ -162,7 +162,7 @@ from synthtwin.paths import validate_local_path
 import pathlib
 import typing
 
-from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, reading, taxonomy, workbook
+from synthtwin import calendar_clock, calendar_rules, contract, dialect, errors, parsing, profile, progress, reading, taxonomy, workbook
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts, grains, roles
 
@@ -497,6 +497,19 @@ _NOT_CHECKABLE_MOVED_OFF_THE_REAL = (
     "values of a layout no real cell leaves room in are written wider than "
     "every real value, so this fact is the real table's and is not one the "
     "twin holds"
+)
+_NOT_CHECKABLE_HELD_WRITTEN_BLANK = (
+    "a held column of dates or times whose description publishes no years "
+    "free of real dates for its made-up values has its twin written blank "
+    "there, never a date of the table or text that is no date (plan "
+    "P4-D488, remark NF137), so what the description says of its present "
+    "cells is the real table's and is not one the twin holds"
+)
+_NOT_CHECKABLE_COUNTED_IN_THE_ROOM = (
+    "a held column of dates written as counts has its made-up counts drawn "
+    "in years no real date of it takes (plan P4-D488), so their lengths, "
+    "signs and layouts are those years' and not the table's: this fact is "
+    "the real table's and is not one the twin holds"
 )
 _NOT_CHECKABLE_EXCLUSIONS = (
     "the description records, for each layout, what none of the table's "
@@ -4132,6 +4145,10 @@ def _whole_file(place: pathlib.Path, shown: str) -> "tuple[bytes, str | None, st
 _REWRITE_AGES = "ages"
 _REWRITE_YEARS = "years"
 _REWRITE_GRAINS = "grains"
+# ...and the fourth, after them (batch 4t's fix round, item 5): each keyed
+# value column's cells read blank on the rows that hold a key
+# (`_keyed_rows_blank`, validation V19).
+_REWRITE_KEYED = "keyed"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4143,8 +4160,9 @@ class _Rewrite:
     and the bands its description records: ``words``, ``ends``,
     ``banded``; lanes HB2 and CZ-E, plans P4-D477 and P4-D472, joined
     at batch 4s's merge of lane SV), `_year_top_coded_table`
-    (``marks``, ``commas``, ``declared``) or `_at_their_grains`
-    (``grained``, ``description``, ``absent_read``).
+    (``marks``, ``commas``, ``declared``), `_at_their_grains`
+    (``grained``, ``description``, ``absent_read``) or the keyed rows read
+    blank (``keyed``; batch 4t's fix round, item 5).
     """
 
     kind: str
@@ -4159,6 +4177,9 @@ class _Rewrite:
     grained: "dict[str, grains.Grain]" = dataclasses.field(default_factory=dict)
     description: "contract.Profile | None" = None
     absent_read: "dict[str, tuple[str, ...]] | None" = None
+    # `_keyed_rows_blank`'s: each keyed value column with its key column and
+    # the spellings that column's cells read as no key.
+    keyed: "dict[str, tuple[str, frozenset[str]]]" = dataclasses.field(default_factory=dict)
 
 
 def _viewed(table: reading.Table, rewrite: _Rewrite) -> reading.Table:
@@ -4213,9 +4234,13 @@ def column_as_checked(table: reading.Table, place: int) -> "list[str]":
     name = table.column_names[place]
     wanted = [place]
     reached = False
+    keyed: "list[tuple[str, frozenset[str]]]" = []
     for rewrite in rewrites:
         if name in rewrite.marks or name in rewrite.grained:
             reached = True
+        if rewrite.kind == _REWRITE_KEYED and name in rewrite.keyed:
+            reached = True
+            keyed += [rewrite.keyed[name]]
         if rewrite.kind == _REWRITE_AGES and name in rewrite.marks and name in rewrite.pooled:
             for subject in rewrite.pooled[name][1]:
                 for spot in range(width):
@@ -4255,7 +4280,17 @@ def column_as_checked(table: reading.Table, place: int) -> "list[str]":
                 rewrite.description,
                 rewrite.absent_read,
             )
-    return one.columns[place]
+    cells = one.columns[place]
+    # ...THE KEYED ROWS READ BLANK, LAST, as `measure` blanks a table read
+    # whole (batch 4t's fix round, item 5): the key column as the checked
+    # table reads it, through its own rewrites.
+    for key_name, absent in keyed:
+        for spot in range(width):
+            if table.column_names[spot] == key_name:
+                keys = reading.column_values(table, spot)
+                cells = ["" if _a_key_cell(keys[row], absent) else cells[row] for row in range(len(cells))]
+                break
+    return cells
 
 
 # WHAT USED TO STAND HERE, and why it does not (review item P3-V3-F5).
@@ -5649,6 +5684,13 @@ def measure(
         table = _year_top_coded_table(
             table, years_coded, declared_commas, declared_spellings(description)
         )
+        # ...AND EACH KEYED VALUE COLUMN'S ROWS OF A KEY READ BLANK (lane KV,
+        # plan P4-D487, validation V19): the value column's own block is its
+        # cells on the rows that hold no key, and its key blocks are recounted
+        # over the table as read here (`_key_block_checks`).
+        keyed_described = keyed_described_here(description)
+        keyed_table = table
+        table = _keyed_rows_blank(table, description)
         # ...AND THE COLUMNS COUNTED ABSENT AND THE POOLS COUNTED IN PEOPLE
         # (plan P4-D453, validation V17), handed to every description below.
         kept_levels = levels_kept_here(description)
@@ -5656,6 +5698,9 @@ def measure(
         # ...AND THE POOLS NAMED (lane CODES-2, plan P4-D471, validation V18):
         # the file re-described with exactly those columns' pools named.
         names_checked = names_checked_here(description)
+        # ...AND THE COLUMNS READ AS FREE TEXT FOR THEIR SENTENCES (lane NOTES,
+        # plan P4-D481): the file re-described with exactly those as free text.
+        described_text = described_text_here(description, table)
         # TWO DESCRIPTIONS, ALWAYS BOTH, AND WHAT EACH ONE DECIDES
         # (V2.1 and V2.4; review item P3-V2-A1). The first is the file's
         # OWN description -- what `synthtwin profile` would write about
@@ -5714,6 +5759,8 @@ def measure(
             levels_kept_only=kept_levels,
             counted_absent_only=absent_columns,
             names_checked_only=names_checked,
+            described_text=described_text,
+            keyed_described=keyed_described,
         )
         # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
         # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
@@ -5750,6 +5797,8 @@ def measure(
                     levels_kept_only=kept_levels,
                     counted_absent_only=absent_columns,
                     names_checked_only=names_checked,
+                    described_text=described_text,
+                    keyed_described=keyed_described,
                 )
         table = _at_their_grains(table, time_grains, description, absent_read)
         over_the_split = profile.build_document(
@@ -5785,6 +5834,8 @@ def measure(
             levels_kept_only=kept_levels,
             counted_absent_only=absent_columns,
             names_checked_only=names_checked,
+            described_text=described_text,
+            keyed_described=keyed_described,
         )
     except MemoryError as error:
         raise errors.ProfileError(
@@ -5825,6 +5876,8 @@ def measure(
     unrebuildable = unrebuildable_columns(description)
     listings = _listings(description, headed)
     for column in description.columns:
+        # The column count at a terminal only, written over in place (lane EZ-a, P4-D479).
+        progress.column(column.position, len(description.columns))
         if column.computed_from:
             # A COLUMN A CARRIED RULE COMPUTES publishes nothing read from
             # its cells (contract 4.6b.7), so this report checks and prints
@@ -5837,6 +5890,13 @@ def measure(
         why = ""
         if column.name in unrebuildable:
             why = unrebuildable[column.name]
+        # ...AND A HELD COLUMN OF DATES OR TIMES WRITTEN BLANK (lane
+        # ID-ROOM3's repair 1; LANE ID-ROOM3 RULINGS 3 (2) and 6 (3)): its
+        # room draws no made-up value, so the twin writes no value there,
+        # and its obligations over present cells go to the census with the
+        # sentence saying why, as one decision, the description unchanged.
+        elif held_written_blank(column):
+            why = _NOT_CHECKABLE_HELD_WRITTEN_BLANK
         if not why:
             checks = checks + _column_checks(
                 description, column, table, redescribed, over_the_split, headed
@@ -5846,6 +5906,8 @@ def measure(
         listings = listings + _unrebuildable_listings(
             description, column, headed, why
         )
+    # ...AND EACH KEY BLOCK RECOUNTED (lane KV, plan P4-D487, validation V19).
+    checks = checks + _key_block_checks(description, keyed_table)
     outcome = _assembled(checks, listings, measured_name)
     if chain_document is None:
         return outcome
@@ -5942,6 +6004,305 @@ def _at_their_grains(
     if not changed:
         return table
     return dataclasses.replace(table, columns=columns)
+
+
+def described_text_here(description: contract.Profile, table: reading.Table) -> "list[str]":
+    """The columns the description reads as free text for their sentences that the file carries (lane NOTES, plan P4-D481)."""
+    said = taxonomy.rendered(taxonomy.EVIDENCE_SENTENCES_AS_TEXT, ())
+    return [
+        column.name
+        for column in description.columns
+        if column.name in table.column_names and column.detection_evidence == said
+    ]
+
+
+def keyed_described_here(description: contract.Profile) -> "dict[str, str]":
+    """Each value column whose description is typed by a key column, with that key column (lane KV, plan P4-D487)."""
+    found: "dict[str, str]" = {}
+    for block in description.columns:
+        if block.keyed_by:
+            found[block.name] = block.keyed_by
+    return found
+
+
+def _key_absent(description: contract.Profile, key: contract.ColumnBlock) -> "frozenset[str]":
+    """The spellings a key column's cells read as no key: its own hole spellings and the table's declared ones, as the twin writes them (method G8.3f)."""
+    found: "dict[str, bool]" = {spelling: True for spelling in key.missing_by_source}
+    for spelling in declared_spellings(description):
+        found[spelling] = True
+    return frozenset(found)
+
+
+def _keyed_rows(
+    description: contract.Profile, table: reading.Table, value: contract.ColumnBlock
+) -> "tuple[list[str], list[str], frozenset[str]] | None":
+    """A keyed value column's cells, its key column's cells and the key's absent spellings, in the table as read; None where either column is not in it."""
+    if value.keyed_by not in table.column_names or value.name not in table.column_names:
+        return None
+    key = None
+    for block in description.columns:
+        if block.name == value.keyed_by:
+            key = block
+    if key is None:
+        return None
+    positions: "dict[str, int]" = {}
+    for place in range(len(table.column_names)):
+        name = f"{table.column_names[place]}"
+        if name not in positions:
+            positions[name] = place
+    return (
+        reading.column_values(table, positions[value.name]),
+        reading.column_values(table, positions[value.keyed_by]),
+        _key_absent(description, key),
+    )
+
+
+def _a_key_cell(cell: str, absent: "frozenset[str]") -> bool:
+    """Whether a key column's cell holds a key: anything but a blank or a spelling read as no key."""
+    return bool(parsing.trimmed(cell)) and cell not in absent
+
+
+def _keyed_rows_blank(table: reading.Table, description: contract.Profile) -> reading.Table:
+    """The checked table with each keyed value column's cells blank on every row that holds a key (lane KV, plan P4-D487, validation V19).
+
+    Its own block describes those cells on the rows of no key; the key
+    blocks are recounted apart (`_key_block_checks`), over the table as it
+    was handed in. A table read in groups carries the mask as one more
+    rewrite of its columns (batch 4t's fix round, item 5). A table with no
+    keyed column is returned as it is. Guarantees: a function of the two.
+    Raises nothing. No I/O.
+    """
+    if table.source is not None:
+        # ...A TABLE READ IN GROUPS (batch 4t's fix round, item 5): the mask
+        # is a rewrite each column is read through (`column_as_checked`), as
+        # the Safe Harbor ages, years and grains are; it was dropped, and the
+        # grouped route described the value column over every row (24,000
+        # present, labels) where the whole route read it blank (0 present).
+        keyed: "dict[str, tuple[str, frozenset[str]]]" = {}
+        for value in description.columns:
+            if not value.keyed_by or value.keyed_by not in table.column_names:
+                continue
+            if value.name not in table.column_names:
+                continue
+            for key in description.columns:
+                if key.name == value.keyed_by:
+                    keyed[value.name] = (value.keyed_by, _key_absent(description, key))
+        if not keyed:
+            return table
+        return _viewed(table, _Rewrite(kind=_REWRITE_KEYED, keyed=keyed))
+    blanked: "dict[str, list[str]]" = {}
+    for value in description.columns:
+        if not value.keyed_by:
+            continue
+        found = _keyed_rows(description, table, value)
+        if found is None:
+            continue
+        values, keys, absent = found
+        blanked[value.name] = [
+            "" if _a_key_cell(keys[place], absent) else values[place] for place in range(len(values))
+        ]
+    if not blanked:
+        return table
+    columns: "list[list[str]]" = []
+    for place in range(len(table.columns)):
+        name = table.column_names[place] if place < len(table.column_names) else ""
+        columns += [blanked[name] if name in blanked else table.columns[place]]
+    return dataclasses.replace(table, columns=columns)
+
+
+def _key_block_checks(description: contract.Profile, table: reading.Table) -> "list[Check]":
+    """Each key block's rows and present cells recounted on the checked table (lane KV, plan P4-D487, validation V19).
+
+    For each value column typed by a key: each published key's rows in the
+    file -- its key column's cells read as that label, trimmed and case
+    folded -- and the present cells of the value column among them, against
+    the key block's own rows and present cells; and the rare keys' rows and
+    present cells against the pooled block's. A cell is present where it is
+    not blank, is no spelling the block counts absent and is no spelling the
+    producer reads as no value (batch 4t's fix round, item 6: the floor
+    keeps a rare one out of the published map). A key's line names
+    the published label; the pool's names none. Each count is the block's
+    own published fact (`n_present`, its rows its present and absent cells
+    together), so it is printed. Guarantees: a function of the two. Raises
+    nothing. No I/O.
+    """
+    checks: "list[Check]" = []
+    floor = description.settings.small_cell_floor
+    settings = settings_for(description)
+    persons = _keyed_people(description, table)
+    for value in description.columns:
+        if not value.keyed_by:
+            continue
+        found = _keyed_rows(description, table, value)
+        if found is None:
+            continue
+        values, keys, absent = found
+        # ...A CELL IS ABSENT AS THE PRODUCER READS IT (batch 4t's fix round,
+        # item 6): blank, a spelling the block publishes, or one the
+        # producer's own reading calls no value (`taxonomy.split_missing`),
+        # whether or not the floor let the block publish it -- three `NA`
+        # cells among 4,000 pulse values were recounted as present.
+        nobody = _read_as_absent(values, settings)
+        rows: "dict[str, list[int]]" = {}
+        present: "dict[str, list[int]]" = {}
+        blocks = {label: block for label, block in value.key_blocks}
+        holes_of = {label: frozenset(block.missing_by_source) for label, block in value.key_blocks}
+        pool_holes = frozenset(value.key_pool.missing_by_source) if value.key_pool is not None else frozenset()
+        pool_rows: "list[int]" = []
+        pool_present: "list[int]" = []
+        for place in range(len(values)):
+            if not _a_key_cell(keys[place], absent):
+                continue
+            label = parsing.folded(keys[place])
+            cell = values[place]
+            if label in blocks:
+                if label not in rows:
+                    rows[label] = []
+                    present[label] = []
+                rows[label] += [place]
+                if parsing.trimmed(cell) and cell not in holes_of[label] and cell not in nobody:
+                    present[label] += [place]
+            else:
+                pool_rows += [place]
+                if parsing.trimmed(cell) and cell not in pool_holes and cell not in nobody:
+                    pool_present += [place]
+        for label, block in value.key_blocks:
+            held = rows[label] if label in rows else []
+            filled = present[label] if label in present else []
+            checks += [
+                _key_count_floored(
+                    _key_count_check(
+                        value.name, label, block.n_present + block.n_missing, len(held),
+                        block.n_present, len(filled), block.present_count_withheld,
+                    ),
+                    floor, len(held), len(filled), _people_of(persons, held), _people_of(persons, filled),
+                )
+            ]
+        if value.key_pool is not None:
+            checks += [
+                _key_count_floored(
+                    _key_count_check(
+                        value.name, "", value.key_pool.n_present + value.key_pool.n_missing,
+                        len(pool_rows), value.key_pool.n_present, len(pool_present),
+                        value.key_pool.present_count_withheld,
+                    ),
+                    floor, len(pool_rows), len(pool_present),
+                    _people_of(persons, pool_rows), _people_of(persons, pool_present),
+                )
+            ]
+    return checks
+
+
+def _read_as_absent(values: "list[str]", settings: taxonomy.Settings) -> "frozenset[str]":
+    """The spellings of a keyed value column's cells the producer reads as no value (`taxonomy.split_missing`, under the description's own settings), each different cell read once (batch 4t's fix round, item 6). Raises nothing. No I/O."""
+    seen: "dict[str, bool]" = {}
+    distinct: "list[str]" = []
+    for cell in values:
+        if cell not in seen:
+            seen[cell] = True
+            distinct += [cell]
+    _present, absent = taxonomy.split_missing(distinct, settings)
+    return frozenset(spelling for spelling, _class in absent)
+
+
+def _keyed_people(description: contract.Profile, table: reading.Table) -> "list[list[str]]":
+    """Each described person column of the checked table as the subjects its cells name, merged as the producer merges them (`profile.subject_keys`); empty where none is described or none is in the table (batch 4t's fix round, item 3)."""
+    found: "list[list[str]]" = []
+    missing = declared_spellings(description)
+    for person in description.settings.person_columns:
+        for place in range(len(table.column_names)):
+            if f"{table.column_names[place]}" == person:
+                found += [profile.subject_keys(reading.column_values(table, place), missing)]
+                break
+    return found
+
+
+def _people_of(persons: "list[list[str]]", places: "list[int]") -> int:
+    """The fewest people any described person column counts on the rows at ``places`` (a blank key no one), -1 where no person column is read. Linear in the places. Raises nothing."""
+    if not persons:
+        return -1
+    fewest = -1
+    for keys in persons:
+        held = len({keys[place] for place in places if place < len(keys) and keys[place]})
+        fewest = held if fewest < 0 else min(fewest, held)
+    return fewest
+
+
+# A KEY BLOCK COUNTED ABSENT (lane KV's repair 2, the orchestrator's LANE KV
+# RULINGS 6 (2); validation V19 as V17.2 reads a column so): its present
+# cells are fewer people's than the floor, so it publishes no count of them,
+# and the twin writes its made-up word in the floor's number of its cells
+# (method G8.3d) where the real table holds its own values. Its rows are
+# recounted; its present cells are not observed, on either file.
+_KEY_BLOCK_COUNT_NOT_PUBLISHED = (
+    "how many of them hold a value is not published, too few people's to "
+    "count, and is not observed"
+)
+
+
+def _key_count_check(
+    name: str,
+    label: str,
+    rows: int,
+    found_rows: int,
+    cells: int,
+    found_cells: int,
+    withheld: bool = False,
+) -> Check:
+    """One key block's recount: its rows and its present cells, met exactly or missed (validation V19); a block counted absent (``withheld``, V17.2) its rows alone, its present cells not observed. The measured side as counted; `_key_count_floored` writes it as a report may print it."""
+    which = f"the key {label}" if label else "the keys too few people hold, together"
+    subcheck = f"by_key.{label}" if label else "by_key.pool"
+    if withheld:
+        shown = f"{rows} rows of {which}; {_KEY_BLOCK_COUNT_NOT_PUBLISHED}"
+        if rows == found_rows:
+            return Check(name, "label.by_key", subcheck, HELD, shown)
+        return Check(name, "label.by_key", subcheck, MISSED, shown, f"{found_rows} rows")
+    shown = f"{rows} rows of {which}, {cells} of them holding a value"
+    met = rows == found_rows and cells == found_cells
+    if met:
+        return Check(name, "label.by_key", subcheck, HELD, shown)
+    return Check(
+        name, "label.by_key", subcheck, MISSED, shown,
+        f"{found_rows} rows, {found_cells} of them holding a value",
+    )
+
+
+def _key_count_floored(
+    check: Check, floor: int, found_rows: int, found_cells: int, row_people: int, cell_people: int
+) -> Check:
+    """A key block's recount with its measured side written as a report may print it (V5; batch 4t's fix round, item 3).
+
+    Each count measured on the checked file goes through the floor
+    (`_key_count_shown`) in both branches -- `4000 rows, 1 of them holding a
+    value` named a value one person holds -- counted in rows and, where the
+    description names person columns, in the people behind it (the rows'
+    people and the present cells' people; -1 where none is read). The
+    verdict is the exact comparison, as before. Guarantees: a fixed function
+    of its arguments. Raises nothing.
+    """
+    if check.verdict != MISSED:
+        return check
+    rows_said = _key_count_shown(found_rows, floor, row_people, "rows")
+    if check.achieved == f"{found_rows} rows":
+        return dataclasses.replace(check, achieved=rows_said)
+    if check.achieved == f"{found_rows} rows, {found_cells} of them holding a value":
+        cells_said = _key_count_shown(found_cells, floor, cell_people, "of them holding a value")
+        return dataclasses.replace(check, achieved=f"{rows_said}, {cells_said}")
+    return check
+
+
+def _key_count_shown(count: int, floor: int, people: int, what: str) -> str:
+    """A count of rows or cells measured on the checked file as a report may print it (V5; batch 4t's fix round, item 3), ``what`` the words after it: 0, or a count of the floor's rows or more held by the floor's people or more (``people`` -1 where no person column is described), written out; fewer rows than the floor written as fewer than the floor (`_below_the_floor`); the floor's rows or more of fewer people written as of fewer people than the floor. Never the number. Raises nothing."""
+    if count == 0 or (count >= floor and (people < 0 or people >= floor)):
+        return f"{_shown_count(count)} {what}"
+    if count < floor:
+        return f"{_below_the_floor(floor)} {what}"
+    return f"{_KEY_COUNT_OF_FEW_PEOPLE[what] if what in _KEY_COUNT_OF_FEW_PEOPLE else what} of {_below_the_floor(floor)} people"
+
+
+# The words of a measured count of the floor's rows or more that fewer people
+# than the floor hold (`_key_count_shown`).
+_KEY_COUNT_OF_FEW_PEOPLE = {"rows": "rows", "of them holding a value": "values among them"}
 
 
 def names_checked_here(description: contract.Profile) -> "tuple[str, ...]":
@@ -23723,6 +24084,14 @@ def _identifier_checks(
     moved, lengths = moved_off_the_real(
         facts, column.n_present, column.time_grain is not None
     )
+    # ...AND A HELD COLUMN OF COUNTED DATES WRITTEN IN THE ROOM (lane
+    # ID-ROOM3, plan P4-D488): its made-up counts are its room years', so
+    # its layouts, lengths and counts of figures alone are listed too
+    # (`counted_in_the_room`).
+    in_the_room = counted_in_the_room(column)
+    if in_the_room:
+        moved = _room_moved(facts)
+        lengths = True
     # ...AND A VALUE THE TWIN WROTE WIDER ALL THE SAME (method G9.6b: an
     # excluded template a value of another class or a date could not
     # take): every real cell's merged key is shorter than the spill's, so
@@ -23740,6 +24109,8 @@ def _identifier_checks(
         ("n_code_alphabet", facts.n_code_alphabet, "counts.n_code_alphabet"),
     ):
         if lengths and field in ("min_length", "max_length"):
+            continue
+        if in_the_room and field in ("n_all_digits", "n_code_alphabet"):
             continue
         found = (
             absorbed_lengths[field]
@@ -23832,6 +24203,79 @@ def _identifier_checks(
         )
     ]
     return checks
+
+
+def held_written_blank(column: contract.ColumnBlock) -> bool:
+    """Whether a held column's twin is written blank: its grain reads dates or stamps and its block publishes no run of its kind of year (lane ID-ROOM3's repair 1, plan P4-D488).
+
+    THIS VALIDATOR'S OWN READING of method G9.6c and remark NF137, from
+    the description alone: a record-number block whose `time_grain` at
+    the rung `held` reads dates or stamps draws its made-up values from
+    the runs its `made_up_years` publishes of the kind of year its reading
+    writes -- two figures where the reading writes two, four elsewhere --
+    and, publishing none, has its twin written blank in each present cell
+    (a made-up word holding no figure aside). Raises nothing. No I/O.
+    """
+    grain = column.time_grain
+    facts = column.facts
+    if grain is None or grain.rung != grains.HELD or grain.reading.kind not in (grains.DATE, grains.STAMP):
+        return False
+    if not isinstance(facts, contract.IdentifierFacts):
+        return False
+    member = grain.reading.member
+    two = parsing.layout_two_figure_year(member) > 0 if parsing.is_layout_name(member) else "two-digit" in member
+    for first, last in facts.made_up_years or ():
+        if two and first <= 99 and last <= 99:
+            return False
+        if not two and first > 99:
+            return False
+    return True
+
+
+def counted_in_the_room(column: contract.ColumnBlock) -> bool:
+    """Whether a held column of counted dates has its made-up counts written in the room (lane ID-ROOM3, plan P4-D488).
+
+    THIS VALIDATOR'S OWN READING of contract 7.12c and method G9.6c, from
+    the description alone: a record-number block whose `time_grain` reads
+    counted dates and whose `made_up_years` publishes a run of four-figure
+    years has its G1 floor draw every made-up count's moment in those
+    years, so the counts' lengths, signs and layouts are the room's, and
+    one publishing none writes the walk's values moved off every real day:
+    its layout census, lengths and counts of figures alone are listed
+    REPORT-ONLY; so too a held column of counts with no grain whose block
+    publishes `made_up_years` (its walk's values moved off every real day).
+    Raises nothing. No I/O.
+    """
+    grain = column.time_grain
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts) or facts.made_up_years is None:
+        return False
+    if grain is None:
+        # ...AND A HELD COLUMN OF COUNTS WITH NO GRAIN that publishes the
+        # room its counts would take (contract 7.12c): its walk's values
+        # that stood inside the span real counts fill were moved off every
+        # real day, past the spill or into its layout's nine hundreds
+        # (method G9.6c step 4), so its census, lengths and counts of
+        # figures alone are its made-up values', not the table's.
+        # ...a layout holding no figure -- a stray word's, which the
+        # producer set aside whatever its share (lane ID-ROOM3's repair 1)
+        # -- passed over as the pool is, and a stray layout the count
+        # grammar does not read under the producer's cap, as its tests pass
+        # it over (`taxonomy.held_count_layouts_aside`; lane ID-ROOM3's
+        # repair 2).
+        return taxonomy.held_count_layouts_aside(dict(facts.layout_forms), column.n_present) is not None
+    # ...a held column of counted dates publishing no room writes no date
+    # (NF137): its walk's values, those inside the span real counts fill
+    # moved off every real day, so the same is listed.
+    return grain.reading.kind == grains.COUNTED
+
+
+def _room_moved(facts: contract.IdentifierFacts) -> "tuple[str, ...]":
+    """Every layout the census of a held column of counted dates written in the room names, its pool too (lane ID-ROOM3, plan P4-D488)."""
+    named: "list[str]" = []
+    for layout in sorted(facts.layout_forms):
+        named += [layout]
+    return tuple(named)
 
 
 def moved_off_the_real(
@@ -24138,15 +24582,37 @@ def _unrepresentable_checks(
         ("n_sign_unknown", facts.n_sign_unknown),
     ):
         found = _count_at(block, field)
-        checks += [
-            _exact(
+        check = _exact(
+            name,
+            f"numeric_unrepresentable.{field}",
+            f"counts.{field}",
+            _shown_count(published),
+            None if found is None else _shown_count(found),
+        )
+        # A MADE-UP SPELLING WRITTEN WIDER (lane ID-ROOM4, plan P4-D489;
+        # method G10.5 step 7): a column whose block carries NF139 has every
+        # twin cell one letter or figure longer than its longest value, so
+        # that none equals one of the table's, and a length the measured
+        # file holds longer than the published one is that lesser outcome,
+        # authorized by the plan's words. A length shorter, or any other
+        # count, stays exact.
+        if (
+            check.verdict == MISSED
+            and field in ("min_length", "max_length")
+            and column.detection_evidence == _SPELLED_WIDER_EVIDENCE
+            and found is not None
+            and found > published
+        ):
+            check = Check(
                 name,
                 f"numeric_unrepresentable.{field}",
                 f"counts.{field}",
+                AUTHORIZED_DEVIATION,
                 _shown_count(published),
-                None if found is None else _shown_count(found),
+                _shown_count(found),
+                _SPELLED_WIDER_CITATION,
             )
-        ]
+        checks += [check]
     checks += [
         _occurrences(
             name,
@@ -24156,6 +24622,19 @@ def _unrepresentable_checks(
         )
     ]
     return checks
+
+
+# The detection evidence of a column spelled wider (contract NF139), and the
+# plan's words for the lesser outcome its two lengths take.
+_SPELLED_WIDER_EVIDENCE = taxonomy.rendered(
+    taxonomy.EVIDENCE_MADE_UP_SPELLED_REAL, ()
+)
+_SPELLED_WIDER_CITATION = (
+    "phase-4 plan P4-D489, as the disposition registry cites it: in a "
+    "made-up spelling written wider, `min_length` and `max_length` are "
+    "APPROXIMATED, by the twin's cells written one letter or figure longer "
+    "than every real value"
+)
 
 
 def _occurrences(
@@ -24306,13 +24785,30 @@ def _listings(
             moved, lengths = moved_off_the_real(
         facts, column.n_present, column.time_grain is not None
     )
+            in_the_room = counted_in_the_room(column)
+            if in_the_room:
+                moved = _room_moved(facts)
+                lengths = True
+                for field, subcheck in (
+                    ("n_all_digits", "counts.n_all_digits"),
+                    ("n_code_alphabet", "counts.n_code_alphabet"),
+                ):
+                    listings += [
+                        Listing(
+                            column.name,
+                            f"identifier.{field}",
+                            subcheck,
+                            _NOT_CHECKABLE_COUNTED_IN_THE_ROOM,
+                        )
+                    ]
+            reason = _NOT_CHECKABLE_COUNTED_IN_THE_ROOM if in_the_room else _NOT_CHECKABLE_MOVED_OFF_THE_REAL
             for layout in moved:
                 listings += [
                     Listing(
                         column.name,
                         "identifier.layout_forms",
                         f"forms.published.{layout}",
-                        _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
+                        reason,
                     )
                 ]
             if lengths:
@@ -24324,7 +24820,7 @@ def _listings(
                             column.name,
                             f"identifier.{field}",
                             subcheck,
-                            _NOT_CHECKABLE_MOVED_OFF_THE_REAL,
+                            reason,
                         )
                     ]
         if isinstance(facts, contract.ClockFacts):

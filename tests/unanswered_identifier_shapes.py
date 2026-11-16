@@ -885,6 +885,21 @@ def _csv_column(path: pathlib.Path, place: int, delimiter: str = ",") -> "list[s
     return [row[place] for row in rows[1:]]
 
 
+def without_the_folder(text: str, folder: pathlib.Path) -> str:
+    """A text a run wrote or printed, with the run's own folder written out of it (batch 4t's last code round, item 2).
+
+    The screen names the files it writes by their paths, and a path is the words the person typed, no value of
+    the table: the whole suite of the fix round ran in a folder named after its head, `suite-50203b85`, and the
+    figures `50203` of the real value `S24-50203` of `refyear` stood in it with no figure against them, so the
+    held column was counted as publishing one value (the orchestrator's LANE I4t RULINGS 2 (2)). Each spelling
+    of the folder a run may print, as given and resolved, the longer first, is written `<folder>`; nothing else
+    of the text moves.
+    """
+    for spelled in sorted({f"{folder}", f"{folder.resolve()}"}, key=len, reverse=True):
+        text = text.replace(spelled, "<folder>")
+    return text
+
+
 def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
     """Profile the table unanswered, generate seed 0, and count what is real."""
     table, real = write_table(folder, kind, rows)
@@ -943,7 +958,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         cells = []
     counted = count_real(
         [value for value in real if value not in starts],
-        list(texts.values()) + [screen.getvalue()],
+        [without_the_folder(text, folder) for text in [*texts.values(), screen.getvalue()]],
         cells,
     )
     seen: "dict[str, object]" = {

@@ -1515,7 +1515,7 @@ def test_every_caution_key_is_one_the_command_gives() -> None:
 _USAGE_311 = (
     "usage: synthtwin [-h] [--version] [--twin PATH] [--out-dir FOLDER]\n"
     "                 [--seed NUMBER] [--replace] [--smallest-group ROWS]\n"
-    "                 [--identifier COLUMN] [--code COLUMN]\n"
+    "                 [--person COLUMN] [--identifier COLUMN] [--code COLUMN]\n"
     "                 [--decimal-comma COLUMN] [--measurement COLUMN]\n"
     "                 [--century COLUMN=YEAR] [--date-column COLUMN]\n"
     "                 [--twelve-hour COLUMN] [--date-count COLUMN SYSTEM]\n"
@@ -2155,9 +2155,18 @@ _TODAY_S_FILES = {
     # file rendered on extracted copies under the memory guard: 1859409a...
     # before the merge (26843782), 99767655... on lane SH3's head, ffd75d61...
     # merged: lane SH3's words above and lane CL's day count from 1840, and
-    # nothing else; no word or number of the table is new to it.
-    "held": "ffd75d610530c7462998422a3ecc1069e25f6537b122ef829393b49e9416f9df",
-    "filequestion": "f9a69d985e8802fb2016a7933542441c473467716dc69027ce292203506d199e",
+    # nothing else; no word or number of the table is new to it. Both moved
+    # again with lane EZ-a (plan P4-D479): the file's 'how_to_answer' names the
+    # plain-text answers file and the keyboard too, and nothing else in either
+    # file changed (diffed against the base's file at 2,000 rows: that one
+    # line); the descriptions are the base's byte for byte. And again with the
+    # lane's repair 1 (LANE EZ RULINGS 4 (2)): that line says where a
+    # question's number is printed and that a numbered line names its column.
+    # And again with its repair 2 (LANE EZ RULINGS 7, Codex's items 2 and 3):
+    # that line says a column is named exactly and the numbers are not read
+    # back, and nothing else in either file changed.
+    "held": "ad8a7d51a85709a7c1ccb5b6732239cc0737ac719ee8d198d4943b462ec4bed4",
+    "filequestion": "2c19c2e643b2be8f075f0229ee0c30c7587738c5137955b1c838c91a0dfaaa43",
 }
 
 
@@ -2390,19 +2399,22 @@ def test_a_question_put_at_a_prompt_is_said_put_and_counted(
     answered = _library_profile(tmp_path / "answered", "stamp", monkeypatch, ask=["2"])
     assert answered.questions == ()
     assert answered.tally == _profile_tally(0, 1, 0, 0, 2)
+    # ...AND THE QUESTION THE FIRST PROMPT DID NOT PUT IS PUT AFTER THE FILES
+    # ARE WRITTEN (lane EZ-a, plan P4-D479: every question at the keyboard),
+    # so it is said put and counted as well; Enter leaves it open.
     days = _library_profile(tmp_path / "days", "day", monkeypatch, ask=["", "", ""])
     assert [(one.column, one.reason, one.put) for one in days.questions] == [
         ("day", "two-numbers", True),
-        ("day", "figures-that-may-be-days-of-the-year", False),
+        ("day", "figures-that-may-be-days-of-the-year", True),
     ]
-    assert days.tally == _profile_tally(2, 1, 0, 0, 2)
+    assert days.tally == _profile_tally(2, 2, 0, 0, 2)
     two = _library_profile(tmp_path / "two", "two", monkeypatch, ask=["", "", "", ""])
     assert [(one.column, one.reason, one.put) for one in two.questions] == [
         ("day", "two-numbers", True),
         ("stamp", "fixed-width", True),
-        ("day", "figures-that-may-be-days-of-the-year", False),
+        ("day", "figures-that-may-be-days-of-the-year", True),
     ]
-    assert two.tally == _profile_tally(3, 2, 0, 0, 3)
+    assert two.tally == _profile_tally(3, 3, 0, 0, 3)
 
 
 def test_the_held_section_s_record_and_the_tally_that_counts_it(

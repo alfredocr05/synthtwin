@@ -192,6 +192,10 @@ KNOWN_CONFIG_JSON = {
 # fixture-manifest entry or must not be committed.
 KNOWN_CONFIG_YAML = {
     ".github/workflows/ci.yml",
+    # The ready folder for Windows and its backup, built and rehearsed on
+    # Windows runners (plan P4-D483, lane WIN): a workflow definition,
+    # reviewed like ci.yml, holding no table.
+    ".github/workflows/windows-bundle.yml",
 }
 
 ARCHIVE_SUFFIXES = {

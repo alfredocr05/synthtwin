@@ -308,6 +308,36 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "answers_entry_names_no_column": ("checklist[7]",),
     "answers_entry_offers_nothing": ("asked[2]", "dose"),
     "answers_names_one_key_twice": ("/data/clinic-questions.json", "column"),
+    # THE ANSWERS FILE'S OWN MESSAGES (lane EZ-a, plan P4-D479): raised by
+    # `contract.load_answers` alone, each naming the answers file, never
+    # the description, and asking for the same command again; and the
+    # plain-text answers file's, each naming a line and the column it
+    # names, never an answer written there.
+    "answers_file_missing": ("/data/clinic-questions.json",),
+    "answers_path_is_a_folder": ("/data",),
+    "answers_not_text": ("/data/clinic-questions.json",),
+    "answers_out_of_memory": ("/data/clinic-questions.json",),
+    "answers_file_unreadable": ("/data/clinic-questions.json", "permission denied"),
+    "answers_not_json": ("/data/clinic-questions.json", 127, 22, True),
+    "answers_nested_too_deeply": ("/data/clinic-questions.json", 64),
+    "answers_number_too_long": ("/data/clinic-questions.json", 4096),
+    "answers_text_without_questions": ("/data/answers.txt", "/data/clinic-questions.json"),
+    "answers_line_not_understood": ("/data/answers.txt", 3),
+    "answers_line_names_nothing": ("/data/answers.txt", 4, "weigth"),
+    "answers_line_asks_twice": ("/data/answers.txt", 5, "visit_code", ["question 2", "question 3"]),
+    "answers_line_answers_again": ("/data/answers.txt", 6, "weight", 2),
+    "answers_line_not_offered": ("/data/answers.txt", 7, "weight", ["no", "yes"]),
+    # ...and the numbers the screen prints, which a text file reads back for
+    # a question about the file alone (lane EZ-a's second repair): a number
+    # before a column, a number alone for a column's question or naming no
+    # open question; and a column named with other capitals.
+    "answers_line_number_alone": ("/data/answers.txt", 8, 7, "dx_code"),
+    "answers_line_numbered": ("/data/answers.txt", 9, 7, "dx_code"),
+    "answers_line_number_not_there": ("/data/answers.txt", 10, 7),
+    "answers_line_capitals": ("/data/answers.txt", 11, "Weight", ["weight"]),
+    # PEOPLE COUNTED TOGETHER (lane EZ-a, plan P4-D479): the cause, the
+    # count in people and `--person`.
+    "people_counted_together": (20000, 1, ["clinician_id", "subject_id"]),
     # THE PAIR THE FILE MAY NOT CARRY (review of stage 3, floor item 1).
     # An answer that changes how the file is READ gives the file's own
     # column names to different columns, so a declaration made by name

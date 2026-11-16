@@ -268,10 +268,13 @@ def test_answering_keep_gives_back_the_labels(tmp_path: pathlib.Path) -> None:
     assert block["levels"], "the answer `keep` publishes the levels it names"
     settings = document["settings"]
     assert isinstance(settings, dict) and settings["forced_identifiers"] == []
-    # ...and the file asks again under the reading in force, as before.
-    assert [entry["read_as_now"] for entry in _asked_of(tmp_path, "record")] == [
-        asking.ANSWER_KEEP
-    ]
+    # ...and the file keeps the answer and does not put the person question
+    # again (lane EZ-a, plan P4-D479; the orchestrator's LANE EZ RULINGS 1
+    # (7): an answer given is not asked again). It asked again under
+    # `read_as_now: keep` until then, the description the same either way.
+    assert _asked_of(tmp_path, "record") == []
+    kept = json.loads((tmp_path / "record_long-questions.json").read_text(encoding="utf-8"))["answered_before"]
+    assert [entry["your_answer"] for entry in kept if entry["column"] == "record"] == [asking.ANSWER_KEEP]
 
 
 def test_a_keep_survives_the_file_it_wrote_handed_back_blank(
@@ -679,6 +682,11 @@ def _enter_at_route_four(
     tmp_path.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     monkeypatch.setattr("builtins.input", lambda prompt="": typed)
+    # ...and no round after the files (lane EZ-a, plan P4-D479): this case is
+    # route four's question, put before them, and the round after them asks
+    # again at a line its question does not offer, so the same line typed at
+    # every prompt -- `2` at a Safe Harbor question -- would be asked forever.
+    monkeypatch.setattr(cli, "_ANSWER_ROUNDS_AT_MOST", 1)
     table, _real = shapes.write_table(tmp_path, "randkey", _ROWS)
     assert cli.main(["profile", f"{table}", "--out-dir", f"{tmp_path}"]) == 0
     document = json.loads(

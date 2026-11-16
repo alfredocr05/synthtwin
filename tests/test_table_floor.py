@@ -173,7 +173,7 @@ def test_at_the_keyboard_an_unanswered_question_does_not_refuse_either(
     """Somebody at the keyboard who answers nothing: described, and told."""
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([""] * 9)
-    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers))
+    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers, ""))
     table = _candidate_table(tmp_path)
     assert _profile(table) == 0
     said = capsys.readouterr().err
@@ -189,7 +189,7 @@ def test_the_same_column_answered_as_a_person_column_is_refused(
     """Answered at the keyboard: 500 people, and the second census refuses."""
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_IDENTIFIER] + [""] * 8)
-    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers))
+    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers, ""))
     table = _candidate_table(tmp_path)
     assert _profile(table) == 1
     said = capsys.readouterr().err
@@ -210,7 +210,7 @@ def test_the_second_census_counts_merged_people_and_names_the_run_s_group(
     """
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_IDENTIFIER] + [""] * 20)
-    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers))
+    monkeypatch.setattr(cli, "_read_one_answer", lambda standing: next(answers, ""))
     lines = ["subject_id,score"]
     for index in range(ROWS):
         subject = index % 600
@@ -600,7 +600,7 @@ def _every_option() -> "list[str]":
 
 
 # A valid value for each option on the 19,999-row `age,site` table; each
-# run reaches the refusal (measured: all 21 exit 1 with the floor's
+# run reaches the refusal (measured: all 22 exit 1 with the floor's
 # message). Help and the version stop before any table is read, and are
 # asked only to write nothing.
 _VALUES: "dict[str, list[str]]" = {
@@ -619,6 +619,8 @@ _VALUES: "dict[str, list[str]]" = {
     "--metadata-rows": ["0"],
     "--missing-value": ["-999"],
     "--out-dir": ["@out"],
+    # -- lane EZ-a (plan P4-D479): the column said to name the person.
+    "--person": ["age"],
     "--replace": [],
     "--seed": ["7"],
     "--sheet": ["Sheet1"],

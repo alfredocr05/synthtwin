@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from synthtwin import cli, taxonomy
+from synthtwin import asking, cli, taxonomy
 
 
 def every_reading_kept(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -92,3 +92,21 @@ def dates_in_disguise_answered_no(monkeypatch: pytest.MonkeyPatch) -> None:
     from synthtwin import date_counts
 
     monkeypatch.setattr(date_counts, "dated_values_blanked", lambda cells, *held: None)
+
+
+def keyed_answered_as_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The person answers `keyed` to every question Q-KEYED, as the describe read the pair (plan P4-D487).
+
+    A test about something else -- answers kept across the rounds of the
+    questions file -- whose value column Q-KEYED reaches takes the
+    description `keyed` gives back, byte for byte: the question holds
+    nothing and its blank leaves the reading standing, so it is not put,
+    and the description, its summary and the twin are those the answer
+    gives; only the questions file keeps no answer to it. Q-KEYED waits a
+    round behind a value column's own question offering `identifier` (one
+    question a column, that one first), and no option types it. The
+    question itself is pinned by `tests/test_key_value.py` and K-HZ-37, and
+    the bytes this answer gives back by
+    `tests/test_answers_across_rounds.py`.
+    """
+    monkeypatch.setattr(asking, "keyed_questions", lambda *_given, **_named: [])

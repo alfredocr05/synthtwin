@@ -185,12 +185,16 @@ def test_enter_keeps_the_reading_of_codes_against_measurements(
     assert {"stature", "clock"} <= put
 
 
-def test_the_prompt_puts_no_safe_harbor_question(entered_ran: "dict[str, typing.Any]") -> None:
-    """The Safe Harbor questions are answered in the questions file alone: the prompt puts none, so Enter answers none.
+def test_the_safe_harbor_questions_are_put_after_the_files_and_enter_answers_none(
+    entered_ran: "dict[str, typing.Any]",
+) -> None:
+    """The Safe Harbor questions are put at the keyboard after the files are written, and Enter answers none of them.
 
-    Every question the prompt put is one of the column questions; each
-    Safe Harbor question the file asks (the birth date and the weight's
-    top-code among them) was put at no prompt.
+    Lane EZ-a (plan P4-D479; the walkthrough's item 4): until it, the prompt
+    put none and they were answered in the questions file alone. Each Safe
+    Harbor question the file asks (the birth date and the weight's top-code
+    among them) is put; Enter leaves every one open, so the holds above
+    stand; every question shown is counted as put.
     """
     from synthtwin import asking
 
@@ -202,8 +206,13 @@ def test_the_prompt_puts_no_safe_harbor_question(entered_ran: "dict[str, typing.
         if one.reason in asking.SAFE_HARBOR_REASONS + asking.SH2_SAFE_HARBOR_REASONS
     ]
     assert {one.column for one in harbor} >= {"born", "weight"}
-    assert not [one for one in harbor if one.put]
-    shown = re.findall(r"\n  Column [0-9]+ of [0-9]+: '", _text(screen))
+    assert [one for one in harbor if not one.put] == []
+    # A later round heads each question with the number the questions file
+    # gives it, its place in the round after it (lane EZ-a's repair, LANE EZ
+    # RULINGS 4 (2)): 'Question 7 (1 of 2 in this round)'.
+    shown = re.findall(
+        r"\n  (?:Column [0-9]+ of [0-9]+|Question [0-9]+ \([0-9]+ of [0-9]+ in this round\)): ", _text(screen)
+    )
     assert dict(result.steps[0].tally)["questions-put"] == len(shown)
 
 
@@ -265,17 +274,17 @@ def test_enter_is_taught_the_command_nobody_s_run_is_taught(
 def test_the_answers_line_counts_only_the_questions_the_screen_puts(
     held_ran: "dict[str, typing.Any]", entered_ran: "dict[str, typing.Any]"
 ) -> None:
-    """Codex's item 9, skeptic 1's item 5 (LANE TT RULINGS 2 (5)): the answers line counts the questions the prompt puts, and names the rest.
+    """Codex's item 9, skeptic 1's item 5 (LANE TT RULINGS 2 (5)): the answers line counts the questions the prompt puts.
 
     On c4925cd8 the line said 6 questions would be answered on screen
-    where the command put 3: the Safe Harbor questions and those about
-    the file are answered in the questions file alone. Here the count on
-    screen is the count the prompt put when somebody pressed Enter at
-    every question (E_enter), and the rest are named as the file's.
+    where the command put 3. Since lane EZ-a (plan P4-D479) every open
+    question is put at the keyboard -- the Safe Harbor questions and those
+    about the file after the files are written -- so the line counts every
+    one, and every one was put when somebody pressed Enter at every
+    question (E_enter).
     """
     twin, screen = held_ran["E"]
     pressed, _pressed_screen = entered_ran["E_enter"]
-    put = dict(pressed.steps[0].tally)["questions-put"]
     asked = [
         one
         for one in twin.steps[0].questions
@@ -283,6 +292,15 @@ def test_the_answers_line_counts_only_the_questions_the_screen_puts(
     ]
     shown = _text(screen)
     assert f"Nobody was at the keyboard to answer {len(asked)} question(s)" in shown
-    assert f"{put} of them can be answered on screen" in shown
-    assert 0 < put < len(asked)
-    assert f"The other {len(asked) - put} are answered in" in shown
+    assert f"{len(asked)} of them can be answered on screen" in shown
+    assert "are answered in" not in shown
+    put = {
+        (one.section, one.subject, one.reason)
+        for one in pressed.steps[0].questions
+        if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED) and one.put
+    }
+    assert put == {
+        (one.section, one.subject, one.reason)
+        for one in pressed.steps[0].questions
+        if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)
+    }

@@ -179,10 +179,14 @@ def test_every_space_and_dash_of_the_product_is_read_in_each_place_of_the_frame(
             assert coded == mark_cell.format(mark), (repr(cell), repr(coded))
         else:
             assert coded == cell, (repr(cell), repr(coded))
-    # ...a dash after a space and before a figure is the number's sign, as `-` is (`Age -1`).
+    # ...a dash after a space and before a figure is a mark, never the number's
+    # sign: an age is never negative (lane HB3-a, plan P4-D482; the
+    # orchestrator's LANE HB3-a RULINGS 4 (2), item C2: `Age -95` and
+    # `Age<U+2013>95` were -95, put no Safe Harbor question and were published).
     for dash in DASHES:
         read = taxonomy.safe_harbor_number(f"Age {dash}1", False, True, True)
-        assert read is not None and read.value == -1, repr(dash)
+        assert read is not None and read.value == 1, repr(dash)
+        assert taxonomy.safe_harbor_number(f"Age {dash}95", False, True, True).value == 95  # type: ignore[union-attr]
         assert taxonomy.safe_harbor_number(f"Age{dash}95", False, True, True).value == 95  # type: ignore[union-attr]
 
 
@@ -298,8 +302,28 @@ def test_the_top_code_writes_the_pooled_level_in_the_cells_own_words() -> None:
         assert taxonomy.top_coded_cells([cell], words=False)[0] in (cell, coded)
 
 
+def _as_without_the_word(cell: str, number: int, unit: str) -> None:
+    """A cell of a word that is no age before a number: read as without the words; or, where an age's unit or affix
+    follows the number, as the number with its unit alone reads, the word before it passed over (a number its unit
+    follows is an age wherever it stands: lane HB3-a's repair 1, plan P4-D482; the orchestrator's LANE HB3-a RULINGS
+    7 (1)(3)). A figure glued to the word stays the word's (`Stage228315 yrs`), read as without the words."""
+    read = taxonomy.safe_harbor_number(cell, False, True, True)
+    if read == taxonomy.safe_harbor_number(cell, False):
+        return
+    assert unit, repr(cell)
+    alone = taxonomy.safe_harbor_number(f"{number}{unit}", False, True, True)
+    assert read is not None and alone is not None, repr(cell)
+    assert (read.value, taxonomy.age_mark(read)) == (alone.value, taxonomy.age_mark(alone)), repr(cell)
+
+
 def test_words_that_are_no_age_are_read_as_before() -> None:
-    """`Stage 2`, `Grade 3`, `Room 101`, `Week 95`, `Score 95`, `Agent 5`, a label before a record number: read as without the words."""
+    """`Stage 2`, `Grade 3`, `Room 101`, `Week 95`, `Score 95`, `Agent 5`, a label before a record number: read as without the words.
+
+    RESTATED BY LANE HB3-a's REPAIR 1 (plan P4-D482): a number an age's unit
+    or affix follows (`Stage 95 yrs`, `Room 101 months`) is an age wherever it
+    stands, so such a cell reads as the number with its unit alone reads; a
+    cell with no unit after its number reads as before.
+    """
     draw = random.Random(4773)
     seen = 0
     for word in NOT_AGES:
@@ -307,23 +331,26 @@ def test_words_that_are_no_age_are_read_as_before() -> None:
             for separator in SEPARATORS:
                 for unit, _mark in UNITS_AFTER:
                     for frame in ("", "()"):
-                        cell = f"{_cased(word, how)}{separator}{draw.randint(0, 2000000)}{unit}"
+                        number = draw.randint(0, 2000000)
+                        cell = f"{_cased(word, how)}{separator}{number}{unit}"
                         cell = f"({cell})" if frame else cell
-                        assert taxonomy.safe_harbor_number(cell, False, True, True) == taxonomy.safe_harbor_number(cell, False), cell
+                        _as_without_the_word(cell, number, unit)
                         seen += 1
     assert seen > 10000
     # ...and with every space and dash of the product between the word and its number.
     for word in NOT_AGES + ("Age group", "Aged care", "Agency", "Average"):
         for separator in UNICODE_SPACES + DASHES:
             for frame in ("{}", "({})", "{} yrs"):
-                cell = frame.format(f"{word}{separator}{draw.randint(0, 200)}")
-                assert taxonomy.safe_harbor_number(cell, False, True, True) == taxonomy.safe_harbor_number(cell, False), repr(cell)
+                number = draw.randint(0, 200)
+                cell = frame.format(f"{word}{separator}{number}")
+                _as_without_the_word(cell, number, " yrs" if frame.endswith("yrs") else "")
     # ...an amount in brackets alone is read as before (`(95)` is -95 to the number reader).
     for cell in ("(95)", "[95]", "(95.5)", "( 95 )"):
         assert taxonomy.safe_harbor_number(cell, False, True, True) == taxonomy.safe_harbor_number(cell, False), cell
-    # ...and `Age -1` is the placeholder -1, a sign after a space, not a mark.
+    # ...and a dash after the word is a mark, never a sign (lane HB3-a, plan
+    # P4-D482, RULINGS 4 (2) item C2): `Age -1` is 1.
     read = taxonomy.safe_harbor_number("Age -1", False, True, True)
-    assert read is not None and read.value == -1
+    assert read is not None and read.value == 1 and read.head == "Age -"
 
 
 def test_a_cell_with_no_age_word_reads_as_it_did() -> None:
@@ -487,7 +514,15 @@ def test_every_number_the_number_reader_reads_is_read_in_every_frame() -> None:
         cell = frame.format(number)
         read = taxonomy.safe_harbor_number(cell, False, True, True)
         assert read is not None, repr(cell)
-        assert read.value == alone.value and taxonomy.age_mark(read) == mark, (repr(cell), read.value, alone.value)
+        # ...but a dash between the word (and its one mark) and the number is a
+        # mark, never a sign: an age is never negative (lane HB3-a, plan
+        # P4-D482; RULINGS 4 (2), item C2), so its age is the number's size.
+        before = frame.split("{}")[0]
+        dashed = (
+            taxonomy._age_plain(number)[:1] == "-" and "age" in before.lower() and before.rstrip()[-1:] not in ("(", "[")
+        )
+        expected = abs(alone.value) if dashed else alone.value
+        assert read.value == expected and taxonomy.age_mark(read) == mark, (repr(cell), read.value, alone.value)
         assert read.head + read.number + read.tail == cell, repr(cell)
         framed += [cell]
     assert len(framed) > 10000

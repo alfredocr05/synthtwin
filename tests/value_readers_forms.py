@@ -2092,10 +2092,9 @@ def open_families() -> "dict[str, list[str]]":
     found["a coordinate pair of two places"] = [f"{40 + place / 7:.2f},{-91 - place / 3:.2f}" for place in range(20)]
     found["a pair with a decimal comma"] = [f"{40 + place},{place}1234 -91,{place}5678" for place in range(10)]
     found["a hardware address of twelve figures, no marks"] = [f"{draw.randint(0, 2 ** 48):012x}" for _place in range(20)]
-    found["an address glued to a word"] = [f"IP192.0.2.{place}" for place in range(1, 21)]
-    found["bands in another language"] = [f"{start}-{start + 4} {word}" for start in range(90, 105, 5)
-                                          for word in ("a\xf1os", "ans", "Jahre", "anos")]
-    found["bands joined by `a` or `bis`"] = [f"{start} {word} {start + 4}" for start in range(90, 105, 5) for word in ("a", "bis")]
+    # (The bands in another language and those joined by `a` or `bis`, and an
+    # address glued to `IP`, are read since lane CZ-G's items 6 and 8, plan
+    # P4-D493: its gate's generated families.)
     return found
 
 
@@ -2103,8 +2102,7 @@ def open_families() -> "dict[str, list[str]]":
 # remark, or the cell form of a pair, an address or a band.
 OPEN_READERS = {
     "a coordinate pair of two places": "pair", "a pair with a decimal comma": "pair",
-    "a hardware address of twelve figures, no marks": "address", "an address glued to a word": "address",
-    "bands in another language": "band", "bands joined by `a` or `bis`": "band",
+    "a hardware address of twelve figures, no marks": "address",
 }
 
 

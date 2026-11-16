@@ -1442,6 +1442,10 @@ def seed_105_reserve_readings(limit: int = 2000) -> "tuple[int | None, int, bool
     met = generation._reserves_met
     room = generation._cell_room
     packed = generation._allotted_over
+    # THE LAYOUT PASS ASKS THE SAME WALK UNDER ITS METER (plan P4-D490):
+    # `_layout_walked` is `_allotted_over` counted on the column's meter,
+    # so a question it asks is a packing question here too.
+    metered = generation._layout_walked
 
     def reading(*given):  # type: ignore[no-untyped-def]
         readings[0] += 1
@@ -1460,10 +1464,19 @@ def seed_105_reserve_readings(limit: int = 2000) -> "tuple[int | None, int, bool
             raise _Enough()
         return answers[len(answers) - 1]
 
+    def asked_metered(*given):  # type: ignore[no-untyped-def]
+        nonlocal answers
+        ended, chosen = metered(*given)
+        answers += [chosen]
+        if len(answers) == 2:
+            raise _Enough()
+        return ended, chosen
+
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(generation, "_reserves_met", reading)
         patch.setattr(generation, "_cell_room", entering)
         patch.setattr(generation, "_allotted_over", asked)
+        patch.setattr(generation, "_layout_walked", asked_metered)
         try:
             generation.generate(loaded, 0)
         except _Walked:

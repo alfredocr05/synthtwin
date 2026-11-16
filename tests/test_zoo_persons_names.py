@@ -2,8 +2,8 @@
 
 THE READER (`taxonomy.persons_names_hold`, asked last by
 `taxonomy.safe_harbor_hold` on a role that publishes its levels): a column
-whose different present values are, two in three or more, a person's name
-written whole (`taxonomy.a_persons_name`), `taxonomy.NAMES_AT_LEAST` of them
+whose different present values read are, half or more (two in three before
+lane CZ-G-b, plan P4-D494), a person's name written whole (`taxonomy.a_persons_name`), `taxonomy.NAMES_AT_LEAST` of them
 or more (`HELD_PERSONS_NAMES`); or a column whose name says it holds a
 person's name -- a patient's, a relative's or a clinician's
 (`taxonomy.named_as_persons_names`) -- whose different values are, two in
@@ -18,11 +18,11 @@ the named false alarms (procedure labels, ancestries, organisms, medicines,
 departments, note types, countries) are not held, a county's name and a
 column of a hundred labels or more in capitals that read as names are
 (the stated price, freed by `no`); the edges of the rule (99 and 100
-names, two in three by cells but not by values and the reverse,
+names, half by cells but not by values and the reverse,
 placeholders and one-word values among the names); the column names that
 say a name and those that do not (`drug_name`, `surgeon_specialty`,
 `provider_npi`); each case red on its mutant -- the count floor, the
-two-in-three share, the particle list, the heading list and the call in
+share, the particle list, the heading list and the call in
 `safe_harbor_hold`; the description at a test size names the column for
 the command to hold, and beside a person column, and for zoo tables
 holding no names, keeps its bytes; through the commands at 2,000 rows (a
@@ -48,9 +48,10 @@ name that says a person's name, one or two family names are held as sixty
 are, the flags' words not; every suffix the family-name reader reads, with
 and without its point, in capitals and in small letters, after the family
 name and after a comma, beside a particle, is read under such a name, each
-with its controls; the cells are walked by a step that shares no factor
-with their count, so a layout repeating every 12 rows is met in every
-phase and labels at rows 48 j no longer fill the values read; a laboratory
+with its controls; the values read are a sample free of the rows' order
+(a walk at repair 2, a sample by each value's rank since lane CZ-G-b), so
+a layout repeating every 12 rows is held from every phase and labels at
+rows 48 j no longer fill the values read; a laboratory
 and a pharmacy qualify only their technicians; K-HZ-30's counter reads
 the decoded strings of a JSON file and the escapes of a text for the eye;
 the question says the values read are a sample and names the name field
@@ -147,7 +148,7 @@ def test_the_named_false_alarms_are_no_name(text: str) -> None:
     assert not taxonomy.a_persons_name(text)
 
 
-# -- the column: the count floor and the two-in-three share ----------------------------
+# -- the column: the count floor and the share ------------------------------------------
 
 
 def test_the_count_floor_99_and_100_names() -> None:
@@ -171,16 +172,16 @@ def _shared(name_values: int, other_values: int, name_rows: int, other_rows: int
     return [one for one in named for _row in range(name_rows)] + [one for one in others for _row in range(other_rows)]
 
 
-def test_two_in_three_counts_values_not_cells() -> None:
-    """THE SHARE: names on 94 per cent of the cells but 60 per cent of the values are no column of names; on 9 per cent of the cells but 80 per cent of the values they are."""
-    assert _hold(_shared(150, 100, 10, 1)) == ""
+def test_the_share_counts_values_not_cells() -> None:
+    """THE SHARE (half since lane CZ-G-b, plan P4-D494 item 1): names on 87 per cent of the cells but 40 per cent of the values are no column of names; on 9 per cent of the cells but 80 per cent of the values they are."""
+    assert _hold(_shared(100, 150, 10, 1)) == ""
     assert _hold(_shared(200, 50, 1, 40)) == taxonomy.HELD_PERSONS_NAMES
 
 
 def test_the_share_is_red_on_its_mutant(monkeypatch: pytest.MonkeyPatch) -> None:
-    """THE SHARE'S MUTANT: with one in three enough, names on 60 per cent of the values hold the column."""
-    monkeypatch.setattr(taxonomy, "_BULK_TAKEN", 1)
-    assert _hold(_shared(150, 100, 10, 1)) == taxonomy.HELD_PERSONS_NAMES
+    """THE SHARE'S MUTANT: with one in three enough, names on 40 per cent of the values hold the column."""
+    monkeypatch.setattr(taxonomy, "_NAMES_SHARE_PARTS", 3)
+    assert _hold(_shared(100, 150, 10, 1)) == taxonomy.HELD_PERSONS_NAMES
 
 
 def test_placeholders_and_one_word_values_among_the_names() -> None:
@@ -247,7 +248,7 @@ _NAMED_HEADINGS = (
 _NOT_NAMED_HEADINGS = (
     "name", "drug_name", "assay_name", "item_name", "surgeon_specialty", "provider_kind", "resident_state",
     "surgeon_key", "provider_npi", "attending_code", "patient_label", "staff_label", "room", "nurse_unit",
-    "imaging_tech", "billing_provider", "social_worker", "np", "pa",
+    "imaging_tech", "billing_provider", "np", "pa",
 )
 
 
@@ -296,7 +297,7 @@ def test_the_heading_list_is_red_on_its_mutant(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_each_different_value_is_read_once_up_to_the_bound(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ONE PASS: 200,000 different names read at most `_SAFE_HARBOR_MEMO` values; 20,000 different labels that are no name settle within the first third of that bound."""
+    """ONE PASS: 200,000 different names read at most `_SAFE_HARBOR_MEMO` values; 20,000 different labels that are no name settle within the first half of that bound in the sample (the share is half since lane CZ-G-b), then within the first third of it in the walk over the cells kept beside it (two in three; lane CZ-G-b's repair 1), no value judged twice."""
     read: "list[str]" = []
     kind_of = taxonomy._persons_name_kind
 
@@ -310,7 +311,8 @@ def test_each_different_value_is_read_once_up_to_the_bound(monkeypatch: pytest.M
     assert len(read) <= taxonomy._SAFE_HARBOR_MEMO
     read.clear()
     assert _hold([f"code {place}" for place in range(20000)]) == ""
-    assert len(read) <= taxonomy._SAFE_HARBOR_MEMO // 3 + 1
+    assert len(read) == len(set(read))
+    assert len(read) <= taxonomy._SAFE_HARBOR_MEMO // 2 + 1 + taxonomy._SAFE_HARBOR_MEMO // 3 + 1
 
 
 # -- the description at a test size ---------------------------------------------------------
@@ -451,12 +453,12 @@ def test_the_names_column_alone_at_20000_rows(tmp_path: pathlib.Path) -> None:
 # -- the question's words --------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(("hold", "words"), [
-    (taxonomy.HELD_PERSONS_NAMES, "written as a person's name is written whole"),
-    (taxonomy.HELD_NAMED_AS_PERSONS_NAMES, "its name says it holds a person's name"),
+@pytest.mark.parametrize(("hold", "words", "share"), [
+    (taxonomy.HELD_PERSONS_NAMES, "written as a person's name is written whole", "half or more, and 100 or more"),
+    (taxonomy.HELD_NAMED_AS_PERSONS_NAMES, "its name says it holds a person's name", "most are written as names are"),
 ])
-def test_each_hold_is_put_its_question_with_its_own_words(hold: str, words: str) -> None:
-    """Each hold's reason and its sentence: what was seen, no value, `no` and `yes` offered, held until answered; and (repair 2, Codex's items 3 and 5) what was LOOKED AT -- every different value or a sample of 4,096 met in cells spread over the column -- and the shapes read, the name field cut at `^` and the small words of a family name among them."""
+def test_each_hold_is_put_its_question_with_its_own_words(hold: str, words: str, share: str) -> None:
+    """Each hold's reason and its sentence: what was seen, no value, `no` and `yes` offered, held until answered; and (repair 2, Codex's items 3 and 5) what was LOOKED AT -- every different value or a sample of 4,096 drawn by a fixed rule from the values themselves (lane CZ-G-b) and 4,096 met by the walk over the cells (its repair 1), half or more of them names for the value arm and most for the heading arm -- and the shapes read, the name field cut at `^` and the small words of a family name among them."""
     reason = asking._HELD_BECAUSE[hold]
     assert reason in asking.PERSONS_NAMES_REASONS
     assert reason in asking.SH2_HELD_REASONS and reason in asking.SH2_SAFE_HARBOR_REASONS
@@ -464,7 +466,9 @@ def test_each_hold_is_put_its_question_with_its_own_words(hold: str, words: str)
     text = question.shape
     assert words in text and "held back" in text, text
     for looked_at in ("of its different values read -- every one, or, where it holds more than 4,096, a sample of "
-                      "4,096 met in cells spread over the whole column --", "cut at ^", "such as de or van"):
+                      "4,096 drawn by a fixed rule from the values themselves, whatever the order of the rows, and "
+                      "4,096 met in cells spread over the whole column, each as often as its rows --",
+                      share, "cut at ^", "such as de or van"):
         assert looked_at in text, (looked_at, text)
     assert taxonomy.PERSONS_NAMES_READ_AT_MOST == taxonomy._SAFE_HARBOR_MEMO == 4096
     assert sorted(choice.answer for choice in question.choices) == ["no", "yes"]
@@ -556,7 +560,15 @@ def test_the_readers_spaces_and_dashes_are_the_one_definition_over_every_code_po
     assert cut_alike, "the word screen cuts a text at a character that is no space of the definition, or not at one that is"
     assert all(taxonomy._a_space_of_the_screen(character) for character in _SPACES_BEFORE_THE_MERGE)
     assert [character for character in _DASHES_BEFORE_THE_MERGE if character not in dashes] == ["\u00ad"]
-    assert taxonomy._a_space_of_the_screen("\u00ad") and taxonomy._name_readings("Aaa\u00adCedar") == ("Aaa Cedar", "Aaa-Cedar")
+    # ...and since lane CZ-G-b (plan P4-D494 item 3, LANE CZ-G-b RULINGS 2) a third reading, a character that
+    # prints nothing set aside INSIDE A WORD -- before a small letter, or beside a lone letter (its repair 1,
+    # RULINGS 4 (2)) -- and read as a space elsewhere, the first reading's, so the third is read only where it differs.
+    assert taxonomy._a_space_of_the_screen("\u00ad") and taxonomy._name_readings("Ced\u00adar") == (
+        "Ced ar", "Ced-ar", "Cedar")
+    assert taxonomy._name_readings("Aaa\u00adCedar") == ("Aaa Cedar", "Aaa-Cedar")
+    assert taxonomy._name_readings("Ced\u200bar") == ("Ced ar", "Cedar")
+    assert taxonomy._name_readings("Aaa\u200bCedar") == ("Aaa Cedar",)
+    assert taxonomy._name_readings("C\u200bEDAR") == ("C EDAR", "CEDAR")
     assert taxonomy._name_readings("Aaa Cedar") == ("Aaa Cedar",)
 
 
@@ -941,10 +953,11 @@ def test_one_or_two_family_names_under_a_heading_are_held(name: str) -> None:
 
 
 def test_every_suffix_the_family_name_reader_reads_is_read_under_a_heading() -> None:
-    """CODEX'S ITEM 2, ONE GENERATED CASE: every suffix the family-name reader reads (`suffix_forms`: 240 ways, with and without its point, a first capital, capitals and small letters, after the family name and after a comma, beside a particle, the family name in capitals or not), 60 family names each, under `patient_surname`: held; ITS CONTROLS, not held: the same values under a neutral name, and the same suffix after a family name holding a figure."""
+    """CODEX'S ITEM 2, ONE GENERATED CASE: every suffix the family-name reader reads (`suffix_forms`: 480 ways since lane CZ-G-b added the senior and junior written short, the esquire and the ordinals two to four to its one definition, with and without its point, a first capital, capitals and small letters, after the family name and after a comma, beside a particle, the family name in capitals or not), 60 family names each, under `patient_surname`: held; ITS CONTROLS, not held: the same values under a neutral name, and the same suffix after a family name holding a figure."""
     families = names.names_of(60, "family", seed=33)
     forms = names.suffix_forms()
-    assert len(forms) == 240
+    assert len(forms) == 16 * sum(len({word.capitalize(), word.upper(), word.lower()})
+                                  for word in taxonomy._PERSONS_NAME_SUFFIXES) == 480
     unread: "list[str]" = []
     for form in forms:
         written = [names.with_suffix(family, form) for family in families]
@@ -979,7 +992,7 @@ def _walked_blocks() -> "list[str]":
 
 
 def test_the_walk_meets_every_phase_of_a_layout_repeating_every_12_rows() -> None:
-    """THE COMBINED VERIFY'S ITEM 1 (the orchestrator's LANE CZ-F RULINGS 5 (1)): blocks of 12 rows, a name in small letters first and 11 names after it, are held whichever row the column starts at -- the step of the rows over 4,096 met only the small letters and settled the column unheld."""
+    """THE COMBINED VERIFY'S ITEM 1 (the orchestrator's LANE CZ-F RULINGS 5 (1)): blocks of 12 rows, a name in small letters first and 11 names after it, are held whichever row the column starts at -- the step of the rows over 4,096 met only the small letters and settled the column unheld (the values read are a sample by rank since lane CZ-G-b, free of the rows' order)."""
     cells = _walked_blocks()
     assert len(cells) == 49152
     for shift in (0, 1, 5, 11):
@@ -998,10 +1011,8 @@ def test_labels_at_rows_48_j_no_longer_fill_the_values_read() -> None:
     assert _hold(cells) == ""
 
 
-def test_the_walk_reads_each_cell_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    """THE WALK (`taxonomy._walk_step`): its step shares no factor with the cells' count, so it reads every cell once -- every count from 1 to 600 and a few to 4,095 cell by cell, and the step's factor at the counts of the layouts above and at 2,000,000 rows."""
-    import math
-
+def test_the_values_read_are_every_value_or_the_least_ranks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """THE VALUES READ (`taxonomy._values_read`, lane CZ-G-b, plan P4-D494 item 2; it replaces lane CZ-F's walk): up to the bound every different value is read, each once -- every count from 1 to 600 and a few to 4,095 cell by cell --; past it, the bound's values of least rank (`taxonomy._value_rank`), the same whichever order the rows stand in, as a sort of every different value by its rank finds them."""
     read: "list[str]" = []
 
     def reading(text: str, named: bool) -> int:
@@ -1009,14 +1020,17 @@ def test_the_walk_reads_each_cell_once(monkeypatch: pytest.MonkeyPatch) -> None:
         return taxonomy._A_NAME_WRITTEN_WHOLE
 
     monkeypatch.setattr(taxonomy, "_persons_name_kind", reading)
-    for total in [*range(1, 601), 1009, 1024, 2048, 2187, 3000, 4095]:
+    for total in [*range(1, 601), 1009, 1024, 2048, 2187, 3000, 4095, 4096]:
         read.clear()
         cells = [f"v{place}" for place in range(total)]
         _hold(cells)
         assert sorted(read) == sorted(cells), total
-    for total in (4096, 49152, 116400, 200000, 206000, 2000000):
-        step = taxonomy._walk_step(total)
-        assert 1 <= step < total and math.gcd(step, total) == 1, (total, step)
+    for total in (4097, 9000, 49152):
+        cells = [f"v{place % (total // 3 + 4097)}" for place in range(total)]
+        least = sorted(set(cells), key=lambda value: (taxonomy._value_rank(value), value))[:taxonomy._SAFE_HARBOR_MEMO]
+        assert taxonomy._values_read(cells, frozenset()) == least, total
+        random.Random(total).shuffle(cells)
+        assert taxonomy._values_read(cells, frozenset()) == least, total
 
 
 def test_a_laboratory_or_a_pharmacy_qualifies_only_its_technicians() -> None:

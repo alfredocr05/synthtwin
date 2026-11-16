@@ -241,7 +241,7 @@ def test_a_minority_of_addresses_or_points_among_labels_is_held(form: str, monke
             taxonomy.HELD_COORDINATE_PAIRS
     cells = labels + [value for value in seeded for _row in range(20)]
     assert taxonomy.value_reader_hold(taxonomy.ROLE_CATEGORICAL, cells, frozenset(), 11) == hold
-    monkeypatch.setattr(taxonomy, "_levels_read", lambda cells, absent, floor, dates: ([], 0))
+    monkeypatch.setattr(taxonomy, "_levels_read", lambda cells, absent, floor, dates: ([], 0, False))
     assert taxonomy.value_reader_hold(taxonomy.ROLE_CATEGORICAL, cells, frozenset(), 11) == ""
 
 
@@ -582,8 +582,9 @@ def test_adult_groups_under_a_neutral_name_are_ages(cells: "list[str]", start: i
 
 
 def test_the_adult_groups_are_red_on_the_chain_opening_mutant(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mutant: with a chain opening only at 0 or 1 (`_CHAIN_OPENS_BY` 1, repair 1's rule), the verify's four adult schemes are read as no ages -- three or more bands past 89 published on the first run."""
+    """The mutant: with a chain opening only at 0 or 1 (`_CHAIN_OPENS_BY` 1, repair 1's rule), the verify's four adult schemes are read as no ages -- three or more bands past 89 published on the first run (lane CZ-G's rule A3b, plan P4-D493, reads them too, so it is switched off here)."""
     monkeypatch.setattr(taxonomy, "_CHAIN_OPENS_BY", 1)
+    monkeypatch.setattr(taxonomy, "_age_shaped_groups", lambda spans: False)
     assert [cells for cells, _start in readers.ADULT_SCHEMES[:4] if taxonomy.age_bands_past_89(cells * 20, frozenset())] == []
 
 
@@ -602,6 +603,8 @@ def test_two_in_three_of_the_bands_five_or_ten_years_wide_are_ages(monkeypatch: 
     spans = {(30, 34): 20, (35, 39): 20, (40, 44): 20, (45, 64): 20, (90, 94): 20, (95, 99): 20, (100, -1): 20}
     assert taxonomy._bands_read_as_ages(spans)
     monkeypatch.setattr(taxonomy, "_BULK_TAKEN", taxonomy._BULK_PARTS)
+    # ...lane CZ-G's rule A3b (plan P4-D493) reads these spans too: off here.
+    monkeypatch.setattr(taxonomy, "_age_shaped_groups", lambda spans: False)
     assert not taxonomy._bands_read_as_ages(spans)
 
 
@@ -735,10 +738,11 @@ def test_each_kind_s_columns_are_named_for_the_command_to_hold(kind: str, tmp_pa
 
 
 def test_with_the_readers_away_no_value_column_is_named(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mutant of the description: with `value_reader_hold` and the band reach away, the remarks, areas and addresses go unnamed. Since batch 4s's merge (step 9) a band among an age column's numbers is an age of the reach too, so the band reach is away with the band reader away (`a_band_cell`)."""
+    """The mutant of the description: with `value_reader_hold` and the band reach away, the remarks, areas and addresses go unnamed. Since batch 4s's merge (step 9) a band among an age column's numbers is an age of the reach too, so the band reach is away with the band reader away (`a_band_cell`); and since batch 4t's merge of lane HB3-a (step 6) the reach's reader of an age's phrase reads a band's figures as ages too (`Age: 90-94` is 90 and 94, `taxonomy._phrase_age`, plan P4-D482), so it is away with them."""
     monkeypatch.setattr(taxonomy, "value_reader_hold", lambda role, cells, absent, floor, dates=True: "")
     monkeypatch.setattr(taxonomy, "age_bands_past_89", lambda cells, absent, named=False, mark=90: False)
     monkeypatch.setattr(taxonomy, "a_band_cell", lambda cell: None)
+    monkeypatch.setattr(taxonomy, "_phrase_age", lambda head, rest, after, comma, genders=False: None)
     for kind in (readers.KIND_REMARKS, readers.KIND_AREA_CODES, readers.KIND_NODE_ADDRESSES, readers.KIND_SERIALS):
         named = _described(kind, tmp_path)
         assert not [column for column in readers.HELD[kind] if named.get(column) in _VALUE_HOLDS], (kind, named)
@@ -1137,7 +1141,7 @@ def _past_89_spellings(column: str) -> "frozenset[str]":
 
 
 def test_the_combined_case_of_bands_and_age_words_at_the_unit_level(monkeypatch: pytest.MonkeyPatch) -> None:
-    """THE COMBINED CASE, EVERY SPELLING (LANE HB2 RULINGS 7 (4)): each column of `COMBINED_COLUMNS` (20,000 cells) is in the age reach, and its top-code writes no real band past 89 and every younger cell as written; RED with lane CZ-E's band reader away (`a_band_cell` reading none) and with lane HB2's age words away (`age_words_split` and `_age_word_at` reading no word), each on the columns it reads."""
+    """THE COMBINED CASE, EVERY SPELLING (LANE HB2 RULINGS 7 (4)): each column of `COMBINED_COLUMNS` (20,000 cells) is in the age reach, and its top-code writes no real band past 89 and every younger cell as written; RED with lane CZ-E's band reader away (`a_band_cell` reading none) and with lane HB2's age words away (`age_words_split` and `_age_word_at` reading no word), each on the columns it reads. SINCE BATCH 4t'S MERGE OF LANE HB3-a (step 6) the reach's reader of an age's phrase (`taxonomy._phrase_age`, plan P4-D482) reads the worded columns too, every number of an age word's clause an age, with words of its own: with the band reader away the four worded columns stay reached and top-coded and the bare bands fail; with the band reader and the phrase reader away every column fails; with lane HB2's age words away every column stays reached, and with the words and the phrase reader away the three columns the words open fail."""
 
     def outcome() -> "dict[str, tuple[str, int]]":
         found = {}
@@ -1155,16 +1159,25 @@ def test_the_combined_case_of_bands_and_age_words_at_the_unit_level(monkeypatch:
         coded = taxonomy.top_coded_cells(_combined_cells(column))
         assert all(written == cell for written, cell in zip(coded, _combined_cells(column))
                    if cell not in _past_89_spellings(column)), column
+    worded = ("age_group", "age_mixed", "age_framed", "band_years")
     with monkeypatch.context() as away:
         away.setattr(taxonomy, "a_band_cell", lambda cell: None)
         without_bands = outcome()
-    assert all(without_bands[column] != (taxonomy.SAFE_HARBOR_AGES, 0) for column in COMBINED_COLUMNS), without_bands
+        away.setattr(taxonomy, "_phrase_age", lambda head, rest, after, comma, genders=False: None)
+        without_bands_and_phrases = outcome()
+    assert all(without_bands[column] == (taxonomy.SAFE_HARBOR_AGES, 0) for column in worded), without_bands
+    assert without_bands["age_bare"] != (taxonomy.SAFE_HARBOR_AGES, 0), without_bands
+    assert all(without_bands_and_phrases[column] != (taxonomy.SAFE_HARBOR_AGES, 0) for column in COMBINED_COLUMNS), (
+        without_bands_and_phrases)
     with monkeypatch.context() as away:
         away.setattr(taxonomy, "age_words_split", lambda cell: ("", cell))
         away.setattr(taxonomy, "_age_word_at", lambda text: -1)
         without_words = outcome()
+        away.setattr(taxonomy, "_phrase_age", lambda head, rest, after, comma, genders=False: None)
+        without_words_and_phrases = outcome()
+    assert without_words == head, without_words
     for column in ("age_group", "age_mixed", "age_framed"):
-        assert without_words[column] != (taxonomy.SAFE_HARBOR_AGES, 0), (column, without_words)
+        assert without_words_and_phrases[column] != (taxonomy.SAFE_HARBOR_AGES, 0), (column, without_words_and_phrases)
 
 
 def _combined_run(folder: pathlib.Path, person: bool, answered: bool) -> "dict[str, object]":

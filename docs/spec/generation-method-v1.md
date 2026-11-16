@@ -12686,6 +12686,39 @@ reads them. The oracle reads the same (`_harbor_frame`, `_harbor_number`),
 in the same commit as the product.
 
 
+*Restated by lane HB3-a (plan P4-D482, 2026-11-11):* a cell is read as an age's
+phrase where the block records `top_coded_words` and neither the frame nor the
+bare reading reads it whole (contract TC1's amendment: `Age at diagnosis: 95`,
+`Age 95 M`, `95 years 3 months`), and a cell rewritten at or below 90 writes the
+parts of smaller units after its unit as `0` (`90 years 0 months`), its other
+words kept; the oracle reads the phrase on its own. *Restated by lane HB3-a's
+repair 1 (plan P4-D482, 2026-11-12; the orchestrator's LANE HB3-a RULINGS 6
+(1) and 7 (1)):* every age word of the phrase opens its own clause and every
+number in it is an age (one past 125 years in its unit passed over unless the
+cell holds no other), a unit word named right after the word is the unit of a
+number that writes none (`Age (months): 1100`), and wherever it stands a
+number with an age's unit after it, or a gender after a mark, is an age; the
+cell is rewritten by its largest age in years, every other one of 90 years or
+more written as its unit's mark in its form and the parts after it `0`
+(`Onset age 90, current age 90`). Where the column's cells write both gender
+letters after their ages, or a gender word, a lone `m` after an age is a
+gender, never months (`Age 95 m` beside `Age 60 f`; `095M` and `6 m` alone
+stay months); a capital M with a point or alone in brackets is a gender
+anywhere (`Age 95 M.`, `Age 95 (M)`), and a gender letter after a unit and a
+slash, or against a unit of years, ends the unit (`95y/F`, `100 y/oF`). The
+cell's edges are cut at every space of the one definition, a character that
+prints nothing among them (`<U+200B>95`), and a cell holding such a character
+is read a second time with each set aside (`Ag<U+200B>e 95`), the larger age
+taken unless both readings stand on the same number. The oracle reads the same
+(`_harbor_phrase`, `_harbor_genders`), in the same commit as the product.
+*Restated by lane HB3-a's repair 2 (plan P4-D482, 2026-11-13; the
+orchestrator's LANE HB3-a RULINGS 9 (1)):* a line break is a space to an age's
+clause, so only a semicolon with a letter after it ends one (`Age<LF>at
+diagnosis: 95`), and every gender word counts toward the column's gender rule,
+`girl` and `boy` among them (`Age 95 m` beside `Age 60 girl`). The oracle reads
+the same (`_HARBOR_BREAK`, `_harbor_genders`), in the same commit as the
+product.
+
 ### G7.15 The Safe Harbor years: no year before the group
 
 Lane SH2 (plan P4-D434; contract TC2). A column whose block carries
@@ -12993,7 +13026,26 @@ round 2 (plan P4-D442, 2026-11-03; LANE HB RULINGS 13):* a stand-in whose run's
 room is spent keeps the run's width where a run of figures of a published form
 is that long, and so its form (G9.5's restatement 5); the one real held key of
 noughts alone at that width can come back as itself (limit (af), owner lane
-HB2).
+HB2). *Restated by lane HB3-a (plan P4-D482, 2026-11-11; the orchestrator's
+LANE HB3-a RULINGS 1 (2), limits (ae) and (af)):* a held-back level G8.3a
+writes as a number is kept off the real runs as every other stand-in is (its
+reading leaves the published scale: the stated price), so a label column of
+two key forms writes no real key; and where the block names `figure_noughts`
+(contract 6.3) a spent run's noughts at a width it names, and every run of
+noughts alone a made-up cell writes at such a width, are written wider than
+every width `figure_openings` and `figure_noughts` name, so no twin cell is a
+held key of noughts alone (the merged reading, which reads every run of
+noughts alone as one, is the stated residue; the price, such cells one figure
+wider than the column's forms). *Restated by lane HB3-a's repair 1 (plan
+P4-D482, 2026-11-12):* a run of noughts alone a made-up cell writes at a width
+`figure_noughts` names is renamed by the room as every other run is, at its
+own width (a filling no real run holds), the room's noughts at that width
+passed over; only where every room of the width is spent is it written wider
+than every width named. A held-back level G8.3a writes as a number is renamed
+only where every run of it keeps its width and none is written as noughts
+alone; where its width's room is spent it keeps its place on the published
+scale, as before the lane (written wider it left the column's width: a table
+of codes beside numbers wrote 347 cells of eight noughts at a width of seven).
 
 *Restated by lane CODES-1 (plan P4-D439; contract C6-31g and C6-31h;
 the stand-ins page's rules A1 to A3, P4-D422's ZS.2).* **A1.** A census
@@ -14481,6 +14533,31 @@ LANE PL RULINGS 1 (1)) writes that one word in the floor's number of its cells (
 most its blank cells), whatever the real number, and its other cells blank; the
 twin's report names those cells beside `n_present` and no other recount. The
 oracle mirrors this section from its own words (A-P4-59).
+
+### G8.3f Values typed by a key
+
+*Lane KV, plan P4-D487; contract 6.3k, KV1 to KV4.* After every column and carried
+rule is written and before the rows are arranged, each value column carrying
+`by_key` is written again row by row. One word of the stream is drawn for each
+key block, in its label's rising order, then one for the pooled block, drawn
+together, the value columns in the description's column order. Each block's
+cells are written by `generate_held` on the block as a table of its own -- its
+rows, its one column, the table's settings with the value column's declarations
+carried to the block's name, an ordinary written form, no relationship -- from
+its word. Then, row by row over the twin's key column: a key whose trimmed,
+case-folded spelling is a published label takes the next cell of its block; a
+blank key, or one written in a spelling the key column or the table reads as no
+value, takes the next of the value column's own cells that holds anything (its
+own block's cells, every row of a key written blank there), else a blank; every
+other key is rare and takes the next cell of the pooled block; a row the
+arrangement placed as one of the form's all-empty records (G2.1) is written blank
+and takes no own cell (lane KV's repair 1: the own cells went to the first rows
+holding no key, such a record among them). The key's counts are published exactly
+(KV2, KV3), so each block holds as many cells as its rows; a block that runs out
+leaves its rows blank and names `by_key`. A description with no keyed column draws
+no word and moves no cell. The oracle mirrors the layout (`keyed_value_cells`)
+and the word plan (`keyed_word_counts`: one word a key block and one for the
+pooled block, a value column at a time in the description's column order).
 
 ### G8.3e A named pool
 
@@ -16535,7 +16612,36 @@ packing rule applying here IN FULL — both margins and the shape search
   plain, or the reverse; a layout opening with a character a spreadsheet
   reads as a formula that no proven sign covers; and a group packed to no
   named layout whose family writes a named one anyway. Every one of them
-  is recounted and named;
+  is recounted and named. **THE PASS ENDS IN A STATED AMOUNT OF WORK**
+  (plan P4-D490): every question of the pass is answered under ONE meter
+  for the column, every question and look of every reading together,
+  counting the walk's steps (`_LAYOUT_WALK_STEPS`, calls of its next
+  fill, at least twice the largest walk any recorded column takes) and
+  its work (`_LAYOUT_WALK_WORK` units: a step, each reading of a cell's
+  reserves and of a reserve's table it makes, and each entry into a cell
+  and each reserve that entry files under each size), every unit read on
+  the meter before it is spent, so an entry whose reserves the meter
+  cannot pay for is never built and the work never passes the meter:
+  THE FIRST COMPLETE FILLING WITHIN THE METER, the walk's own answer byte
+  for byte; ELSE, where every margin but one holds a single count, THE
+  RE-PACKING ALLOCATOR'S ANSWER -- each group given one count of the
+  binding margin its permissions open, from the largest groups first and
+  then from a sorted slicing, two or three counts at a time made exact
+  out of their pooled groups by a subset sum, its work (each group a
+  start places and each count it reads, each group a re-packing pools
+  and each the subset sum reads) counted on the same meter, one budget
+  for the column linear in its groups, taken where a recount meets every
+  count of every margin and every permission; ELSE THE NEAREST
+  ASSIGNMENT the re-packing allocator held when it stopped (the least
+  total distance of the layout counts from the published ones), written
+  where it stands nearer the census than the first answer and the first
+  answer where it does not, WITH EVERY LAYOUT IT LEAVES SHORT FILED, each
+  named with its published count, the count written and the cause,
+  once, as the twin's own recount measures it; a column whose re-packing
+  has stopped short asks no more. On 120 made-up names drawn on 154 to
+  174 rows each in fourteen layouts at 20,000 rows the walk passed
+  82,531 steps and 90 CPU seconds without an answer; the column now
+  generates inside its meter and every count is met;
 - no word statistics exist, so G9.5 step 6 does not apply and no space
   is ever written into an identifier.
 
@@ -17048,6 +17154,22 @@ reads nothing real to make it so:
    47 with the number glued to its label (`[MR1000000]`), after `#` and a
    label, or before a letter (`[1000000A]`) on the fix round's first head;
    0 now, measured by the fix rounds' builders.
+10. **Amended by batch 4t's fix round (plan P4-D432, 2026-11-15; the
+    round's third code round, on the verify of its second, item 1).** A
+    value is kept where its merged key is one no real cell's can be
+    (step 2), and where its number is one no real cell of a named layout
+    of the column can write (a real cell of a layout too rare to be
+    named is read by its merged key only: limit 1): its mantissa written
+    with an exponent ends with no nought, and every spelling of its
+    number in a named layout of the column (its figures led and followed
+    by noughts, its exponent written to the layout's places) is kept off
+    the real by its merged key, its own merged key aside; zero is
+    refused where a named layout writes an exponent; a column whose
+    named layouts are figures alone keeps a value of figures alone as
+    before. Limit 1 is plan P4-D432's, in its paragraph of batch 4t's
+    fix round. Every route of the writer asks this one test
+    (`generation._kept_off_the_real`); the oracle mirrors both rules in
+    the same commit (`ca89d6a6`).
 
 
 ### G9.6c A made-up date of a held date column kept off the real dates (lane ID-ROOM2, plan P4-D457, 2026-11-04)
@@ -17063,9 +17185,10 @@ fixed by the published facts, that no real date of the column takes --
 both writers draw from those years alone:
 
 1. **The G1 floor**, where its grain reads dates or, since lane TR (its
-   skeptic 1, item 1; plan P4-D473), stamps (a grain reading clock times
-   or counted dates is written from its own span as before: repair 1 of
-   lane ID-ROOM2, Codex's item 1), takes as its spans the
+   skeptic 1, item 1; plan P4-D473), stamps, or, since lane ID-ROOM3 (plan
+   P4-D488, step 4 below), counted dates (a grain reading clock times is
+   written from its own span as before: repair 1 of lane ID-ROOM2, Codex's
+   item 1), takes as its spans the
    published runs of the reading's kind of year -- four-figure years, or,
    where the reading writes two figures (a `{YY...}` layout, a two-digit
    member), the two-figure years read from 2000, the figures alone being
@@ -17166,6 +17289,85 @@ written as before. The oracle mirrors step 2, its shares and its check
 (batch 4q's fix round: an oracle case of 18,000 ISO and 2,000 month-first
 values publishing `[[2028, 2126], [3000, 3026]]`, red on the twin's and
 on the oracle's mutant that take the block's first years there too).
+
+4. **The room or no date (lane ID-ROOM3, plan P4-D488).** A held column
+   whose grain reads dates, stamps or COUNTED dates draws its made-up
+   values from the published runs alone: where it publishes none, or
+   none of its reading's kind of year, the G1 floor writes no date -- a
+   DATE OR A STAMP BLANK (lane ID-ROOM3's repair 1, lane TR's follow-up's
+   rule for zone words made the rule of every held date and stamp: each
+   made-up value holding a figure is written blank, a made-up word
+   holding none kept, the twin's report naming the blank cells; the
+   walk's text in a date's layout is no date, `9978557` as a day of the
+   year), a COUNT the walk's value tested below -- it draws from no span
+   its grain records and not from the fixed span, which serve a clock
+   alone (beside births
+   of 1928 to 2005 at 20,000 rows and 1,000 patients those spans named
+   real birth days of single patients, up to 940 twin cells on 47 days of
+   a held count, and a held visit column whose placeholder took its room
+   copied real visit days into 17,064 of 20,000 cells). A made-up COUNT
+   is drawn at the column's own finest unit (its system's unit over ten
+   to the figures after its mark, so a serial keeps its time of day) on a
+   day of the published years, written in the column's spelling at the
+   made-up cell's length or in the system's own form, and stands only
+   where it reads back in its system in a published year. A count the
+   room did not write -- the walk's, where the room is empty or its
+   system writes none -- stands only where its published facts put it
+   off every real day of the column in its system, read with the point
+   and with the comma alike (repair 1): it names no date
+   there; its whole part reaches a day's counts past ten to the spill's
+   merged length less one (every real cell's merged key is shorter than
+   the spill's); every present cell stands in a named layout and every
+   named layout of the widest whole width carries exclusions opening
+   with a nine, and it opens with a nine there, a day's counts inside
+   that width's nine hundreds; or it names a published year. Any other
+   is written as the spill -- nine and the spill's merged length less one
+   noughts, stepped to a value no other takes, its sign and its figures
+   after the mark kept -- past every real count in every system, a value
+   written wider; where the column reads cells as blank (its real cells
+   then unbounded by its facts), with a plus in place of its sign, which
+   no system's count grammar reads, and one figure past the census's
+   longest whole part of counts, its merged key still as long as the
+   spill's with the figures after its mark (repair 2: at the spill's own
+   width, sixteen whole figures before five after the point were read
+   back as a whole number); and so, the column reading cells as blank or
+   not, is a value a reader of numbers reads as a fraction where that
+   reader reads its spill back as a whole number and its plus spill as a
+   fraction (batch 4t's fix round, item 8, lane ID-ROOM3's suite repair:
+   beside one stray ISO cell the walk's only fraction of held seconds,
+   `12848498.947889330816`, written as the spill with twenty whole
+   figures, was read back whole, and validation exited 3 at 20,000 rows).
+   A value written with noughts before its first
+   figure is read as the count its figures name (repair 2: the walk spells
+   a value off the real by opening it with noughts where no real cell
+   opens with one, `000009985,039`, which the count grammar reads as no
+   count and a reader of numbers as 9,985 seconds, a day of January 1970),
+   and where it does not stand it is taken at the width it is written at,
+   so it joins its own layout's nine hundreds as any value of that width
+   does. A HELD COLUMN OF COUNTS WITH NO GRAIN whose block
+   publishes `made_up_years` (contract 7.12c: held by a question about
+   dates, by an open question offering `identifier` or in people or in
+   rows, where the span-and-density test reads its counts as dates) has
+   the walk's values tested so, in the system it is declared in, or,
+   declared in none, in each system in which ten to the power of the
+   most whole figures of the value's own or of the census's widest
+   layout of counts holds more than 366 days' counts (repair 1: a short
+   count near an epoch, `98`, was read in no system and stood). A layout
+   holding no figure -- a stray word's -- is passed over in the census's
+   test and in the nine hundreds' widths, and so is a layout holding a
+   figure that writes no count -- an ISO date's, a zero-padded count's --
+   while such layouts hold at most a third of the present cells (repair
+   2, the producer's tests passing them over the same way); a made-up
+   word of a held counted grain is written as the walk wrote it, and a
+   made-up value the walk wrote as text holding a figure as a word
+   holding none, each figure the capital its value counts from `A`, so
+   the column's counts of numbers and of text hold (repair 2). A census withheld whole is read in the layout the
+   grain's reading writes a day in (`taxonomy.member_date_layout`), its
+   stand-ins written as dates of the room in the reading's own form; a
+   day of the year stands as a stamp does (a reading of it names a
+   published year). The oracle mirrors the walk's test
+   (`counts_off_the_real`), held to the product by a generated gate case
+   (tests/test_counted_dates_room.py).
 
 ## G10. Absent cells, straggler stand-ins, unrepresentable values
 
@@ -17324,6 +17526,32 @@ The column publishes `n_whole`, `n_fraction`, `n_whole_unknown`,
 `min_length` and `max_length`, the character counts of the narrowest
 and the widest value the real column holds. It publishes no magnitude
 fact of any other kind.
+
+**THE SPELLINGS HAVE ONE SOURCE, AND THE PROFILE READS IT** (lane
+ID-ROOM4, plan P4-D489). Every step below that chooses a spelling is
+`generation.unrepresentable_spellings`: one spelling a group of the
+census `n_distinct_by_occurrences` publishes, in the order the groups
+are written, from this block and the document's hole spellings alone
+(no seed). The writer places exactly those, each over its group's rows.
+They are fixed counters in the grammar code columns are written in --
+`1e400` onward at width 5, the mantissa zero-padded at width 6, a
+leading minus, `e-400`, `(-N)`, digit strings, `text-N` -- so
+`synthtwin profile` asks the same function for the spellings a final
+block will receive (`generation.made_up_spellings`, on the description
+as this method loads it) and reads them against the column's real cells
+by merged key: a column where one would equal a real value 1 to f-1
+people or rows hold (counted in the subjects the description is counted
+in) keeps its block and carries the detection evidence NF139, whatever
+its answer, and step 8 spells it one letter or figure wider than its
+longest value (the orchestrator's LANE ID-ROOM4 RULINGS 5 (2)). Where
+even those spellings would meet ANY real value of the column, however
+many hold it -- a real cell `max_length` does not measure, ordinary text
+of figures and marks: NF139 promises that no twin cell equals a real one
+-- or where step 8 cannot make them at the column's width (G9.4's
+refusal), it is held as a record number instead (7.12b's writer and its
+exclusion; Codex's review of lane ID-ROOM4, items 5 and 1: eleven real
+cells `t10000` written back, and descriptions `synthtwin generate` then
+refused).
 
 **REVISION 4 RETIRES THE CANONICAL INVENTED WIDTH** (residual R-P2-1,
 closed). Revisions 1 to 3 published no width at all for this role and
@@ -17731,6 +17959,77 @@ Construction, in this fixed order, so the counts land exactly:
    passes a column published at 250 whose twin starts at 310. Either
    end that does not match is a NAMED deviation carrying the twin's own
    count beside the published one. A miss on this path is never silent.
+8. **A COLUMN WHOSE SPELLINGS WOULD BE ITS OWN VALUES IS SPELLED ONE
+   LETTER OR FIGURE WIDER** (lane ID-ROOM4, plan P4-D489; the
+   orchestrator's LANE ID-ROOM4 RULINGS 5 (2)). Where the block carries
+   the detection evidence NF139, steps 2, 3 and 5 stand -- the groups,
+   their shapes and their signs, so the census and every count of
+   notation, whole number and sign are the published ones -- and step 4
+   is replaced: every cell holds `max_length` + 1 letters and figures
+   (never fewer than its shape's shortest: five for the two out-of-range
+   shapes, two for a fraction and for ordinary text), and no run of its
+   figures opens with a nought, so its merged key is longer than any real
+   cell, which holds at most `max_length` characters; and no mantissa
+   ends with a nought (the figures before `e`, every figure of a number
+   written in figures alone, a fraction's figures): such a candidate is
+   stepped past, so every number written needs more characters than the
+   published `max_length` (a sign, a point and an exponent's minus
+   counted; 0 of 43,840 walked numbers at 30 widths from 5 to 1,312 fit),
+   and no real value equals it by value either; a whole number this
+   format holds past 309 figures is a figure and noughts by construction
+   and is read by value by the profile (batch 4t's fix round, its second
+   code round, plan P4-D489). A keyed value column's key block or pooled
+   block of this role (contract 6.3k) carries NF139 as a column does and
+   is spelled so, block by block (the fix round's item 1). The six
+   shapes: contradictory notation `(-N)`, `N` of that many figures; a
+   whole number too large to hold, the sign and that many figures at 310
+   or more, else the sign, a mantissa, `e` and a three-figure exponent
+   walking as step 4's, the mantissa moving first; a fraction too small
+   to hold, the sign, a mantissa, `e-` and an exponent of the field its
+   width needs -- three figures from 400 while a mantissa of p figures
+   times ten to the minus 400 stays out of range (p up to 76), else
+   from p + 324, where the largest mantissa of p figures is under ten to
+   the minus 324, below half binary64's smallest subnormal, and one
+   exponent less reads as a number the format holds; past three figures
+   each figure the exponent takes is one the mantissa gives up, so the
+   cell keeps its width -- walking up from that start and then down from
+   the start less one, the mantissa moving first; a whole number the
+   format holds, the sign and that many figures up to 309, and past them
+   a figure, noughts, `e-` and an exponent no larger than the noughts
+   and no more than 307 below them, walking down, of as many figures as
+   leave the longest run of such exponents, the fewer on a tie (three up
+   to a cell of 1,158 letters and figures, four from 1,159: at least 154
+   exponents of nine members at every width; Codex's review of lane
+   ID-ROOM4, item 1: three figures alone left none from a cell of 1,312
+   and nine members at 1,311); a fraction it holds, the sign, a figure,
+   the point and the rest in figures; ordinary text, `t` and figures.
+   Every run of figures is written as text, never through a number of
+   that many figures. Each shape and sign walks its own family from its
+   first member, stepping past a candidate the shipped parser files
+   under another shape or sign, a hole spelling or a spelling already
+   written; refused candidates past one exponent's mantissas (at most
+   100,000) and every spelling written end the walk, and G9.4's refusal
+   follows -- which `synthtwin profile`'s dry run meets first and
+   answers by holding the column as a record number, never by
+   describing a column step 8 cannot write. A group beyond the published
+   folded count is a respelling of an earlier value of its own family,
+   the family's values taking their turns in the order they were
+   written, each once before any twice (so the least used, and of two
+   equally used the one written first; read off the partners given so
+   far, never by a scan of the family: Codex's review of lane ID-ROOM4,
+   item 4): its case variants (G9.3), then the value with one, two,
+   three ... spaces after it, which keeps its letters and figures, each
+   value reading on from the variant and the spacing its last partner
+   took. Step 6 recounts every
+   count as before. The two widths of step 7 are the lesser outcome this
+   step takes, named in the report under their own field names, and the
+   validator reads them as the plan says: in a made-up spelling written
+   wider, `min_length` and `max_length` are APPROXIMATED, an
+   AUTHORIZED-DEVIATION where the measured file holds them longer than
+   published. Linear in the groups. The frozen vectors are the oracle's
+   thirty-third file (`tests/reference/generation-branch-vectors-33.json`),
+   ten invented columns, the fields of four of them read off the
+   oracle's own exact reading rather than the figures above.
 
 ## G11. The all-different obligation
 
@@ -18157,6 +18456,7 @@ turned this guard red, which is what it is for.
 * `all_at_midnight`
 * `all_whole_numbers`
 * `band totals`
+* `by_key`
 * `chain`
 * `date_field_widths`
 * `datetime_separators`
@@ -18256,6 +18556,12 @@ rules that build them:
   of its pair's grid (G16.3; amended 2026-11-05, lane MPg's repair 3),
   the first `<n>` the column whose block carries it and the second its
   partner, both column names
+
+**AND ONE MORE IN LANE KV** (plan P4-D487): `by_key`, the note G8.3f writes on a
+value column typed by a key column where the twin's key holds more rows of a key
+than the key's block describes, those rows written blank; a description synthtwin
+writes gives every block exactly its key's rows (KV2, KV3), so the note names a
+hand-made one. It prints the count of rows left blank and no value.
 
 A name here is a key a report MAY carry, never one it must: every
 entry above is a deviation raised only where the twin did not reach

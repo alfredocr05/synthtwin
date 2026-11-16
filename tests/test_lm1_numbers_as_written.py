@@ -531,13 +531,18 @@ _BASE_CODE_DIGESTS = (
 # size: a twin generated from that description wrote 444 of 20,000 cells
 # holding the six figures of a real `sample_id` (`Z512345` beside the real
 # `S512345`) on 820d55c3's reading and none on the merged line's; no twin
-# cell equals a real one either way, and the answered description, the
-# questions file and the twin are 820d55c3's byte for byte.
+# cell equals a real one either way, and the answered description and the
+# twin are 820d55c3's byte for byte. The questions file is the merged
+# line's since batch 4t's merge of lane EZ-a (step 1, plan P4-D479): its
+# `how_to_answer` sentence also offers a plain text file of answers, its
+# one moved value (measured at batch 4t's merge of lane CZ-G, step 4: the
+# eight files byte for byte the same on batch 4s's sealed head `03c8f8dc`
+# but the questions file, and the same on step 1's head and after).
 _BASE_ZOO_DIGESTS: "dict[str, str]" = {
     "instrument_magnitudes-profile-unanswered.json": "863aed59954ecf79562e58f5d1d26acbb7a6bd9acd0dc9b72116f36e9f71a4ef",
     "instrument_magnitudes-profile.json": "ddbd93a698ea68a52b0531d3c6e542f16e76134e2be5c83abdefd1c8f9df7bc7",
     "instrument_magnitudes-profile.txt": "a5a7b7f7af7a7f21d3b8d8539837e7266a2ff77438aaef7fec6dfa13c0a90be3",
-    "instrument_magnitudes-questions.json": "d7a1949b70aa1178ccd129c8fefc6c803e412db8502be45163e41daca9c4498b",
+    "instrument_magnitudes-questions.json": "2eeab5ad7115d61d8d5127482acaf12c86af2b712522f2647b865f56ff0b3b3b",
     "instrument_magnitudes-twin-quality.txt": "691689f07c8b7d6f36d3fd31daef417947679bd3993e0f5a02227401a591913b",
     "instrument_magnitudes-twin-report.txt": "45031e95f5befbc51856c35e470047bece8eddaca8c8dfb936ac1b21d66a57b4",
     "instrument_magnitudes-twin.csv": "4b07194be4e289e1e43e185652fd99ef4d709924280542b3768ac610d9e44846",
@@ -687,10 +692,12 @@ def test_codes_written_like_magnitudes_write_as_the_base_did(tmp_path: pathlib.P
 
 
 def test_the_zoo_magnitudes_write_as_the_base_did_at_the_table_floor(tmp_path: pathlib.Path) -> None:
-    """THE ONE 20,000-ROW CASE: the zoo's `instrument_magnitudes` through the shipped command, every file it writes byte for byte 820d55c3's but the description written before any answer.
+    """THE ONE 20,000-ROW CASE: the zoo's `instrument_magnitudes` through the shipped command, every file it writes byte for byte 820d55c3's but the description written before any answer and the questions file.
 
     That description's one moved value is lane CZ-A2's opening of the held
-    `sample_id`'s run (plan P4-D469; see `_BASE_ZOO_DIGESTS`). Its three
+    `sample_id`'s run (plan P4-D469); the questions file's is lane EZ-a's
+    sentence offering a plain text file of answers (plan P4-D479; see
+    `_BASE_ZOO_DIGESTS`). Its three
     analyst checks fail again, as on the base, owned by lane LM2 (plan
     P4-D475).
     """

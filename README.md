@@ -119,6 +119,19 @@ column's Safe Harbor question is answered `no`. Where neither the cells
 nor the name give a unit, the ages are read in years and that question
 also asks the unit.
 
+**A long table, one row a measurement.** Where one column says which
+measurement each row holds -- a vital sign, a test, a question -- and
+another holds its value, and the values follow the names, the value
+column is read as typed by the name column and each common measurement
+is described as a column of its own (plan P4-D487). Answer its
+questions in this order: the question about the column that names the
+patients first; then `no` to the name column's Safe Harbor question
+where its names are ordinary measurement or question names; `keyed`,
+or leave it blank, to the question whether each value is a measurement
+of the kind the name column names; and the value column's own Safe
+Harbor question truthfully, whose words say which measurements a `yes`
+holds.
+
 **The same journey in one command.** `synthtwin twin my-table.csv` runs
 the three commands above in one run and writes their six files into one
 folder, `my-table-synthtwin` beside the table, or the folder `--out-dir`
@@ -264,11 +277,12 @@ was never evaluated, without parsing prose.
 
 ### The options
 
-Six for `profile`, for the things the rules cannot settle on their own:
+Nine for `profile`, for the things the rules cannot settle on their own:
 
 ```
 synthtwin profile my-table.csv --out-dir reports
 synthtwin profile my-table.csv --identifier participant_number
+synthtwin profile my-table.csv --person patient_number --identifier clinician_number
 synthtwin profile my-table.csv --code vaccine_code
 synthtwin profile my-table.csv --measurement blood_pressure
 synthtwin profile my-table.csv --smallest-group 20
@@ -289,7 +303,22 @@ you had typed `--code`, `--identifier` or `--measurement` for each of
 them -- and the description records them as such. Columns you leave
 blank keep the reading synthtwin made. An answer the question did not
 offer stops the run and tells you what you can write instead, rather
-than being quietly dropped.
+than being quietly dropped, whatever its capitals. You may leave that
+file as it is and name a plain text file of your own instead, one
+answer a line, `column = answer`: synthtwin matches it against the
+questions file the last run wrote beside your table. Write each
+column's name exactly as that file writes it, capitals included: `ID`
+and `id` are two columns. The numbers the screen prints beside the
+questions (`Question 7`) are labels, not read in a text file, except
+that a number alone answers a question about the file; where two
+questions about one column take the same answer, answer them at the
+keyboard or in the questions file itself. At a keyboard you need
+neither: after the files are written,
+synthtwin puts on the screen every question no prompt of the run put,
+writes your answers into that file and describes the table again with
+them, and the line that repeats the run names the questions file
+wherever an answer no option repeats stands (a Safe Harbor answer, a
+`keep`).
 
 `--identifier` names a column whose values are record numbers or codes
 rather than measurements, so that none of them are published anywhere in
@@ -410,8 +439,14 @@ refuses a table. No option turns the floor off (plan P4-D425).
 Name a column with `--identifier` and, if its values REPEAT, rows
 sharing a value of it are one person and rows holding no value of it
 count as one person between them -- so a table of 500 visits by 80
-subjects is 80, and is refused. An identifier that is different on
-every row names a row rather than a person and is not counted by.
+subjects is 80, and is refused. Where two or more such columns repeat,
+rows sharing a value of ANY of them are one person, so a clinician's
+number that many patients share would join them all: name the patients'
+column with `--person` (or answer the question that asks which column
+names the people the rows are about), and the people are counted by it
+alone while every other such column stays held and joins nobody. An
+identifier that is different on every row names a row rather than a
+person and is not counted by.
 Where nothing is declared, the population is counted in rows, and
 where a column looks like it names people -- its values repeat, and
 there are more of them than a set of categories could have -- the
@@ -794,7 +829,10 @@ Then close Terminal, open it again and type `python3.14 --version`: it
 should print `Python 3.14`. The install script finds it even when a
 newer Python is there too.
 
-**On Windows.** Open Command Prompt (type `cmd` in the Start menu) and
+**On Windows.** On a protected Windows computer without internet, skip
+this: the ready folder carries its own Python
+([docs/windows-install.md](docs/windows-install.md)). Otherwise open
+Command Prompt (type `cmd` in the Start menu) and
 type `python --version`. If it prints `Python 3.11`, `3.12`, `3.13` or
 `3.14`, you are ready. If it prints another number, says the command is
 not recognized, or opens the Microsoft Store, go to python.org, choose
@@ -830,8 +868,28 @@ script run in it says so and sends you here.
 
 ## Installing
 
-It installs with one command, typed in the bundle's folder (`cd` into
-it first; `INSTALL.txt` in the bundle says how, step by step).
+**On a Windows computer without internet, the ready folder.** For a
+protected Windows computer the same hash-checked offline bundle comes in
+a second form: a ready-to-run folder that carries its own Python
+(python.org's embeddable Python 3.14) with the locked libraries and
+synthtwin already inside, unzipped and started by double-clicking
+`START-HERE`, every file checked against its `SHA256SUMS` at every start
+(a guard against damage and accidental change; the zip's own SHA-256,
+checked with `Get-FileHash` before it is unzipped, covers the rest),
+nothing installed and no administrator needed (plan P4-D483).
+[docs/windows-install.md](docs/windows-install.md) walks through it step
+by step, from reading the memory in Task Manager to what may leave the
+computer. CI builds it and rehearses it on a clean Windows runner with
+the network refused (the workflow `windows-bundle.yml`), and only a
+rehearsed zip is kept, for 90 days, as the download
+`synthtwin-windows-ready` on that run's page, beside
+`synthtwin-windows-fallback`: the Windows bundle below with python.org's
+Python 3.14 installer. Its first run is owed to the push that carries
+it; STATE names the first green run.
+
+Everywhere else the bundle installs with one command, typed in the
+bundle's folder (`cd` into it first; `INSTALL.txt` in the bundle says
+how, step by step).
 
 On a Mac or Linux:
 

@@ -8169,7 +8169,9 @@ def _exact_digits(text: str) -> "tuple[int, tuple[str, ...], int]":
     """The canonical triple of a spelling ALREADY READ AS A NUMBER.
 
     Asked only about text the reader of record has classified as a
-    number this format can hold, which is what lets the scan below be
+    number this format can hold -- or, through `exact_of_a_number`, as a
+    well-formed number too large or too small to hold, whose characters
+    the same arithmetic reads -- which is what lets the scan below be
     arithmetic over the characters rather than a second opinion about
     what the cell is: nothing here decides whether a spelling is a
     number, so nothing here can disagree with the answer already given.
@@ -8284,6 +8286,30 @@ def exact_of_spelling(text: str) -> "tuple[int, tuple[str, ...], int] | None":
     if not isinstance(text, str):
         raise TypeError(_NOT_TEXT)
     if classify_number(text) != NUMBER:
+        return None
+    return _exact_digits(text)
+
+
+def exact_of_a_number(text: str) -> "tuple[int, tuple[str, ...], int] | None":
+    """The exact number a spelling writes, whether this format holds it or not, or None when it writes none.
+
+    `exact_of_spelling`'s triple for every text the reader of record reads
+    as a well-formed number (`classify_number`: a number this format holds,
+    or one too large or too small to hold), so `30e404`, `3.0E+405` and
+    `3e405` give one triple although no binary64 value holds any of them;
+    None for contradictory notation and for every other text. The scan is
+    `_exact_digits`' arithmetic over the characters, which reads the
+    figures, the point and the exponent of a well-formed number of any
+    size. Asked where a made-up spelling is read against a column's real
+    cells by value (batch 4t's last code round, item 1; the orchestrator's
+    LANE I4t RULINGS 2 (1)). Guarantees: accepts any text; returns the
+    canonical triple or None; raises TypeError if handed anything that is
+    not a string instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    kind = classify_number(text)
+    if kind != NUMBER and kind != NUMBER_OUT_OF_RANGE:
         return None
     return _exact_digits(text)
 

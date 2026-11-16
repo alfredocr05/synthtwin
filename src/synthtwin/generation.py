@@ -141,7 +141,7 @@ structure arrives in a later phase (Phase 5).
 import dataclasses
 import math
 import typing
-from synthtwin import calendar_clock, calendar_rules, chain_moments, chain_rules, chain_walk, contract, dialect, errors, parsing, taxonomy, twinstore
+from synthtwin import calendar_clock, calendar_rules, chain_moments, chain_rules, chain_walk, contract, dialect, errors, parsing, progress, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts, grains, offset_rules
 
@@ -3032,6 +3032,1278 @@ def _cell_walk(
         for reserve in filed_back[cell]:
             _owed_dropped(reserve[3])
         cell = cell + 1
+
+
+# -- the layout pass's allocator: three rungs under one meter (plan P4-D490)
+#
+# THE LAYOUT PASS ENDS. `_layout_packings` asks where every made-up group
+# of a column of record numbers wears its layout, and `_allotted_over`
+# answers by a walk that has no ceiling by design (review items P2-C2-F1
+# and P2-C3-F1). On a column of many values held by similar, spread
+# numbers of rows -- 120 made-up exam names drawn on 154 to 175 rows each
+# in fourteen layouts at 20,000 rows, a column held while its Safe Harbor
+# question is open -- that question is a partition of the repeat counts
+# into the layout counts, and the walk took more than 82,531 steps and 90
+# CPU seconds without ending (lane HB3-b's step 0): a column whose twin is
+# not written in hours is a column whose code does not run. So the pass
+# climbs three rungs under ONE meter per column, every question and look
+# of every reading together (`_layout_meter`):
+#
+# 1. THE WALK AS IT IS, within the steps and the work the meter holds:
+#    its own answer, byte for byte (`_layout_walked`, the walk of
+#    `_allotted_over`, `_cell_walk` and `_cell_next` counted on the
+#    meter), so a column whose pass ends inside the meter today keeps
+#    every cell;
+# 2. THE EXACT RE-PACKING ALLOCATOR where every margin but one holds a
+#    single count (`_layout_repacked`), its work counted on the same
+#    meter: its answer where every count of every margin and every
+#    permission is met;
+# 3. else the NEAREST ASSIGNMENT the re-packing allocator held when it
+#    stopped (the least total distance of the layout counts from the
+#    published ones) is laid out where it stands nearer the census than
+#    the first layout, the first layout where it does not, and every
+#    layout either leaves short is filed with its cause (`_layout_filed`);
+#    once the allocator has stopped short on a column its later questions
+#    get no answer.
+#
+# What changes is WHICH LAYOUT a made-up group wears, never how it is
+# spelled, its room or its spill (plan P4-D432).
+
+# HOW MANY STEPS THE LAYOUT PASS'S WALK MAY TAKE ON ONE COLUMN, counted as
+# calls of `_layout_next` over every question and look of every reading of
+# the column together (plan P4-D490). A count of steps, never seconds, so
+# the pass ends at the same place on every machine. The census of lane
+# HB3-b's step 0 found no recorded column whose pass walks more than 302
+# steps (a held column of patients' names in the zoo at 20,000 rows; the
+# golden battery's columns reach no layout pass and the suite's walk cases
+# take at most 108 steps a pass), so the meter is at least twice that and
+# no recorded column moves. It is set past twice the 6,514 steps the walk
+# takes to pack a held column of 120 made-up exam names beside 150 rare
+# ones exactly at 20,000 rows (lane HB3-b's skeptic 1, LANE HB3-b RULINGS
+# 4 (1)): a layout filed short is a fidelity cost the twin carries into
+# every analysis of the column, and those steps cost seconds.
+_LAYOUT_WALK_STEPS = 15000
+
+# HOW MUCH WORK THE LAYOUT PASS'S WALK MAY DO ON ONE COLUMN, beside its
+# steps (plan P4-D490; LANE HB3-b RULINGS 5 (2)): one unit for each step
+# and one for each reading of a cell's reserves (`_reserves_met`) and
+# each reading of a reserve's table (`_owed_read`) the step makes, and
+# one for each entry into a cell and each reserve it files under each
+# size (`_layout_cell_entry`), each unit read on the meter before it is
+# spent, so the walk ends in a stated amount of work and memory at every
+# size and never passes it (Codex's review of lane HB3-b, item 5: an
+# entry's reserves were built and charged before the meter was read, and
+# on two groups of every size from 1 to 999 and one of 1,000 rows in
+# 1,000 counts of 1,000 its first cell took the work to minus 650,000).
+# A step alone does not: on the exam column's
+# question at 200,000 rows one call of `_cell_next` read the reserves
+# about 380 times and their tables about 2,300 times, about 0.16 CPU s a
+# step against 2 ms at 20,000 rows, so 15,000 steps would have taken
+# about 40 CPU minutes; and a column of 2,236 made-up names in 837
+# layouts files about 5,500 reserves at each of its 10,044 cells, so its
+# walk held 856 MB at 2,400 steps and was stopped by the machine's memory
+# watchdog at 2.6 GB inside 15,000. Set by the census (no recorded
+# column's pass makes more than 302 steps and 349 readings; the largest,
+# the zoo's held column of patients' names, takes 41,530 units) and by
+# two measured columns: half as much again as the 228,333 units of the
+# exact walk of the 270-name column above, so the walk that sets the
+# steps is kept whole, and low enough that the exam column's pass stays
+# under a minute of CPU at 20,000, 100,000 and 200,000 rows.
+_LAYOUT_WALK_WORK = 350000
+
+# HOW MUCH WORK THE SECOND RUNG MAY DO ON ONE COLUMN, over every question
+# and reading of the column (plan P4-D490): this many units, and
+# `_REPACK_WORK_A_GROUP` for each of the column's made-up groups. A unit is
+# one group a start places or one count it reads to place it, one group a
+# re-packing pools, or one group the bitset subset sum reads, forward or
+# going back, and such a reading one more for each `_REPACK_WORK_WIDTH`
+# rows of the count it makes (`_repacked`, `_repack_subset`): the work
+# itself, so the rung's work on a column is linear in its groups by
+# construction. Counted as tries, which it was until Codex's review of
+# lane HB3-b (item 4), a try cost its pooled groups and its count's width,
+# and a column of K made-up values on one row, 100 K on two and K counts
+# of 201 rows took 1,848,635 and 16,984,865 pooled groups at K = 20 and 40
+# under the same bound of tries. Set beside the measured columns: every
+# question the re-packing allocator answers on lane HB3-b's tables and on
+# the questions of 2,000,000-row columns is answered inside it.
+_REPACK_WORK = 200000
+_REPACK_WORK_A_GROUP = 1000
+
+# HOW WIDE A COUNT ONE UNIT OF THE SUBSET SUM'S WORK READS, in rows (plan
+# P4-D490): a reading of the subset sum shifts a whole number one bit
+# wider than the count, so past this many rows it costs one unit more for
+# each such stretch -- 256 machine words, about what one reading's own
+# bookkeeping costs.
+_REPACK_WORK_WIDTH = 16384
+
+# HOW MUCH ONE RE-PACKING MAY HOLD, in bytes (plan P4-D490). A re-packing
+# keeps what each prefix of its pooled groups can total, one whole number
+# a group as wide as the count; past this it keeps every k-th of them,
+# k about the square root of the groups, and works each stretch out again
+# as it goes back, which takes twice the time and finds the same groups.
+_REPACK_MEMORY = 64 << 20
+
+
+def _layout_meter(groups: int = 0) -> "list[int]":
+    """A fresh meter for one column's layout pass (plan P4-D490).
+
+    ``[steps, stopped, work, repacking, short]``: the walk steps still
+    allowed (`_LAYOUT_WALK_STEPS`); 1 once a question was answered past
+    the walk (a walk stopped by the meter, or none begun on a meter
+    already spent); the walk's work still allowed (`_LAYOUT_WALK_WORK`);
+    the re-packing allocator's work still allowed, `_REPACK_WORK` and
+    `_REPACK_WORK_A_GROUP` for each of the column's ``groups``; and 1
+    once that allocator stopped short of an exact answer on the column.
+    A fixed function of its argument.
+    """
+    return [
+        _LAYOUT_WALK_STEPS,
+        0,
+        _LAYOUT_WALK_WORK,
+        _REPACK_WORK + _REPACK_WORK_A_GROUP * groups,
+        0,
+    ]
+
+
+def _layout_allotted(
+    groups: "tuple[int, ...]",
+    margins: "list[tuple[list[int], list[int]]]",
+    allowed: "list[int]",
+    meter: "list[int]",
+) -> "list[int] | None":
+    """`_allotted_over`'s question, put by the layout pass under its meter (plan P4-D490).
+
+    Rung 1, the walk, while the meter holds steps and work: where it
+    ends, its answer is `_allotted_over`'s own, an assignment or None
+    alike (None there means no assignment of whole groups exists, so no
+    rung below could find one). Where the meter runs out first, or had run
+    out on an earlier question of the same column, rung 2 answers
+    (`_layout_repacked`) with an exact assignment; where it stops short of
+    one, its nearest assignment is the answer and the meter's ``short`` is
+    set (rung 3), and every later question of the column gets None, which
+    the caller reads as no packing from that question. A question of
+    several binding margins goes from the walk to rung 3 (RULING D3).
+
+    Guarantees: a fixed function of its arguments and of the meter; it
+    changes nothing but the meter.
+    """
+    if meter[0] > 0 and meter[2] > 0:
+        ended, chosen = _layout_walked(groups, margins, allowed, meter)
+        if ended:
+            return chosen
+    meter[1] = 1
+    if meter[4]:
+        return None
+    chosen, exact = _layout_repacked(groups, margins, allowed, meter)
+    if not exact:
+        meter[4] = 1
+    return chosen
+
+
+def _layout_walked(
+    groups: "tuple[int, ...]",
+    margins: "list[tuple[list[int], list[int]]]",
+    allowed: "list[int]",
+    meter: "list[int]",
+) -> "tuple[bool, list[int] | None]":
+    """`_allotted_over` with its walk counted on the meter (plan P4-D490).
+
+    Every line is `_allotted_over`'s, in its order, the walk
+    `_layout_walk`; ``(True, answer)`` where the walk ended inside the
+    meter, the answer exactly `_allotted_over`'s, and ``(False, None)``
+    where the meter ran out first.
+    """
+    counted = 0
+    for size in groups:
+        counted = counted + size
+    for margin in margins:
+        total = 0
+        for quota in margin[0]:
+            total = total + quota
+        if total != counted:
+            return True, None
+    cells = len(margins[0][1])
+    order = _cell_order(margins, cells)
+    ranked = [-1 for _each in range(cells)]
+    for step in range(cells):
+        ranked[order[step]] = step
+    part_at = [
+        [margin[1][order[step]] for step in range(cells)]
+        for margin in margins
+    ]
+    last_of = [_last_cells(places, cells) for places in part_at]
+    masks = [
+        _ranked_mask(allowed[place], ranked) for place in range(len(groups))
+    ]
+    keys = sorted({
+        (groups[place], masks[place]) for place in range(len(groups))
+    })
+    place_of = {keys[index]: index for index in range(len(keys))}
+    counts = [0 for _each in keys]
+    for place in range(len(groups)):
+        counts[place_of[(groups[place], masks[place])]] = (
+            counts[place_of[(groups[place], masks[place])]] + 1
+        )
+    ended, taken = _layout_walk(
+        keys,
+        counts,
+        [[quota for quota in margin[0]] for margin in margins],
+        part_at,
+        last_of,
+        meter,
+    )
+    if not ended:
+        return False, None
+    if taken is None:
+        return True, None
+    chosen = [-1 for _each in groups]
+    for cell in range(cells):
+        for place in range(len(groups)):
+            if chosen[place] >= 0:
+                continue
+            found = place_of[(groups[place], masks[place])]
+            if taken[cell][found] < 1:
+                continue
+            chosen[place] = order[cell]
+            taken[cell][found] = taken[cell][found] - 1
+    for cell in chosen:
+        if cell < 0:
+            return True, None
+    return True, chosen
+
+
+def _layout_walk(
+    keys: "list[tuple[int, int]]",
+    counts: "list[int]",
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    last_of: "list[list[bool]]",
+    meter: "list[int]",
+) -> "tuple[bool, list[list[int]] | None]":
+    """`_cell_walk`, its every step counted on the meter (plan P4-D490).
+
+    The same loop in the same order, with a new memory of failed states;
+    one step is taken off the meter before each call of `_layout_next`,
+    `_cell_next` with its work counted on the meter, and each entry into
+    a cell takes one unit of work and one for every reserve it files,
+    under every size it is filed under (`_layout_cell_entry`); where no
+    step or no work is left the walk stops: ``(False, None)``. Otherwise
+    ``(True, filling)``, the filling `_cell_walk` returns, None included.
+    The equality check of lane HB3-b (tests/test_held_writer_time.py)
+    holds the two walks to one answer wherever this one ends.
+
+    THE WORK IS READ BEFORE IT IS SPENT (Codex's review of lane HB3-b,
+    item 5): every unit -- an entry, its reserves, a step, a reading of a
+    cell's reserves or of a reserve's table -- is taken only where the
+    meter still holds it, and an entry whose reserves the meter cannot pay
+    for is never built, so the meter's work never falls below nought and no
+    cell's tables are made past it (`_LayoutSpent`).
+    """
+    try:
+        return _layout_walk_counted(keys, counts, owed, part_at, last_of, meter)
+    except _LayoutSpent:
+        return False, None
+
+
+class _LayoutSpent(Exception):
+    """The layout pass's walk met a unit of work its meter no longer holds (plan P4-D490).
+
+    Raised inside the walk's entries and readings (`_layout_cell_entry`,
+    `_layout_found_from`) before the unit is spent or anything is built
+    for it; `_layout_walk` reads it as the walk stopped by its meter.
+    """
+
+
+def _layout_walk_counted(
+    keys: "list[tuple[int, int]]",
+    counts: "list[int]",
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    last_of: "list[list[bool]]",
+    meter: "list[int]",
+) -> "tuple[bool, list[list[int]] | None]":
+    """`_layout_walk`'s loop: `_cell_walk`'s lines in their order, the meter read before each unit (plan P4-D490)."""
+    cells = len(part_at[0])
+    left = [count for count in counts]
+    walks: list[list[int]] = []
+    reaches: list[list[int]] = []
+    accepts: list[int] = []
+    tops: list[int] = []
+    needs: list[list[int]] = []
+    kept_back: list[list[list[tuple[int, int, list[int], list[int]]]]] = []
+    filed_back: list[list[tuple[int, int, list[int], list[int]]]] = []
+    placed: list[list[int]] = []
+    marks: list[int] = []
+    failed: "set[int]" = set()
+    radices = _walk_radices(counts, owed)
+    span = cells + 1
+    for radix in radices:
+        span = span * radix
+    kept = _WALK_MEMORY // _state_bytes(span)
+    part_cells = [[0 for _each in family] for family in owed]
+    for margin in range(len(owed)):
+        for step in range(cells):
+            part = part_at[margin][step]
+            part_cells[margin][part] = part_cells[margin][part] | (1 << step)
+    families: list[tuple[int, int, list[int]]] = []
+    for margin in range(len(owed)):
+        for part in range(len(owed[margin])):
+            steps = [step for step in range(cells) if part_at[margin][step] == part]
+            families += [(margin, part, steps)]
+    cell = 0
+    while True:
+        if cell == cells:
+            return True, placed
+        if len(walks) == cell:
+            mark = _walk_mark(cell, left, owed, radices)
+            room = _cell_room(owed, part_at, last_of, cell)
+            entry = None
+            if mark not in failed and room[0] <= room[1]:
+                if meter[2] < 1:
+                    return False, None
+                meter[2] = meter[2] - 1
+                entry = _layout_cell_entry(
+                    keys, left, owed, part_at, part_cells, families, cell, room,
+                    meter,
+                )
+            if entry is None:
+                if len(failed) < kept:
+                    failed |= {mark}
+                cell = cell - 1
+                if cell < 0:
+                    return True, None
+                continue
+            marks += [mark]
+            accepts += [entry[0]]
+            needs += [entry[1]]
+            tops += [entry[2]]
+            kept_back += [entry[3]]
+            filed_back += [entry[4]]
+            reaches += [_reach_bits(keys, left, cell, entry[2], entry[1])]
+            walks += [[]]
+            placed += [[]]
+        else:
+            _moved_by(
+                placed[cell], keys, left, owed, part_at, cell, 1,
+            )
+        if meter[0] < 1 or meter[2] < 1:
+            return False, None
+        meter[0] = meter[0] - 1
+        walk, found, ended = _layout_next(
+            keys, left, walks[cell], reaches[cell], accepts[cell],
+            tops[cell], needs[cell], cell, kept_back[cell], meter,
+        )
+        if not ended:
+            return False, None
+        walks[cell] = walk
+        if found is None:
+            if len(failed) < kept:
+                failed |= {marks[cell]}
+            walks = walks[:cell]
+            reaches = reaches[:cell]
+            accepts = accepts[:cell]
+            tops = tops[:cell]
+            needs = needs[:cell]
+            kept_back = kept_back[:cell]
+            filed_back = filed_back[:cell]
+            placed = placed[:cell]
+            marks = marks[:cell]
+            cell = cell - 1
+            if cell < 0:
+                return True, None
+            continue
+        _moved_by(found, keys, left, owed, part_at, cell, -1)
+        placed[cell] = found
+        for reserve in filed_back[cell]:
+            _owed_dropped(reserve[3])
+        cell = cell + 1
+
+
+def _layout_cell_entry(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    owed: "list[list[int]]",
+    part_at: "list[list[int]]",
+    part_cells: "list[list[int]]",
+    families: "list[tuple[int, int, list[int]]]",
+    cell: int,
+    room: "tuple[int, int]",
+    meter: "list[int]",
+) -> "tuple[int, list[int], int, list[list[tuple[int, int, list[int], list[int]]]], list[tuple[int, int, list[int], list[int]]]] | None":
+    """`_cell_entry`, the work of its reserves reserved on the meter before they are kept (plan P4-D490).
+
+    Every line is `_cell_entry`'s, in its order, to the reserves of its
+    condition 5. An entered cell costs the walk one unit for each reserve
+    it files and one for each size each reserve is filed under (the
+    entry's own unit is taken by the walk before this is asked).
+    The reserves are made one at a time, each costed as it is made, and
+    while the meter can pay for the reserves made so far they are kept,
+    read together and filed exactly as `_cell_entry` reads and files them,
+    the entry is `_cell_entry`'s own and the meter is charged for it. From
+    the reserve the meter cannot pay for on, none is kept: those made are
+    read and each later one is read alone as it is made, only to tell an
+    entry `_cell_entry` refuses -- None, the walk going on as it would --
+    from one it would enter, which is never built: the meter's work is
+    spent and `_LayoutSpent` stops the walk before the cell's index of
+    reserves or its table of reachable totals (`_reach_bits`) is made
+    (Codex's review of lane HB3-b, item 5: on two groups of every size
+    from 1 to 999 and one of 1,000 rows in 1,000 counts of 1,000, the
+    first cell's reserves cost 1,000,000 units against 350,000, and the
+    walk had built them and their table before it stopped).
+
+    Guarantees: a fixed function of its arguments; it changes only the
+    meter.
+    """
+    cells = len(part_at[0])
+    lowest, highest = room
+    standing = 0
+    for place in range(len(keys)):
+        if left[place] > 0:
+            standing = standing | keys[place][1]
+    low = [0 for _each in range(cells)]
+    high = [0 for _each in range(cells)]
+    for step in range(cell, cells):
+        if (standing >> step) & 1 == 0:
+            continue
+        least = owed[0][part_at[0][step]]
+        for margin in range(1, len(owed)):
+            due = owed[margin][part_at[margin][step]]
+            if due < least:
+                least = due
+        high[step] = least
+    if not _bounds_settled(owed, families, cell, low, high):
+        return None
+    if low[cell] > lowest:
+        lowest = low[cell]
+    if high[cell] < highest:
+        highest = high[cell]
+    if lowest > highest:
+        return None
+    roomy: list[tuple[int, int]] = []
+    for step in range(cell, cells):
+        if high[step] > 0:
+            roomy += [(high[step], step)]
+    roomy = sorted(roomy)
+    open_cells = 0
+    for pair in roomy:
+        open_cells = open_cells | (1 << pair[1])
+    after = ~((2 << cell) - 1)
+    where = [0 for _each in keys]
+    need = [0 for _each in keys]
+    forced = 0
+    shut = 0
+    # The sizes come in ascending order, so a cell too small for one is
+    # too small for every one after it.
+    for place in range(len(keys)):
+        size, mask = keys[place]
+        while shut < len(roomy) and roomy[shut][0] < size:
+            open_cells = open_cells & ~(1 << roomy[shut][1])
+            shut = shut + 1
+        if left[place] < 1:
+            continue
+        found = mask & open_cells
+        if found == 0:
+            return None
+        where[place] = found
+        if found & after == 0:
+            need[place] = left[place]
+            forced = forced + left[place] * size
+    if forced > highest:
+        return None
+    if not _owed_together(keys, left, where, owed, part_cells):
+        return None
+    here_on = ~((1 << cell) - 1)
+    for margin in range(len(owed)):
+        for part in range(len(owed[margin])):
+            if owed[margin][part] < 1:
+                continue
+            if not _reach_any(
+                keys,
+                left,
+                where,
+                part_cells[margin][part] & here_on,
+                owed[margin][part],
+            ):
+                return None
+    accept = ((1 << (highest + 1)) - 1) >> lowest << lowest
+    for margin in range(len(owed)):
+        part = part_at[margin][cell]
+        theirs = part_cells[margin][part] & after
+        # Bit ``t`` of ``rest`` is set when the cells after this one can
+        # make up exactly what is owed less ``t`` (`_owed_less`).
+        rest = 1 << owed[margin][part]
+        if theirs:
+            rest = _owed_less(keys, left, where, theirs, owed[margin][part])
+        accept = accept & rest
+        if accept == 0:
+            return None
+    # CONDITION 5'S RESERVES, COSTED AS THEY ARE MADE (plan P4-D490).
+    wanted: list[tuple[int, int, int]] = []
+    for step in range(cell + 1, cells):
+        if low[step] < 1:
+            continue
+        wanted += [(low[step], high[step], 1 << step)]
+    for margin, part, steps in families:
+        if part_at[margin][cell] == part:
+            continue
+        fixed = 0
+        loose = 0
+        for step in steps:
+            if step <= cell:
+                continue
+            if low[step] == high[step]:
+                fixed = fixed + low[step]
+            else:
+                loose = loose | (1 << step)
+        due = owed[margin][part] - fixed
+        if due < 1 or loose == 0:
+            continue
+        wanted += [(due, due, loose)]
+    filed: list[tuple[int, int, list[int], list[int]]] = []
+    cost = 0
+    paid = True
+    for least, most, cells_read in wanted:
+        places = [place for place in range(len(keys)) if where[place] & cells_read]
+        if not places:
+            return None
+        cost = cost + 1 + len(places)
+        if paid and meter[2] - cost >= 1:
+            filed += [(least, most, places, [-1])]
+            continue
+        if paid:
+            paid = False
+            if not _reserves_met(keys, left, [], filed):
+                return None
+            filed = []
+        if not _reserves_met(keys, left, [], [(least, most, places, [-1])]):
+            return None
+    if not paid:
+        meter[2] = 0
+        raise _LayoutSpent()
+    if not _reserves_met(keys, left, [], filed):
+        return None
+    meter[2] = meter[2] - cost
+    reserves: list[list[tuple[int, int, list[int], list[int]]]] = [[] for _each in keys]
+    for reserve in filed:
+        for place in reserve[2]:
+            reserves[place] += [reserve]
+    return accept, need, _binary_length(accept) - 1, reserves, filed
+
+
+def _layout_next(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    state: "list[int]",
+    reach: "list[int]",
+    accept: int,
+    top: int,
+    need: "list[int]",
+    cell: int,
+    reserves: "list[list[tuple[int, int, list[int], list[int]]]]",
+    meter: "list[int]",
+) -> "tuple[list[int], list[int] | None, bool]":
+    """`_cell_next`, its work counted on the meter (plan P4-D490).
+
+    Every line is `_cell_next`'s, in its order. One unit of work is taken
+    off ``meter[2]`` for the step itself, one for each reading of a cell's
+    reserves (`_layout_reserves_met`, `_reserves_met` with its tables'
+    readings counted) and one for each reading of a reserve's table
+    (`_owed_read`) within it; where the work runs out the fill stops:
+    ``(walk, None, False)``. Otherwise ``(walk, fill, True)``, the walk and
+    the fill `_cell_next` returns, None included. The equality check of
+    lane HB3-b (tests/test_held_writer_time.py) holds the two to one
+    answer wherever this one ends.
+    """
+    meter[2] = meter[2] - 1
+    total = len(keys)
+    walk = [number for number in state]
+    if total == 0:
+        if walk or accept & 1 == 0:
+            return walk, None, True
+        return walk, [], True
+    highest = top
+    used = 0
+    for place in range(len(walk)):
+        used = used + walk[place] * keys[place][0]
+    if len(walk) == total:
+        while walk and walk[len(walk) - 1] <= need[len(walk) - 1]:
+            place = len(walk) - 1
+            used = used - walk[place] * keys[place][0]
+            walk = walk[:place]
+        if not walk:
+            return walk, None, True
+        place = len(walk) - 1
+        walk[place] = walk[place] - 1
+        used = used - keys[place][0]
+    while True:
+        place = len(walk) - 1
+        if place >= 0 and walk[place] < need[place]:
+            used = used - walk[place] * keys[place][0]
+            walk = walk[:place]
+            if not walk:
+                return walk, None, True
+            walk[place - 1] = walk[place - 1] - 1
+            used = used - keys[place - 1][0]
+            continue
+        if place >= 0 and reach[place + 1] & (accept >> used) == 0:
+            walk[place] = walk[place] - 1
+            used = used - keys[place][0]
+            continue
+        if place >= 0 and walk[place] > 0 and reserves[place]:
+            if meter[2] < 1:
+                return walk, None, False
+            meter[2] = meter[2] - 1
+            if not _layout_reserves_met(keys, left, walk, reserves[place], meter):
+                walk[place] = walk[place] - 1
+                used = used - keys[place][0]
+                continue
+        if len(walk) == total:
+            return walk, [number for number in walk], True
+        ahead = len(walk)
+        most = 0
+        if (keys[ahead][1] >> cell) & 1:
+            most = min(left[ahead], (highest - used) // keys[ahead][0])
+        walk += [most]
+        used = used + most * keys[ahead][0]
+
+
+def _layout_reserves_met(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    walk: "list[int]",
+    reserves: "list[tuple[int, int, list[int], list[int]]]",
+    meter: "list[int]",
+) -> bool:
+    """`_reserves_met`, every reading of a reserve's table counted on the meter (plan P4-D490).
+
+    Every line is `_reserves_met`'s, in its order, a reserve read from
+    its largest size down read by `_layout_found_from`; the answer is
+    `_reserves_met`'s own, and the meter's work only counts down.
+    """
+    for least, most, places, found in reserves:
+        if most >= _WIDE_TOTAL:
+            if found[0] >= len(walk):
+                continue
+            place = _layout_found_from(
+                keys, left, walk, places, least, most, found, meter
+            )
+            if place < 0:
+                return False
+            if place > found[0]:
+                found[0] = place
+            continue
+        limit = (1 << (most + 1)) - 1
+        reach = 1
+        for place in places:
+            copies = left[place]
+            if place < len(walk):
+                copies = copies - walk[place]
+            step = 1
+            while copies > 0:
+                take = min(step, copies)
+                reach = (reach | (reach << (take * keys[place][0]))) & limit
+                copies = copies - take
+                step = step * 2
+            if reach >> least:
+                break
+        if reach >> least == 0:
+            return False
+    return True
+
+
+def _layout_found_from(
+    keys: "list[tuple[int, int]]",
+    left: "list[int]",
+    walk: "list[int]",
+    places: "list[int]",
+    least: int,
+    most: int,
+    found: "list[int]",
+    meter: "list[int]",
+) -> int:
+    """`_found_from`, each reading of its table (`_owed_read`) one unit off the meter's work (plan P4-D490).
+
+    Every line is `_found_from`'s, in its order, with ``found`` always
+    given; the place it names is `_found_from`'s own. Where the meter no
+    longer holds the unit a reading of the table costs, nothing is read or
+    built for it: `_LayoutSpent` stops the walk.
+    """
+    if len(found) > 2 and found[2] > 0:
+        if meter[2] < 1:
+            raise _LayoutSpent()
+        meter[2] = meter[2] - 1
+        if _owed_read(keys, left, walk, places, most, found):
+            return places[0]
+        return -1
+    sizes: list[tuple[int, int]] = []
+    total = 0
+    for place in places:
+        copies = left[place]
+        if place < len(walk):
+            copies = copies - walk[place]
+        sizes += [(keys[place][0], copies)]
+        total = total + keys[place][0] * copies
+    if total < least or least > most:
+        return -1
+    made = 0
+    for index in range(len(sizes) - 1, -1, -1):
+        size, copies = sizes[index]
+        if copies > 0 and size > 0:
+            made = made + min(copies, (most - made) // size) * size
+            if made >= least:
+                return places[index]
+    if len(found) == 1:
+        found += [0, 0, -1]
+    if found[1] >= _WALKED_BEFORE_TABLE * len(places):
+        if meter[2] < 1:
+            raise _LayoutSpent()
+        _owed_table(keys, left, places, least, most, found)
+        meter[2] = meter[2] - 1
+        if _owed_read(keys, left, walk, places, most, found):
+            return places[0]
+        return -1
+    index = _reach_down(sizes, least, most)
+    if index < 0:
+        found[1] = found[1] + len(sizes)
+        return -1
+    found[1] = found[1] + len(sizes) - index
+    return places[index]
+
+
+def _layout_repacked(
+    groups: "tuple[int, ...]",
+    margins: "list[tuple[list[int], list[int]]]",
+    allowed: "list[int]",
+    meter: "list[int]",
+) -> "tuple[list[int] | None, bool]":
+    """The layout pass's second rung: an exact re-packing where one margin binds (plan P4-D490).
+
+    WHERE IT ANSWERS. Every margin but one holds a single count above
+    nought -- a column of labels held whole publishes every cell as text
+    and outside the code alphabet, so its class and alphabet margins each
+    hold one count and only the layouts bind -- and every count of the
+    binding margin has exactly one cell whose other counts are those
+    single ones. Any other question is not this rung's: ``(None, False)``.
+
+    HOW. Each group is given one count of the binding margin, among those
+    its permissions open (`_repacked`, from two fixed starts in turn while
+    the meter holds work: the largest groups first, then the sorted
+    slicing), and the answer is that count's one cell. ``(answer, True)``
+    where an independent recount finds every count of every margin met
+    exactly and every group in a cell it may take (`_layout_off`).
+    Otherwise the NEAREST ASSIGNMENT either start held when it stopped --
+    the least total distance of the binding margin's counts from the
+    published ones, the first start's on a tie, every group still in a
+    cell it may take -- with False: rung 3's assignment
+    (`_layout_allotted`), or ``(None, False)`` where no start was made.
+
+    THE LARGEST GROUPS FIRST, THEN THE SLICING, EACH ITS SHARE (Codex's
+    review of lane HB3-b, item 4). Both starts are tried wherever the
+    first stops short, the first held to half the work left when it
+    begins, so a start whose re-packings stop short leaves the other its
+    chance. Sliced first with the whole budget, a column of K made-up
+    values on one row beside 100 K on two in K counts of 201 rows spent
+    the re-packings' work over every pair of its counts before the
+    largest groups were laid at all, which lay it out exactly as they
+    start: 6,428 and 57,648 bitset sums at K = 20 and 40, and none past
+    the work at K = 100. With the largest first and the whole budget, a
+    question of 1,500 values in 900 layouts at 2,000,000 rows stopped
+    51,610 rows off where the slicing reaches 32,752; on 1,604 generated
+    questions drawn with an answer either order answers the same 1,528.
+
+    WHY IT IS LINEAR. Its work is counted on the column's meter as it is
+    done -- each group a start places and each count it reads to place it,
+    each group a re-packing pools, each group the bitset subset sum reads
+    and the count's width (`_repacked`) -- and the meter holds
+    `_REPACK_WORK` and `_REPACK_WORK_A_GROUP` for each group over every
+    question of the column, so the rung's work on a column is linear in
+    its groups however its tries fall. A start's or a re-packing's work is
+    charged once it is done, so the meter's last charge may pass it by
+    that one start's or one re-packing's work.
+
+    Guarantees: a fixed function of its arguments and of the meter; no
+    randomness, no I/O; it changes nothing but the meter's work.
+    """
+    total = 0
+    for size in groups:
+        total = total + size
+    for margin in margins:
+        if sum(margin[0]) != total:
+            return None, False
+    cells = len(margins[0][1])
+    live = [
+        cell
+        for cell in range(cells)
+        if all(margin[0][margin[1][cell]] > 0 for margin in margins)
+    ]
+    binding = -1
+    for place in range(len(margins)):
+        if len({margins[place][1][cell] for cell in live}) > 1:
+            if binding >= 0:
+                return None, False
+            binding = place
+    quotas_of, part_of = margins[max(binding, 0)]
+    cell_of: "dict[int, int]" = {}
+    for cell in live:
+        if part_of[cell] in cell_of:
+            return None, False
+        cell_of[part_of[cell]] = cell
+    owing = [part for part in range(len(quotas_of)) if quotas_of[part] > 0]
+    for part in owing:
+        if part not in cell_of:
+            return None, False
+    quotas = [quotas_of[part] for part in owing]
+    # EACH SET OF PERMITTED CELLS IS READ ONCE: groups share a handful of
+    # them, and reading every group's against every count took 3.2 of a
+    # failing question's 4.1 CPU s at 2,000 layouts (lane HB3-b's repair 1).
+    read: "dict[int, int]" = {}
+    opens: "list[int]" = []
+    for place in range(len(groups)):
+        if allowed[place] not in read:
+            bits = 0
+            for index in range(len(owing)):
+                if (allowed[place] >> cell_of[owing[index]]) & 1:
+                    bits = bits | (1 << index)
+            read[allowed[place]] = bits
+        opens += [read[allowed[place]]]
+    sizes = [size for size in groups]
+    nearest: "tuple[int, list[int]] | None" = None
+    for sliced in (False, True):
+        # EACH START ITS SHARE: the first may spend half the work left, so a
+        # start whose re-packings stop short leaves the other its chance.
+        share = meter[3] if sliced else meter[3] // 2
+        held = [meter[0], meter[1], meter[2], share, meter[4]]
+        where, _off = _repacked(sizes, quotas, opens, sliced, held)
+        meter[3] = meter[3] - (share - held[3])
+        if where is None:
+            continue
+        chosen = [cell_of[owing[index]] for index in where]
+        counted = _layout_off(groups, margins, allowed, chosen)
+        if counted < 0:
+            continue
+        if counted == 0:
+            return chosen, True
+        if nearest is None or counted < nearest[0]:
+            nearest = (counted, chosen)
+    if nearest is None:
+        return None, False
+    return nearest[1], False
+
+
+def _repacked(
+    sizes: "list[int]",
+    quotas: "list[int]",
+    opens: "list[int]",
+    sliced: bool,
+    meter: "list[int]",
+) -> "tuple[list[int] | None, int]":
+    """Each group's count, and how far the counts stand from their quotas, in rows (plan P4-D490).
+
+    ``opens[place]`` has bit ``index`` set when group ``place`` may take
+    count ``index``. A start gives every group a count it may take
+    (`_repack_start`: the sorted slicing where ``sliced``, else the
+    largest groups first); then, while some count is owed or over, two
+    counts both owed or over pool their groups and the first is made
+    EXACT out of the pool, the second keeping the rest (each success sets
+    one count right for good: never with a count already right, which
+    cycles), and where no two re-pack, two such counts and a third make
+    the first and the third exact out of the pool of the three. The work
+    comes off the meter's re-packing work (``meter[3]``) as it is done: a
+    start's groups placed and counts read, and each re-packing's groups
+    pooled and the subset sum's readings (`_repacked_with`); a start or a
+    re-packing is begun only while the meter holds work. Returns the
+    counts and nought where every quota is met; where no pair or triple
+    re-packs, or the work runs out, the counts as they stand and the
+    total by which they miss their quotas (no re-packing ever raises it,
+    so it is the least the start reached); ``(None, 0)`` where no work is
+    left for a start or some group may take no count.
+    """
+    counts = len(quotas)
+    if meter[3] < 1:
+        return None, 0
+    where, read = _repack_start(sizes, quotas, opens, sliced)
+    meter[3] = meter[3] - len(sizes) - read
+    if where is None:
+        return None, 0
+    held: "list[list[int]]" = [[] for _each in range(counts)]
+    owed = [quota for quota in quotas]
+    for place in range(len(sizes)):
+        held[where[place]] += [place]
+        owed[where[place]] = owed[where[place]] - sizes[place]
+    stopped = False
+    while not stopped:
+        open_counts = [index for index in range(counts) if owed[index] != 0]
+        if not open_counts:
+            break
+        moved = False
+        for first in open_counts:
+            for second in open_counts:
+                if second == first:
+                    continue
+                if meter[3] < 1:
+                    stopped = True
+                    break
+                done, spent = _repacked_with(sizes, quotas, opens, held, owed, first, second, -1)
+                meter[3] = meter[3] - spent
+                if done:
+                    moved = True
+                    break
+            if moved or stopped:
+                break
+        if moved or stopped:
+            continue
+        for first in open_counts:
+            for second in open_counts:
+                if second == first:
+                    continue
+                for third in range(counts):
+                    if third == first or third == second:
+                        continue
+                    if meter[3] < 1:
+                        stopped = True
+                        break
+                    done, spent = _repacked_with(
+                        sizes, quotas, opens, held, owed, first, second, third
+                    )
+                    meter[3] = meter[3] - spent
+                    if done:
+                        moved = True
+                        break
+                if moved or stopped:
+                    break
+            if moved or stopped:
+                break
+        if not moved:
+            stopped = True
+    chosen = [-1 for _each in sizes]
+    for index in range(counts):
+        for place in held[index]:
+            chosen[place] = index
+    off = 0
+    for index in range(counts):
+        off = off + abs(owed[index])
+    return chosen, off
+
+
+def _repack_start(
+    sizes: "list[int]", quotas: "list[int]", opens: "list[int]", sliced: bool
+) -> "tuple[list[int] | None, int]":
+    """A first count for every group, among those it may take, and how many counts it read (plan P4-D490).
+
+    THE SORTED SLICING (``sliced``): the groups ascending by size, ties
+    by their order; each count is owed round(count x groups / rows)
+    groups, the rounding's spare given to the largest remainders first
+    and its excess taken from the smallest; the counts ordered by the mean
+    group size each then needs, ties by their order; and the groups taken
+    in turn by the counts in that order, each its share -- a group a
+    count may not take going to the next count in that order with a share
+    left that may, else to the first that may at all.
+
+    THE LARGEST FIRST (not ``sliced``): the groups descending by size,
+    ties by their order, each into the count it may take with the least
+    room left that still holds it, ties by their order, else the one with
+    the most room, ties by their order. The counts are kept ranked by their
+    room, so a group reads the counts from the first whose room holds it
+    up to the first it may take (Codex's review of lane HB3-b, item 4:
+    reading every count for every group cost k times L).
+
+    The second number is the counts the start read beyond one a group --
+    its work beside the groups it places (`_repacked`). The first is None
+    where some group may take no count at all.
+    """
+    groups = len(sizes)
+    counts = len(quotas)
+    where = [-1 for _each in sizes]
+    read = 0
+    if not sliced:
+        room = [quota for quota in quotas]
+        ranked = sorted([(room[index], index) for index in range(counts)])
+        for pair in sorted([(-sizes[place], place) for place in range(groups)]):
+            place = pair[1]
+            size = sizes[place]
+            low = 0
+            high = len(ranked)
+            while low < high:
+                read = read + 1
+                middle = (low + high) // 2
+                if ranked[middle][0] < size:
+                    low = middle + 1
+                else:
+                    high = middle
+            best = -1
+            at = low
+            while at < len(ranked):
+                read = read + 1
+                if (opens[place] >> ranked[at][1]) & 1:
+                    best = ranked[at][1]
+                    break
+                at = at + 1
+            if best < 0:
+                at = len(ranked) - 1
+                while at >= 0:
+                    read = read + 1
+                    if (opens[place] >> ranked[at][1]) & 1:
+                        break
+                    at = at - 1
+                if at < 0:
+                    return None, read
+                while at > 0 and ranked[at - 1][0] == ranked[at][0]:
+                    read = read + 1
+                    at = at - 1
+                while not (opens[place] >> ranked[at][1]) & 1:
+                    read = read + 1
+                    at = at + 1
+                best = ranked[at][1]
+            where[place] = best
+            low = 0
+            high = len(ranked)
+            while low < high:
+                read = read + 1
+                middle = (low + high) // 2
+                if ranked[middle] < (room[best], best):
+                    low = middle + 1
+                else:
+                    high = middle
+            del ranked[low]
+            room[best] = room[best] - size
+            low = 0
+            high = len(ranked)
+            while low < high:
+                read = read + 1
+                middle = (low + high) // 2
+                if ranked[middle] < (room[best], best):
+                    low = middle + 1
+                else:
+                    high = middle
+            ranked[low:low] = [(room[best], best)]
+        return where, read
+    total = sum(sizes)
+    want = [(2 * quotas[index] * groups + total) // (2 * total) for index in range(counts)]
+    spare = groups - sum(want)
+    read = read + counts
+    ranked_counts = [
+        pair[1]
+        for pair in sorted([
+            (want[index] * total - quotas[index] * groups, index)
+            for index in range(counts)
+        ])
+    ]
+    turn = 0
+    while spare != 0 and counts > 0:
+        read = read + 1
+        if spare > 0:
+            index = ranked_counts[turn % counts]
+            want[index] = want[index] + 1
+            spare = spare - 1
+        else:
+            index = ranked_counts[counts - 1 - turn % counts]
+            if want[index] > 0:
+                want[index] = want[index] - 1
+                spare = spare + 1
+        turn = turn + 1
+    order = [
+        pair[1]
+        for pair in sorted([
+            (quotas[index] / want[index] if want[index] else float("inf"), index)
+            for index in range(counts)
+        ])
+    ]
+    read = read + counts
+    filled = [0 for _each in quotas]
+    pointer = 0
+    for pair in sorted([(sizes[place], place) for place in range(groups)]):
+        place = pair[1]
+        chosen = -1
+        for look in range(pointer, counts):
+            read = read + 1
+            index = order[look]
+            if filled[index] < want[index] and (opens[place] >> index) & 1:
+                chosen = index
+                break
+        if chosen < 0:
+            for look in range(counts):
+                read = read + 1
+                if (opens[place] >> order[look]) & 1:
+                    chosen = order[look]
+                    break
+        if chosen < 0:
+            return None, read
+        where[place] = chosen
+        filled[chosen] = filled[chosen] + 1
+        while pointer < counts and filled[order[pointer]] >= want[order[pointer]]:
+            read = read + 1
+            pointer = pointer + 1
+    return where, read
+
+
+def _repacked_with(
+    sizes: "list[int]",
+    quotas: "list[int]",
+    opens: "list[int]",
+    held: "list[list[int]]",
+    owed: "list[int]",
+    first: int,
+    second: int,
+    third: int,
+) -> "tuple[bool, int]":
+    """One re-packing: ``first`` (and ``third`` where it is not -1) made exact out of the pooled groups (plan P4-D490).
+
+    The groups of the two or three counts are pooled in ascending order
+    of size, ties by their order. ``first`` takes every pooled group no
+    other of the counts may take, and then some of those it and the
+    others may take, totalling exactly its count (`_repack_subset`);
+    ``third`` the same out of what is left, every group ``second`` may not
+    take among them; and ``second`` keeps the rest, every one of which it
+    may take by construction. On success the counts are moved and what
+    was owed or over goes to ``second``; otherwise nothing changes.
+    Returns whether it succeeded, and its work: one unit for each group
+    it pooled and each group a pass of the split read, and the subset
+    sums' own work (`_repack_subset`).
+    """
+    involved = [first, second] if third < 0 else [first, second, third]
+    pooled: "list[int]" = []
+    for index in involved:
+        pooled += held[index]
+    pool = [pair[1] for pair in sorted([(sizes[place], place) for place in pooled])]
+    work = len(pool)
+    made: "list[list[int]]" = []
+    rest = pool
+    makers = [first] if third < 0 else [first, third]
+    for step in range(len(makers)):
+        index = makers[step]
+        later = makers[step + 1:]
+        forced: "list[int]" = []
+        free: "list[int]" = []
+        work = work + len(rest)
+        for place in rest:
+            elsewhere = (opens[place] >> second) & 1 == 1
+            for other in later:
+                if (opens[place] >> other) & 1:
+                    elsewhere = True
+            if not elsewhere:
+                if (opens[place] >> index) & 1 == 0:
+                    return False, work
+                forced += [place]
+            elif (opens[place] >> index) & 1:
+                free += [place]
+        owing = quotas[index]
+        for place in forced:
+            owing = owing - sizes[place]
+        taken, read = _repack_subset(free, sizes, owing)
+        work = work + read
+        if taken is None:
+            return False, work
+        chosen = set(taken + forced)
+        rest = [place for place in rest if place not in chosen]
+        made += [forced + taken]
+    held[first] = made[0]
+    moved = owed[first]
+    owed[first] = 0
+    if third >= 0:
+        held[third] = made[1]
+        moved = moved + owed[third]
+        owed[third] = 0
+    held[second] = rest
+    owed[second] = owed[second] + moved
+    return True, work
+
+
+def _repack_subset(
+    items: "list[int]", sizes: "list[int]", target: int
+) -> "tuple[list[int] | None, int]":
+    """Some of ``items`` whose sizes total exactly ``target``, or None, and its work (plan P4-D490).
+
+    A whole number whose bit ``t`` is set when the items read so far can
+    total ``t`` -- each item ORs in that number shifted by its size, the
+    bits past ``target`` dropped -- read in the items' order until bit
+    ``target`` is set; the items are then taken going back, an item taken
+    exactly where the total still owed cannot be made without it. What
+    each prefix can total is kept, or every k-th of them past
+    `_REPACK_MEMORY` (each stretch worked out again going back, the same
+    items found). The work is one unit for each item read, forward, going
+    back or worked out again, and one more for each `_REPACK_WORK_WIDTH`
+    rows of ``target`` at each such reading. A fixed function of its
+    arguments.
+    """
+    if target < 0:
+        return None, 0
+    if target == 0:
+        return [], 0
+    wide = 1 + target // _REPACK_WORK_WIDTH
+    whole = 0
+    for place in items:
+        whole = whole + sizes[place]
+    if whole < target:
+        return None, len(items)
+    limit = (1 << (target + 1)) - 1
+    every = 1
+    if len(items) * (target // 8 + 64) > _REPACK_MEMORY:
+        while every * every < len(items):
+            every = every + 1
+    kept: "dict[int, int]" = {0: 1}
+    reach = 1
+    end = 0
+    read = len(items)
+    for step in range(len(items)):
+        read = read + wide
+        reach = (reach | (reach << sizes[items[step]])) & limit
+        if (step + 1) % every == 0:
+            kept[step + 1] = reach
+        if (reach >> target) & 1:
+            end = step + 1
+            break
+    if end == 0:
+        return None, read
+    taken: "list[int]" = []
+    owed = target
+    stretch: "dict[int, int]" = {}
+    step = end
+    while owed > 0:
+        before = step - 1
+        read = read + 1
+        if before not in stretch:
+            base = (before // every) * every
+            reached = kept[base]
+            stretch = {base: reached}
+            for at in range(base, before):
+                read = read + wide
+                reached = (reached | (reached << sizes[items[at]])) & limit
+                stretch[at + 1] = reached
+        if (stretch[before] >> owed) & 1 == 0:
+            taken += [items[before]]
+            owed = owed - sizes[items[before]]
+        step = before
+    return taken, read
+
+
+def _layout_off(
+    groups: "tuple[int, ...]",
+    margins: "list[tuple[list[int], list[int]]]",
+    allowed: "list[int]",
+    chosen: "list[int]",
+) -> int:
+    """How far an assignment stands from every count of every margin, recounted (plan P4-D490).
+
+    The total, over every count of every margin, of the rows by which the
+    groups the assignment gives its cells miss it: nought where every
+    count is met exactly. -1 where the assignment does not give every
+    group one cell it may take.
+    """
+    if len(chosen) != len(groups):
+        return -1
+    for place in range(len(groups)):
+        if chosen[place] < 0 or (allowed[place] >> chosen[place]) & 1 == 0:
+            return -1
+    off = 0
+    for margin in margins:
+        found = [0 for _each in margin[0]]
+        for place in range(len(groups)):
+            if chosen[place] >= len(margin[1]):
+                return -1
+            found[margin[1][chosen[place]]] = found[margin[1][chosen[place]]] + groups[place]
+        for part in range(len(found)):
+            off = off + abs(found[part] - margin[0][part])
+    return off
 
 
 def _share_out(
@@ -50562,11 +51834,24 @@ def _label_content(
     if facts.figure_openings:
         for cell in cells:
             published_spellings[cell] = True
-        # ...AND A HELD-BACK LEVEL THE CLASSES WROTE AS A NUMBER keeps its
-        # spelling too: G8.3a placed it on the published scale, and a run renamed
-        # there would move its reading, its range and its class.
-        for place in written_as:
-            published_spellings[written_as[place]] = True
+        # ...BUT A HELD-BACK LEVEL THE CLASSES WROTE AS A NUMBER IS KEPT OFF THE
+        # REAL RUNS TOO (lane HB3-a, plan P4-D482; the orchestrator's LANE HB3-a
+        # RULINGS 1 (2), limit (ae)): G8.3a placed it on the published scale or
+        # ladder, inside the span the real held keys fill, so a label column of
+        # two key forms wrote 1,391 and 2,780 twin cells equal to a real key at
+        # 20,000 rows; it is renamed off the real runs as every other stand-in
+        # is (`_figure_runs_off_the_real`: a free opening at its width, or one
+        # figure wider), its class a number still. The price: its reading leaves
+        # the published scale (the record names it). ONLY AT ITS OWN WIDTH
+        # (lane HB3-a's repair 1): where the room at its width is spent, so
+        # that the run would be written wider or as noughts alone, it keeps its
+        # place on the scale as before (`_figure_runs_off_the_real`'s
+        # ``in_place``): written wider it left the column's width and a table
+        # of codes beside numbers wrote 347 cells of eight noughts at a width
+        # of seven.
+    classed: "dict[str, bool]" = {}
+    for place in written_as:
+        classed[written_as[place]] = True
     for place in range(len(sizes)):
         size = sizes[place]
         form = shared[place]
@@ -50681,7 +51966,7 @@ def _label_content(
     # item 2, plan P4-D442): `figure_openings` names the widths held back.
     if facts.figure_openings:
         cells, room_spent = _figure_runs_off_the_real(
-            cells, facts, holes, published_spellings
+            cells, facts, holes, published_spellings, classed
         )
         if room_spent[0] or room_spent[1]:
             notes += [
@@ -53933,10 +55218,14 @@ def dates_written_as_record_numbers(
     (`_dates_in_their_layouts`, `_room_form_dates`). A description that
     publishes no `made_up_years` is written as before and is never one.
     Read by both chain reports' F10 line (Codex's review of batch 4q,
-    item 3). A fixed function of the four. Raises nothing. No I/O.
+    item 3). A held column whose grain reads dates, stamps or counted
+    dates draws from the room alone (lane ID-ROOM3, plan P4-D488), so one
+    publishing no `made_up_years` writes no date either -- its dates and
+    stamps blank since the lane's repair 1, its counts record numbers off
+    every real day. A fixed function of the four. Raises nothing. No I/O.
     """
     if made_up_years is None:
-        return False
+        return grain_kind is not None and grain_kind in ROOM_GRAIN_KINDS
     four: "list[int]" = []
     two: "list[int]" = []
     for first, last in made_up_years:
@@ -53947,8 +55236,9 @@ def dates_written_as_record_numbers(
                 four += [year]
     if grain_kind is not None:
         # A held column read as stamps draws from the room too (lane TR's
-        # skeptic 1, item 1; plan P4-D473).
-        if grain_kind != grains.DATE and grain_kind != grains.STAMP:
+        # skeptic 1, item 1; plan P4-D473), and one read as counted dates
+        # (lane ID-ROOM3, plan P4-D488).
+        if grain_kind not in ROOM_GRAIN_KINDS:
             return False
         return not _room_spans((four, two), grains.Reading(kind=grain_kind, member=grain_member))
     dated = False
@@ -53964,6 +55254,13 @@ def dates_written_as_record_numbers(
     return False
 
 
+# THE GRAINS THE ROOM SERVES (lane ID-ROOM3, plan P4-D488): a held column
+# whose grain reads dates (lane ID-ROOM2), stamps (lane TR) or counted dates
+# draws its made-up values from the room alone, or writes no date; a clock
+# names no day and keeps its span.
+ROOM_GRAIN_KINDS = (grains.DATE, grains.STAMP, grains.COUNTED)
+
+
 def _room_spans(room: "tuple[list[int], list[int]]", reading: grains.Reading) -> "list[tuple[int, int]]":
     """The G1 floor's spans over a room's years for a held column's reading, in order; [] where its kind of year has none (plan P4-D457).
 
@@ -53973,10 +55270,11 @@ def _room_spans(room: "tuple[list[int], list[int]]", reading: grains.Reading) ->
     two-figure years read in 2000 to 2099 (the figures alone are written,
     and the reading's own window reads them). A stamp's reading draws its
     calendar dates from them as a date's does (lane TR's skeptic 1, item
-    1; plan P4-D473), its clock anywhere in the day; a clock's or a
-    count's draws from none.
+    1; plan P4-D473), its clock anywhere in the day; a count's its moments,
+    each written in its member at the column's own finest unit (lane
+    ID-ROOM3, plan P4-D488); a clock's draws from none.
     """
-    if reading.kind != grains.DATE and reading.kind != grains.STAMP:
+    if reading.kind not in ROOM_GRAIN_KINDS:
         return []
     two = _reads_two_figure_years(reading)
     years = room[1] if two else room[0]
@@ -54171,9 +55469,15 @@ def _in_the_room(
     published: "tuple[dict[int, bool], dict[int, bool]]",
     unnamed: bool = False,
 ) -> bool:
-    """Whether a held column's made-up value stands in the room: a stamp's by its readings (`_stamp_in_the_room`), a date's by its layout's orders (`_off_the_real_years`)."""
-    if reading.kind == grains.STAMP:
+    """Whether a held column's made-up value stands in the room: a stamp's by its readings (`_stamp_in_the_room`), a count's in its member (`_count_in_the_room`), a date's by its layout's orders (`_off_the_real_years`)."""
+    if reading.kind == grains.STAMP or (
+        reading.kind == grains.DATE and taxonomy.day_of_year_reading(reading.member)
+    ):
+        # ...a day of the year too, read as the producer read it (lane
+        # ID-ROOM3, plan P4-D488).
         return _stamp_in_the_room(value, published)
+    if reading.kind == grains.COUNTED:
+        return _count_in_the_room(value, reading, published)
     return _off_the_real_years(value, named, convention, published, unnamed)
 
 
@@ -54200,6 +55504,429 @@ def _stamp_in_the_room(
         if year in published[1]:
             return True
     return False
+
+
+def _count_in_the_room(
+    value: str, reading: grains.Reading, published: "tuple[dict[int, bool], dict[int, bool]]"
+) -> bool:
+    """Whether a made-up count stands: read in its member, it names a day of a year the room publishes (lane ID-ROOM3, plan P4-D488).
+
+    The producer published no year that any real cell of the column names
+    read in its declared member or in any reading the room holds against
+    (`taxonomy.with_made_up_years`'s counted arm), so a count naming a
+    published year in its member is no real cell's text and falls on no
+    real cell's day. A draw its clock carried past the year's end, or a
+    value its member reads as no moment, is refused and drawn again.
+    Raises nothing. No I/O.
+    """
+    moment = grains.moment_of(value, reading)
+    if moment is None:
+        return False
+    return parsing.civil_from_days(moment // date_counts.DAY)[0] in published[0]
+
+
+def _no_date_cells(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    cells: "list[str]",
+    reading: grains.Reading,
+    holes: "typing.Collection[str]",
+) -> "list[str]":
+    """A held column's cells where its room draws nothing: no date (lane ID-ROOM3, plan P4-D488; remark NF137).
+
+    A DATE OR A STAMP IS WRITTEN BLANK (lane ID-ROOM3's repair 1; LANE
+    ID-ROOM3 RULINGS 5 (3) and 6 (3), lane TR's follow-up's rule for zone
+    words made the rule of every held date and stamp): the walk's value
+    in a date's layout is no date -- `9978557` as a day of the year, day
+    557; `90TCY4212:97:32:62` as a SAS datetime -- and 12,859 of 20,000
+    twin cells of held births written `%Y%j` were such strings where the
+    room was empty, so each made-up value holding a figure is written
+    blank (`_made_up_blank`), a made-up word holding none, which stands for
+    a real word, kept, and the twin's report names the blank cells. A
+    count is a moment in its member whatever its figures, so a made-up
+    count stands only where its published facts put it off every real
+    day of its column (`_counts_off_the_real`); any other is written as
+    the spill, one figure longer than the published longest value, read
+    as a moment past every real one. Raises nothing. No I/O.
+    """
+    if reading.kind != grains.COUNTED:
+        return _made_up_blank(cells, holes)
+    return _counts_off_the_real(column, facts, cells, (reading.member,), holes)
+
+
+def _counts_a_day(member: str) -> int:
+    """How many of a counting system's counts one day holds: one for a system counting days (lane ID-ROOM3, plan P4-D488)."""
+    return max(date_counts.DAY // date_counts.TABLE[member].unit, 1)
+
+
+def counted_members_read(figures: int) -> "tuple[str, ...]":
+    """The counting systems a count of ``figures`` whole figures reads as a date in, spread over more than a year (lane ID-ROOM3, plan P4-D488).
+
+    A system in which every count of that many figures falls within a
+    year of days -- five figures read as seconds, ten as milliseconds --
+    writes no calendar a column whose widest counts have that many
+    figures could hold, so it is not read: the members a question about
+    counted dates offers for such a column are among these. Asked of the
+    column's widest published width where it has one (lane ID-ROOM3's
+    repair 1, skeptic 1's item 5): asked of a short count's own figures,
+    `98` days from 1960 beside counts of nine figures was read in no
+    system and stood. A fixed function of the figures. Raises nothing.
+    No I/O.
+    """
+    found: "list[str]" = []
+    for member in date_counts.MEMBERS:
+        if 10 ** max(figures, 0) // _counts_a_day(member) > 366:
+            found += [member]
+    return tuple(found)
+
+
+def _first_place_nines(facts: contract.IdentifierFacts, n_present: int) -> "dict[int, bool]":
+    """The whole-figure widths every count of which some real cell writes stays below a first figure of nine, read off the published facts (lane ID-ROOM3, plan P4-D488).
+
+    Where every present cell stands in a named layout (no census withheld,
+    none outside the census), a width is named where every named layout
+    of counts whose whole part has that many figures carries an exclusion
+    opening with a nine at its first figure (`layout_exclusions`: no real
+    cell of that layout's figures opens with a nine) and no named layout
+    of counts is wider: no real cell's count then reaches the nine
+    hundreds of that width, so a made-up count opening with a nine there
+    lies past every real one. {} where a census is withheld. Raises
+    nothing. No I/O.
+    """
+    total = 0
+    for layout in facts.layout_forms:
+        if layout == contract.WITHHELD:
+            return {}
+        total = total + facts.layout_forms[layout]
+    if total < n_present:
+        return {}
+    # ...a stray cell's layout the count grammar does not read, which the
+    # producer's tests pass over under their cap, bounds no count either
+    # (`taxonomy.held_count_layouts_aside`; lane ID-ROOM3's repair 2).
+    aside = taxonomy.held_count_layouts_aside(dict(facts.layout_forms), n_present)
+    if aside is None:
+        return {}
+    widths: "dict[int, bool]" = {}
+    widest = 0
+    for layout in facts.layout_forms:
+        # ...a stray word's layout, holding no figure, bounds no count (lane
+        # ID-ROOM3's repair 1).
+        if parsing.LAYOUT_DIGIT not in layout or layout in aside:
+            continue
+        whole = _whole_figures_of(layout)
+        if whole <= 0:
+            return {}
+        widest = max(widest, whole)
+        widths[whole] = True
+    for layout in facts.layout_forms:
+        if parsing.LAYOUT_DIGIT not in layout or layout in aside:
+            continue
+        whole = _whole_figures_of(layout)
+        # ...the place of its first figure, read by index (the offline scan accepts no method on a key it cannot trace).
+        first = -1
+        for place in range(len(layout)):
+            if layout[place] == parsing.LAYOUT_DIGIT:
+                first = place
+                break
+        templates = facts.layout_exclusions[layout] if layout in facts.layout_exclusions else ()
+        if first < 0 or not templates:
+            widths[whole] = False
+        for excluded in templates:
+            if len(excluded) != len(layout) or excluded[first] != "9":
+                widths[whole] = False
+    found: "dict[int, bool]" = {}
+    for whole in widths:
+        if widths[whole] and whole == widest:
+            found[whole] = True
+    return found
+
+
+def _counts_alone(facts: contract.IdentifierFacts, n_present: int) -> bool:
+    """Whether a record number's census names layouts of counts alone, none a date's form, or none at all, beside stray layouts under the cap (`taxonomy.count_layout`, `taxonomy.held_count_layouts_aside`; lane ID-ROOM3).
+
+    With no grain, only the producer's room of a held column of counts
+    (`taxonomy.with_made_up_counts`) publishes `made_up_years` beside a
+    census withheld whole, every present cell of it a count. A layout
+    holding no figure -- a stray word's, set aside by the producer's test
+    whatever its share (lane ID-ROOM3's repair 1) -- is passed over as the
+    pool is, and so is a stray layout the count grammar does not read --
+    an ISO date's beside counts -- while such layouts hold at most one
+    present cell in three, as the producer's tests pass it over (lane
+    ID-ROOM3's repair 2).
+    """
+    return taxonomy.held_count_layouts_aside(dict(facts.layout_forms), n_present) is not None
+
+
+def _unpadded(core: str) -> str:
+    """A count's text with the noughts opening its whole part set aside, its sign kept, one figure at least before its mark (lane ID-ROOM3's repair 2): `000009985,039` gives `9985,039`, `0,5` stays."""
+    sign = "-" if core[:1] == "-" else ""
+    body = core[len(sign):]
+    place = 0
+    while place < len(body) - 1 and body[place] == "0" and "0" <= body[place + 1] <= "9":
+        place = place + 1
+    return sign + body[place:]
+
+
+def _count_whole_figures(core: str) -> int:
+    """How many figures a count writes before its mark, its sign and opening noughts aside (lane ID-ROOM3)."""
+    body = core[1:] if core[:1] == "-" else core
+    whole = 0
+    for character in body:
+        if not "0" <= character <= "9":
+            break
+        if whole > 0 or character != "0":
+            whole = whole + 1
+    return whole
+
+
+def _whole_figures_of(layout: str) -> int:
+    """How many figures a layout of counts writes before its mark, its sign aside; 0 where it is no count's layout (lane ID-ROOM3)."""
+    body = layout[1:] if layout[:1] == "-" else layout
+    whole = 0
+    for place in range(len(body)):
+        character = body[place]
+        if character == parsing.LAYOUT_DIGIT:
+            whole = whole + 1
+            continue
+        if character in (".", ",") and whole > 0 and place < len(body) - 1:
+            rest = body[place + 1:]
+            for other in rest:
+                if other != parsing.LAYOUT_DIGIT:
+                    return 0
+            return whole
+        return 0
+    return whole
+
+
+def _count_off_every_real_day(
+    core: str,
+    member: str,
+    nines: "dict[int, bool]",
+    beyond: int,
+    published: "dict[int, bool]",
+) -> bool:
+    """Whether a made-up count names no real day of its column read in ``member`` with either mark, by the published facts alone (lane ID-ROOM3, plan P4-D488).
+
+    READ WITH EVERY MARK (lane ID-ROOM3's repair 1, skeptic 1's item 6): a
+    count is read with the point and with the comma
+    (`date_counts.MARKS`), and stands only where each reading that names
+    a moment is off every real day (`_count_off_in_its_mark`): read with
+    the point alone, `692611907,533` (seconds of 1991) named no date and
+    always stood. Raises nothing. No I/O.
+    """
+    for mark in date_counts.MARKS:
+        if not _count_off_in_its_mark(core, member, mark, nines, beyond, published):
+            return False
+    return True
+
+
+def _count_off_in_its_mark(
+    core: str,
+    member: str,
+    mark: str,
+    nines: "dict[int, bool]",
+    beyond: int,
+    published: "dict[int, bool]",
+) -> bool:
+    """Whether a made-up count read in ``member`` with ``mark`` names no real day of its column, by the published facts alone (lane ID-ROOM3, plan P4-D488).
+
+    It stands where the member reads it as no date; where its whole part
+    holds at least ``beyond`` figures and a day's counts more (the spill:
+    every real cell is shorter than it, so every real count lies a day or
+    more nearer nought); where it opens with a nine at a width ``nines``
+    names, a day's counts inside that width's nine hundreds (no real count
+    reaches them); or where it names a year the room publishes (no real
+    cell names one). A day falls on one count of a member's own counts
+    a day, so two counts a day's counts apart name two days, and two of
+    unlike sign none in common. Raises nothing. No I/O.
+    """
+    # ...A COUNT WRITTEN WITH NOUGHTS BEFORE ITS FIRST FIGURE read as the count
+    # its figures name (lane ID-ROOM3's repair 2): the walk keeps a value off
+    # the real by its spelling where no real cell opens with a nought
+    # (`000009985,039` beside seconds written with a decimal comma), which
+    # the count grammar reads as no count, while a reader of numbers reads
+    # it as 9,985 seconds, a day of January 1970: 8,200 twin cells of births
+    # written so, with nobody answering, fell on a real birth day of 1970.
+    written = date_counts.counted(member, _unpadded(core), mark)
+    if written is None:
+        return True
+    numerator, denominator = date_counts.exact_value(written)
+    moment = date_counts.moment_of(member, numerator, denominator, date_counts.NANOSECOND)
+    if moment is None:
+        return True
+    if parsing.civil_from_days(moment // date_counts.DAY)[0] in published:
+        return True
+    whole = abs(numerator) // denominator
+    a_day = _counts_a_day(member)
+    if beyond > 0 and whole >= 10**beyond + a_day:
+        return True
+    figures = len(f"{whole}") if whole > 0 else 0
+    if figures in nines and nines[figures]:
+        if whole >= 9 * 10 ** (figures - 1) + a_day - 1 and whole <= 10**figures - a_day:
+            return True
+    return False
+
+
+def _counts_off_the_real(
+    column: contract.ColumnBlock,
+    facts: contract.IdentifierFacts,
+    cells: "list[str]",
+    members: "tuple[str, ...]",
+    holes: "typing.Collection[str]",
+    unbounded: bool = False,
+) -> "list[str]":
+    """A held column's made-up counts, each off every real day of its column in the given counting systems (lane ID-ROOM3, plan P4-D488).
+
+    The walk's value stands where, read in each member -- the column's
+    own reading, or each system the most whole figures of its own or of
+    the census's widest layout of counts read as a date in
+    (`counted_members_read`; lane ID-ROOM3's repair 1) -- with either
+    mark, it names no real day by the published facts alone
+    (`_count_off_every_real_day`); a cell holding no figure stands as
+    the walk wrote it; so a held column of day
+    numbers written from nine hundreds no real count reaches keeps its
+    bytes. Any other is written, its sign and the figures after its mark
+    kept, in its own layout inside the nine hundreds of its width a day's
+    counts from both ends (where its width is one `_first_place_nines`
+    names: the census of layouts holds), stepped from the lowest to a
+    value no other made-up value takes; else as the spill (`(spill)`),
+    one figure longer than every real cell, opening with a nine and
+    stepped so: past every real count in every system, a value written
+    wider that the validator reads as such. ``unbounded`` (a held column of
+    counts with no grain whose description reads cells as blank: what its
+    real cells hold is then not bounded by its published facts) stands a
+    value only where it names no date or a published year, and writes any
+    other as the spill with a plus in place of its sign, a number that no
+    system's count grammar reads, one figure past the longest whole part
+    its census names where the figures after its mark keep its merged key
+    as long as the spill's (lane ID-ROOM3's repair 2: so a reader of
+    numbers keeps them). A value a reader of numbers reads as a fraction
+    is written so too, bounded or not, where that reader reads its spill
+    back as a whole number and its plus spill as a fraction (lane
+    ID-ROOM3's suite repair: so the column's whole-number fact holds).
+    Each different value is read once. Linear in the cells. Raises
+    nothing. No I/O.
+    """
+    # ...every real cell's merged key shorter than the spill's
+    # (`taxonomy.spill_bound`), so a real count's whole part holds fewer
+    # figures than that.
+    beyond = taxonomy.spill_bound(facts.layout_exclusions, facts.layout_prefixes) - 1
+    nines = _first_place_nines(facts, column.n_present) if not unbounded else {}
+    widest = 0
+    for layout in facts.layout_forms:
+        if layout != contract.WITHHELD and parsing.LAYOUT_DIGIT in layout:
+            widest = max(widest, _whole_figures_of(layout))
+    room = _room_years(facts)
+    published: "dict[int, bool]" = {}
+    for year in room[0] if room is not None else []:
+        published[year] = True
+    written: "dict[str, str]" = {}
+    taken: "dict[str, bool]" = {}
+    for cell in cells:
+        if parsing.folded(cell):
+            taken[cell] = True
+    step = 0
+    inside: "dict[int, int]" = {}
+    out: "list[str]" = []
+    for cell in cells:
+        if cell in written:
+            out += [written[cell]]
+            continue
+        if cell in holes or not parsing.folded(cell):
+            written[cell] = cell
+            out += [cell]
+            continue
+        lead, core, trail, _cell = _edges(cell)
+        # ...declared in none, in each system the column's widest published
+        # layout of counts reads as a date (lane ID-ROOM3's repair 1,
+        # skeptic 1's item 5: tested by its own figures, a short count near
+        # an epoch -- `98` days from 1960 -- was read in no system and
+        # stood); a census withheld whole, by its own figures.
+        tested = members if members else counted_members_read(max(widest, _count_whole_figures(core)))
+        stands = True
+        for member in tested:
+            if not _count_off_every_real_day(core, member, nines, -1 if unbounded else beyond, published):
+                stands = False
+                break
+        if stands or (beyond <= 0 and not unbounded):
+            written[cell] = cell
+            out += [cell]
+            continue
+        # ...keeping the value's sign and the figures after its mark, so the
+        # column's counts of figures alone and of whole numbers stand: first
+        # in its own layout, inside the nine hundreds its width's exclusion
+        # leaves free by a day's counts of every system tested (so the census
+        # of layouts holds), then as the spill.
+        sign = "-" if core[:1] == "-" else ""
+        # ...the place of its mark, the first point or the first comma, whichever stands later (read by index).
+        point, comma = -1, -1
+        for place in range(len(core)):
+            if core[place] == "." and point < 0:
+                point = place
+            if core[place] == "," and comma < 0:
+                comma = place
+        cut = max(point, comma)
+        after = core[cut:] if cut > 0 else ""
+        made = ""
+        # ...a value written with noughts before its figures (`06059.00`, read
+        # as its count since lane ID-ROOM3's repair 2) taken at the width it
+        # is written at, so it joins the nine hundreds of its own layout as any
+        # value of that width does: the census of layouts and the lengths hold.
+        figures = len(core[len(sign):cut if cut > 0 else len(core)])
+        if figures in nines and nines[figures] and parsing.is_digit_text(core[len(sign):len(sign) + figures]):
+            margin = max(_counts_a_day(member) for member in tested) if tested else 1
+            lowest = 9 * 10 ** (figures - 1) + margin - 1
+            highest = 10**figures - margin
+            whole = lowest + (inside[figures] if figures in inside else 0)
+            while not made and whole <= highest:
+                candidate = f"{lead}{sign}{whole}{after}{trail}"
+                whole = whole + 1
+                if candidate not in taken:
+                    made = candidate
+            inside[figures] = whole - lowest
+        # ...unbounded, with a plus in place of its sign: a number still, but
+        # one no counting system's grammar reads, so no system names a day.
+        width = max(beyond, 1)
+        # ...ONE FIGURE PAST THE LONGEST WHOLE PART ITS CENSUS NAMES, its
+        # merged key still as long as the spill's with the figures after its
+        # mark, so a reader of numbers keeps those figures (lane ID-ROOM3's
+        # repair 2, LANE ID-ROOM3 RULINGS 7 (3)): at the spill's own width,
+        # sixteen whole figures before five after the point were read back as
+        # a whole number, and validation exited 3 on `all_whole_numbers` for
+        # held seconds with five or ten figures after the point and
+        # milliseconds with three, nobody answering.
+        kept = max(widest, beyond - parsing.figures_in(after), 1)
+        # ...AND SO IS A FRACTION THE SPILL WOULD LOSE (lane ID-ROOM3's suite
+        # repair): a value a reader of numbers reads as a fraction, whose
+        # spill at the spill's own width that reader reads back as a whole
+        # number and whose unbounded spill keeps the fraction, is written as
+        # the unbounded spill is, so the column's whole-number fact holds:
+        # one stray ISO cell beside held seconds, its count under the floor,
+        # left the walk's value of eight whole figures and twelve after the
+        # point the column's only fraction, the spill wrote it with twenty
+        # whole figures, and validation exited 3 on `all_whole_numbers` at
+        # 20,000 rows, declared and with nobody answering.
+        # ...asked only of a value with figures after a mark (one with none,
+        # its plus spill all figures, is read back whole either way).
+        plus = unbounded or (
+            not made
+            and after != ""
+            and parsing.numeric_whole(core) == parsing.WHOLE_NO
+            and parsing.numeric_whole(f"{9 * 10**width}{after}") == parsing.WHOLE_YES
+            and parsing.numeric_whole(f"{9 * 10**kept}{after}") == parsing.WHOLE_NO
+        )
+        if plus:
+            sign = "+"
+            width = kept
+        while not made:
+            candidate = f"{lead}{sign}{9 * 10**width + step}{after}{trail}"
+            step = step + 1
+            if candidate not in taken:
+                made = candidate
+        taken[made] = True
+        written[cell] = made
+        out += [made]
+    return out
 
 
 def _off_the_real_years(
@@ -54412,6 +56139,7 @@ def _figure_runs_off_the_real(
     facts: "contract.TextFacts | contract.LabelFacts",
     holes: "tuple[str, ...]",
     kept: "dict[str, bool] | None" = None,
+    in_place: "dict[str, bool] | None" = None,
 ) -> "tuple[list[str], list[int]]":
     """A column with every made-up run of figures it writes off the real ones (plan P4-D442).
 
@@ -54450,6 +56178,11 @@ def _figure_runs_off_the_real(
     close round 2, item 1); only where every run of the cell is spent and
     noughts alone spell it absent is it written so, as the noughts are
     counted. THE COUNTS ARE OF WHAT IS WRITTEN (item 5, `_runs_rewritten`).
+
+    A CELL OF ``in_place`` (a held-back label the classes wrote as a number,
+    lane HB3-a's repair 1, plan P4-D482) is renamed only where every run of
+    it keeps its width and none is written as noughts alone; else it is kept
+    as written.
 
     Guarantees: returns the cells, and how many different runs were written
     wider and how many written as noughts because every room was spent; reads
@@ -54513,6 +56246,18 @@ def _figure_runs_off_the_real(
             if end - whole >= parsing.FIGURE_RUN_KEY_WIDTH:
                 taken[cell[start:end]] = True
     wide = widest + 1
+    # ...AND WIDER WHERE A HELD KEY OF NOUGHTS ALONE EXISTS AT THE RUN'S OWN
+    # WIDTH (lane HB3-a, plan P4-D482; the orchestrator's LANE HB3-a RULINGS 1
+    # (2), limit (af)): the description names such widths (`figure_noughts`, a
+    # width, never a value), and a spent run written as noughts at one of them
+    # was that key (`Q00000`: 497 twin cells equal to it at 20,000 rows); there
+    # the noughts are written wider than every width named and every width such
+    # a key holds, so no twin cell is that key (the merged reading, which reads
+    # every run of noughts alone as one, is the stated residue).
+    noughts_held = frozenset(facts.figure_noughts)
+    if noughts_held:
+        wide = max(wide, max(noughts_held) + 1)
+    written_width: "dict[str, int]" = {}
     # BESIDE KEY `3` A RUN IS NAMED AS WRITTEN, its noughts before it included,
     # and written anew with none (`_renamed_run_unled`): every real run that key
     # names is led by a nought (Codex's round on lane HB's close, item 3).
@@ -54535,11 +56280,29 @@ def _figure_runs_off_the_real(
             ):
                 continue
             name = cell[whole:end] if unled else cell[start:end]
+            written_width[name] = max(written_width[name] if name in written_width else 0, end - whole)
             if name not in renamed:
                 renamed[name] = _renamed_run(
-                    name, openings, taken, steps, absent, counts, 0 if len(name) in formed else wide
+                    name, openings, taken, steps, absent, counts,
+                    _noughts_width(name, written_width[name], formed, noughts_held, wide),
+                    len(name) in noughts_held or written_width[name] in noughts_held,
                 )
             parts += [(whole, end, name)]
+        # ...AND A RUN OF NOUGHTS ALONE AT A WIDTH A HELD KEY OF NOUGHTS ALONE
+        # HOLDS (lane HB3-a, plan P4-D482, limit (af)): as it stands it may be
+        # that key on any path of the held walk that writes one (a stand-in's
+        # draw, a list's member), so it is renamed by the room as every other
+        # run is, at its own width (`_renamed_run`, its noughts barred): a
+        # filling no real run holds; written wider than every width named only
+        # where every room is spent (lane HB3-a's repair 1: written wider
+        # always, it left the column's layouts and lengths, and four cases of
+        # the whole suite went red).
+        for whole, end in _noughts_runs_of(cell) if noughts_held else []:
+            if end - whole in noughts_held:
+                name = cell[whole:end]
+                if name not in renamed:
+                    renamed[name] = _renamed_run(name, openings, taken, steps, absent, counts, wide, True)
+                parts = sorted(parts + [(whole, end, name)])
         if parts:
             plan[cell] = parts
     if not plan:
@@ -54586,8 +56349,11 @@ def _figure_runs_off_the_real(
             continue
         for _whole, _end, name in plan[cell]:
             tried[(name, renamed[name])] = True
+            width_written = written_width[name] if name in written_width else len(name)
             fresh = _renamed_run(
-                name, openings, taken, steps, absent, counts, 0 if len(name) in formed else wide
+                name, openings, taken, steps, absent, counts,
+                _noughts_width(name, width_written, formed, noughts_held, wide),
+                len(name) in noughts_held or width_written in noughts_held,
             )
             if (name, fresh) in tried:
                 continue
@@ -54597,7 +56363,29 @@ def _figure_runs_off_the_real(
                 if _is_an_absent_spelling(moved[order[other]], absent):
                     size = _least_first_pushed(heap, size, other)
             break
+    for cell in in_place if in_place is not None else {}:
+        if cell in plan and not _kept_in_width(plan[cell], renamed):
+            del moved[cell]
+            del plan[cell]
     return [moved[cell] if cell in moved else cell for cell in cells], _runs_rewritten(plan, renamed)
+
+
+def _kept_in_width(parts: "list[tuple[int, int, str]]", renamed: "dict[str, str]") -> bool:
+    """Whether every run of a planned cell is written at its own width or narrower and none as noughts alone (plan P4-D482). No I/O."""
+    for whole, end, name in parts:
+        spelled = renamed[name]
+        if len(spelled) > end - whole or spelled == "0" * len(spelled):
+            return False
+    return True
+
+
+def _noughts_width(
+    name: str, written: int, formed: "dict[int, bool]", noughts_held: "frozenset[int]", wide: int
+) -> int:
+    """The width a spent run's noughts are written at: its own (0) where a published form writes that width and no held key of noughts alone is that wide, else ``wide`` (LANE HB RULINGS 13; plan P4-D482, limit (af)). No I/O."""
+    if len(name) in formed and len(name) not in noughts_held and written not in noughts_held:
+        return 0
+    return wide
 
 
 def _runs_rebuilt(
@@ -54643,6 +56431,21 @@ def _runs_rewritten(
             if spelled == "0" * len(spelled):
                 noughts[name] = True
     return [len(wider), len(noughts)]
+
+
+def _noughts_runs_of(cell: str) -> "list[tuple[int, int]]":
+    """Where each maximal run of ASCII figures of a cell that is noughts alone starts and ends (plan P4-D482). No I/O."""
+    runs: "list[tuple[int, int]]" = []
+    start = -1
+    for place in range(len(cell) + 1):
+        if place < len(cell) and "0" <= cell[place] <= "9":
+            if start < 0:
+                start = place
+            continue
+        if start >= 0 and cell[start:place] == "0" * (place - start):
+            runs += [(start, place)]
+        start = -1
+    return runs
 
 
 def _figure_runs_of(cell: str) -> "list[tuple[int, int, int]]":
@@ -54763,6 +56566,7 @@ def _renamed_run(
     holes: _AbsentSpellings,
     counts: "list[int]",
     nought_width: int = 0,
+    barred: bool = False,
 ) -> str:
     """A run of merged figures written anew, no real run and holding none (plan P4-D442).
 
@@ -54790,7 +56594,10 @@ def _renamed_run(
     lane HB's close round, item 3). Counts in ``counts`` a spelling longer than
     ``run`` and every spelling of noughts alone, the first too (item 5); the
     caller reports what it writes (`_runs_rewritten`). Claims what it writes.
-    Raises nothing.
+    ``barred`` (lane HB3-a's repair 1, plan P4-D482, limit (af)): a held key
+    of noughts alone stands at the run's width, so (3)'s noughts alone are
+    passed over for (4), and (5)'s are ``nought_width`` wide. Raises
+    nothing.
     """
     if parsing.FIGURE_RUN_PADDED_NARROW in openings:
         return _renamed_run_unled(run, openings, taken, steps, holes, counts, nought_width)
@@ -54815,7 +56622,7 @@ def _renamed_run(
             if spelling:
                 return spelling
     noughts = "0" * max(len(run), nought_width)
-    if noughts not in taken:
+    if noughts not in taken and not barred:
         taken[noughts] = True
         counts[1] = counts[1] + 1
         return noughts
@@ -60860,10 +62667,16 @@ def _identifier_cells(
     short is the answer -- a reading may not trade the layout census for
     a class count, since both are exact. Where none does, the published
     reading's cells stand and every miss is named, as before.
+
+    ONE METER FOR THE COLUMN'S LAYOUT PASS (plan P4-D490): every reading's
+    pass counts its walk steps, its walk's work and its re-packing work
+    on it, and where it ran out and the answer leaves a published layout
+    short, each such layout is filed with that cause (`_layout_filed`).
     """
-    first = _identifier_cells_as_read(column, groups, holes, floor)
+    meter = _layout_meter(len(groups))
+    first = _identifier_cells_as_read(column, groups, holes, floor, meter)
     if not _reading_missed(column, first[0], holes, floor):
-        return first
+        return _layout_filed(column, first, meter, floor)
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         raise _wrong_facts(column.name)
@@ -60886,7 +62699,7 @@ def _identifier_cells(
         ):
             continue
         builds = builds + 1
-        built = _identifier_cells_as_read(view, groups, holes, floor)
+        built = _identifier_cells_as_read(view, groups, holes, floor, meter)
         if _reading_missed(column, built[0], holes, floor):
             continue
         if len(built[1]) > len(first[1]):
@@ -60897,8 +62710,8 @@ def _identifier_cells(
             continue
         if len(_layout_notes(column, built[0], floor)) > laid_short:
             continue
-        return built
-    return first
+        return _layout_filed(column, built, meter, floor)
+    return _layout_filed(column, first, meter, floor)
 
 
 # HOW MANY OTHER READINGS OF A RECORD NUMBER'S COUNTS ARE BUILT (plan
@@ -61143,6 +62956,7 @@ def _identifier_cells_as_read(
     groups: "tuple[int, ...]",
     holes: "tuple[str, ...]" = (),
     floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
+    meter: "list[int] | None" = None,
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a record number, against ONE reading of its counts.
 
@@ -61206,10 +63020,16 @@ def _identifier_cells_as_read(
 
     Any count this cannot reach is measured from the written cells and
     named, never left for a reader to discover.
+
+    ``meter`` is the column's layout-pass meter (plan P4-D490,
+    `_layout_meter`), shared by every reading of one column; a fresh one
+    is made where none is handed in.
     """
     facts = column.facts
     if not isinstance(facts, contract.IdentifierFacts):
         raise _wrong_facts(column.name)
+    if meter is None:
+        meter = _layout_meter(len(groups))
     # A PUBLISHED PREFIX IS WRITTEN BY EVERY WALK BELOW AS PART OF ITS
     # LAYOUT (owner ruling of 2026-09-17, item 1; method G9.6a). See
     # `_templated_facts`: on a column publishing none this is the
@@ -61311,7 +63131,10 @@ def _identifier_cells_as_read(
                         laid_short = len(_layout_notes(column, built, floor))
                         if laid_short == 0:
                             return built, notes
-                        if best is None or laid_short < best_short:
+                        if best is None or _layout_nearer(
+                            column, built, laid_short, best, best_short, meter,
+                            floor,
+                        ):
                             first = best is None
                             if best is None:
                                 best_missed = missed
@@ -61325,9 +63148,12 @@ def _identifier_cells_as_read(
                                 packed = _layout_packed(
                                     column, facts, groups, folded, partners,
                                     holes, floor, allowance, best_missed,
-                                    best_signed,
+                                    best_signed, meter,
                                 )
-                                if packed is not None and packed[2] < best_short:
+                                if packed is not None and _layout_nearer(
+                                    column, packed[0], packed[2], best,
+                                    best_short, meter, floor,
+                                ):
                                     if packed[2] == 0:
                                         return packed[0], packed[1]
                                     best = (packed[0], packed[1])
@@ -61372,6 +63198,7 @@ def _layout_packed(
     allowance: int,
     missed: "frozenset[str]",
     signed: bool,
+    meter: "list[int] | None" = None,
 ) -> "tuple[list[str], list[Deviation], int] | None":
     """The column laid out over packings that settle every group's layout.
 
@@ -61386,10 +63213,16 @@ def _layout_packed(
     first answer did without. The candidate leaving the fewest named
     layouts short is returned with that number, the first on a tie, and
     the first leaving none at once; None where no candidate qualifies.
+    The packings are found under the column's ``meter`` (plan P4-D490),
+    which the caller reads to file a layout left short
+    (`_layout_filed`); where the pass stopped past its walk, the candidate
+    standing nearest the census is the one returned (`_layout_nearer`).
 
-    Guarantees: a fixed function of the description; no randomness and
-    no I/O.
+    Guarantees: a fixed function of the description and of the meter; no
+    randomness and no I/O.
     """
+    if meter is None:
+        meter = _layout_meter(len(groups))
     room = len(_CLASSES) * len(_BANDS)
     best: "tuple[list[str], list[Deviation], int] | None" = None
     found = _layout_packings(
@@ -61401,6 +63234,7 @@ def _layout_packed(
         _LAYOUT_PACKED_QUESTIONS_FEW_GROUPS
         if len(groups) <= _FEW_GROUPS
         else _LAYOUT_PACKED_QUESTIONS,
+        meter,
     )
     proven = False
     for layout in _named_layouts(facts):
@@ -61421,9 +63255,153 @@ def _layout_packed(
         laid_short = len(_layout_notes(column, built, floor))
         if laid_short == 0:
             return built, notes, 0
-        if best is None or laid_short < best[2]:
+        if best is None or _layout_nearer(
+            column, built, laid_short, (best[0], best[1]), best[2], meter, floor
+        ):
             best = (built, notes, laid_short)
     return best
+
+
+def _layout_nearer(
+    column: contract.ColumnBlock,
+    built: "list[str]",
+    short: int,
+    best: "tuple[list[str], list[Deviation]]",
+    best_short: int,
+    meter: "list[int]",
+    floor: int,
+) -> bool:
+    """Whether a lay-out is taken over the best one so far (plans P4-D182 and P4-D490).
+
+    Where it leaves fewer named layouts short. Where the column's layout
+    pass went past its walk (``meter[1]``, `_layout_allotted`), where it
+    stands nearer the published census instead: a smaller total distance
+    of its layout counts from the published ones (`_layout_gap`), fewer
+    layouts short on a tie, and the best so far on a tie of both -- so the
+    nearest assignment of the third rung is written where it is nearer
+    than the first layout, and the first layout where it is not. A column
+    whose pass ends inside its meter is compared exactly as before.
+    """
+    if not meter[1]:
+        return short < best_short
+    near = _layout_gap(column, built, floor)
+    far = _layout_gap(column, best[0], floor)
+    return near < far or (near == far and short < best_short)
+
+
+def _layout_gap(
+    column: contract.ColumnBlock, written: "list[str]", floor: int
+) -> int:
+    """How far a column's written layouts stand from its published census, in rows (plan P4-D490).
+
+    Recounted as `_layout_notes` recounts it: for each named layout, how
+    many rows its count stands below the published count or above that
+    count and the pool the census writes, summed. Nought where every
+    named layout is held.
+    """
+    facts = column.facts
+    if not isinstance(facts, contract.IdentifierFacts):
+        return 0
+    named = _named_layouts(facts)
+    if not named:
+        return 0
+    present = [
+        cell for cell in _present_of(written, _hole_spellings(column))
+        if parsing.trimmed(cell)
+    ]
+    counted = taxonomy.layout_census(present, floor, len(set(present)))
+    pool = 0
+    if contract.WITHHELD in facts.layout_forms:
+        pool = facts.layout_forms[contract.WITHHELD]
+    gap = 0
+    for layout in named:
+        published = facts.layout_forms[layout]
+        found = counted[layout] if layout in counted else 0
+        if found < published:
+            gap = gap + published - found
+        elif found > published + pool:
+            gap = gap + found - published - pool
+    return gap
+
+
+# WHAT A LAYOUT THE PASS LEFT SHORT AT ITS STATED STEPS MEANS (plan
+# P4-D490, the layout pass's third rung), in the words the report prints
+# beside the layout's published count and the count the twin holds.
+_LAYOUT_PASS_STOPPED = (
+    "synthtwin's search for a layout for every made-up value stopped at "
+    "its stated number of steps before it met this count, so the twin "
+    "writes the nearest layouts it found: a pattern, a length test or "
+    "a case test developed against the twin selects a different number "
+    "of rows here than it will on the real table. How many rows each "
+    "value holds is kept, and so is every count taken by value."
+)
+
+
+def _layout_filed(
+    column: contract.ColumnBlock,
+    answer: "tuple[list[str], list[Deviation]]",
+    meter: "list[int]",
+    floor: int,
+) -> "tuple[list[str], list[Deviation]]":
+    """The writer's answer, every layout its pass left short filed where the meter ran out (plan P4-D490).
+
+    THE THIRD RUNG IS NEVER SILENT. Where the column's layout pass was
+    stopped by its meter (`_layout_allotted`) and the answer still leaves
+    a published layout short, each such layout is filed: its own name, its
+    published count and the count the answer writes, recounted as
+    `_layout_notes` recounts them -- no value -- with the cause
+    `_LAYOUT_PASS_STOPPED`. Anywhere else the answer is returned as it
+    came, byte for byte, and a layout it leaves short is named by the
+    recount of the finished twin alone, as before: the held surname
+    column of LANE CODES-2 RULINGS 7 (2) leaves three layouts short at
+    the pass's bound of questions with 48 of its steps walked, the same
+    on the base, and that bound is the cause, not this meter. Generation
+    names a filed layout once, measured on the finished twin, with this
+    cause (`_layout_causes`).
+    """
+    if meter[1] == 0:
+        return answer
+    filed = [
+        Deviation(note.column, note.fact, note.published, note.achieved, _LAYOUT_PASS_STOPPED)
+        for note in _layout_notes(column, answer[0], floor)
+        if note.fact[: len("layout_forms.")] == "layout_forms."
+    ]
+    if not filed:
+        return answer
+    return answer[0], answer[1] + filed
+
+
+def _layout_causes(notes: "list[Deviation]") -> "list[Deviation]":
+    """A layout the writer filed at its stated steps, named once, measured, with that cause (plan P4-D490).
+
+    The writer files the layouts its pass left short (`_layout_filed`)
+    and the recount of the finished twin names every short layout
+    (`_layout_notes`); a layout both name is named by the recount, whose
+    counts are the twin's own, with the writer's cause in place of the
+    recount's sentence, and the writer's line is dropped. A layout the
+    finished twin holds after all is named by neither. A note list naming
+    no such cause comes back as it was.
+    """
+    stopped: "dict[str, bool]" = {}
+    for note in notes:
+        if note.note == _LAYOUT_PASS_STOPPED:
+            stopped[note.fact] = True
+    if not stopped:
+        return notes
+    kept: "list[Deviation]" = []
+    for note in notes:
+        if note.note == _LAYOUT_PASS_STOPPED:
+            continue
+        if note.fact in stopped:
+            kept += [
+                Deviation(
+                    note.column, note.fact, note.published, note.achieved,
+                    _LAYOUT_PASS_STOPPED, note.judged, note.end,
+                )
+            ]
+            continue
+        kept += [note]
+    return kept
 
 
 def _fully_folded(short: "list[int]") -> bool:
@@ -61676,6 +63654,15 @@ def _laid_identifiers(
     if assigned is not None:
         preferred = [assigned[place] for place in order]
     stand_ins = _layout_stand_in_bases(facts)
+    # THE CENSUS'S PREFIX LAYOUTS ARE READ ONCE A LAY-OUT, and each mix and
+    # its refusal for being named are remembered (plan P4-D490): all are
+    # fixed by the description, and each stand-in made them again -- every
+    # census template parsed on every call, 7.4 million parses and 6.1
+    # million mixes on a held list of 15,000 rows. The same mixes are
+    # offered and refused in the same places.
+    stand_in_real = _stand_in_real(facts, convention)
+    refused: dict[str, bool] = {}
+    made: "dict[tuple[str, int], str]" = {}
     # THE PREFIXES A PARTNER OWES (method G9.6a); None on every column
     # publishing none, which leaves the partner walk exactly as it was.
     owed_prefixes: "tuple[str, dict[str, str]] | None" = None
@@ -61760,7 +63747,8 @@ def _laid_identifiers(
                 # to the walk below. See `_layout_stand_in`.
                 laid = _layout_stand_in(
                     kind, band, windows[index], convention, facts, stand_ins,
-                    steps, used, admitted, mixed, holes,
+                    steps, used, admitted, mixed, holes, stand_in_real,
+                    refused, made,
                 )
                 from_a_layout = False
             if laid is not None and _names_another_person(laid, persons, read) and attempt < _PERSON_TRIES:
@@ -61978,7 +63966,12 @@ def _spelled_off_the_real(
     no nought the template does not, so its merged key holds the written
     characters at their places (`parsing.projected`); or its merged key
     is at least as long as the column's `(spill)`'s, which every real
-    cell's is shorter than. The values of one MERGED identity -- a fold
+    cell's is shorter than; AND WHERE ITS NUMBER IS ONE NO REAL CELL CAN
+    WRITE (batch 4t's last code round, item 1): a value read as a number
+    whose mantissa written with an exponent ends with a nought, or one of
+    whose spellings in a named layout nothing published keeps off the real
+    by its merged key, is moved, and no such spelling is taken
+    (`_kept_off_the_real`). The values of one MERGED identity -- a fold
     collision, written again in another case or with a space, or the
     walk's one key written two ways (`009891959` beside `9891959`) -- are
     kept or moved TOGETHER: moved, they take one new merged key, each in
@@ -62404,7 +64397,12 @@ class _OffTheReal:
     (`parsing.noughts_dropped`; plan P4-D442); ``unread`` names each strict
     search none of whose fillings read as its value's class, from its step
     and in its value's own spaces, so it is not run again whoever shares
-    (`_next_off_the_real`; lane CZ-A2, plan P4-D469).
+    (`_next_off_the_real`; lane CZ-A2, plan P4-D469). ``numeric`` holds
+    each named layout that writes a number (`_number_layout`), and
+    ``figures_only`` says every one of them is figures alone, so a value
+    is read by the number it writes against them (`_number_kept_off_the_real`;
+    batch 4t's last code round, item 1); a room built with neither reads
+    no number.
     """
 
     facts: contract.IdentifierFacts
@@ -62429,6 +64427,8 @@ class _OffTheReal:
     nought_led: "dict[str, list[str]]"
     spends: "dict[str, str]"
     unread: "dict[str, bool]"
+    numeric: "tuple[_NumberLayout, ...]" = ()
+    figures_only: bool = True
 
 
 def _off_the_real_room(
@@ -62477,6 +64477,21 @@ def _off_the_real_room(
         spill = parsing.layout_template(
             exclusions[parsing.EXCLUSION_SPILL][0], whole, whole_places
         )
+    # THE NAMED LAYOUTS THAT WRITE A NUMBER (batch 4t's last code round, item
+    # 1): a value is read by the number it writes against each of them.
+    numeric: "list[_NumberLayout]" = []
+    figures_only = True
+    for layout in _named_layouts(facts):
+        if taxonomy.a_list_layout(layout):
+            continue
+        shape = _number_layout(
+            layout, parsing.layout_template(layout, _prefix_of(facts, layout), whole_places)
+        )
+        if shape is None:
+            continue
+        numeric += [shape]
+        if shape.sign or shape.point or shape.letter:
+            figures_only = False
     return _OffTheReal(
         facts=facts,
         holes=holes,
@@ -62504,6 +64519,8 @@ def _off_the_real_room(
         nought_led=nought_led,
         spends=spends,
         unread={},
+        numeric=tuple(numeric),
+        figures_only=figures_only,
     )
 
 
@@ -62595,6 +64612,282 @@ def _numeric_identity_of_core(body: str) -> str:
 
 
 def _kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
+    """Whether a twin cell is one no real cell can be: by its merged key (method G9.6b), and by the number it writes.
+
+    BY THE NUMBER IT WRITES TOO (batch 4t's last code round, item 1; the
+    orchestrator's LANE I4t RULINGS 3 (1), on the scoped verify's item 1):
+    a column of codes past a double's range declared record numbers
+    beside a declared person column (1,000 people, 20 rows a person, one
+    code a person, `1e452` and `12e451` among them) was kept off the real
+    by merged key alone, and its excluded template `%0&%%%` wrote `10e451`,
+    the code `1e452` of one person by value: 280 twin cells of 20,000, 10
+    codes of 13 people. A cell is kept only where its merged key is one no
+    real cell's can be (`_key_kept_off_the_real`), its mantissa written
+    with an exponent ends with no nought (`_mantissa_ends_with_a_nought`),
+    and every spelling of its number in the column's named layouts is kept
+    off the real by its merged key in turn (`_number_kept_off_the_real`).
+    Each route of the pass asks this one test, so a value the walk wrote
+    is kept, and a filling is taken, only so. Raises nothing. No I/O.
+    """
+    if not _key_kept_off_the_real(room, cell):
+        return False
+    core = parsing.trimmed(cell)
+    return not _mantissa_ends_with_a_nought(core) and _number_kept_off_the_real(room, core)
+
+
+def _mantissa_ends_with_a_nought(core: str) -> bool:
+    """Whether a number written with an exponent ends its mantissa with a nought, which the held writer never writes (batch 4t's last code round, item 1).
+
+    The mantissa is the figures before the exponent's `e` or `E`; a nought
+    ending it is a figure the number does not need -- `10e451` is the
+    number `1e452`, `9.0e452` is `9e452` -- so a real cell spelled the
+    shorter way could be that number although no real cell is spelled as
+    the twin's is (the orchestrator's LANE I4t RULINGS 3 (1), as method
+    G10.5 step 8 does for the wider writer). Text the reader of record
+    reads as no number (`parsing.classify_number`), and a number written
+    with no exponent, are not asked. Raises nothing. No I/O.
+    """
+    kind = parsing.classify_number(core)
+    if kind != parsing.NUMBER and kind != parsing.NUMBER_OUT_OF_RANGE:
+        return False
+    marked = -1
+    for place in range(1, len(core)):
+        if marked < 0 and (core[place] == "e" or core[place] == "E"):
+            marked = place
+    if marked < 0:
+        return False
+    for place in range(marked - 1, -1, -1):
+        character = core[place]
+        if "0" <= character <= "9":
+            return character == "0"
+    return False
+
+
+@dataclasses.dataclass(frozen=True)
+class _NumberLayout:
+    """A named layout of a column of record numbers read as the marks of a number (batch 4t's last code round, item 1).
+
+    ``sign`` is the mark before the figures (`-`, `+` or none); ``whole``
+    and ``fraction`` count the figure places before and after the point,
+    ``point`` says whether one stands; ``letter`` is the exponent's letter
+    (`e` for a lower-case mark, `E` for an upper-case one, or none),
+    ``exponent_sign`` the mark after it and ``exponent`` its figure
+    places. ``template`` is the layout's template, as its exclusions are
+    read (`_off_the_real_room`).
+    """
+
+    layout: str
+    template: str
+    sign: str
+    whole: int
+    fraction: int
+    point: bool
+    letter: str
+    exponent_sign: str
+    exponent: int
+
+
+def _number_layout(layout: str, template: str) -> "_NumberLayout | None":
+    """A named layout read as a number's marks, or None where its marks write no number this reading spells (batch 4t's last code round, item 1).
+
+    A sign mark first (`-` or `+`), then figures (`%`, and the zero fill
+    `!`) with at most one point, then, where one stands, ONE letter mark
+    read as the exponent's letter, a sign mark and figures. Any other
+    mark -- a grouping comma, a bracket, a space, a second letter, a
+    figure of a hexadecimal column -- reads None: no spelling of a number
+    is read off such a layout (a stated limit of the reading by value).
+    Raises nothing. No I/O.
+    """
+    marks = layout
+    sign = ""
+    if marks[:1] == "-" or marks[:1] == "+":
+        sign = marks[:1]
+        marks = marks[1:]
+    letter = ""
+    at = len(marks)
+    for place in range(len(marks)):
+        mark = marks[place]
+        lower = mark == parsing.LAYOUT_LOWER or mark == parsing.LAYOUT_LOWER_HEX
+        upper = mark == parsing.LAYOUT_UPPER or mark == parsing.LAYOUT_UPPER_HEX
+        if lower or upper:
+            if letter:
+                return None
+            letter = "e" if lower else "E"
+            at = place
+    whole = 0
+    fraction = 0
+    point = False
+    for place in range(at):
+        mark = marks[place]
+        if mark == ".":
+            if point:
+                return None
+            point = True
+        elif mark == parsing.LAYOUT_DIGIT or mark == parsing.LAYOUT_LEADING_ZERO:
+            if point:
+                fraction = fraction + 1
+            else:
+                whole = whole + 1
+        else:
+            return None
+    if whole + fraction < 1:
+        return None
+    exponent_sign = ""
+    exponent = 0
+    if letter:
+        after = marks[at + 1 :]
+        if after[:1] == "-" or after[:1] == "+":
+            exponent_sign = after[:1]
+            after = after[1:]
+        for mark in after:
+            if mark != parsing.LAYOUT_DIGIT:
+                return None
+            exponent = exponent + 1
+        if exponent < 1:
+            return None
+    return _NumberLayout(
+        layout=layout,
+        template=template,
+        sign=sign,
+        whole=whole,
+        fraction=fraction,
+        point=point,
+        letter=letter,
+        exponent_sign=exponent_sign,
+        exponent=exponent,
+    )
+
+
+def _number_spellings(
+    shape: _NumberLayout,
+    number: "tuple[int, tuple[str, ...], int]",
+    convention: str,
+) -> "list[str]":
+    """Every spelling of ``number`` one named layout writes, each read back by the reader of record (batch 4t's last code round, item 1).
+
+    ``number`` is `parsing.exact_of_a_number`'s triple: its sign, its
+    figures with no nought before or after them, and its power of ten.
+    The layout's figure places hold those figures followed by noughts and
+    led by noughts; with no exponent the noughts after them are those the
+    power and the point leave, and with one each count of them from none
+    to the places left is offered, the exponent written to the layout's
+    places from the power it leaves (`1e452`, in a layout of two figures
+    and three after the letter, is `10e451` and `01e452`). Zero is written
+    with noughts alone in a layout with no exponent; a layout with one
+    writes it at every power of ten, so none is returned there and the
+    caller reads zero itself (`_number_kept_off_the_real`). A spelling is
+    returned only where the reader of record reads it as exactly
+    ``number`` (`parsing.exact_of_a_number`) and it wears the layout's
+    template (`_wears_template`), so a layout's zero fill, its prefix and
+    its noughts after the point are each read as the census reads them.
+    A fixed function of the three. Raises nothing. No I/O.
+    """
+    sign, digits, power = number
+    if digits and (sign < 0) != (shape.sign == "-"):
+        return []
+    figures = ""
+    for digit in digits:
+        figures = figures + digit
+    places = shape.whole + shape.fraction
+    offered: "list[tuple[int, int]]" = []
+    if not digits:
+        if shape.letter:
+            return []
+        offered = [(0, 0)]
+    elif not shape.letter:
+        if 0 <= power + shape.fraction <= places - len(figures):
+            offered = [(power + shape.fraction, 0)]
+    else:
+        for noughts in range(places - len(figures) + 1):
+            offered += [(noughts, power + shape.fraction - noughts)]
+    found: "list[str]" = []
+    for noughts, power_left in offered:
+        body = figures + "0" * noughts if digits else ""
+        if len(body) > places:
+            continue
+        body = "0" * (places - len(body)) + body
+        if shape.point:
+            body = body[: shape.whole] + "." + body[shape.whole :]
+        spelling = shape.sign + body
+        if shape.letter:
+            if shape.exponent_sign == "-":
+                if power_left > 0:
+                    continue
+                written = f"{-power_left}"
+            else:
+                if power_left < 0:
+                    continue
+                written = f"{power_left}"
+            if len(written) > shape.exponent:
+                continue
+            spelling = (
+                spelling + shape.letter + shape.exponent_sign
+                + "0" * (shape.exponent - len(written)) + written
+            )
+        if parsing.exact_of_a_number(spelling) == number and _wears_template(
+            spelling, shape.template, convention
+        ):
+            found += [spelling]
+    return found
+
+
+def _figures_alone(core: str) -> bool:
+    """Whether a core is written in ASCII figures alone, at least one."""
+    if not core:
+        return False
+    for character in core:
+        if not "0" <= character <= "9":
+            return False
+    return True
+
+
+def _number_kept_off_the_real(room: _OffTheReal, core: str) -> bool:
+    """Whether no real cell of the column can write the number ``core`` writes, read off the description alone (batch 4t's last code round, item 1).
+
+    The number is read as the profile's check reads a made-up spelling
+    (`parsing.exact_of_a_number`): `10e451`, `1e452` and `01e452` are one
+    number. A real cell writing it in a named layout of the column is one
+    of that layout's spellings of the number (`_number_spellings`), so
+    ``core`` is kept only where each such spelling whose merged key is not
+    ``core``'s own is kept off the real by its merged key
+    (`_key_kept_off_the_real`: its layout's excluded template or the
+    spill's length says no real cell's merged key is its); where nothing
+    the description publishes says so, the candidate is stepped past, so
+    the rule errs toward stepping past. A column whose named layouts write
+    numbers in figures alone, as most columns of record numbers do, keeps
+    a value of figures alone as before: each spelling of its number there
+    has its own merged key. Zero is refused wherever a named layout writes
+    an exponent (it is written there at every power of ten). Text that
+    writes no number is kept. A fixed function of the room and the text.
+    Raises nothing. No I/O.
+    """
+    if not room.numeric:
+        return True
+    plain = _figures_alone(core)
+    if room.figures_only and plain:
+        return True
+    number = parsing.exact_of_a_number(core)
+    if number is None:
+        return True
+    if not number[1]:
+        # ZERO, which a layout with an exponent writes at every power of ten
+        # (`0e000` to `0e999`): refused wherever such a layout is named.
+        for shape in room.numeric:
+            if shape.letter:
+                return False
+    own = parsing.merged_key(core)
+    for shape in room.numeric:
+        if plain and not (shape.sign or shape.point or shape.letter):
+            # A value of figures alone in a layout of figures alone is
+            # spelled with its own merged key there: nothing to read.
+            continue
+        for spelling in _number_spellings(shape, number, room.convention):
+            if parsing.merged_key(spelling) != own and not _key_kept_off_the_real(room, spelling):
+                return False
+    return True
+
+
+def _key_kept_off_the_real(room: _OffTheReal, cell: str) -> bool:
     """Whether a twin cell's merged key is one no real cell's can be (method G9.6b)."""
     core = parsing.trimmed(cell)
     key = parsing.merged_key(core)
@@ -62962,7 +65255,8 @@ def _next_off_the_real(
     for place (`_on_its_spelling`), so the walk's one person stays one
     and each spelling keeps its layout. Each part's spelling is kept off the real
     (`_kept_off_the_real`: its merged key drops no nought the template
-    does not, skeptic 1 of lane ID-ROOM, item 3 (a)), is no hole spelling
+    does not, skeptic 1 of lane ID-ROOM, item 3 (a), and the number it
+    writes is one no real cell can, batch 4t's last code round), is no hole spelling
     and no date, and, where ``strict``, reads as that part's own class,
     wholeness and alphabets. The fillings are read from the first, the
     nought filling (every place at its lowest) last, each reading from its
@@ -64299,6 +66593,9 @@ def _layout_stand_in(
     admitted: "dict[str, bool]",
     mixed: "dict[str, int]",
     holes: "tuple[str, ...]" = (),
+    real: "dict[str, int] | None" = None,
+    refused: "dict[str, bool] | None" = None,
+    made: "dict[tuple[str, int], str] | None" = None,
 ) -> "str | None":
     """A group no named layout serves, written to a layout of its own kinds.
 
@@ -64323,6 +66620,14 @@ def _layout_stand_in(
     census already names, a cell written to it recounts into no named
     layout, and the pool it stands in for bounds a count rather than
     binding one, so the recount of every published layout is untouched.
+
+    ``real`` is `_stand_in_real` of the column, read once a lay-out and
+    handed in; ``refused`` remembers, mix by mix, whether a mix is named,
+    and ``made`` each mix by its base and its step modulo the base's
+    number of mixes, the only way the step reaches it (`_layout_stepped`)
+    (plan P4-D490): all three are fixed by the description, so every
+    mix is the one it was, every refusal falls where it fell and counts
+    against the tries as it did. Built here where they are not handed in.
     """
     census = facts.layout_forms
     # A MIX IS STEPPED OVER WHERE ITS OWN LAYOUT IS A NAMED ONE, prefix or
@@ -64330,9 +66635,12 @@ def _layout_stand_in(
     # prefix, so a mix of another prefix wearing the same layout would be
     # counted into it. On a column publishing no prefix every template is
     # its layout and this is the check that always stood.
-    real: "dict[str, int]" = {}
-    for template in sorted(census):
-        real[parsing.prefix_layout(template, convention)] = 1
+    if real is None:
+        real = _stand_in_real(facts, convention)
+    if refused is None:
+        refused = {}
+    if made is None:
+        made = {}
     tried = 0
     for base, kinds in bases:
         if len(base) < window[0]:
@@ -64341,11 +66649,22 @@ def _layout_stand_in(
             continue
         if base not in mixed:
             mixed[base] = 0
+        places = 0
+        for character in base:
+            if character in kinds:
+                places = places + 1
+        mixes = max(len(kinds) ** places, 1)
         while tried < _LAYOUT_STAND_IN_TRIES:
-            mix = _layout_mix(base, kinds, mixed[base])
+            if (base, mixed[base] % mixes) not in made:
+                made[(base, mixed[base] % mixes)] = _layout_mix(base, kinds, mixed[base])
+            mix = made[(base, mixed[base] % mixes)]
             mixed[base] = mixed[base] + 1
             tried = tried + 1
-            if mix in census or parsing.prefix_layout(mix, convention) in real:
+            if mix not in refused:
+                refused[mix] = (
+                    mix in census or parsing.prefix_layout(mix, convention) in real
+                )
+            if refused[mix]:
                 continue
             asked = f"{kind} {band} {mix}"
             if asked not in admitted:
@@ -64366,6 +66685,20 @@ def _layout_stand_in(
             if found is not None:
                 return found
     return None
+
+
+def _stand_in_real(
+    facts: contract.IdentifierFacts, convention: str
+) -> "dict[str, int]":
+    """The layouts the census names, each read with its prefix as a layout (method G9.6a; plan P4-D490).
+
+    A fixed function of the census and the convention, which is why a
+    lay-out reads it once and hands it to every stand-in it asks for.
+    """
+    real: "dict[str, int]" = {}
+    for template in sorted(facts.layout_forms):
+        real[parsing.prefix_layout(template, convention)] = 1
+    return real
 
 
 def _moved_to(order: "list[int]", place: int) -> int:
@@ -64914,6 +67247,7 @@ def _layout_packings(
     folded: int,
     partners: int,
     budget: int,
+    meter: "list[int] | None" = None,
 ) -> "list[tuple[tuple[list[int], tuple[int, int], bool], list[str]]]":
     """Packings of G9.6 that settle every group's LAYOUT with its family.
 
@@ -64946,6 +67280,14 @@ def _layout_packings(
     roles already share, so which exact answer is taken is stated rather
     than left to the arithmetic.
 
+    THE ALLOCATOR IS ASKED UNDER THE COLUMN'S METER (plan P4-D490):
+    `_layout_allotted` answers each question by that same walk while
+    ``meter`` holds steps -- one meter for every question and look of the
+    column, made fresh here when none is handed in -- and by the
+    re-packing allocator once it has run out, so the pass ends in a
+    stated number of steps; a column whose walks end inside the meter is
+    answered exactly as before.
+
     The shapes are offered in the order of `_identifier_packings`' first
     tier -- the sign family closed and then open, and within each the
     end carriers in `_shape_choices` order, a shape whose carrier sizes
@@ -64960,12 +67302,15 @@ def _layout_packings(
 
     Guarantees: reads only the description; returns every packing found,
     each with the named layout or "" per group, in group order; a fixed
-    function of its arguments, with no randomness and no I/O.
+    function of its arguments and of the meter, with no randomness and no
+    I/O.
     """
     named = _named_layouts(facts)
     total = len(groups)
     if not named or partners > 0 or total < 1:
         return []
+    if meter is None:
+        meter = _layout_meter(total)
     convention = _layout_convention(facts)
     width = len(_BANDS)
     pairs = len(_CLASSES) * width
@@ -65019,7 +67364,7 @@ def _layout_packings(
         question = tuple(allowed)
         if question in answers:
             continue
-        answers[question] = _allotted_over(groups, margins, allowed)
+        answers[question] = _layout_allotted(groups, margins, allowed, meter)
         together = answers[question]
         if together is None:
             continue
@@ -65047,7 +67392,7 @@ def _layout_packings(
             question = tuple(allowed)
             if question in answers:
                 continue
-            answers[question] = _allotted_over(groups, margins, allowed)
+            answers[question] = _layout_allotted(groups, margins, allowed, meter)
             together = answers[question]
             if together is None:
                 continue
@@ -70263,6 +72608,101 @@ def _unrepresentable_cells(
 ) -> "tuple[list[str], list[Deviation]]":
     """Every present cell of a column of numbers that cannot be held.
 
+    The spellings are `unrepresentable_spellings`', one a group of the
+    published census, each written over its group's rows (`_grouped`):
+    the writer asks the one function the profile's dry run asks (lane
+    ID-ROOM4, plan P4-D489), so the two cannot drift apart. ``groups`` is
+    the plan's reading of the same census (`_groups_of`), one a spelling.
+    """
+    spellings, notes = unrepresentable_spellings(column, everywhere)
+    return _grouped(groups, list(spellings)), list(notes)
+
+
+def made_up_spellings(profile: contract.Profile, place: int) -> "tuple[str, ...] | None":
+    """The spellings `synthtwin generate` writes in one column of numbers that cannot be held (plan P4-D489).
+
+    Exactly what `_plan_column` hands the writer on a description loaded
+    without the chain's switch (the only one `synthtwin profile` writes):
+    the column's block and every hole spelling of the document
+    (`_every_hole_spelling`), through `unrepresentable_spellings`, the one
+    source; empty for a column of any other role and for one a carried
+    rule computes. NONE WHERE THE WALK WOULD REFUSE TO WRITE (Codex's
+    review of lane ID-ROOM4, item 1; the orchestrator's LANE ID-ROOM4
+    RULINGS 6 (4)): an empty answer there let `synthtwin profile` accept
+    a description `synthtwin generate` then refused, so the caller is told
+    and holds the column whole. Guarantees: a fixed function of the typed
+    description and the place; reads no value of the table. Raises
+    nothing. No I/O.
+    """
+    column = profile.columns[place]
+    if column.computed_from or not isinstance(column.facts, contract.UnrepresentableFacts):
+        return ()
+    try:
+        return unrepresentable_spellings(column, _every_hole_spelling(profile))[0]
+    except errors.DomainTooSmall:
+        return None
+
+
+def made_up_spellings_keyed(
+    profile: contract.Profile, place: int
+) -> "tuple[tuple[str, ...] | None, bool]":
+    """The spellings `synthtwin generate` writes in one column, its key blocks' and its pooled block's included, and whether any of them is spelled wider (batch 4t's fix round, item 1; plan P4-D487 beside P4-D489).
+
+    A keyed value column (`by_key`) is written block by block, each block
+    as a table of its own (`_key_block_written` on `contract.keyed_profile`),
+    so a key block of numbers that cannot be held is spelled by
+    `made_up_spellings` on that one-block description: the very spellings
+    the writer places there. They are given after the column's own, each
+    block in the description's order. None where the walk would refuse to
+    write one of them (the caller holds the column whole). The second part
+    is True where the column or one of its blocks carries NF139. Guarantees:
+    a fixed function of the typed description and the place; reads no value
+    of the table. Raises nothing. No I/O.
+    """
+    column = profile.columns[place]
+    own = made_up_spellings(profile, place)
+    if own is None:
+        return None, False
+    found = list(own)
+    wider = bool(own) and column.detection_evidence == SPELLED_WIDER_EVIDENCE
+    if not column.keyed_by:
+        return tuple(found), wider
+    inner = [block for _label, block in column.key_blocks]
+    if column.key_pool is not None:
+        inner += [column.key_pool]
+    for block in inner:
+        if block.computed_from or not isinstance(block.facts, contract.UnrepresentableFacts):
+            continue
+        made = made_up_spellings(contract.keyed_profile(profile, column, block), 0)
+        if made is None:
+            return None, wider
+        found += list(made)
+        if block.detection_evidence == SPELLED_WIDER_EVIDENCE:
+            wider = True
+    return tuple(found), wider
+
+
+def unrepresentable_spellings(
+    column: contract.ColumnBlock,
+    everywhere: "tuple[str, ...]" = (),
+) -> "tuple[tuple[str, ...], tuple[Deviation, ...]]":
+    """The made-up spellings a column of numbers that cannot be held receives, one a group, and the report's notes.
+
+    THE ONE SOURCE OF THE ROLE'S SPELLINGS (lane ID-ROOM4, plan P4-D489).
+    The writer below (`_unrepresentable_cells`) places exactly these, one
+    a group of the census `n_distinct_by_occurrences` publishes (read by
+    `_groups_of`), and `synthtwin profile` reads the same before it writes
+    a description: the spellings are a function of the published block
+    and the document's hole spellings alone (no seed, no value of the
+    table), and they are fixed counters in the very grammar code columns
+    are written in (`1e400` onward at width 5), so a column whose real
+    codes the counters spell is described as record numbers instead
+    (`profile.made_up_spellings_held`). Guarantees: accepts a loaded
+    column of this role and every spelling the document calls absent;
+    returns the spellings in the order the groups are written and the
+    deviations the walk names; raises the errors the walk raises
+    (`errors.DomainTooSmall` where no family can supply another). No I/O.
+
     ``everywhere`` is every spelling ANY column of the document calls
     absent, and this role cannot do without it (review item P4-A2-R3,
     item 2). A `--missing-value` declaration is made once and reaches
@@ -70307,6 +72747,11 @@ def _unrepresentable_cells(
     facts = column.facts
     if not isinstance(facts, contract.UnrepresentableFacts):
         raise _wrong_facts(column.name)
+    # ...AND A COLUMN WHOSE COUNTERS WOULD SPELL ITS OWN VALUES IS SPELLED
+    # ONE LETTER OR FIGURE WIDER (step 8; lane ID-ROOM4, plan P4-D489).
+    if column.detection_evidence == SPELLED_WIDER_EVIDENCE:
+        return _spelled_wider(column, facts, everywhere)
+    groups = _groups_of(facts.n_distinct_by_occurrences)
     reserved = _holes_reserved(column, everywhere)
     kinds, signs = _unrepresentable_families(column, facts, groups)
     used: dict[str, int] = {}
@@ -70485,7 +72930,483 @@ def _unrepresentable_cells(
     # defect; this one fails on a column that reaches the deviation
     # above, which is exactly the case it exists for.
     notes = notes + _wide_width_notes(column.name, facts, spellings, kinds)
-    return _grouped(groups, spellings), notes
+    return tuple(spellings), tuple(notes)
+
+
+# THE SPELLINGS ONE LETTER OR FIGURE WIDER (method G10.5 step 8; lane
+# ID-ROOM4, plan P4-D489; the orchestrator's LANE ID-ROOM4 RULINGS 5 (2)).
+# `synthtwin profile` reads the counters above against a column's real
+# cells, and a column where one would spell a value 1 to f-1 people hold
+# keeps its block and carries this evidence (contract NF139): its cells are
+# spelled by `_spelled_wider` instead, the same kind and sign a group as
+# above and the same census, every cell holding ONE LETTER OR FIGURE MORE
+# than the published `max_length` and no run of figures opened by a nought.
+# A real cell holds at most `max_length` characters, so its merged key
+# (`parsing.merged_key`: folded, every mark dropped, the noughts that open
+# a run of figures dropped) is no longer than that, and a twin cell's merged
+# key is longer: no twin cell equals a real one exactly, case-folded or by
+# merged key. The rare real cell `max_length` does not measure (ordinary
+# text) is read by the profile's own dry run of these spellings. AND BY
+# VALUE (batch 4t's last code round, item 1; the orchestrator's LANE I4t
+# RULINGS 2 (1)): no mantissa ends with a nought
+# (`_wider_mantissa_ends_with_a_nought`), so every number written needs all
+# its letters and figures and no real cell is that number; the one shape
+# that cannot keep this (a whole number this format holds past 309
+# figures) is read by value by the profile's dry run.
+SPELLED_WIDER_EVIDENCE = taxonomy.rendered(
+    taxonomy.EVIDENCE_MADE_UP_SPELLED_REAL, ()
+)
+# The places a whole number this format holds may have past the figure that
+# opens it (a figure, then at most 307 more, stays under binary64's ceiling).
+_WIDER_HOLDABLE_PLACES = 307
+# A run of candidates turned down this long ends a family's walk (step 8):
+# one exponent's mantissas at the widths a real column of this role takes,
+# and a bound where a family cannot be written at its width at all.
+_WIDER_TURNED_DOWN = 100000
+# The fewest letters and figures of a fraction (a figure each side of the
+# point) and of ordinary text (`t` and a figure), step 8.
+_WIDER_FRACTION_ROOM = 2
+# THE EXPONENT OF A FRACTION TOO SMALL IS CHOSEN FOR ITS WIDTH (Codex's
+# review of lane ID-ROOM4, item 1; the verify of repair 1, item 1; the
+# orchestrator's LANE ID-ROOM4 RULINGS 6 (4) and 7 (1)). A mantissa of p
+# figures times ten to the minus (p + 324) is under ten to the minus 324,
+# below half binary64's smallest subnormal (about 4.9e-324), so the parser
+# reads it as too small to hold whatever its figures; one exponent less and
+# the largest mantissa reads as a number it holds (measured with the
+# shipped parser at p = 1, 76, 77, 329, 700 and 9,675). Step 8's first
+# build fixed the walk at 400, where a mantissa of 77 figures or more makes
+# a number the format holds: every candidate was turned down, the walk
+# ended, the dry run swallowed the refusal, and `synthtwin generate`
+# refused a description `synthtwin profile` had just written (`0.` and
+# 330 figures, and codes `1e-400` beside a number of 100 figures).
+_WIDER_UNDERFLOW_EXPONENT = 324
+
+
+def _spelled_wider(
+    column: contract.ColumnBlock,
+    facts: contract.UnrepresentableFacts,
+    everywhere: "tuple[str, ...]",
+) -> "tuple[tuple[str, ...], tuple[Deviation, ...]]":
+    """The spellings of a column held whatever its answer, one a group, each one letter or figure wider (step 8).
+
+    Lane ID-ROOM4, plan P4-D489. The groups, their kinds and their signs
+    are step 2's (`_unrepresentable_families`), so the census and every
+    count of notation, whole number and sign stay the published ones. Each
+    kind and sign walks its own family from its own start
+    (`_wider_family_number`); a group beyond the published folded count is
+    a respelling that folds onto an earlier value of its own family
+    (`_wider_partner`, method G9.3's two constructions: the case of its
+    letters swapped, else edge spaces), which keeps its letters and
+    figures. Linear in the groups. Guarantees: accepts a loaded column of
+    this role carrying NF139 and every spelling the document calls absent;
+    returns the spellings in the order the groups are written and the two
+    lengths it gives up, named. Raises `errors.DomainTooSmall` where no
+    family can supply another value at its width. No I/O.
+    """
+    groups = _groups_of(facts.n_distinct_by_occurrences)
+    reserved = _holes_reserved(column, everywhere)
+    kinds, signs = _unrepresentable_families(column, facts, groups)
+    width = max(facts.max_length, 1) + 1
+    folded = min(column.n_distinct_folded, len(groups))
+    used: "dict[str, int]" = {}
+    walked: "dict[tuple[int, bool], int]" = {}
+    # Each family's values in turn, the least used first and the earlier
+    # of two equally used (Codex's review of lane ID-ROOM4, item 4): the
+    # partners given a family so far say whose turn it is.
+    parents: "dict[tuple[int, bool], list[int]]" = {}
+    given: "dict[tuple[int, bool], int]" = {}
+    tried: "dict[int, list[int]]" = {}
+    spellings: "list[str]" = []
+    for index in range(len(groups)):
+        family = (kinds[index], signs[index])
+        if index >= folded and family in parents:
+            if family not in given:
+                given[family] = 0
+            chosen = parents[family][given[family] % len(parents[family])]
+            partner = _wider_partner(chosen, spellings, used, reserved, tried)
+            if partner is not None:
+                given[family] = given[family] + 1
+                spellings += [partner]
+                continue
+        spelling = _wider_family_number(
+            kinds[index], signs[index], width, walked, used, reserved
+        )
+        if spelling is None:
+            raise errors.DomainTooSmall(
+                _domain_too_small(
+                    column.name,
+                    _wide_shape_words(kinds[index], signs[index]),
+                    len(groups),
+                    index,
+                )
+            )
+        spellings += [spelling]
+        if index < folded:
+            if family not in parents:
+                parents[family] = []
+            parents[family] += [index]
+    return tuple(spellings), tuple(_spelled_wider_notes(column.name, facts, spellings, kinds))
+
+
+def _wider_width(kind: int, width: int) -> int:
+    """The letters and figures a cell of one kind holds where the column is spelled wider (step 8).
+
+    One more than the published `max_length`, and never fewer than the
+    kind's own shortest spelling of that shape: five for the two
+    exponent shapes (a figure, `e`, three figures), two for a fraction (a
+    figure each side of the point) and for ordinary text (`t` and a
+    figure). Raises nothing. No I/O.
+    """
+    if kind == 1 or kind == 2:
+        return max(width, _EXPONENT_LARGE_ROOM)
+    if kind == 4 or kind == 5:
+        return max(width, _WIDER_FRACTION_ROOM)
+    return max(width, 1)
+
+
+def _wider_exponent_field(kind: int, width: int) -> "tuple[int, int]":
+    """The figures of the exponent and the exponent the walk starts at, for a cell of ``width`` letters and figures written with a mantissa (step 8).
+
+    A whole number too large to hold: three figures from 400, as step 4
+    (`_exponent_power`). A fraction too small to hold: the fewest figures,
+    three at least, whose largest exponent reaches the start the width
+    needs -- 400, or the mantissa's figures plus
+    `_WIDER_UNDERFLOW_EXPONENT` where that is more -- and that start; each
+    figure the exponent takes past three is one the mantissa gives up, so
+    the cell keeps its width. Up to a mantissa of 76 figures (a cell of 80)
+    this is step 8's first walk, cell for cell. Raises nothing. No I/O.
+    """
+    figures = 3
+    if kind != 2:
+        return figures, _EXPONENT_HOME
+    while True:
+        floor = _EXPONENT_HOME if figures == 3 else 10 ** (figures - 1)
+        start = max(floor, width - 1 - figures + _WIDER_UNDERFLOW_EXPONENT)
+        if start <= 10 ** figures - 1:
+            return figures, start
+        figures = figures + 1
+
+
+def _wider_exponent_power(step: int, start: int, figures: int) -> "int | None":
+    """The ``step``-th exponent of step 8's walk: up from ``start`` to the largest of ``figures`` figures, then down from ``start`` less one.
+
+    Step 4's walk (`_exponent_power`) where ``start`` is 400 and the
+    exponent three figures, exponent for exponent; None once the walk
+    would leave the field (no exponent of ``figures`` figures led by a
+    nought). Raises nothing. No I/O.
+    """
+    ceiling: int = 10 ** figures - 1
+    if step <= ceiling - start:
+        return start + step
+    power = ceiling - step
+    if power < 10 ** (figures - 1):
+        return None
+    return power
+
+
+def _wider_whole_exponent_figures(width: int) -> int:
+    """The figures of the exponent of a whole number this format holds, written at ``width`` letters and figures of 310 or more (step 8).
+
+    The exponents a cell may take run from the noughts less
+    `_WIDER_HOLDABLE_PLACES` to the noughts, none led by a nought; of
+    three figures or more, the count whose run is the longest, the fewer
+    on a tie -- three up to a cell of 1,158 (step 8's first construction,
+    cell for cell), then four, so the family keeps at least 154 exponents
+    of nine members each at every width (Codex's review of lane ID-ROOM4,
+    item 1: three figures alone left none from a cell of 1,312, so a
+    column of numbers of 1,312 figures beside a lone `7` could not
+    generate, and nine members at 1,311). Raises nothing. No I/O.
+    """
+    best = 3
+    longest = -1
+    figures = 3
+    while 10 ** (figures - 1) <= max(width - 2 - figures, 0):
+        noughts = width - 2 - figures
+        run = min(10 ** figures - 1, noughts) - max(10 ** (figures - 1), noughts - _WIDER_HOLDABLE_PLACES) + 1
+        if run > longest:
+            best = figures
+            longest = run
+        figures = figures + 1
+    return best
+
+
+def _wider_candidate(kind: int, negative: bool, width: int, index: int) -> "str | None":
+    """The ``index``-th spelling of one kind and sign holding ``width`` letters and figures, none led by a nought (step 8).
+
+    Contradictory notation is `(-N)`, `N` of ``width`` figures; a whole
+    number too large to hold is the sign and ``width`` figures where that
+    is 310 figures or more, else the sign, a mantissa, `e` and a
+    three-figure exponent walking as step 4's (`_exponent_power`); a
+    fraction too small to hold the same with `e-`; a whole number this
+    format holds is the sign and ``width`` figures up to 309 of them, and
+    past them a figure, noughts, `e-` and a three-figure exponent no
+    larger than the noughts, walking down; a fraction it holds the sign,
+    a figure, the point and ``width`` - 1 figures; ordinary text `t` and
+    ``width`` - 1 figures. Every run of figures opens with a figure other
+    than a nought, and the mantissa moves before the exponent. Each run
+    of figures is written as text (`_opened_figures`), so a cell of any
+    width is made without a number of that many figures being turned
+    into text. None once the family has no ``index``-th member. Raises
+    nothing. No I/O.
+    """
+    lead = "-" if negative else ""
+    if kind == 0:
+        if index >= 9 * 10 ** (width - 1):
+            return None
+        return f"(-{_opened_figures(width, index)})"
+    if kind == 3 and width >= _OVERFLOW_FIGURES:
+        # ...the exponent as many figures as the width needs
+        # (`_wider_whole_exponent_figures`): three up to a cell of 1,311.
+        figures = _wider_whole_exponent_figures(width)
+        noughts = width - 2 - figures
+        downward = min(10 ** figures - 1, noughts) - index // 9
+        if downward < max(10 ** (figures - 1), noughts - _WIDER_HOLDABLE_PLACES):
+            return None
+        return f"{lead}{index % 9 + 1}{'0' * noughts}e-{downward}"
+    if (kind == 1 and width >= _OVERFLOW_FIGURES) or kind == 3:
+        if index >= 9 * 10 ** (width - 1):
+            return None
+        return f"{lead}{_opened_figures(width, index)}"
+    if kind == 1 or kind == 2:
+        # ...the exponent where the width keeps the value out of range
+        # (`_wider_exponent_field`): from 400 in three figures up to a
+        # mantissa of 76 figures, as step 4 walks it.
+        figures, start = _wider_exponent_field(kind, width)
+        places = width - 1 - figures
+        span = 9 * 10 ** (places - 1)
+        power = _wider_exponent_power(index // span, start, figures)
+        if power is None:
+            return None
+        minus = "-" if kind == 2 else ""
+        return f"{lead}{_opened_figures(places, index % span)}e{minus}{power}"
+    if kind == 4:
+        if index // 9 >= 9 * 10 ** (width - 2):
+            return None
+        return f"{lead}{index % 9 + 1}.{_opened_figures(width - 1, index // 9)}"
+    if index >= 9 * 10 ** (width - 2):
+        return None
+    return f"t{_opened_figures(width - 1, index)}"
+
+
+# The figures `_opened_figures` turns into text through a number: Python
+# turns a whole number of more than 4,300 figures into text only on request
+# (`sys.set_int_max_str_digits`), and a cell spelled wider may hold more.
+_OPENED_AS_A_NUMBER = 18
+
+
+def _opened_figures(places: int, offset: int) -> str:
+    """The ``places`` figures of ten to the ``places`` - 1 plus ``offset``, as text: a figure other than a nought first (step 8).
+
+    Where the offset is shorter than the noughts, a `1`, the noughts and
+    the offset's own figures; otherwise the sum written out, a number of
+    at most `_OPENED_AS_A_NUMBER` figures past the offset's. The same
+    text either way. Raises nothing. No I/O.
+    """
+    if places > _OPENED_AS_A_NUMBER and offset < 10 ** _OPENED_AS_A_NUMBER:
+        figures = f"{offset}"
+        return f"1{'0' * (places - 1 - len(figures))}{figures}"
+    return f"{10 ** (places - 1) + offset}"
+
+
+def _wider_reads_back(kind: int, negative: bool, candidate: str) -> bool:
+    """Whether the shipped parser reads a wider spelling back as its kind and sign (step 8, step 6's questions).
+
+    The notation class, the whole-number status and the sign the recount
+    reads; ordinary text reads as no number and as no absent spelling.
+    Raises nothing. No I/O.
+    """
+    notation = parsing.classify_number(candidate)
+    if kind == 5:
+        return notation == parsing.NOT_A_NUMBER and not parsing.is_missing_text(candidate)
+    if kind == 0:
+        return notation == parsing.NUMBER_CONTRADICTORY
+    wanted = parsing.NUMBER_OUT_OF_RANGE if kind == 1 or kind == 2 else parsing.NUMBER
+    whole = parsing.WHOLE_YES if kind == 1 or kind == 3 else parsing.WHOLE_NO
+    sign = parsing.SIGN_NEGATIVE if negative else parsing.SIGN_POSITIVE
+    return (
+        notation == wanted
+        and parsing.numeric_whole(candidate) == whole
+        and parsing.numeric_sign(candidate) == sign
+    )
+
+
+def _wider_mantissa_ends_with_a_nought(kind: int, candidate: str) -> bool:
+    """Whether a wider spelling's mantissa ends with a nought, which step 8 never writes (batch 4t's last code round, item 1).
+
+    The orchestrator's LANE I4t RULINGS 2 (1), on the scoped verify of the
+    fix round (wave6/I4tf-verify.md, carry 1). The mantissa is the run of
+    figures that carries the number: the figures before `e` of the two
+    exponent shapes, every figure of a number written in figures alone,
+    and a fraction's figure, point and figures after it. A nought ending
+    it is a figure the number does not need -- `30e404` is the number
+    `3e405`, `1.1000` is `1.1`, `100000` is `1e5` -- so a real cell no
+    wider than the published `max_length` could BE that number although
+    no real cell is spelled so: on the fix round's head two-figure
+    mantissas ended with a nought one time in ten, and 400 twin cells of a
+    long table's assay held, by value, the real code of one person each.
+    With that nought stepped past, every number the walk writes needs all
+    its letters and figures, one more than a real cell holds, so no real
+    value equals it as written, by merged key or by value. The one shape
+    whose number is a figure and noughts by construction -- a whole number
+    this format holds, past 309 figures (a figure and noughts, then `e-`)
+    -- is left to the profile's reading by value
+    (`profile._a_spelling_names_a_few`), which holds its column whole where
+    one of its numbers is a real value. Contradictory notation and
+    ordinary text name no number. Raises nothing. No I/O.
+    """
+    if kind == 0 or kind == 5:
+        return False
+    body = candidate[1:] if candidate[:1] == "-" else candidate
+    marked = len(body)
+    for place in range(len(body)):
+        if body[place] == "e":
+            marked = place
+            break
+    if marked < len(body) and kind == 3:
+        return False
+    return body[marked - 1 : marked] == "0"
+
+
+def _wider_family_number(
+    kind: int,
+    negative: bool,
+    width: int,
+    walked: "dict[tuple[int, bool], int]",
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+) -> "str | None":
+    """The next unused spelling of one kind and sign at its wider width, no hole spelling (step 8).
+
+    Each kind and sign keeps its own place in its walk. A candidate the
+    parser reads as another kind or sign is stepped past, and so is one
+    whose mantissa ends with a nought (`_wider_mantissa_ends_with_a_nought`:
+    such a number needs fewer letters and figures than it holds, so a real
+    cell could be that number); a run of turned-down candidates longer
+    than one exponent's mantissas and every spelling already taken ends
+    the walk, as step 4's does (`_wide_family_number`): past such a run
+    nothing is accepted again. None where the family is spent. Raises
+    nothing. No I/O.
+    """
+    key = (kind, negative)
+    if key not in walked:
+        walked[key] = 0
+    here = _wider_width(kind, width)
+    turned_down = 0
+    limit = min(9 * 10 ** max(here - 5, 0), _WIDER_TURNED_DOWN) + len(used) + len(holes) + 1
+    while turned_down <= limit:
+        index = walked[key]
+        walked[key] = index + 1
+        candidate = _wider_candidate(kind, negative, here, index)
+        if candidate is None:
+            return None
+        if (
+            not _wider_reads_back(kind, negative, candidate)
+            or _wider_mantissa_ends_with_a_nought(kind, candidate)
+            or _is_a_hole_spelling(candidate, holes)
+            or not _unused(candidate, used)
+        ):
+            turned_down = turned_down + 1
+            continue
+        return _take(candidate, used)
+    return None
+
+
+def _wider_partner(
+    chosen: int,
+    spellings: "list[str]",
+    used: "dict[str, int]",
+    holes: "tuple[str, ...]",
+    tried: "dict[int, list[int]]",
+) -> "str | None":
+    """A respelling folding onto an earlier value of the same family, keeping its letters and figures (step 8; G9.3).
+
+    The parent ``chosen`` is the value of the family with the fewest
+    partners yet, the earliest of those first, so the collisions are
+    spread: every value of a family is written before any partner is
+    asked for, and each partner given moves the turn on by one, so the
+    family's values take their turns in the order they were written and
+    `_spelled_wider` reads whose turn it is off the partners given so
+    far, in time independent of the family's size (Codex's review of lane
+    ID-ROOM4, item 4: a scan of every parent a partner made a column of
+    500,000 values each written with `e` and with `E` cost 250 billion
+    comparisons). Its members are, in order, its case variants
+    (`_case_variant`, method G9.3) and then the parent with one, two,
+    three ... spaces after it, the first unused and no hole spelling;
+    ``tried`` keeps, a parent, the case variant and the spaces its next
+    member is read from (a member passed over stays used or a hole, so
+    reading on from there finds what reading from the first would). None
+    where no member is left, the turn staying with the parent. Raises
+    nothing. No I/O.
+    """
+    parent = spellings[chosen]
+    if chosen not in tried:
+        tried[chosen] = [1, 1]
+    order, spaces = tried[chosen]
+    variant = _case_variant(parent, order)
+    while variant is not None:
+        order = order + 1
+        if _unused(variant, used) and not _is_a_hole_spelling(variant, holes):
+            tried[chosen] = [order, spaces]
+            return _take(variant, used)
+        variant = _case_variant(parent, order)
+    while spaces < len(used) + len(holes) + 2:
+        member = f"{parent}{_SPACE * spaces}"
+        spaces = spaces + 1
+        if _unused(member, used) and not _is_a_hole_spelling(member, holes):
+            tried[chosen] = [order, spaces]
+            return _take(member, used)
+    tried[chosen] = [order, spaces]
+    return None
+
+
+def _spelled_wider_notes(
+    name: str,
+    facts: contract.UnrepresentableFacts,
+    spellings: "list[str]",
+    kinds: "list[int]",
+) -> "list[Deviation]":
+    """The two published lengths a column spelled wider gives up, measured off its numeric-looking cells (step 8).
+
+    Ordinary text is left out as step 6's recount leaves it out
+    (`_wide_width_notes`). Raises nothing. No I/O.
+    """
+    widths = [
+        len(spellings[index]) for index in range(len(spellings)) if kinds[index] != 5
+    ]
+    if not widths:
+        return []
+    shortest = min(widths)
+    longest = max(widths)
+    why = (
+        "synthtwin's own made-up spellings for numbers this large or this "
+        "small would have been written like some of the values in this "
+        "column, so every cell of its twin is one letter or figure longer "
+        "than its longest value, and no cell of the twin equals one of "
+        "yours (plan P4-D489). Code that measures how wide the written "
+        "values are meets a different width here."
+    )
+    notes: "list[Deviation]" = []
+    if shortest != facts.min_length:
+        notes += [
+            _deviation(
+                name,
+                "min_length",
+                f"{facts.min_length} character(s)",
+                f"the twin's shortest value is {shortest} character(s)",
+                why,
+            )
+        ]
+    if longest != facts.max_length:
+        notes += [
+            _deviation(
+                name,
+                "max_length",
+                f"{facts.max_length} character(s)",
+                f"the twin's longest value is {longest} character(s)",
+                why,
+            )
+        ]
+    return notes
 
 
 def _fallback_counted(
@@ -72299,6 +75220,19 @@ def _plan_column(
         cells = _dates_in_their_layouts(
             column, facts, walked, cells, _holes_reserved(column, all_holes)
         )
+        # ...AND A HELD COLUMN OF COUNTS THAT MAY BE DATES, marked by the
+        # room it publishes with no grain (lane ID-ROOM3, plan P4-D488):
+        # each value off every real day in the system it is declared in, or
+        # in each system its figures read as a date in.
+        if column.time_grain is None and facts.made_up_years is not None and _counts_alone(facts, column.n_present):
+            cells = _counts_off_the_real(
+                column,
+                facts,
+                cells,
+                (date_system,) if date_system in date_counts.MEMBERS else (),
+                _holes_reserved(column, all_holes),
+                column.n_missing_blank > 0,
+            )
         remarks = remarks + spilled
     elif isinstance(facts, contract.TextFacts):
         groups = _groups_of(facts.n_distinct_by_occurrences)
@@ -72920,6 +75854,8 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     remarked: "list[Remark]" = []
     drawn = 0
     for step in range(len(plans)):
+        # The column count at a terminal only, written over in place (lane EZ-a, P4-D479).
+        progress.column(step + 1, len(plans))
         handed = plans[step]
         plans[step] = None
         if handed is None:
@@ -73247,7 +76183,13 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                         "name, and no made-up value could be written in that "
                         "form inside the years the description leaves free of "
                         "real dates, so these cells are left blank rather than "
-                        "written as text that is no date or time.",
+                        "written as text that is no date or time."
+                        if _zone_word_layout(grain.reading)
+                        else "The description leaves no years free of real "
+                        "dates in which this column's dates could be made up, "
+                        "so these cells are left blank rather than written as "
+                        "text that is no date or time, or as a date of your "
+                        "table.",
                     )
                 ]
         if before_order:
@@ -73363,6 +76305,9 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             + _mix_notes(view, measured)
             + _agreement_notes(column, written)
         )
+        # A LAYOUT THE LAYOUT PASS LEFT SHORT AT ITS STATED STEPS is named
+        # once, measured, with that cause (plan P4-D490).
+        notes = _layout_causes(notes)
         # Every APPROXIMATED fact of this column, measured on the cells
         # just written and checked against both ends of the bound
         # method G12 fixes for it. One that landed outside its bound is
@@ -73554,6 +76499,33 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
                 del block
             drawn = drawn + 3 * arranged_rows
         deviations = deviations + _carried_rule(profile, rule, walk, finished, rule_sums)
+    # VALUES TYPED BY A KEY (method G8.3f; lane KV, plan P4-D487), after
+    # every column and rule is written and before the rows are arranged:
+    # each keyed value column written again row by row from its key's block,
+    # its words drawn here, one draw a keyed value column in the
+    # description's column order.
+    keyed_words: "list[list[int]]" = []
+    for keyed_count in _keyed_word_counts(profile):
+        keyed_words += [
+            [
+                int(word)
+                for word in generator.integers(
+                    0,
+                    _WORD_CEILING,
+                    size=int(keyed_count),
+                    dtype="uint64",
+                    endpoint=True,
+                )
+            ]
+            if keyed_count
+            else []
+        ]
+    keyed_drawn, keyed_notes = _keyed_values(
+        profile, finished, keyed_words, arranging.targets if arranging.placing else None
+    )
+    keyed_words = []
+    drawn = drawn + keyed_drawn
+    deviations = deviations + keyed_notes
     # WHERE THE ROWS STAND (plan P4-D86): the order the real table was
     # sorted in, its all-empty records in their places, the row sequence
     # in place. Whole rows move for the sort and cells move only within
@@ -73591,6 +76563,173 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         reserved_rows=reserved_rows,
         sheet_dealt=tuple(sheet_dealt) if any(entry is not None for entry in sheet_dealt) else (),
     )
+
+
+# -- values typed by a key (method G8.3f; lane KV, plan P4-D487) ---------
+
+
+def keyed_value_column(
+    key_cells: "list[str]",
+    labels: "tuple[str, ...]",
+    absent: "frozenset[str]",
+    own_cells: "list[str]",
+    block_cells: "list[list[str]]",
+    pool_cells: "list[str]",
+    kept_empty: "list[bool] | None" = None,
+) -> "tuple[list[str], int]":
+    """A keyed value column's cells, row by row from the block of each row's key (method G8.3f), and how many cells a block could not place.
+
+    ``key_cells`` are the twin's key column as written; a row whose key,
+    trimmed and case folded (`parsing.folded`), is one of ``labels`` (the
+    published levels, in rising order) takes the next cell of that label's
+    block (``block_cells``, in the same order), in row order; a row whose
+    key is blank or one of ``absent`` (the spellings the twin writes as no
+    value) holds no key and takes the next of the value column's own cells
+    that holds anything (``own_cells``, as the column's own block wrote
+    them, every cell of a row of a key written blank there), else a blank;
+    every other row holds a rare key and takes the next cell of the pooled
+    block (``pool_cells``). A block holding fewer cells than its rows
+    leaves the rest blank, counted in the second answer (a description the
+    loader accepted gives every block exactly its key's rows, KV2 and KV3).
+    A row ``kept_empty`` names -- one of the form's all-empty records, which
+    the arrangement has placed (`dialect.Arranging.targets`) -- holds no
+    key and is written blank, taking no own cell (lane KV's repair 1: the
+    own cells went to the first rows holding no key, an all-empty record
+    among them).
+    Guarantees: a fixed function of its arguments; consumes no words.
+    Raises nothing. No I/O.
+    """
+    place_of = {label: place for place, label in enumerate(labels)}
+    next_of = [0 for _label in labels]
+    own = [cell for cell in own_cells if cell != ""]
+    own_at = 0
+    pool_at = 0
+    short = 0
+    written: "list[str]" = []
+    for cell in key_cells:
+        folded = parsing.folded(cell)
+        if folded in place_of:
+            at = place_of[folded]
+            cells = block_cells[at]
+            if next_of[at] < len(cells):
+                written += [cells[next_of[at]]]
+            else:
+                written += [""]
+                short = short + 1
+            next_of[at] = next_of[at] + 1
+        elif kept_empty is not None and kept_empty[len(written)]:
+            written += [""]
+        elif not folded or cell in absent:
+            if own_at < len(own):
+                written += [own[own_at]]
+            else:
+                written += [""]
+            own_at = own_at + 1
+        else:
+            if pool_at < len(pool_cells):
+                written += [pool_cells[pool_at]]
+            else:
+                written += [""]
+                short = short + 1
+            pool_at = pool_at + 1
+    return written, short
+
+
+def _key_block_written(
+    profile: contract.Profile, owner: contract.ColumnBlock, block: contract.ColumnBlock, seed: int
+) -> "list[str]":
+    """One key block's cells, written by the product's own column writer on the block as a table of its own (`contract.keyed_profile`) from one word of the stream."""
+    made = generate_held(contract.keyed_profile(profile, owner, block), seed)
+    held = made.held_columns
+    if not held:
+        raise errors.ProfileError(
+            "synthtwin internal check: a key block's twin came out with no column. "
+            "This means a mistake in synthtwin; please report it. Nothing has been written."
+        )
+    return twinstore.column_cells(held[0])
+
+
+def _keyed_word_counts(profile: contract.Profile) -> "list[int]":
+    """The words of the stream each keyed value column takes (method G8.3f), in the description's column order: one a key block and one for the pooled block. Guarantees: a fixed function of the description. Raises nothing. No I/O."""
+    names = [column.name for column in profile.columns]
+    counts: "list[int]" = []
+    for column in profile.columns:
+        if not column.keyed_by or column.keyed_by not in names:
+            continue
+        counts += [len(column.key_blocks) + (1 if column.key_pool is not None else 0)]
+    return counts
+
+
+def _keyed_values(
+    profile: contract.Profile,
+    finished: "list[twinstore.HeldColumn]",
+    words: "list[list[int]]",
+    kept_empty: "list[bool] | None" = None,
+) -> "tuple[int, list[Deviation]]":
+    """VALUES TYPED BY A KEY (method G8.3f; lane KV, plan P4-D487): each keyed value column written again from its key's blocks, in place; the words used, and the deviations.
+
+    For each value column carrying `by_key`, in the description's column
+    order, its own list of ``words`` (`generate_held` draws them from the
+    stream together, as many as `_keyed_word_counts` names): one word for
+    each key block in its label's rising order, then one for the pooled
+    block; each block's cells are written by `generate_held` on the block
+    as a table of its own from its word (`_key_block_written`), as many as
+    the key holds, and the column is laid out row by row from the twin's
+    key column (`keyed_value_column`), the form's all-empty records the
+    arrangement placed (``kept_empty``) left blank. A description with no keyed column
+    takes no word and moves no cell. Guarantees: a fixed function of the
+    description and the words. Raises what `generate_held` raises. No I/O.
+    """
+    names = [column.name for column in profile.columns]
+    positions: "dict[str, int]" = {}
+    for place in range(len(names)):
+        if names[place] not in positions:
+            positions[names[place]] = place
+    drawn = 0
+    taken = 0
+    notes: "list[Deviation]" = []
+    elsewhere = _every_hole_spelling(profile)
+    for at in range(len(profile.columns)):
+        column = profile.columns[at]
+        if not column.keyed_by or column.keyed_by not in names:
+            continue
+        key_at = positions[column.keyed_by]
+        key_column = profile.columns[key_at]
+        count = len(column.key_blocks) + (1 if column.key_pool is not None else 0)
+        seeds = words[taken]
+        taken = taken + 1
+        drawn = drawn + count
+        block_cells: "list[list[str]]" = []
+        for place in range(len(column.key_blocks)):
+            block_cells += [_key_block_written(profile, column, column.key_blocks[place][1], seeds[place])]
+        pool_cells: "list[str]" = []
+        if column.key_pool is not None:
+            pool_cells = _key_block_written(profile, column, column.key_pool, seeds[count - 1])
+        written, short = keyed_value_column(
+            twinstore.column_cells(finished[key_at]),
+            tuple(label for label, _block in column.key_blocks),
+            frozenset(_holes_reserved(key_column, elsewhere)),
+            twinstore.column_cells(finished[at]),
+            block_cells,
+            pool_cells,
+            kept_empty,
+        )
+        block_cells = []
+        pool_cells = []
+        finished[at] = twinstore.held_column(written)
+        written = []
+        if short:
+            notes += [
+                _deviation(
+                    column.name,
+                    "by_key",
+                    "every row of a key written from its key's block",
+                    f"{short} rows written blank",
+                    "The twin's key column holds more rows of a key than the "
+                    "key's block describes, so those rows' values are left blank.",
+                )
+            ]
+    return drawn, notes
 
 
 def _l0_readings_met(column: contract.ColumnBlock, readings: "list[float | None]") -> None:
@@ -73915,16 +77054,44 @@ def _made_up_blank(cells: "list[str]", holes: "typing.Collection[str]") -> "list
     return found
 
 
+def _a_word_for(cell: str, used: "dict[str, bool]") -> str:
+    """A held column of counts' made-up text value written as a word holding no figure, none of its other made-up values (lane ID-ROOM3's repair 2).
+
+    It stands for a real cell that is no number -- a word, or a stray the
+    count grammar does not read -- so it names no day in any reading:
+    each figure is written as the capital its value counts from `A` (`A-1`
+    gives `A-B`), any other figure as `A`, every other character as the
+    walk wrote it; where that word is one of the column's made-up values
+    already, or is read as a number, a capital `A` is added until it is
+    none. The word is remembered in ``used``. Raises nothing. No I/O.
+    """
+    word = ""
+    for character in cell:
+        if "0" <= character <= "9":
+            word += chr(ord("A") + ord(character) - ord("0"))
+        elif parsing.figures_in(character) > 0:
+            word += "A"
+        else:
+            word += character
+    while word in used or parsing.classify_number(word) != parsing.NOT_A_NUMBER:
+        word = word + "A"
+    used[word] = True
+    return word
+
+
 def _written_blank_by_the_grain(
     column: contract.ColumnBlock, cells: "list[str]", left: "list[str]"
 ) -> int:
-    """How many present cells of a held zone-word column `_inside_the_grain` wrote blank (lane TR's follow-up).
+    """How many present cells of a held column of dates or stamps `_inside_the_grain` wrote blank (lane TR's follow-up; lane ID-ROOM3's repair 1).
 
-    The generator names them (LANE TR RULINGS 7 (2): never silently); 0
-    for every other column, whose cells are not looked at. One pass.
+    The generator names them (LANE TR RULINGS 7 (2): never silently): a
+    zone-word column's, and since lane ID-ROOM3's repair 1 every held
+    column whose grain reads dates or stamps and whose room draws none
+    (`_no_date_cells`); 0 for every other column, whose cells are not
+    looked at. One pass.
     """
     grain = column.time_grain
-    if grain is None or grain.rung != grains.HELD or not _zone_word_layout(grain.reading):
+    if grain is None or grain.rung != grains.HELD or grain.reading.kind not in (grains.DATE, grains.STAMP):
         return 0
     if len(left) != len(cells):
         return 0
@@ -74027,10 +77194,15 @@ def _inside_the_grain(
     # from the room's years and checked by its readings
     # (`_stamp_in_the_room`), its clock and its offset as before, so it
     # stays readable and falls on no real cell's calendar date.
-    if grain.reading.kind != grains.DATE and grain.reading.kind != grains.STAMP:
+    # ...AND COUNTED DATES (lane ID-ROOM3, plan P4-D488): each made-up
+    # count's moment is drawn from the room's years at the column's own
+    # finest unit and read back in its member before it stands
+    # (`_count_in_the_room`).
+    if grain.reading.kind not in ROOM_GRAIN_KINDS:
         room = None
     room_sets = _room_published(room) if room is not None else None
     named_dates: "dict[str, bool]" = {}
+    from_member = False
     # A ZONE WORD'S STAMP IS DRAWN OR WRITTEN BLANK (lane TR's follow-up;
     # LANE TR RULINGS 7 (2), as RULINGS 6 (3) says: a rule half right does
     # not admit the column): a held column whose layout writes a zone word
@@ -74043,13 +77215,43 @@ def _inside_the_grain(
     # for a real word, not for a stamp, is kept as before. Every other held
     # column is written as before.
     zoned = _zone_word_layout(grain.reading)
-    if room is not None and isinstance(facts, contract.IdentifierFacts):
-        spans = _room_spans(room, grain.reading)
+    if grain.reading.kind in ROOM_GRAIN_KINDS and isinstance(facts, contract.IdentifierFacts):
+        # THE ROOM OR NO DATE (lane ID-ROOM3, plan P4-D488, method G9.6c): a
+        # held column whose grain reads dates, stamps or counted dates draws
+        # its made-up values from the room's spans ALONE; with no room -- none
+        # published, or none of its kind of year -- it writes no date (remark
+        # NF137): a date or a stamp blank since the lane's repair 1
+        # (`_no_date_cells`), a count the walk's value only where it is off
+        # every real day by its published facts (`_counts_off_the_real`),
+        # else the spill. The spans its grain
+        # records -- the method's fixed span, or the real span its walk
+        # published in people -- are drawn from no more: beside births of
+        # 1928 to 2005 at 20,000 rows and 1,000 patients they named real
+        # birth days of single patients (up to 940 twin cells on 47 days for
+        # a held count; 17,064 copies of real visit days for a held visit
+        # column whose room a placeholder took). A clock's grain names no
+        # day and keeps its span.
+        spans = _room_spans(room, grain.reading) if room is not None else []
         if not spans:
+            # ...a zone word's stamp written blank, as lane TR's follow-up
+            # writes it (A3 subsumes its rule: LANE ID-ROOM3 RULINGS 2 (2)).
             if zoned:
                 return _made_up_blank(cells, holes), 0
-            return cells, 0
+            return _no_date_cells(column, facts, cells, grain.reading, holes), 0
         named_dates = _named_date_layouts(facts)
+        # ...AND A CENSUS THAT NAMES NO DATE LAYOUT (held while its question
+        # is open, or held in people with its layouts withheld whole): the
+        # layout its reading writes a day in, as the producer read every
+        # cell (`taxonomy.member_date_layout`; lane ID-ROOM3, K-HZ-06's
+        # path A).
+        if not named_dates and grain.reading.kind == grains.DATE:
+            member = taxonomy.member_date_layout(grain.reading.member)
+            if member:
+                named_dates = {member: True}
+                # ...its stand-ins, which no named date layout reads, written
+                # as dates in the member's own form (the verify's path A:
+                # "made readable"), from the room and checked like any other.
+                from_member = True
     # A made-up value no stamp wears in its own form -- a stand-in of a
     # layout the census withholds (`!      JU`) -- is written in the
     # member's own form, as before, from the room's span and checked like
@@ -74057,19 +77259,49 @@ def _inside_the_grain(
     # value's own form alone (repair 1 of lane ID-ROOM2), and a stamp's
     # asked so left 766 of 2,000 twin cells of a held stamp column whose
     # layouts were all withheld unreadable (lane TR's repair 1).
-    own_form = room is None or grain.reading.kind == grains.STAMP
+    own_form = room is None or grain.reading.kind != grains.DATE or from_member
     values = {}
     made: "dict[str, str]" = {}
     taken: "dict[str, bool]" = {}
     first_row: "dict[str, int]" = {}
     unwritten = 0
+    # ...every made-up value of a held column of counts, so a word written
+    # for one of its text values is none of them (lane ID-ROOM3's repair 2).
+    worded: "dict[str, bool]" = {}
+    if grain.reading.kind == grains.COUNTED:
+        for cell in cells:
+            worded[cell] = True
     for place in range(len(cells)):
         cell = cells[place]
         if cell in holes or not parsing.folded(cell) or cell in made:
             continue
         first_row[cell] = place
+        # ...a made-up word holding no figure in a held column of counts
+        # stands for a real word -- one patient's `UNK` -- and is written as
+        # the walk wrote it, a word where the real cell is a word (lane
+        # ID-ROOM3's repair 1, LANE ID-ROOM3 RULINGS 6 (1)): the room wrote
+        # a count there, and the column's counts of numbers missed. ...AND A
+        # MADE-UP VALUE THE WALK WROTE AS TEXT HOLDING A FIGURE (`A-1`, a
+        # stand-in of the pool beside the word's own) stands for a real cell
+        # that is no number too -- a second patient's `UNKNOWN`, one
+        # patient's rows written as ISO dates -- so it is written as a word
+        # holding no figure (`_a_word_for`): the walk writes as many text
+        # values as the column publishes cells that are no number, and the
+        # room wrote a count over each such value holding a figure, so with
+        # two or three patients' words validation exited 3 on the counts of
+        # numbers (lane ID-ROOM3's repair 2, LANE ID-ROOM3 RULINGS 7 (3)).
+        if grain.reading.kind == grains.COUNTED and parsing.figures_in(cell) == 0:
+            made[cell] = cell
+            continue
+        if grain.reading.kind == grains.COUNTED and parsing.classify_number(cell) == parsing.NOT_A_NUMBER:
+            made[cell] = _a_word_for(cell, worded)
+            continue
+        # ...a count wears a moment of its member at every width, so a
+        # held column of counted dates passes no value over so (lane
+        # ID-ROOM3, plan P4-D488): its room writes each.
         if (
             published
+            and grain.reading.kind != grains.COUNTED
             and parsing.layout_form(cell, convention) in published
             and not grains.wears_a_date(cell, grain.reading, padded)
         ):
@@ -74142,7 +77374,10 @@ def _inside_the_grain(
     # another length; where that leaves the column without its longest or
     # its shortest made-up length, the first made-up value of that length
     # is filled once more at its own length, whatever its side.
-    lengths = [len(cell) for cell in made] if room is None else []
+    # ...and so for a census withheld whole, read in its reading's layout
+    # (lane ID-ROOM3, plan P4-D488): the refill drawn from the room and
+    # kept only where a reading of it names a published year, as a stamp's.
+    lengths = [len(cell) for cell in made] if room is None or from_member else []
     for extreme in sorted({max(lengths), min(lengths)}) if lengths else []:
         if any(len(made[cell]) == extreme for cell in made):
             continue
@@ -74150,6 +77385,13 @@ def _inside_the_grain(
             if len(cell) != extreme:
                 continue
             again = grains.filled(cell, grain.reading, words[first_row[cell]], spans[0], padded, taken, True)
+            if again is not None and room_sets is not None and not _stamp_in_the_room(again, room_sets):
+                again = None
+            if again is None and from_member:
+                # ...and where no date of the room is that long, the walk's
+                # own value of that length stands, off the real by the
+                # exclusion and the spill: the block's lengths hold.
+                again = cell
             if again is not None:
                 if made[cell] in taken:
                     del taken[made[cell]]
@@ -74158,6 +77400,14 @@ def _inside_the_grain(
             break
     for cell in cells:
         found += [made[cell] if cell in made else cell]
+    # ...AND EVERY MADE-UP COUNT, THE WALK'S LEFT AS IT WAS INCLUDED, OFF
+    # EVERY REAL DAY (lane ID-ROOM3, plan P4-D488): a count the room did not
+    # write -- a layout no count of the room's years wears, a member that
+    # writes none -- stands only where its published facts put it off every
+    # real day of the column in its member (`_counts_off_the_real`); a count
+    # the room wrote names a published year and stands as written.
+    if grain.reading.kind == grains.COUNTED and isinstance(facts, contract.IdentifierFacts):
+        found = _counts_off_the_real(column, facts, found, (grain.reading.member,), holes)
     return found, unwritten
 
 
@@ -78831,9 +82081,15 @@ def _form_notes(
     # accused a twin the validator, which excludes them correctly, had
     # just called conforming.
     holes = _hole_spellings(column)
+    # A KEYED KEY COLUMN'S NAMED POOL IN PEOPLE (lane KV, plan P4-D487): its
+    # census speaks of the published levels' cells alone, as a pool counted
+    # in people does, so the names its twin writes are counted nowhere.
+    named_here: "frozenset[str]" = frozenset()
+    if column.keyed and isinstance(facts, contract.LabelFacts) and column.pool_in_people is not None:
+        named_here = frozenset(facts.held_back_names)
     counted: "dict[str, int]" = {}
     for cell in written:
-        if cell == "":
+        if cell == "" or cell in named_here:
             continue
         if _wears_a_published_hole(cell, holes):
             # THE RECOUNTING HALF, not the conservative one. The

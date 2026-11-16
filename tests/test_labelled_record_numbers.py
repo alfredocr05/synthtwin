@@ -799,8 +799,8 @@ def test_no_period_version_or_group_of_one_figure_is_read_as_a_record_number_in_
     is a column of periods (`asking._periods_in_two_groups`: `W23 2024`,
     `FY2023 24`, `FY2023 2024`, `v2023 10`, `M12 2024`). No cell of a group
     of one figure (`MR1 000013`, `MR100001 3`, one a person) is read in two
-    groups, nor two spaces between the groups, a sign with no letters, or a
-    currency sign. MUTANTS: the periods not read, the least figures of a
+    groups, nor a sign with no letters, or a currency sign (two spaces
+    between the groups are read since lane CZ-G, plan P4-D493). MUTANTS: the periods not read, the least figures of a
     group lowered to one, the least in all to four, and no label asked: red
     here.
     """
@@ -809,7 +809,7 @@ def test_no_period_version_or_group_of_one_figure_is_read_as_a_record_number_in_
         assert not records.held_by_a_reader(cells, True), name
     for where, cells in records.ONE_FIGURE_GROUPS.items():
         assert [cell for cell in cells if asking._record_number_groups(cell) is not None] == [], where
-    for cell in ("MR10 001", "MR100 0013A", "MR100  0013", "MR100 00 13", "MR 100 0013", "#100 0013",
+    for cell in ("MR10 001", "MR100 0013A", "MR100 00 13", "MR 100 0013", "#100 0013",
                  "€12 345678", "ABCDEFGHIJKLM10 0013", "MR100-0013"):
         assert asking._record_number_groups(cell) is None, ascii(cell)
 

@@ -19,7 +19,8 @@ layout's made-up values at its writer's own count a year, taken only where no ye
 is stepped over and nothing is counted: a block one held year falls in is no room, and that kind's
 made-up values are the walk's, off the real by the exclusion or the spill. The twin draws its made-up dates
 from the block alone and checks each against it before it stands; a held column whose grain reads stamps,
-clock times or counted dates publishes `[]` and is written as before. Since repair 2 every cell is also read in
+clock times publishes `[]` and is written as before (counted dates take the block since lane ID-ROOM3, plan
+P4-D488). Since repair 2 every cell is also read in
 its own layout's orders and a cell of a kind no named layout writes brings the cross rule; with no grain a named
 stamp publishes `[]`, cells of figures alone are read as years alone, and each named layout takes its own share
 of the block's first years, read in its own orders at the days the date pass writes.
@@ -451,14 +452,15 @@ def test_a_withheld_layout_of_the_other_width_is_read_in_its_own_orders() -> Non
     assert runs and runs[0][0] == 28 and runs[-1][1] < 80, runs
 
 
-@pytest.mark.parametrize("kind", ["clock", "counted"])
+@pytest.mark.parametrize("kind", ["clock"])
 def test_a_grain_reading_no_dates_publishes_no_room_and_keeps_its_remark(kind: str) -> None:
     """Codex's item 1: a held column read as stamps (ISO dates beside hourly stamps) gained a block its G1 floor
-    could not draw from, and 0 of 20,000 twin cells parsed. A reading of clock times or counts publishes `[]`
-    and keeps the G1 floor's remark; its twin is written as before (tests/test_held_dates_off_the_real_shapes.py).
-    A reading of STAMPS takes the block since lane TR (plan P4-D473; the next case), its G1 floor drawing each
-    made-up stamp's calendar date from it. Mutant: the reading not looked at (red: a run, and NF136 in place of
-    the G1 floor's remark).
+    could not draw from, and 0 of 20,000 twin cells parsed. A reading of clock times publishes `[]` and keeps
+    the G1 floor's remark; its twin is written as before (tests/test_held_dates_off_the_real_shapes.py). A
+    reading of STAMPS takes the block since lane TR (plan P4-D473; the next case), its G1 floor drawing each
+    made-up stamp's calendar date from it, and a reading of COUNTED dates since lane ID-ROOM3 (plan P4-D488;
+    tests/test_counted_dates_room.py). Mutant: the reading not looked at (red: a run, and NF136 in place of the
+    G1 floor's remark).
     """
     grain = {"rung": "held", "finest": "second", "kind": kind, "reading": "iso-mixed", "mark": ".",
              "rows": 600, "people": 0, "spans": []}

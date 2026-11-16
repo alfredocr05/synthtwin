@@ -717,7 +717,9 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
     (review item P3-V9-F6; plan amendment A-P3-36). The measurement is
     in `tests/test_p3v9f6_migration_names_every_option.py`, which also
     holds the set of options named here to the shipped parser's own, so
-    a new option cannot be forgotten by this sentence.
+    a new option cannot be forgotten by this sentence. `--person` joined it
+    with lane EZ-a (plan P4-D479): the option list, its own clause after
+    `--identifier`'s, and the answers' clause.
     """
     older = copy.deepcopy(json.loads(json.dumps(declarations.document)))
     older["profile_version"] = 4
@@ -735,7 +737,7 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
         "file cannot be read back exactly. Please make the "
         "description again by running 'synthtwin profile' on your "
         "table, giving it every option you gave the first time: "
-        "--keep-value, --missing-value, --identifier, --code, --date-count, "
+        "--keep-value, --missing-value, --identifier, --person, --code, --date-count, "
         "--measurement, --decimal-comma, --smallest-group, "
         "--first-row, --day-first, --twelve-hour, --century, "
         "--date-column, --metadata-rows, "
@@ -746,7 +748,12 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
         "that the old one held back: without the --smallest-group you"
         " gave, a value that fewer rows share can be named; without "
         "the --identifier you gave, a column of record numbers is "
-        "described like any other column; without the --code you "
+        "described like any other column; without the --person you gave, "
+        "the column naming the people the rows are about is described like "
+        "any other column unless --identifier names it, and where another "
+        "column of record numbers repeats beside it, rows sharing a value of "
+        "either are counted as one person, so the table can read as fewer "
+        "people and be refused; without the --code you "
         "gave, a column of codes is described as measurements, so its"
         " values are described by a ladder and by the two groups "
         "beyond it, and an end a group of rows shares \u2014 which is a "
@@ -804,7 +811,7 @@ def test_a_version_four_description_is_refused_in_the_contract_s_words(
         " description publishes and every value it describes; and "
         "without the --answers you gave, every answer you wrote in "
         "the questions file is gone \u2014 each of them was a --code, an "
-        "--identifier, a --date-count, a --measurement, a --decimal-comma, a "
+        "--identifier, a --person, a --date-count, a --measurement, a --decimal-comma, a "
         "--metadata-rows, a --delimiter, a --twelve-hour, a "
         "--century, a --date-column, a --day-first, a --missing-value or a "
         "--keep-value, so "

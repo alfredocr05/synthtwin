@@ -422,6 +422,12 @@ def test_the_names_of_the_counts_are_not_a_wish_list() -> None:
     held = taxonomy.with_made_up_years(describe(dates, forced=True), dates)
     for key in held.details:
         carried = carried | {key}
+    # ...and prose beside record numbers of seven figures, one of them noughts
+    # alone, which carries the width a held key of noughts alone takes (lane
+    # HB3-a, plan P4-D482, limit (af)).
+    keyed = describe(fixtures.prose(60) + [f"seen again {1000000 + k}" for k in range(12)] + ["seen again 0000000"])
+    for key in keyed.details:
+        carried = carried | {key}
     for key in taxonomy.KEYS_THAT_CARRY_NO_VALUE:
         assert key in carried, (
             f"{key} is named as carrying no value but no block carries it"

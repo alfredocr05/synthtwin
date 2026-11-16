@@ -358,6 +358,10 @@ _place(
         # -- 3b.R4 (P4-D384): the most figures after the mark a column of
         # dates written as counts writes, a width of its spelling.
         "columns.[].count_form.places",
+        # -- lane HB3-a (P4-D482, limit (af)): the widths at which a held key
+        # of noughts alone exists, a width of a spelling, never a value; the
+        # twin writes no run of noughts alone at them.
+        "columns.[].figure_noughts.[]",
     ),
     WRITTEN_FORM,
 )

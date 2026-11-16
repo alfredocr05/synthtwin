@@ -1054,6 +1054,7 @@ the question an auditor actually cares about answered per row:
 | Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas` | yes | bounds in `pyproject.toml` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the offline bundle, the only distribution (the owner's D3, plan P4-D416), and CI's institutional install |
 | Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call; since plan P4-D466, the audited array helper `synthtwin.arrays` alone, in zones G and D, adds whole-number counting and arithmetic under proved bounds, stable sorts and elementwise float64 `+ - * /`, never a float reduction | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Runtime, optional | `numba` with `llvmlite` (the `polish` extra), compiling the one audited polish kernel; not on Intel Macs | only where installed, and only once CI proves the kernel byte-identical (P4-D409 part 4) | by hash in `requirements-dev.lock`; not in the offline bundle, whose lock is `requirements-install.lock`, until lane MPn's kernel is adopted on green vectors from the `numba-vectors` CI job (P4-D416) |
+| Runtime, interpreter (the ready folder for Windows only) | python.org's embeddable CPython 3.14 for Windows x64, carried inside the folder; and its installer, carried by the folder's backup | yes, on the Windows computer that holds the folder | its version and the SHA-256 of both files in `tools/bundle/windows_python.py` (plan P4-D483), every program file's Authenticode signature checked in CI (the Python Software Foundation; Microsoft for the Visual C++ runtime files); until the pin is committed, trusted on first use after that check and named `-unpinned` |
 | Test-only | `openpyxl`, `statsmodels`, `scikit-learn` (zone P: independent readers and second implementations) | no - contributor and CI machines only; `src/` never imports them | hash-locked in `requirements-dev.lock`, consumed frozen |
 | Build frontend | `pip` / `python -m build` in CI | no | `build` is hash-locked in `requirements-dev.lock`, consumed frozen (CI fails on drift); `pip` ships with the runner interpreter, its exact version recorded in CI logs every run |
 | Build backend | `hatchling` | only if you build from source yourself; never when installing a prebuilt wheel | hash-locked in `requirements-dev.lock`, which covers the complete build closure, consumed frozen (CI fails on drift) |
@@ -1111,6 +1112,66 @@ CI install. The bounds are not guesses: the `minimums` job
 installs exactly the declared floors on the oldest supported interpreter
 and runs the whole test suite against them.
 
+**The ready folder for Windows: a second form of the same bundle
+[built].** For a protected Windows computer the same hash-checked offline
+bundle is also made as a ready-to-run folder (plan P4-D483; the
+workflow `.github/workflows/windows-bundle.yml`; its first run is owed
+to the push that carries it, and STATE names the first green run): the
+wheels of `requirements-install.lock`, every one checked by its hash,
+installed by pip with `--isolated --no-index --require-hashes
+--only-binary=:all: --target` into the `python\lib` folder of
+python.org's embeddable Python 3.14, then the synthtwin wheel with
+`--no-deps`; every file listed in `SHA256SUMS` and checked by
+`START-HERE.bat` each time, before synthtwin starts; no installer, and no
+`.exe` but python.org's signed `python.exe` and `pythonw.exe` (pip's
+unsigned launchers are removed). THE TRUSTED START: that check guards
+against a folder damaged or changed by accident, not against a folder
+changed on purpose, because the folder's `python.exe`, the DLLs and
+standard library it loads first and the check itself run before any
+hash is compared, so a deliberately changed copy of them could skip
+it; what covers the folder as a whole is the zip's own SHA-256, printed
+by the build run and compared with Windows' `Get-FileHash` before the
+zip is unzipped, the first step of both guides. Every command the
+folder's window runs names its launcher or `python.exe` by its full
+path, and the check refuses an extra program file beside the launcher,
+so no stale or hostile program in the work folder or the folder runs in
+its place. What it writes: synthtwin's files, beside the
+table or in `--out-dir`, and the computer check's test file, removed at
+once; no registry key, and nothing into its own folder, since every
+library is compiled when the folder is built and it runs with `-I -B`.
+The embedded
+CPython is a PINNED COMPONENT under P4-D483: its version, the SHA-256 of
+the embeddable zip and of the installer the backup carries
+(`tools/bundle/windows_python.py`), and its signer, the Python Software
+Foundation (Microsoft for the Visual C++ runtime files), every `.exe`,
+`.dll` and `.pyd` of it checked for a valid Authenticode signature in
+CI. Until a run's printed SHA-256 is committed as the pin, the build
+trusts the files on first use after that signature check and names its
+zips `-unpinned`, not for use on real data. Two checks refuse a folder
+that would fail on a hospital computer: a path budget (no file path
+longer than 159 characters and no folder longer than 147, so it fits
+under any place of up to 99 characters (100 with its separator) with
+long paths off) and a DLL closure (every DLL a library file imports is
+in the folder or ships with every Windows 10 and 11 x64; the Visual C++
+runtime never counts as shipped). CI unzips the folder, and its backup
+(the Windows bundle above with python.org's 3.14 installer), on a clean
+Windows runner with the network refused at three levels, each proven
+before use (proxy variables at a closed local port, a firewall rule on
+the very interpreter that runs, shown by its access-denied refusal, an
+in-process guard that also refuses child processes and fails the run on
+any attempt, even one a caller swallowed, for Python's own calls), runs
+the trial a person types on both, once more under the guard on both
+(the backup's Python installed fresh from the installer it carries),
+holds the descriptions and twins byte for byte to each other and to
+Linux, and keeps only the rehearsed zips, 90 days. What that rehearsal
+cannot show: a hospital's own application control and antivirus, the
+keys of a real console window, Windows on Arm, a library's native code
+connecting by itself (refused by the firewall rule, but counted by
+neither of the two upper levels if swallowed), and what python.org's
+installer does outside the firewall rule (it runs before the denial;
+its log is read for any download instead). Phase 6's standalone build
+stays not started: nothing is signed by this project.
+
 ## How an IT auditor verifies each layer
 
 1. **Offline claim.** Read `src/` - it is still a small number of plain
@@ -1156,7 +1217,7 @@ and runs the whole test suite against them.
    package listing against the committed lock; confirm the egress
    self-test failed as required.
 7. **Governance.** Read `.github/workflows/` and confirm every action is
-   pinned by full commit SHA and that the workflow declares
+   pinned by full commit SHA and that each workflow declares
    `contents: read` at the top level. Query the repository's Actions
    permissions through the GitHub API and confirm
    `default_workflow_permissions` is `read` and
@@ -1165,6 +1226,20 @@ and runs the whole test suite against them.
    repository, and the Governance section below records them as applied
    at the visibility flip
    with the exact API reason.
+8. **The ready folder for Windows.** Before it is unzipped, compare
+   `Get-FileHash -Algorithm SHA256` of the zip with the SHA-256 the
+   summary of the public run of `windows-bundle.yml` that kept it
+   prints: that value is not inside the zip, so it covers the files the
+   folder runs before its own check. Then, in PowerShell on the computer
+   that holds it, compare `Get-FileHash -Algorithm SHA256` of any file
+   with its line in `SHA256SUMS`; run `Get-AuthenticodeSignature` on
+   `python\python.exe` and the `.dll` and `.pyd` files beside it (the
+   Python Software Foundation, or Microsoft for the Visual C++ runtime);
+   read `BUILD-INFO.txt` (the commit, the Python release and every
+   wheel's SHA-256) against that run and against
+   `requirements-install.lock` at that commit. Change one byte of a
+   library file in a copy and confirm `START-HERE.bat` refuses it before
+   synthtwin starts.
 
 ## The decontamination model
 

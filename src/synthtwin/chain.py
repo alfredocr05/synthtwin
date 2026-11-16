@@ -347,6 +347,13 @@ def ineligible_reason(block: "dict[str, object]", sequence: bool, held: bool, id
     name = _get(block, "name")
     if role == "identifier" or name in identifiers:
         return "identifier"
+    # A VALUE COLUMN TYPED BY A KEY COLUMN (lane KV, plan P4-D487): each row's
+    # value is a measurement of its key's kind, written from its key's block,
+    # so the column is no one distribution to cut; its key column stays a
+    # label candidate. The patient layer, which asks this, reads it as a row
+    # column and never an own-mean or derived-column source.
+    if "by_key" in block:
+        return "keyed"
     if role == "free_text":
         return "free_text"
     if role == "empty":

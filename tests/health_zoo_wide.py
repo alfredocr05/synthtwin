@@ -3039,18 +3039,23 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "some report runs over several lines", "some report runs over several lines, as a share",
             "the share of reports written from the template", "report lengths at the 10th, 50th and 90th percentiles",
             columns=("report_text",))),
-        ("NOTES", "free text publishes no line, heading, template or length facts: the twin's reports hold no line "
-                  "break, no IMPRESSION heading and no template, and their lengths collapse", covers(
+        ("NOTES-b", "free text publishes no line, heading, template or length facts: the twin's reports hold no "
+                    "line break, no IMPRESSION heading and no template, and their lengths collapse", covers(
             "some report keeps its IMPRESSION heading", "some report keeps its IMPRESSION heading, as a share",
             "some report runs over several lines", "some report runs over several lines, as a share",
             "the share of reports written from the template", "report lengths at the 10th, 50th and 90th percentiles",
             columns=("report_text",))),
     ),
     "long_cell": (
-        ("NOTES", "a free-text cell past Excel's 32,767 characters is a rare value the twin writes as a stand-in, "
-                  "and no length fact is published", covers(
+        ("NOTES-b", "a free-text cell past Excel's 32,767 characters is a rare value the twin writes as a stand-in, "
+                    "and no length fact but the two ends is published", covers(
             "some addendum runs past Excel's 32,767 characters", "addenda past Excel's 32,767 characters, as a share",
             columns=("addendum",))),
+        # ...and, since lane NOTES (plan P4-D481), the addenda are sentences on half
+        # the present cells or more, so the column is free text; the validator's
+        # misses of its role and type on the twin's made-up text closed at batch
+        # 4t's merge of the lane, with the validator's hand-over of the columns
+        # read so.
     ),
     "naaccr_and_trauma_registry": (
         ("CODES-1", zoo.MADE_UP_CODES, covers(
@@ -3152,8 +3157,9 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
     ),
     "omop_cdm": (
         ("MG", zoo.CENSUS_IN_PEOPLE, covers(_REPEATS)),
-        ("KV", "a long table's unit is read by its concept; the twin carries no relation between the two columns "
-               "(the zoo plan's row 47)", covers("each concept's unit is its own (read by concept)")),
+        ("KV-b", "a long table's unit is read by its concept; the twin carries no relation between the two columns "
+                 "(the zoo plan's row 47): the dependent columns of P4-D487's limit (k)", covers(
+            "each concept's unit is its own (read by concept)")),
         ("CODES-2", zoo.WITHHELD, covers("answer concepts", columns=("value_as_concept_id",))),
     ),
     "pcornet_cdm": (
@@ -3162,7 +3168,8 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                     "pay neither their forms nor their widths (the zoo plan's row 44, A3)", covers(
             "DX is ICD-10-CM, ICD-9-CM or SNOMED CT", "RAW_DX as the source wrote it, no point", "miss DX", "miss RAW_DX",
             columns=("DX", "RAW_DX"))),
-        ("KV", "a code's form follows its DX_TYPE: between columns (the zoo plan's row 48)",
+        ("KV-b", "a code's form follows its DX_TYPE: between columns (the zoo plan's row 48); the type is the "
+                 "code's dependent, no key (P4-D487's direction rule), so it waits for the dependent columns",
          covers("DX is in the system its DX_TYPE names (read by type)")),
         ("CODES-2", zoo.WITHHELD, covers("DX_TYPE with NI", "DX_SOURCE with NI, UN and OT", "PDX with NI",
                                         columns=("DX_TYPE", "DX_SOURCE", "PDX"))),
@@ -3577,6 +3584,19 @@ _KEY_VALUE = (
     "are drawn apart from its keys and its rare values are stand-ins, so a yes/no answer's share, a value's shape "
     "and a key's forms are read on the whole column"
 )
+# RE-OWNED TO LANE KV (the orchestrator's LANE KV RULINGS 1 (2), K9; plan
+# P4-D487), AND WHAT STAYS TO LANE KV-b (LANE KV RULINGS 4 (4)): which key
+# holds what is read key by key since lane KV, each common key's values from
+# its own block; what stays is a block the value column's truthful `yes`
+# holds (words, free text, dates: their forms, shapes and stand-ins), a rare
+# key's values from the pool of every rare key's (limit (b)), the rows not
+# written in visits (limit (a)) and the per-key checklist (limit (c)).
+_KEYED_VALUES = (
+    "a value column typed by a key column is described key by key since lane KV (plan P4-D487): each common key's "
+    "values come from its own block; a block the value column's truthful yes holds (words, free text, dates) is "
+    "made up in its own layouts, a rare key's values come from the pool of every rare key's values (P4-D487's "
+    "limit (b)), no twin visit holds two measurements (limit (a)), and the per-key checklist is limit (c)'s"
+)
 _HELD_KEYS = (
     "a code or key column read as labels writes its held-back levels as made-up codes outside the real pattern, "
     "and one held whole writes record numbers: the identifier generator's limit; since lane CODES-2 (plan "
@@ -3616,17 +3636,17 @@ WIDE_OWNERS[_disguise.KIND_DAY_NUMBERS] = (
 )
 WIDE_OWNERS[_disguise.KIND_ANSWERS] = (
     ("CZ-H", _HELD_VALUES, covers("missing answer_value", "missing spellings answer_value")),
-    ("CZ-C", _KEY_VALUE, covers("yes/no answers written 1/0 hold their share", columns=("answer_value",))),
+    ("KV-b", _KEYED_VALUES, covers("yes/no answers written 1/0 hold their share", columns=("answer_value",))),
     ("CODES-2", _HELD_KEYS, covers("question codes", columns=("question_code",))),
 )
 WIDE_OWNERS[_disguise.KIND_FLOW] = (
     ("CZ-H", _HELD_VALUES, covers("missing result_value", "missing spellings result_value")),
-    ("CZ-C", _KEY_VALUE, covers("miss result_value", "pressure pairs keep their slash", columns=("result_value",))),
+    ("KV-b", _KEYED_VALUES, covers("miss result_value", "pressure pairs keep their slash", columns=("result_value",))),
     ("KV", _KEYS_FEW_PEOPLE_HOLD, covers("flow keys", columns=("flow_key",))),
 )
 WIDE_OWNERS[_disguise.KIND_RESULTS] = (
     ("CZ-H", _HELD_VALUES, covers("missing result_value", "missing spellings result_value")),
-    ("CZ-C", _KEY_VALUE, covers("miss result_value", columns=("result_value",))),
+    ("KV-b", _KEYED_VALUES, covers("miss result_value", columns=("result_value",))),
     ("CODES-2", _HELD_KEYS, covers("result keys", columns=("result_key",))),
 )
 WIDE_OWNERS[_disguise.KIND_CLOCKS] = (

@@ -1080,6 +1080,76 @@ def _named_region(wrong: str) -> Change:
     return change
 
 
+# VALUES TYPED BY A KEY (lane KV, plan P4-D487, contract 6.3k): a small long
+# table's description, its value column described key by key, built once; each
+# entry below puts it in place of the base and breaks it in one way (KV1 to KV4).
+_KEYED: "dict[str, Document]" = {}
+
+
+def _keyed_description() -> Document:
+    """A conforming description of an invented long table whose value column is typed by its key column (built once)."""
+    if "document" not in _KEYED:
+        import random
+        import tempfile
+
+        draw = random.Random(17)
+        rows = ["person_id,item_key,item_value"]
+        for place in range(160):
+            for _visit in range(4):
+                rows += [f"P{place},pulse,{max(40, round(draw.gauss(78, 9)))}"]
+                rows += [f"P{place},airway,{draw.choice(('Clear', 'Wheeze', 'Crackles'))}"]
+                rows += [f"P{place},glucose_mg,{max(50, round(draw.gauss(140, 40)))}"]
+            if place % 9 == 0:
+                rows += [f"P{place},tail_{place:03d},{draw.randint(1, 9)}"] * 3
+        with tempfile.TemporaryDirectory() as folder:
+            path = fixtures.write(pathlib.Path(folder), "long.csv", "\n".join(rows) + "\n")
+            table = reading.read_table(str(path), small_cell_floor=11)
+        document = profile.build_document(
+            table, taxonomy.Settings(small_cell_floor=11), ["person_id"],
+            subjects=["person_id"], top_code=True, keyed_kept=[],
+            safe_harbor_no=["item_value"],
+        )
+        _KEYED["document"] = json.loads(json.dumps(document))
+    return json.loads(json.dumps(_KEYED["document"]))
+
+
+def _keyed(wrong: str) -> Change:
+    """The keyed description in place of the base, wrong in one way (KV1 to KV4)."""
+    def change(document: Document) -> None:
+        keyed = _keyed_description()
+        document.clear()
+        document.update(keyed)
+        key = at(document, "item_key")
+        value = at(document, "item_value")
+        if wrong == "flag":
+            key.pop("keyed")
+        elif wrong == "label":
+            value["by_key"]["key_blocks"][-1]["key"] = "zzzz no level"
+        elif wrong == "pool":
+            value["by_key"].pop("pool")
+        elif wrong == "count":
+            # The rare keys' pooled block, a valid block of the pooled rows,
+            # stood in under the first published key, named by it: its rows
+            # are not that key's count.
+            first = value["by_key"]["key_blocks"][0]
+            first["block"] = dict(value["by_key"]["pool"], name=first["block"]["name"])
+        elif wrong == "own":
+            # The person column's block, a valid held column of every row,
+            # stood in as the value column's own block: more present cells
+            # than the rows that hold no key.
+            held = json.loads(json.dumps(at(document, "person_id")))
+            held["name"] = "item_value"
+            held["position"] = value["position"]
+            held["by_key"] = value["by_key"]
+            for place, block in enumerate(document["columns"]):
+                if block["name"] == "item_value":
+                    document["columns"][place] = held
+            document["settings"]["forced_identifiers"] = sorted(
+                list(document["settings"]["forced_identifiers"]) + ["item_value"]
+            )
+    return change
+
+
 # A census of spellings `visits` could carry on its own (SC1 to SC3 hold:
 # its 22 noughts, every number cell named, each spelling on the floor or
 # more), so a value list beside it breaks VL5 and nothing before it.
@@ -1549,6 +1619,13 @@ def battery() -> list[Mutation]:
             "B4g", "a named pool said to be counted in people",
             _named_region("people"),
         ),
+        # KV1 TO KV4, VALUES TYPED BY A KEY (lane KV, plan P4-D487): the keyed
+        # description, each entry breaking what its blocks owe the key column.
+        Mutation("KV1", "a value column typed by a key column whose block says nothing", _keyed("flag")),
+        Mutation("KV2", "a key block under a label its key column does not publish", _keyed("label")),
+        Mutation("KV2", "a key block whose rows are another key's count", _keyed("count")),
+        Mutation("KV3", "the rare keys' pool missing where the key column pools levels", _keyed("pool")),
+        Mutation("KV4", "a keyed value column's own block holding more cells than the rows of no key", _keyed("own")),
         Mutation(
             "B5", "a label published below the floor",
             both(

@@ -457,8 +457,9 @@ def test_the_reach_is_red_on_the_mutant_that_reads_every_band_as_a_number(monkey
     bands taken for numbers): the score's bands are reached again."""
     real = taxonomy._safe_harbor_kind
 
-    def every_band_a_number(cell, comma, mark, words):  # type: ignore[no-untyped-def]
-        kind = real(cell, comma, mark, words)
+    # ...the kind's fifth argument since batch 4t's merge of lane HB3-a (step 6): the column's gender reading.
+    def every_band_a_number(cell, comma, mark, words, genders=False):  # type: ignore[no-untyped-def]
+        kind = real(cell, comma, mark, words, genders)
         band = taxonomy.a_band_cell(cell) if kind[0] == taxonomy._AGE_OTHER else None
         if band is not None:
             return (taxonomy._AGE_ABOVE if taxonomy._band_is_past_89(band, mark) else taxonomy._AGE_IN, kind[1], kind[2])

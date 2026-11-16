@@ -642,7 +642,16 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path,
     thousands for `amount`, then `code`, where the file the first
     answering run wrote puts each question again. (`measurement` there
     says what the column holds, and the comma stands beside it: the third
-    round.)
+    round.) SINCE LANE EZ-a (plan P4-D479; the orchestrator's LANE EZ
+    RULINGS 1 (7)) the person question answered `keep` is not put again:
+    the later `identifier` is written beside the kept answer under
+    'answered_before', as its own words say an answer is changed. Those
+    words say record numbers, where the person question's `identifier`
+    given once says the column names the person, which the file that run
+    writes keeps saying (`cli._persons_marked`): one repeating record
+    number counts the people by it either way, so the description, the
+    summary and the twin are the same bytes and the questions files differ
+    in those words alone.
     """
     # THE SAFE HARBOR REACH (plan P4-D427, its second repair) asks its own
     # question of the register `reg` and holds the points `amount`, read
@@ -659,9 +668,9 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path,
     assert ("pid", asking.ANSWER_KEEP) in kept(table)
     assert ("amount", asking.ANSWER_DECIMAL_COMMA) in kept(table)
     second = questions(table)
-    assert give(second, [("pid", asking.ANSWER_IDENTIFIER), ("amount", asking.ANSWER_CODE)]) == [
-        ("pid", asking.ANSWER_IDENTIFIER, "kind"), ("amount", asking.ANSWER_CODE, "kind"),
-    ]
+    assert [entry for entry in second["asked"] if entry["column"] == "pid"] == []  # type: ignore[union-attr]
+    kept_entry_of(second, "pid")["your_answer"] = asking.ANSWER_IDENTIFIER
+    assert give(second, [("amount", asking.ANSWER_CODE)]) == [("amount", asking.ANSWER_CODE, "kind")]
     hand_back(table, second)
     assert profile(table, "--answers", f"{table.path('questions.json')}") == 0
     held = kept(table)
@@ -670,7 +679,14 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path,
     several = outputs(table)
     clear(table)
     assert in_one_round(table, {("pid", "kind"): asking.ANSWER_IDENTIFIER, ("amount", "kind"): asking.ANSWER_CODE}) == 0
-    assert outputs(table) == several
+    once = outputs(table)
+    person = json.dumps(cli._PERSON_KEPT_MEANS).encode("utf-8")
+    record = json.dumps(asking._KEPT_MEANS[asking.ANSWER_IDENTIFIER]).encode("utf-8")
+    assert once["questions"].count(person) == 1 and several["questions"].count(person) == 0
+    assert once["questions"].replace(person, record) == several["questions"]
+    assert {name: once[name] for name in once if name != "questions"} == {
+        name: several[name] for name in several if name != "questions"
+    }
 
 
 # -- the refusal that asks for two runs ------------------------------------
@@ -1901,6 +1917,16 @@ def _measure(folder: pathlib.Path) -> "dict[str, int]":
         # answer-round cases take the description `no` gives back.
         with pytest.MonkeyPatch.context() as forms_no:
             keyboard.identifier_forms_answered_no(forms_no)
+            # ...and `keyed` to question Q-KEYED (lane KV, plan P4-D487),
+            # which holds nothing: a value column an open question offering
+            # `identifier` holds is put that question first and Q-KEYED a
+            # round later (one question a column), and no option types it,
+            # so the flowsheet's `flo_value`, answered `keyed`, could not be
+            # answered in one round (not_in_one_round 6 on lane KV's
+            # 66ea7da6 without this); the description, its summary and the
+            # twin are those the answer gives, byte for byte
+            # (`test_the_keyed_answer_a_round_later_writes_what_it_writes_up_front`).
+            keyboard.keyed_answered_as_read(forms_no)
             measure_table(table, answerer, found)
     for cut in ((3, 6), (1, 8), (5, 7)):
         found["cases"] += 1
@@ -1940,6 +1966,74 @@ def _measure(folder: pathlib.Path) -> "dict[str, int]":
         except AssertionError:
             found["byte_differences"] += 1
     return found
+
+
+# Q-KEYED TAKEN UP FRONT (lane KV, plan P4-D487): the zoo's flowsheet, whose
+# value column the open person question holds in round one, answered in
+# rounds with Q-KEYED put (answered `keyed` a round later) and with it taken
+# up front as `_measure` takes it.
+
+
+def keyed_up_front_case(tmp_path: pathlib.Path) -> None:
+    """The zoo's flowsheet in rounds, Q-KEYED put and answered a round later, against Q-KEYED taken up front."""
+    found: "dict[str, tuple[Rounds, tuple[dict[str, bytes], int], dict[tuple[str, str], bool]]]" = {}
+    for route in ("put", "up_front"):
+        with pytest.MonkeyPatch.context() as patch:
+            keyboard.identifier_forms_answered_no(patch)
+            if route == "up_front":
+                keyboard.keyed_answered_as_read(patch)
+            table, answerer = zoo_table(tmp_path / route, "flowsheet")
+            answered = in_rounds(table, answerer)
+            found[route] = (answered, written(table), kept(table))
+    put, (several, several_code), put_kept = found["put"]
+    up_front, (once, once_code), _up_front_kept = found["up_front"]
+    assert put.exits and up_front.exits and all(code == 0 for code in put.exits + up_front.exits), (put.exits, up_front.exits)
+    assert len(put.given) == 2 and ("flo_value", "keyed", "") in put.given[1], f"premise: Q-KEYED put a round later and answered: {put.given}"
+    assert len(up_front.given) == 1, f"Q-KEYED still put when taken up front: {up_front.given}"
+    assert several_code == 0 and once_code == 0 and "twin" in several and "twin" in once, (several_code, once_code)
+    differing = [name for name in ("description", "summary", "twin") if several[name] != once[name]]
+    assert differing == [], f"the answer a round later writes what the answer up front does not: {differing}"
+    assert put.lost == [] and ("flo_value", "keyed") in put_kept, "the file a round later does not keep the answer"
+
+
+def test_the_keyed_answer_a_round_later_writes_what_it_writes_up_front(tmp_path: pathlib.Path) -> None:
+    """K-S3-66 takes Q-KEYED's answer up front (lane KV, plan P4-D487): the same description, summary and twin either way.
+
+    On the zoo's flowsheet the person question holds `flo_value` in round
+    one, so Q-KEYED is put a round later (one question a column, that one
+    first) and answered `keyed`; the description, its summary and the twin
+    at seed 0 are those of the question taken up front, byte for byte, and
+    the file a round later keeps the answer.
+    """
+    keyed_up_front_case(tmp_path)
+
+
+def test_mutant_the_keyed_answer_read_as_keep_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`keyed` read from the file as `keep`, the value column then described as one column."""
+    real = asking.answers_in
+
+    def answers_in(document: object, shown: str) -> asking.Answers:
+        read = real(document, shown)
+        return dataclasses.replace(read, values_keyed=(), values_kept_whole=read.values_kept_whole + read.values_keyed)
+
+    monkeypatch.setattr(asking, "answers_in", answers_in)
+    with pytest.raises(AssertionError, match="writes what the answer up front does not"):
+        keyed_up_front_case(tmp_path)
+
+
+def test_mutant_the_answer_up_front_taking_the_reading_away_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Q-KEYED taken up front by reading no pair at all: the question gone with the reading."""
+    from synthtwin import profile
+
+    real = keyboard.keyed_answered_as_read
+
+    def reading_away(patch: pytest.MonkeyPatch) -> None:
+        real(patch)
+        patch.setattr(profile, "keyed_pairs_read", lambda *_given, **_named: [])
+
+    monkeypatch.setattr(keyboard, "keyed_answered_as_read", reading_away)
+    with pytest.raises(AssertionError, match="writes what the answer up front does not"):
+        keyed_up_front_case(tmp_path)
 
 
 # The cases whose columns the Safe Harbor reach holds, answered `no`.

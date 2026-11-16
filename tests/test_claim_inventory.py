@@ -202,6 +202,11 @@ SURFACES = (
     "docs/spec/profile-contract-v6.md",
     "docs/spec/generation-method-v1.md",
     "docs/spec/validation-method-v1.md",
+    # The ready folder for Windows (plan P4-D483, lane WIN): the page a
+    # physician follows on the protected computer and the guide inside
+    # the folder, each telling a person what may leave that computer.
+    "docs/windows-install.md",
+    "scripts/windows/INSTALL-WINDOWS.txt",
 )
 
 # THE SURFACES THE WITHDRAWN-DEFENCE BAN WALKS, which is every one of

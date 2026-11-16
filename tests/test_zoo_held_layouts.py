@@ -1636,7 +1636,10 @@ def test_keys_zero_filled_from_nought_keep_their_published_form(
     seen, and on the two key columns no twin cell holds a held real run that is not noughts alone (the codes' column
     keeps limit (ae)'s runs inside, owner HB2: 2,694 cells, each figures alone, a held code read as a number, which the
     report's sentence names as its third case). Mutants: the noughts one figure wider at every width, rule 42 as it
-    stood (K42e); the sentence of two cases (finding 2 of the independent verify of batch 4n's fix round)."""
+    stood (K42e); the sentence of two cases (finding 2 of the independent verify of batch 4n's fix round). SINCE LANE
+    HB3-a (plan P4-D482): the block names the width of its held key of noughts alone (`figure_noughts`) and the spent
+    noughts there are written wider, so 0 twin cells are that key (the merged reading's 497, 1 and 267 the stated
+    residue), and a held code the classes write as a number is kept off the real runs (0 cells holding one)."""
     shapes = {
         "noughts_once": hunt._beside_a_word(20_000, lambda k: f"Q{k:05d}"),
         "noughts_acc_once": hunt._beside_a_word(20_000, lambda k: f"ACC{k:07d}"),
@@ -1673,10 +1676,16 @@ def test_keys_zero_filled_from_nought_keep_their_published_form(
             taken["codes_holding_a_real_run"] = len(holding)
             continue
         forms = {form_of(cell) for cell in columns[name]}
-        assert not [cell for cell in twins[name] if form_of(cell) not in forms], (name, twins[name][:3])
+        # ...SINCE LANE HB3-a (plan P4-D482; LANE HB3-a RULINGS 1 (2), limit (af)): the block names the width of its held
+        # key of noughts alone (`figure_noughts`), and a spent stand-in's noughts at that width are written wider than
+        # every width named, so no twin cell is that key; the price is the forms: every spent stand-in wears one figure
+        # more than the real column's forms (letters and noughts alone, 12,936 cells a column).
+        off = [cell for cell in twins[name] if form_of(cell) not in forms]
+        assert all(re.fullmatch(r"[A-Za-z]+0+", cell) for cell in off), (name, off[:3])
+        taken[name + "_wider"] = len(off)
         assert not holding, name
-    assert taken == {"noughts_once": 497, "noughts_acc_once": 1, "noughts_beside_codes": 267,
-                     "codes_holding_a_real_run": 2_694}, taken
+    assert taken == {"noughts_once": 0, "noughts_acc_once": 0, "noughts_beside_codes": 0,
+                     "codes_holding_a_real_run": 0, "noughts_once_wider": 12_936, "noughts_acc_once_wider": 12_936}, taken
     # ...and the twin's report says so (Codex's review of batch 4n, item 3; LANE I4m RULINGS 14 (4)): it said no run
     # a made-up label writes is a real one or holds one while `Q00000` stood in 497 cells; it names the noughts alone
     # and the one real value they may spell. Mutant: the sentence as it stood.
@@ -1928,7 +1937,8 @@ def test_real_keys_of_noughts_alone_wider_than_their_form_are_not_written(
     twin cells). The spent runs now keep the width their published form writes, so no twin cell is one of the wider
     keys; the equal cells are the one real key of noughts alone at that width, the first key of each sequence (497 and
     1, limit (af) at the original width, owner lane HB2). The counts are held as measured, so a change is seen. Mutant:
-    the noughts one figure wider at every width, rule 42 as it stood (K42e)."""
+    the noughts one figure wider at every width, rule 42 as it stood (K42e). Since lane HB3-a (plan P4-D482) every
+    width a held key of noughts alone holds is named and the spent noughts written wider than all: 0 and 0."""
     shapes = {
         "noughts_wider": hunt._beside_a_word(20_000, lambda k: f"Q{k:05d}")[:-3] + ["Q000000", "Q0000000", "Q00000000"],
         "noughts_acc_wider": (hunt._beside_a_word(20_000, lambda k: f"ACC{k:07d}")[:-2]
@@ -1948,7 +1958,9 @@ def test_real_keys_of_noughts_alone_wider_than_their_form_are_not_written(
         assert not [cell for cell in twins[name] if cell in wider[name]], name
         assert {cell for cell in twins[name] if cell in held} <= {lowest[name]}, name
         taken[name] = sum(1 for cell in twins[name] if cell in held)
-    assert taken == {"noughts_wider": 497, "noughts_acc_wider": 1}, taken
+    # ...and since lane HB3-a (plan P4-D482, limit (af)) the key of noughts alone at the form's width is not written
+    # either: its width and the wider keys' are named, and the spent noughts written wider than all of them.
+    assert taken == {"noughts_wider": 0, "noughts_acc_wider": 0}, taken
 
 
 # -- batch 4n's fix round: Codex's review of batch 4n, items 1 to 3 (LANE I4m RULINGS 14) -------------------------------

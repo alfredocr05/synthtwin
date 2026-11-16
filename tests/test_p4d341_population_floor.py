@@ -1071,7 +1071,7 @@ def test_the_screen_says_the_count_was_taken_in_rows_at_the_terminal(
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([""] * 9)
     monkeypatch.setattr(
-        cli, "_read_one_answer", lambda standing: next(answers)
+        cli, "_read_one_answer", lambda standing: next(answers, "")
     )
     folder = tmp_path / "silent"
     folder.mkdir()
@@ -1127,7 +1127,7 @@ def test_the_terminal_notice_does_not_deny_the_declaration_either(
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([""] * 9)
     monkeypatch.setattr(
-        cli, "_read_one_answer", lambda standing: next(answers)
+        cli, "_read_one_answer", lambda standing: next(answers, "")
     )
     folder = tmp_path / "terminal"
     folder.mkdir()
@@ -1241,7 +1241,7 @@ def test_an_answer_at_the_terminal_can_refuse_the_run(
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_IDENTIFIER] + [""] * 8)
     monkeypatch.setattr(
-        cli, "_read_one_answer", lambda standing: next(answers)
+        cli, "_read_one_answer", lambda standing: next(answers, "")
     )
     folder = tmp_path / "answered"
     folder.mkdir()
@@ -1271,7 +1271,7 @@ def test_an_answer_at_the_terminal_can_move_the_count_into_the_band(
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_IDENTIFIER] + [""] * 8)
     monkeypatch.setattr(
-        cli, "_read_one_answer", lambda standing: next(answers)
+        cli, "_read_one_answer", lambda standing: next(answers, "")
     )
     folder = tmp_path / "moved"
     folder.mkdir()

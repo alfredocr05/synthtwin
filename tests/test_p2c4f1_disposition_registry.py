@@ -503,6 +503,13 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
         # The plan of record, sealed since the governance pass of stage
         # 3's review. Nothing else may stand beside it unsealed.
         "STATE.md",
+        # The how-to for the ready folder on Windows (plan P4-D483, lane
+        # WIN): the page a physician follows on the protected computer.
+        # It decides nothing the code owes, so it is not a governing
+        # document and not sealed; it is listed here in the commit that
+        # adds it, as this guard forces, and its sentences are read by
+        # the claim inventory, whose SURFACES name it.
+        "windows-install.md",
     ], pages
     for relative in dispositions.GOVERNING:
         assert (REPO_ROOT / relative).exists(), relative

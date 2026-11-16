@@ -112,6 +112,9 @@ from synthtwin import date_counts
 # ...and the result a run returns (plan P4-D395, lane S5a): the standard
 # library only, so every branch may import it.
 from synthtwin import results
+# ...and the lines a terminal shows while a run works (lane EZ-a, plan
+# P4-D479): the standard library only.
+from synthtwin import progress
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -391,6 +394,7 @@ _HELP_EPILOG = """examples:
 
 # The options each command reads, in the order its page lists them.
 _PROFILE_DECLARATIONS = (
+    "--person",
     "--identifier",
     "--code",
     "--measurement",
@@ -423,6 +427,7 @@ _SHORT_HELP = {
     "--replace": ("", "write over files an earlier run left there"),
     "--seed": ("NUMBER", "which twin to build, a whole number (default 0)"),
     "--twin": ("PATH", "the CSV file to measure (default: the twin)"),
+    "--person": ("COLUMN", "who the rows are about: held, people counted"),
     "--identifier": ("COLUMN", "record numbers: no value of it is published"),
     "--code": ("COLUMN", "codes, not measurements: kept as written"),
     "--measurement": ("COLUMN", "numbers in one cell that are quantities: 120/80"),
@@ -451,9 +456,7 @@ _PAGE_HEADS = {
     _PROFILE: (
         "usage: synthtwin profile TABLE [options]",
         "Describe TABLE, a CSV file or a workbook, and write TABLE-profile.json, "
-        "its summary TABLE-profile.txt and TABLE-questions.json beside it. At "
-        "the keyboard the questions come first: nothing is written before they "
-        "are answered.",
+        "its summary TABLE-profile.txt and TABLE-questions.json beside it.",
     ),
     _GENERATE: (
         "usage: synthtwin generate DESCRIPTION [options]",
@@ -495,7 +498,7 @@ _PAGE_HEADS = {
 _PAGE_PROSE = {
     _TWIN: (
         "It reads every option of synthtwin profile that says what a column "
-        "holds, and hands it to the profile step: --identifier, --code, "
+        "holds, and hands it to the profile step: --person, --identifier, --code, "
         "--measurement, --decimal-comma, --date-column, --date-count, "
         "--century, --twelve-hour, --day-first, --first-row, --metadata-rows, "
         "--delimiter, --sheet and --smallest-group (synthtwin help profile "
@@ -503,6 +506,7 @@ _PAGE_PROSE = {
     ),
 }
 _PROSE_NAMES = (
+    "--person",
     "--identifier",
     "--code",
     "--measurement",
@@ -947,6 +951,52 @@ class _Session:
     # column, role and reason: what the taught answers command can put on
     # screen (Codex's item 9, skeptic 1's item 5).
     promptable: "list[tuple[str, str, str]]" = dataclasses.field(default_factory=list)
+    # LANE EZ-a (plan P4-D479): the columns said to name the person
+    # (`--person`, the person question's `identifier`, the subject question
+    # at the keyboard; `--person` alone in ``persons_typed``); the answers
+    # the keyboard reader takes for the question on screen, each with the
+    # key shown beside it (`_read_one_answer`); the questions file a
+    # plain-text answers file is matched against; whether the table floor
+    # is the command's (`main`'s internal keyword); whether a second round
+    # of questions may follow the files (`_run_profile`), and the closing
+    # lines held back for it; and every text shown on the error stream, so
+    # a run described again shows only what is new.
+    persons_said: "list[str]" = dataclasses.field(default_factory=list)
+    persons_typed: "list[str]" = dataclasses.field(default_factory=list)
+    subject_put: "tuple[str, ...]" = ()
+    # ...and the said columns the people were counted by where two or more
+    # declared record-number columns repeat: only there does saying change
+    # the count, so only there is it written into the questions file and
+    # the repeat line (every other description and file keeps its bytes).
+    persons_counted: "tuple[str, ...]" = ()
+    offered_now: "tuple[tuple[str, str], ...]" = ()
+    questions_beside: "tuple[str, str | None] | None" = None
+    floor_refuses: bool = True
+    rounds_follow: bool = False
+    closing: str = ""
+    err_shown: "list[str]" = dataclasses.field(default_factory=list)
+    # LANE EZ-a'S REPAIR (LANE EZ RULINGS 4 (3) and (4)): the screen and the
+    # reader a later round's description puts the subject question with,
+    # while its own screen is held back and nobody else is asked, and
+    # whether input ended at that question; each question whose answer
+    # stands, by its column, role and reason (answered at the first prompt
+    # other than with Enter, or in a later round described again), which
+    # no closing line counts as open; and the command line as typed, from
+    # which the command that answers the open questions is made.
+    subject_reader: "tuple[list[tuple[str, str]] | str | None, list[str | None] | str | None] | None" = None
+    ended_at_subject: bool = False
+    answers_standing: "list[tuple[str, str, str]]" = dataclasses.field(default_factory=list)
+    typed: "_Options | None" = None
+    # LANE EZ-a'S SECOND REPAIR (LANE EZ RULINGS 7, Codex's item 1; 8 (5)):
+    # each typed declaration, as (column, answer), that an answer the
+    # questions file holds replaced -- typed at the keyboard in any round or
+    # written in the file, so newer than the command line -- which no later
+    # round, repeat line or taught command brings back; the person questions
+    # answered `keep` at the first prompt, carried into `answered_before`;
+    # and the line that says a said column counted the table in rows.
+    typed_replaced: "list[tuple[str, str]]" = dataclasses.field(default_factory=list)
+    persons_kept: "list[str]" = dataclasses.field(default_factory=list)
+    rows_said: str = ""
 
 
 @dataclasses.dataclass
@@ -983,10 +1033,17 @@ def _current() -> "_Session | None":
 
 
 def _at(step: str) -> None:
-    """Say which step the run is at, for a refusal raised from below."""
+    """Say which step the run is at, for a refusal raised from below.
+
+    ...and, at a terminal, that the files are being written (lane EZ-a,
+    plan P4-D479: a line for each stage, `progress`; nothing while the
+    sink is off).
+    """
     session = _current()
     if session is not None:
         session.phase = step
+    if step == results.STEP_WRITING:
+        progress.stage("writing the files")
 
 
 def _terminal_screen(stream: str, text: str) -> None:
@@ -1018,6 +1075,8 @@ def _terminal_ask(prompt: str) -> "str | None":
 def _show(stream: str, text: str) -> None:
     """Hand text to the run's screen: the terminal where no run is open."""
     session = _current()
+    if session is not None and stream == _ERR:
+        session.err_shown += [text]
     if session is None or session.screen == TERMINAL:
         _terminal_screen(stream, text)
         return
@@ -1789,6 +1848,8 @@ class _Options:
     date_columns: "list[str]" = dataclasses.field(default_factory=list)
     # Whether `--first-row` was typed, `auto` included (plan P4-D408).
     first_row_typed: bool = False
+    # -- lane EZ-a (P4-D479): the columns named with `--person`.
+    persons: "list[str]" = dataclasses.field(default_factory=list)
 
 
 def _typed_floor(typed: str) -> int:
@@ -1861,6 +1922,7 @@ _LONG_OPTIONS = (
     "--seed",
     "--replace",
     "--smallest-group",
+    "--person",
     "--identifier",
     "--code",
     "--decimal-comma",
@@ -2143,6 +2205,20 @@ def _parse_arguments(
             "than 20 rows share -- and never lowered: a number under "
             f"{_SMALLEST_GROUP} is refused and nothing is written "
             f"(default: {_SMALLEST_GROUP})"
+        ),
+    )
+    parser.add_argument(
+        "--person",
+        action="append",
+        default=None,
+        metavar="COLUMN",
+        help=(
+            "name the column that says which person each row is about -- a "
+            "patient or study number. It is held as --identifier holds a "
+            "column, and the table's people are counted by it alone, so "
+            "another record-number column named with --identifier beside it "
+            "(a clinician's or an encounter's) is held and joins nobody. May "
+            "be given more than once"
         ),
     )
     parser.add_argument(
@@ -2561,6 +2637,8 @@ def _parse_arguments(
             "a path if the file to measure is not the twin beside it."
         )
     named = args.identifier if args.identifier is not None else []
+    # -- lane EZ-a (P4-D479): the columns said to name the person.
+    person_named = args.person if args.person is not None else []
     code_named = args.code if args.code is not None else []
     measured_named = args.measurement if args.measurement is not None else []
     comma_named = (
@@ -2614,6 +2692,7 @@ def _parse_arguments(
         twelve_hours=list(twelve_named),
         centuries=list(century_named),
         date_columns=list(date_named),
+        persons=list(person_named),
     )
 
 
@@ -2801,6 +2880,8 @@ _ANSWER_KEYS = {
     "18": date_counts.SECONDS_SINCE_1582,
     # -- lane TR (P4-D473): Q-CLOCK's answer, its own key.
     "19": asking.ANSWER_CLOCK_FIGURES,
+    # -- lane NOTES (P4-D481): a column of sentences is free text, its own key.
+    "20": asking.ANSWER_TEXT,
     "m": asking.ANSWER_MEASUREMENT,
     "c": asking.ANSWER_CODE,
     "i": asking.ANSWER_IDENTIFIER,
@@ -2925,6 +3006,8 @@ _KEY_OF = {
     date_counts.SECONDS_SINCE_1582: "18",
     # -- lane TR (P4-D473): Q-CLOCK's answer, at the keyboard too.
     asking.ANSWER_CLOCK_FIGURES: "19",
+    # -- lane NOTES (P4-D481): free text, at the keyboard too.
+    asking.ANSWER_TEXT: "20",
     # THE STANDING READING SHARES KEY 1 WITH `measurement`, and the two
     # never appear on one question: a column of figures offers
     # `measurement` as the reading it already has, and a joined-looking
@@ -3002,10 +3085,17 @@ def _the_question(
     )
     return (
         f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
-        f"    what synthtwin saw: {question.shape}.\n"
+        f"    what synthtwin saw: {_one_stop(question.shape)}\n"
         f"    What does this column hold?{lines}\n"
         f"{enter}"
     )
+
+
+def _one_stop(sentence: str) -> str:
+    """A sentence ended by one full stop, whether or not it carried its own (lane EZ-a's repair, LANE EZ RULINGS 4 (7))."""
+    if sentence[len(sentence) - 1 :] == ".":
+        return sentence
+    return f"{sentence}."
 
 
 def _metadata_rows_unseen_notice(rows: int) -> str:
@@ -3296,6 +3386,10 @@ def _answers_given(
     safe_harbor_dates_no: "tuple[str, ...]" = (),
     safe_harbor_dates_yes: "tuple[str, ...]" = (),
     clock_figures: "tuple[str, ...]" = (),
+    sentences_text: "tuple[str, ...]" = (),
+    people_keys_kept: "tuple[str, ...]" = (),
+    values_keyed: "tuple[str, ...]" = (),
+    values_kept_whole: "tuple[str, ...]" = (),
 ) -> "asking.Given":
     """Every answer this run acts on, as `asking.answered_before` writes it.
 
@@ -3329,7 +3423,8 @@ def _answers_given(
         centuries_kept=tuple(centuries_kept),
         date_columns=tuple(date_columns),
         date_columns_kept=tuple(dates_kept),
-        identities_kept=identities_kept,
+        identities_kept=tuple(identities_kept) + _persons_kept_at_the_prompt(identities_kept),
+        people_keys_kept=people_keys_kept,
         units_kept=units_kept,
         commas_kept=commas_kept,
         safe_harbor_no=safe_harbor_no,
@@ -3339,6 +3434,11 @@ def _answers_given(
         safe_harbor_dates_yes=safe_harbor_dates_yes,
         # -- lane TR (P4-D473)
         clock_figures=clock_figures,
+        # -- lane NOTES (P4-D481)
+        sentences_text=sentences_text,
+        # -- lane KV (P4-D487)
+        values_keyed=values_keyed,
+        values_kept_whole=values_kept_whole,
         missing_dates=tuple(
             (name, code_shapes[name] if name in code_shapes else "")
             for name in missing_dates
@@ -3994,7 +4094,12 @@ def _assumptions_notice(
             f"If any of them writes a point between thousands, run the "
             f"command again naming them:\n  {flags}{_quoting_said(flags)}"
         ]
-    if people:
+    # ...WHERE NO `--person` WAS GIVEN: a column given so says who the people
+    # are, and one that is different on every row counts the table in rows,
+    # its people (lane EZ-a's repair; the statistics check's item 1: the
+    # block told such a run that no column names people and taught
+    # `--identifier` on the clinician number).
+    if people and not _persons_given():
         flags = _joined(
             [_typed_option("--identifier", one.name) for one in people], " "
         )
@@ -4107,6 +4212,36 @@ def _asked(prompt: str) -> "str | None":
 # question offers it, so it is never recorded as an answer.
 _LEFT_OPEN = "(left open)"
 
+# WHAT CTRL+D AND CTRL+Z ARRIVE AS IN A WINDOWS CONSOLE (lane EZ-a, plan
+# P4-D479; the orchestrator's LANE EZ RULINGS 2 (2)): typed there, each is
+# a character of its own on the line, U+0004 or U+001A, handed over with
+# Enter. A line made only of them ends the answers exactly as the end of
+# input does, so a person who presses Ctrl+D on Windows is never told to
+# type one of the answers offered. And the words that name the two keys,
+# the same wherever a screen line names them (RULINGS 2 (1)).
+_END_OF_INPUT_TYPED = "\x04\x1a"
+_STOP_KEYS_SAID = (
+    "To stop, press Ctrl+C; to end your answers, press Ctrl+D (on Windows: "
+    "Ctrl+Z, then Enter)"
+)
+
+
+def _ends_input(line: str) -> bool:
+    """Whether a typed line is made only of the characters Ctrl+D and Ctrl+Z arrive as in a Windows console.
+
+    Spaces around them are not read. Raises TypeError for a line that is
+    not text (the offline audit's type gate, as `_cleaned`).
+    """
+    if not isinstance(line, str):
+        raise TypeError("a typed line must be text")
+    typed = line.strip()
+    if not typed:
+        return False
+    for character in typed:
+        if character not in _END_OF_INPUT_TYPED:
+            return False
+    return True
+
 
 def _read_one_answer(
     standing: str = asking.ANSWER_MEASUREMENT, keep_on_one: bool = False
@@ -4120,10 +4255,21 @@ def _read_one_answer(
     Anything unrecognized is asked again rather than assumed: this is
     the one place a wrong guess would be recorded in the profile as a
     fact the person had stated.
+
+    THE QUESTION ON SCREEN MAY NAME ITS OWN ANSWERS (lane EZ-a, plan
+    P4-D479): where the run's session holds them (`_Session.offered_now`,
+    each answer with the key shown beside it, set by the second round and
+    the subject question while their question is on screen), the key
+    shown or the answer's own word is taken, whatever its capitals, and
+    nothing else is. Called with one argument, as the suite's stand-ins
+    for the person call it. A line made only of what Ctrl+D or Ctrl+Z
+    arrive as in a Windows console ends the answers (`_ends_input`).
     """
+    session = _current()
+    offered = session.offered_now if session is not None else ()
     while True:
         line = _asked("    > ")
-        if line is None:
+        if line is None or _ends_input(line):
             return None
         typed = _cleaned(line)
         if not typed:
@@ -4133,6 +4279,16 @@ def _read_one_answer(
             # label reading it already has; returning `measurement`
             # there named a reading Enter does not give.
             return standing
+        if offered:
+            for key, word in offered:
+                if typed == _cleaned(key) or typed == _cleaned(word):
+                    return word
+            _say(
+                "    Please type one of the answers offered, or the key in "
+                "square brackets beside it, or press Enter to leave the "
+                "question open."
+            )
+            continue
         # KEY 1 IS `keep` WHERE `measurement` IS AN ANSWER OF ITS OWN
         # (plan P4-D438; `_keep_beside_measurement`), typed `m` there.
         if keep_on_one and typed == "1":
@@ -4264,16 +4420,26 @@ def _century_given(typed: str) -> "tuple[str, int] | None":
 
 
 def _units_not_asked_again(
-    questions: "list[asking.Question]", kept: "list[str]"
+    questions: "list[asking.Question]",
+    kept: "list[str]",
+    persons_kept: "tuple[str, ...]" = (),
 ) -> "list[asking.Question]":
     """The questions less Q-UNIT and Q-COMMA where an earlier answer kept the labels (plans P4-D438, P4-D443).
 
     The orchestrator's LANE UN-1a RULINGS 1 (2), on plan P4-D408's rule
     that the questions file keeps every answer across rounds: a column
     answered `keep` to question Q-UNIT is not put the question again, as
-    Q6's `keep` is not. A fixed function of the two. Raises nothing.
+    Q6's `keep` is not. A fixed function of the three. Raises nothing.
+
+    ...AND LESS THE PERSON QUESTION WHERE AN ANSWER KEPT ITS COLUMN
+    (``persons_kept``: `Answers.identities_kept_answered`; lane EZ-a, plan
+    P4-D479; the orchestrator's LANE EZ RULINGS 1 (7)). The `keep` stands
+    under `answered_before` and the column is described as that answer
+    describes it; measured on the base at 20,000 rows, the question was
+    put again under `read_as_now: keep` every round, the description the
+    same byte for byte whether it was answered `keep` again or left blank.
     """
-    if not kept:
+    if not kept and not persons_kept:
         return questions
     return [
         question
@@ -4282,7 +4448,41 @@ def _units_not_asked_again(
             question.reason in (asking.BECAUSE_UNIT, asking.BECAUSE_COMMA)
             and question.name in kept
         )
+        and not (
+            question.reason == asking.BECAUSE_REPEATS_AND_MANY
+            and question.name in persons_kept
+        )
     ]
+
+
+def _answer_stands(answer: str, put: "tuple[str, str, str]") -> None:
+    """Record that a question put at a prompt was answered other than with Enter, so no closing line counts it open.
+
+    Lane EZ-a's repair (the orchestrator's LANE EZ RULINGS 4 (4)): the
+    questions file puts such a question again under the reading its answer
+    gave (plan P4-D401), its `your_answer` blank, and the closing lines
+    counted it 'still open' and sent the person round again (measured at
+    20,000 rows: a column of three-figure numbers answered at the first
+    prompt was said open on every run). ``put`` is the question by its
+    column, role and reason (`asking.question_put`).
+    """
+    session = _current()
+    if session is not None and answer != _LEFT_OPEN and put not in session.answers_standing:
+        session.answers_standing += [put]
+
+
+def _answers_that_stand() -> "list[tuple[str, str, str]]":
+    """The questions of this command whose answers stand (`_answer_stands`), each by its column, role and reason.
+
+    A later round's description is handed the questions file that carries
+    them (an answer at the first prompt that keeps a held column's reading
+    is no option at all), so its repeat line names that file too (lane
+    EZ-a's repair: measured, the repeat line printed after a column of
+    three-figure numbers was answered at the first prompt held that column
+    when run, and the description differed).
+    """
+    session = _current()
+    return [] if session is None else list(session.answers_standing)
 
 
 def _answer_typed(standing: str, keep_on_one: bool) -> "str | None":
@@ -4387,12 +4587,18 @@ def _put_the_questions(
             answer = _answer_typed(_LEFT_OPEN, both)
         if answer is None:
             return None
+        _answer_stands(answer, asking.question_put(question))
+        _person_kept(answer, question)
         if answer == _LEFT_OPEN:
             left_open += [asking.question_put(question)]
         elif answer == asking.ANSWER_CODE:
             codes += [question.name]
         elif answer == asking.ANSWER_IDENTIFIER:
             identifiers += [question.name]
+            # The person question's `identifier`, "the people the rows are
+            # about", says the person (lane EZ-a, plan P4-D479).
+            if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+                _person_said(question.name)
         elif answer == asking.ANSWER_JOINED or (
             answer == asking.ANSWER_MEASUREMENT and both
         ):
@@ -4431,11 +4637,16 @@ def _how_to_repeat(
 
     ``answers_file`` is `--answers` and the questions file this run
     writes, already written as it is typed, where an answer stands that no
-    option repeats: `clock-figures` (lane TR, plan P4-D473; the lane's
-    skeptic 1, item 3), whose reading the command line does not declare
-    (`--clock-figures` is no option). The file keeps that answer under
-    `answered_before`, so handing it back repeats the reading; the other
-    options stand beside it, each the same answer typed.
+    option repeats (lane EZ-a, plan P4-D479; the walkthrough's item 15): a
+    Safe Harbor answer, the unit of an age, a `keep`, the month first
+    (`_a_kept_answer_stands`), and `clock-figures` (lane TR, plan P4-D473;
+    the lane's skeptic 1, item 3), whose reading the command line does not
+    declare (`--clock-figures` is no option). The file keeps them under
+    `answered_before`, so handing it back repeats the description byte for
+    byte; the options stand beside it, each the same answer typed. A column
+    said to name the person is repeated as `--person`
+    (`_Session.persons_said`). ONE parameter carries both lanes' answers
+    (batch 4t's merge of lane EZ-a).
 
     ``taken_out`` are options the person typed that an answer replaced,
     each already written as it is typed (`_typed_option`): they are said
@@ -4478,21 +4689,25 @@ def _how_to_repeat(
         parts += [_typed_option("--decimal-comma", name)]
     for name in sorted(forced_codes):
         parts += [_typed_option("--code", name)]
+    said = _persons_repeated()
     for name in sorted(forced_identifiers):
-        parts += [_typed_option("--identifier", name)]
+        parts += [_typed_option("--person" if name in said else "--identifier", name)]
     for name in sorted(forced_measurements):
         parts += [_typed_option("--measurement", name)]
-    # -- lane TR (P4-D473): the questions file, for the answer no option
-    # repeats.
+    # -- lanes TR (P4-D473) and EZ-a (P4-D479): the questions file, for the
+    # answers no option repeats (`clock-figures`, and the answers
+    # `_a_kept_answer_stands` names).
     if answers_file:
         parts += [answers_file]
+    # ...and every typed declaration a newer answer replaced in an earlier
+    # round of this command (lane EZ-a's second repair; Codex's item 1).
+    taken_out = tuple(taken_out) + tuple(one for one in _typed_replaced_said() if one not in taken_out)
     flags = _joined(parts, " ")
     out = ""
     if answers_file:
         out = (
-            "The questions file named after --answers keeps your answer "
-            "that a column holds clock times written as figures, which no "
-            "option repeats.\n"
+            "The questions file named after --answers keeps your answers "
+            "that no option repeats.\n"
         )
     if taken_out:
         out = out + (
@@ -4506,6 +4721,192 @@ def _how_to_repeat(
         f"Those answers are also recorded inside the profile itself. "
         f"Each value is {_shell_named()}."
     )
+
+
+def _a_kept_answer_stands(
+    harbored: "list[str]", kept: "list[str]", month_first: bool
+) -> bool:
+    """Whether an answer stands that no option repeats (lane EZ-a, plan P4-D479; the walkthrough's item 15).
+
+    A Safe Harbor answer (`no`, `yes`, or the unit of an age), a `keep`
+    (to a question offering `identifier`, to Q-UNIT, Q-COMMA or Q6) and
+    the month first: `answered_before` keeps each, and no typed option
+    says it. A fixed function of the three. Raises nothing.
+    """
+    return bool(harbored) or bool(kept) or month_first
+
+
+# THE PERSON SAID (lane EZ-a, plan P4-D479; the walkthrough's item 2). The
+# words a kept `identifier` answer carries in `answered_before` where its
+# column was said to name the person, so the next round counts the people
+# by it again; and the opening every such `identifier` answer's words share,
+# the person question's own among them.
+_PERSON_MEANS_OPENING = "the people the rows are about"
+_PERSON_KEPT_MEANS = (
+    "the people the rows are about: rows sharing a value of it are one "
+    "person, and no value of the column is published"
+)
+
+
+def _person_said(name: str) -> None:
+    """Record that ``name`` was said to name the person this run's rows are about."""
+    session = _current()
+    if session is not None and name not in session.persons_said:
+        session.persons_said += [name]
+
+
+def _person_kept(answer: str, question: "asking.Question") -> None:
+    """Record a `keep` typed at the first prompt to the person question, which the questions file then keeps (`_persons_kept_at_the_prompt`).
+
+    Lane EZ-a's second repair (the orchestrator's LANE EZ RULINGS 8 (5), the
+    verify's MINOR 3; RULINGS 1 (7)): written in the questions file, `keep`
+    is carried under `answered_before` and the question is not put again
+    (pending item (a)); typed at the keyboard it was put again at every
+    run, three runs measured. Now it is carried as the file route carries
+    it, and the description is the one `keep` every round gives. Key 1
+    there reads `measurement`, the standing reading's word, which shares the
+    key with `keep` where the question does not offer `measurement`
+    (`_KEY_OF`).
+    """
+    session = _current()
+    offered = [choice.answer for choice in question.choices]
+    kept = answer == asking.ANSWER_KEEP or (
+        answer == asking.ANSWER_MEASUREMENT
+        and asking.ANSWER_MEASUREMENT not in offered
+        and asking.ANSWER_KEEP in offered
+    )
+    if (
+        session is not None
+        and kept
+        and question.reason == asking.BECAUSE_REPEATS_AND_MANY
+        and question.name not in session.persons_kept
+    ):
+        session.persons_kept += [question.name]
+
+
+def _persons_kept_at_the_prompt(kept: "tuple[str, ...]") -> "tuple[str, ...]":
+    """The person questions answered `keep` at the first prompt of this run and not among ``kept``, for `answered_before` to keep (`_person_kept`)."""
+    session = _current()
+    return tuple(name for name in (session.persons_kept if session is not None else []) if name not in kept)
+
+
+def _persons_said_now() -> "list[str]":
+    """The columns said to name the person in this run, as the session holds them."""
+    session = _current()
+    return [] if session is None else list(session.persons_said)
+
+
+def _persons_given() -> bool:
+    """Whether `--person` was typed: the person has said who the rows are about, and no notice says nobody did (lane EZ-a's repair)."""
+    session = _current()
+    return session is not None and bool(session.persons_typed)
+
+
+def _persons_answered() -> bool:
+    """Whether an answer, and not `--person` typed, said the column the people were counted by: the repeat line then says it."""
+    session = _current()
+    return session is not None and any(one not in session.persons_typed for one in session.persons_counted)
+
+
+def _persons_repeated() -> "list[str]":
+    """The columns the repeat line writes as `--person`: those typed so, and those said where saying changed the count."""
+    session = _current()
+    return [] if session is None else list(session.persons_typed) + list(session.persons_counted)
+
+
+def _persons_in_the_answers(document: "dict[str, object]") -> "list[str]":
+    """The columns a questions file says name the person (lane EZ-a, plan P4-D479).
+
+    An entry answered `identifier` -- or, kept under `answered_before`,
+    standing on it -- whose `identifier` answer's words open with
+    `_PERSON_MEANS_OPENING`: the person question's answer, or an earlier
+    run's kept one. Read by index, never by `.get` (plan D6.2). Raises
+    nothing.
+    """
+    from synthtwin import contract
+
+    found: "list[str]" = []
+    for section, entry in contract.answer_entries(document):
+        written = entry["your_answer"] if "your_answer" in entry else ""
+        if section == "answered_before" and isinstance(written, str) and not parsing.trimmed(written):
+            written = entry["read_as_now"] if "read_as_now" in entry else ""
+        if not isinstance(written, str) or parsing.trimmed(written) != asking.ANSWER_IDENTIFIER:
+            continue
+        choices = entry["answers_you_can_give"] if "answers_you_can_give" in entry else []
+        name = entry["column"] if "column" in entry else ""
+        if not isinstance(choices, list) or not isinstance(name, str):
+            continue
+        for choice in choices:
+            if (
+                isinstance(choice, dict)
+                and "answer" in choice
+                and choice["answer"] == asking.ANSWER_IDENTIFIER
+                and "means" in choice
+                and isinstance(choice["means"], str)
+                and choice["means"][: len(_PERSON_MEANS_OPENING)] == _PERSON_MEANS_OPENING
+                and name not in found
+            ):
+                found += [name]
+    return found
+
+
+def _persons_marked(kept: "list[dict[str, object]]") -> "list[dict[str, object]]":
+    """The `answered_before` section, each kept `identifier` of a column said to name the person saying so.
+
+    Lane EZ-a, plan P4-D479: the next round reads it back
+    (`_persons_in_the_answers`) and counts the people by that column again.
+    Written wherever a column was said (`_Session.persons_said`), whether
+    or not saying changed this run's count: a later round can declare a
+    second repeating record-number column (the checklist's `identifier`
+    on a clinician number), and the people are then still counted by the
+    column said. Written only where saying changed the count, the said
+    column was lost there and the second round counted both columns
+    together, refusing the table as 1 person (K-HZ-31's first run, on
+    9678254b). Every other entry is the one `asking.answered_before`
+    wrote. Raises nothing.
+    """
+    session = _current()
+    said = list(session.persons_said) if session is not None else []
+    if not said:
+        return kept
+    marked: "list[dict[str, object]]" = []
+    for entry in kept:
+        if entry["column"] not in said or entry["your_answer"] != asking.ANSWER_IDENTIFIER:
+            marked += [entry]
+            continue
+        offered: "list[object]" = []
+        choices = entry["answers_you_can_give"]
+        for choice in choices if isinstance(choices, list) else []:
+            if isinstance(choice, dict) and "answer" in choice and choice["answer"] == asking.ANSWER_IDENTIFIER:
+                changed = {key: choice[key] for key in choice}
+                changed["means"] = _PERSON_KEPT_MEANS
+                offered += [changed]
+            else:
+                offered += [choice]
+        again = {key: entry[key] for key in entry}
+        again["answers_you_can_give"] = offered
+        marked += [again]
+    return marked
+
+
+def _answers_loaded(answers_path: str) -> "dict[str, object]":
+    """A questions file or a plain-text answers file, read, and the persons it says recorded (lane EZ-a, plan P4-D479).
+
+    `contract.load_answers`, matched where the file is plain text against
+    the questions file the run writes beside the table
+    (`_Session.questions_beside`); the columns the file says name the
+    person join the run's (`_persons_in_the_answers`).
+    """
+    from synthtwin import contract
+
+    session = _current()
+    beside = None
+    if session is not None and session.questions_beside is not None:
+        beside = _questions_beside(*session.questions_beside) or None
+    document = contract.load_answers(answers_path, beside)
+    for name in _persons_in_the_answers(document):
+        _person_said(name)
+    return document
 
 
 def _counted_settings(
@@ -4658,12 +5059,16 @@ def _population_of(
     measurements: "list[str] | None" = None,
     decimal_commas: "list[str] | None" = None,
     stored_as: "tuple[str, ...]" = (),
+    join: "list[str] | None" = None,
 ) -> "tuple[tuple[str, ...], int, str, tuple[object, ...], int, int]":
     """The person columns, the population and the word it is counted in.
 
     The census is `profile.population_census_of`'s: a table read in
     groups of columns (lane SR, plan P4-D400) is counted one column at a
-    time, never every declared column at once.
+    time, never every declared column at once. ``join`` names the columns
+    the people are counted by where they are not every declared identifier
+    (lane EZ-a's second repair, Codex's item 4): the declarations that read
+    the cells stay ``declared``.
 
     Returns (person columns, how many, the unit word, the readings the
     census took, the rows that hold a value -- which the table floor
@@ -4720,6 +5125,7 @@ def _population_of(
         measurements if measurements is not None else [],
         decimal_commas if decimal_commas is not None else [],
         stored_as,
+        join,
     )
     unit = taxonomy.NOTE_UNIT_ROWS
     if people:
@@ -4877,6 +5283,146 @@ def _withheld_notice(names: "tuple[str, ...]") -> str:
         f"the twin writes made-up record numbers there. Answer the "
         f"questions file, and run the command again with --answers: any "
         f"answer gives the column the description that answer names."
+    )
+
+
+def _made_up_held_said(
+    names: "tuple[str, ...]",
+    as_record_numbers: "tuple[str, ...]" = (),
+    unmade: "tuple[str, ...]" = (),
+) -> str:
+    """Why the columns `profile.made_up_spellings_named` named are written apart from their values, in plain words (plan P4-D489).
+
+    One to three sentences for the screen and the questions file alike,
+    naming the columns (the table's own names, published in the
+    description like every other) and no value: those spelled one letter
+    or figure longer (method G10.5 step 8), those held as record numbers
+    because even such spellings would meet a value (``as_record_numbers``),
+    and those held as record numbers because no spellings of their width
+    can be made (``unmade``; Codex's review of lane ID-ROOM4, item 1).
+    Raises nothing.
+    """
+    longer = [name for name in names if name not in as_record_numbers]
+    held = [name for name in names if name in as_record_numbers and name not in unmade]
+    cannot = [name for name in names if name in unmade]
+    said: "list[str]" = []
+    if longer:
+        said += [
+            f"{_joined(longer, ' and ')} hold numbers too large or too small "
+            f"for this file format to hold, and synthtwin's own made-up "
+            f"spellings for such numbers would be written like some of their "
+            f"values, so whatever the answer the twin spells each of their "
+            f"cells one letter or figure longer than their longest value, "
+            f"keeping how many different values they hold, how often each "
+            f"repeats, their signs and their kind of number, and none of "
+            f"their values is published."
+        ]
+    if held:
+        said += [
+            f"{_joined(held, ' and ')} hold numbers too large or too small for "
+            f"this file format to hold, and even made-up spellings one letter "
+            f"or figure longer would be written like some of their values, so "
+            f"whatever the answer they are described as record numbers, none "
+            f"of their values is published, and the twin writes made-up "
+            f"record numbers there that no value of theirs equals."
+        ]
+    if cannot:
+        said += [
+            f"{_joined(cannot, ' and ')} hold numbers too large or too small for "
+            f"this file format to hold, and synthtwin cannot make up spellings "
+            f"of their width for such numbers, so whatever the answer they are "
+            f"described as record numbers, none of their values is published, "
+            f"and the twin writes made-up record numbers there that no value of "
+            f"theirs equals."
+        ]
+    text = ""
+    for sentence in said:
+        text = f"{text} {sentence}" if text else sentence
+    return text
+
+
+def _made_up_held_notice(
+    names: "tuple[str, ...]",
+    as_record_numbers: "tuple[str, ...]" = (),
+    unmade: "tuple[str, ...]" = (),
+) -> str:
+    """What the screen says of the columns written apart because their made-up spellings would be real values or cannot be made (plan P4-D489)."""
+    return (
+        "\nCOLUMNS WRITTEN APART FROM THEIR OWN VALUES WHATEVER THE ANSWER\n"
+        f"{_made_up_held_said(names, as_record_numbers, unmade)}"
+    )
+
+
+def _made_up_spellings_held(
+    read: object,
+    document: "dict[str, object]",
+    settings: object,
+    subjects: "list[str]",
+) -> "tuple[tuple[str, ...], tuple[str, ...]]":
+    """The columns whose made-up spellings name a value 1 to f-1 hold, by the writer's own function, and among them those whose spellings cannot be made (plan P4-D489).
+
+    Each text `profile.made_up_dry_runs` hands over is read as `synthtwin
+    generate` reads a description (`contract.checked_description`), and
+    the writer's own spelling function gives each place's spellings
+    (`generation.made_up_spellings`, the one source the writer calls:
+    RULING D1); `profile.made_up_spellings_named` reads them against the
+    real cells, counted in ``subjects``, and a block already spelled
+    wider (NF139) against every real value (Codex's review of lane
+    ID-ROOM4, item 5). A declared column whose reading with no
+    declaration no description could carry is named whatever (HIPAA
+    first: no dry run, so it is held). A DRY RUN THAT CANNOT MAKE THE
+    SPELLINGS is named too, and returned second: such a column is held
+    whole as record numbers (Codex's review, item 1; the orchestrator's
+    LANE ID-ROOM4 RULINGS 6 (4)), never accepted with no spellings read.
+    The generator is loaded here, in the profile command's own path, and
+    only where a block of the role is read: the validator's modules never
+    reach it. Guarantees: both in the table's column order, the second
+    inside the first. Raises TypeError where the settings are not
+    settings or the table not a table, which are internal invariants. No
+    I/O.
+    """
+    from synthtwin import contract, profile, reading, taxonomy
+
+    if not isinstance(settings, taxonomy.Settings):
+        raise TypeError("internal check: the settings are not settings")
+    if not isinstance(read, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    runs = profile.made_up_dry_runs(read, document, settings)
+    if not runs:
+        return (), ()
+    from synthtwin import generation
+
+    spelled: "dict[int, tuple[str, ...]]" = {}
+    wider: "list[int]" = []
+    anyway: "list[str]" = []
+    unmade: "list[str]" = []
+    for text, places in runs:
+        try:
+            typed = contract.checked_description(text)
+        except errors.ProfileError:
+            anyway += [f"{read.column_names[place]}" for place in places]
+            continue
+        for place in places:
+            # ...a keyed value column's key blocks and pool included (batch
+            # 4t's fix round, item 1): each is written by the same counters.
+            made, spelled_wider = generation.made_up_spellings_keyed(typed, place)
+            if made is None:
+                unmade += [f"{read.column_names[place]}"]
+                continue
+            spelled[place] = made
+            if (
+                spelled_wider
+                or typed.columns[place].detection_evidence == generation.SPELLED_WIDER_EVIDENCE
+            ):
+                wider += [place]
+    named = profile.made_up_spellings_named(read, spelled, subjects, settings, tuple(wider))
+    return (
+        tuple(
+            name
+            for name in read.column_names
+            if f"{name}" in named or f"{name}" in anyway or f"{name}" in unmade
+        ),
+        tuple(name for name in read.column_names if f"{name}" in unmade),
     )
 
 
@@ -5189,14 +5735,381 @@ def _population_settled(
     decimal_commas: "list[str] | None",
     stored_as: "tuple[str, ...]",
 ) -> "tuple[tuple[str, ...], int, str, tuple[object, ...], int, int]":
-    """`_population_of`, and on a switched run its count over the columns said to identify the person alone."""
+    """`_population_of`, its count over the columns said to identify the person alone.
+
+    On a switched run, as `_persons_settled` decides. ON AN UNSWITCHED RUN
+    TOO (lane EZ-a, plan P4-D479; the orchestrator's LANE EZ RULINGS 1
+    (2), R1: explicit only), where two or more declared record-number
+    columns repeat: `_people_said_settled`. `--person` feeds the switched
+    run's `persons_said` as well: one option, one meaning on both paths.
+
+    ONE DECISION TABLE ON BOTH PATHS (lane EZ-a's second repair; the
+    orchestrator's LANE EZ RULINGS 8 (2), Codex's items 4 and 5 of RULINGS
+    7): where every column said to name the person is different on every
+    row, `_said_counted` counts the table on the switched path as on the
+    other -- in rows, or by a repeating key that could name the patients
+    as well -- where `_persons_settled` saw only the keys that repeat and
+    counted forty clinicians as the people of 20,000 patients. Every recount
+    reads the cells under every declaration (``declared``) and counts the
+    people by the chosen columns alone (`_population_of`'s ``join``).
+    """
+    from synthtwin import chain
+
+    progress.stage("counting the people in the table")
     found = _population_of(table, settings, declared, codes, measurements, decimal_commas, stored_as)
     if chain_state is None:
-        return found
+        return _people_said_settled(found, table, settings, codes, measurements, decimal_commas, stored_as, declared)
+    session = _current()
+    if session is not None and session.persons_typed:
+        chain_state.persons_said = tuple(sorted(set(chain_state.persons_said) | set(session.persons_typed)))
+    said = _named_once(
+        [name for name in declared if name in chain_state.persons_said or name == chain_state.person_named]
+    )
+    if said and not [name for name in said if name in found[0]]:
+        counted, governing = _said_counted(
+            found, table, settings, declared, codes, measurements, decimal_commas, stored_as, said
+        )
+        chain_state.persons_said = tuple(sorted(set(chain_state.persons_said) | set(said)))
+        chain_state.subject_keys = ()
+        chain_state.subject_put = False
+        chain_state.rows_per_person = chain.ROWS_PERSON if governing else chain.ROWS_ONE
+        return counted
     persons = _persons_settled(chain_state, found[0])
     if persons == found[0]:
         return found
-    return _population_of(table, settings, list(persons), codes, measurements, decimal_commas, stored_as)
+    return _population_of(table, settings, declared, codes, measurements, decimal_commas, stored_as, list(persons))
+
+
+def _named_once(names: "list[str]") -> "list[str]":
+    """The names in their order, each once."""
+    found: "list[str]" = []
+    for name in names:
+        if name not in found:
+            found += [name]
+    return found
+
+
+def _said_counted(
+    found: "tuple[tuple[str, ...], int, str, tuple[object, ...], int, int]",
+    table: object,
+    settings: object,
+    declared: "list[str]",
+    codes: "list[str] | None",
+    measurements: "list[str] | None",
+    decimal_commas: "list[str] | None",
+    stored_as: "tuple[str, ...]",
+    said: "list[str]",
+) -> "tuple[tuple[tuple[str, ...], int, str, tuple[object, ...], int, int], list[str]]":
+    """The people of a run where ``said`` (declared columns, one or more) are said to name the person, and the repeating keys that govern beside them.
+
+    THE DECISION TABLE (lane EZ-a's second repair; the orchestrator's LANE
+    EZ RULINGS 8 (2)); ``found`` is the census of every declared identifier,
+    whose first item names those that repeat:
+
+    (a) the choice of the columns counted is apart from the declarations
+        that read the cells (`_population_of`'s ``join``);
+    (b) a said key that repeats counts its patients, and every other
+        repeating key is held and joins nobody;
+    (c) a said key that never repeats -- its values differ on every row --
+        counts the table in rows, the rows being its people, and the screen
+        says so in one line (`_rows_counted_said`);
+    (d) where (c) holds and another declared record-number column repeats
+        with as many different values as the people floor or more, so that
+        it could name the patients, the floor of 11 is counted by both: the
+        people are the rows joined by that column, the fewer holders of
+        each group, as the held keys already are;
+    (e) a repeating key with fewer different values than the people floor
+        cannot name the patients and never governs: forty clinician numbers
+        beside a patient key of 20,000 values leave the table counted in
+        its 20,000 rows, not refused as forty people.
+
+    Measured before (d) at 20,000 rows over 1,000 patients: `--person
+    visit_id --identifier subject_id`, a visit key different on every row
+    said to name the people, published levels 5 and 8 patients hold and
+    said nothing; both keys named `--identifier` withheld them. Returns the
+    census (``found`` itself where saying changes nothing) and the keys of
+    (d). Reads each repeating key once (`profile.people_of_each_key`).
+    """
+    repeating = found[0]
+    others = [name for name in repeating if name not in said]
+    if [name for name in said if name in repeating]:
+        if not others:
+            return found, []
+        return (
+            _population_of(table, settings, declared, codes, measurements, decimal_commas, stored_as, list(said)),
+            [],
+        )
+    if not others:
+        return found, []
+    counts = _people_of_each_key(table, settings, declared, others, codes, measurements, decimal_commas, stored_as)
+    governing = [others[place] for place in range(len(others)) if counts[place] >= parsing.TABLE_PEOPLE_FLOOR]
+    # Every repeating key was counted here, so none governing is rule (e)'s
+    # shape: none has as many different values as the people floor.
+    _rows_counted_said(said, others, governing, too_few=not governing)
+    return (
+        _population_of(
+            table, settings, declared, codes, measurements, decimal_commas, stored_as, list(said) + governing
+        ),
+        governing,
+    )
+
+
+def _people_of_each_key(
+    table: object,
+    settings: object,
+    declared: "list[str]",
+    keys: "list[str]",
+    codes: "list[str] | None",
+    measurements: "list[str] | None",
+    decimal_commas: "list[str] | None",
+    stored_as: "tuple[str, ...]",
+) -> "tuple[int, ...]":
+    """`profile.people_of_each_key`: each key's own people, in one walk (Codex's item 6). Raises TypeError for a table or settings that are not one, internal invariants."""
+    from synthtwin import profile, reading, taxonomy
+
+    if not isinstance(settings, taxonomy.Settings):
+        raise TypeError("internal check: the settings are not settings")
+    if not isinstance(table, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    return profile.people_of_each_key(
+        table, settings, declared, keys,
+        codes if codes is not None else [],
+        measurements if measurements is not None else [],
+        decimal_commas if decimal_commas is not None else [],
+        stored_as,
+    )
+
+
+def _rows_counted_said(
+    said: "list[str]", others: "list[str]", governing: "list[str]", too_few: bool = False
+) -> None:
+    """The one line where every column said to name the person differs on every row and another key repeats (LANE EZ RULINGS 8 (2) (c), (3)).
+
+    In the words the verify of lane EZ-a suggested: the said column counted
+    each row as one person, which column repeats, and the command to run if
+    that column names the patients; where the repeating column governs too
+    (rule (d)), that the smallest groups were counted in its people as well.
+    ``too_few`` is rule (e)'s shape, every repeating key counted and none
+    with as many different values as the people floor (the verify 2's
+    MINOR 3, LANE EZ RULINGS 9 (1)): such a key cannot name the patients,
+    so the line says that and offers no command, and the README's own line
+    is never answered with a hint that the wrong column was named.
+    Shown once a run; a caution, never the verdict.
+    """
+    session = _current()
+    typed = list(session.persons_typed) if session is not None else []
+    names = _joined([_shown(one) for one in said], " and ")
+    one = len(said) == 1
+    instead_of = [f"--person {_shown(name)}" for name in said if name in typed]
+    instead = f" in place of {_joined(instead_of, ' ')}" if instead_of else ""
+    opening = (
+        f"You said {names} {'names' if one else 'name'} the people. "
+        f"{'Its' if one else 'Their'} values are different on every row, so "
+    )
+    if governing:
+        named = _joined([_shown(name) for name in governing], " and ")
+        text = (
+            f"{opening}{'it counts' if one else 'they count'} each row as one person. {named} "
+            f"{'repeats' if len(governing) == 1 else 'repeat'} with as many different values as "
+            f"{parsing.TABLE_PEOPLE_FLOOR:,} people or more, so every count was also counted in "
+            f"{'its' if len(governing) == 1 else 'their'} people, and the fewer holders govern: if "
+            f"{_shown(governing[0]) if len(governing) == 1 else 'one of them'} names the patients, "
+            f"run the command again with --person "
+            f"{_shown(governing[0]) if len(governing) == 1 else 'and that column'}{instead}."
+        )
+    elif too_few:
+        single = len(others) == 1
+        text = (
+            f"{_joined([_shown(name) for name in others], ' and ')} {'repeats' if single else 'repeat'} "
+            f"with fewer than {parsing.TABLE_PEOPLE_FLOOR:,} different values, so "
+            f"{'it' if single else 'they'} cannot name the patients: each row was counted as one person."
+        )
+    elif len(others) == 1:
+        text = (
+            f"{opening}each row was counted as one person. {_shown(others[0])} repeats: if it "
+            f"names the patients, run the command again with --person {_shown(others[0])}{instead}."
+        )
+    else:
+        text = (
+            f"{opening}each row was counted as one person. "
+            f"{_joined([_shown(name) for name in others], ' and ')} repeat: if one of them names the "
+            f"patients, run the command again with --person and that column{instead}."
+        )
+    if session is not None:
+        if text in [caution.words for caution in session.warnings]:
+            return
+        session.rows_said = text
+    _warn(text, caution=results.CAUTION_COUNTED_IN_ROWS)
+
+
+def _rows_counted_beside(asked: "list[str]", person_columns: "tuple[str, ...]") -> None:
+    """The same line where the column put the person question repeats beside a said column that counted the table in rows (LANE EZ RULINGS 8 (3)).
+
+    The base's notice that no column names people is not shown where a
+    column was said (`_persons_given`); this line takes its place there.
+    """
+    if not asked or person_columns:
+        return
+    said = [name for name in _persons_said_now() if name not in asked]
+    if said:
+        _rows_counted_said(said, list(asked), [])
+
+
+def _people_said_settled(
+    found: "tuple[tuple[str, ...], int, str, tuple[object, ...], int, int]",
+    table: object,
+    settings: object,
+    codes: "list[str] | None",
+    measurements: "list[str] | None",
+    decimal_commas: "list[str] | None",
+    stored_as: "tuple[str, ...]",
+    declared: "list[str] | None" = None,
+) -> "tuple[tuple[str, ...], int, str, tuple[object, ...], int, int]":
+    """An unswitched run's people, counted by the columns said to name them (lane EZ-a, plan P4-D479).
+
+    THE WALKTHROUGH'S ITEM 2: `--identifier subject_id --identifier
+    clinician_id` refused a table of 1,000 patients as one person, because
+    several repeating declared identifiers are a UNION
+    (`taxonomy.repeating_identifiers`), and a clinician number shared by
+    patients joins them all. Where some declared column is SAID to name the
+    person -- `--person`, the person question's `identifier` ("the people
+    the rows are about"), here or in an earlier round
+    (`_persons_in_the_answers`), or the subject question below -- the
+    people are counted as `_said_counted`'s decision table says
+    (LANE EZ RULINGS 8 (2)): `settings.person_columns` names the columns
+    counted, and every other key stays among the declared identifiers,
+    held, joining nobody. Where nothing says and two or more repeat:
+
+    - somebody is at the keyboard: the subject question is put
+      (`_subject_question`), Enter keeping the union as before; and from
+      inside a later round's description (`_Session.subject_reader`) it is
+      put at the keyboard as in the first round (LANE EZ RULINGS 4 (3));
+    - nobody is, and the union reads the table as fewer people than the
+      floor where one of those columns alone would not: the run is refused
+      in words that name the cause and offer each column as a choice
+      (`errors.people_counted_together`), never as "1 people"; a table
+      small by every count keeps the floor's own message. The question
+      whether one column alone would reach the floor is asked of every key
+      in one walk (`profile.people_of_each_key`; Codex's item 6: a census
+      of each key alone read k (k + 1) columns).
+
+    THE STATED LIMITS (P4-D479): a person who names an encounter key with
+    `--person` while no other declared key could name the patients counts
+    encounters as people; a table about two kinds of person (a mother and a
+    baby) is counted in the kind said, and both said means their union. The
+    census of `taxonomy` is not touched: the columns counted are handed to
+    it. Guarantees: returns `_population_of`'s six; raises a ProfileError
+    for the refusal above; reads the table only through `_population_of`
+    and `profile.people_of_each_key`.
+    """
+    session = _current()
+    if session is not None:
+        session.persons_counted = ()
+    named = _named_once(list(declared or []))
+    repeating = found[0]
+    said = [name for name in named if name in _persons_said_now()]
+    if not said and len(repeating) < 2:
+        return found
+    if not said:
+        # ...put once for one set of keys: Enter there keeps the union, and
+        # the census after the first round's answers does not ask it again.
+        reader = session.subject_reader if session is not None else None
+        if (_there_is_somebody_to_ask() or reader is not None) and (
+            session is None or session.subject_put != repeating
+        ):
+            if session is not None:
+                session.subject_put = repeating
+            chosen = _subject_question_put(repeating, reader)
+            if chosen is None:
+                _at(results.STEP_QUESTIONS)
+                if session is not None and reader is not None:
+                    session.ended_at_subject = True
+                raise errors.ProfileError(errors.the_questions_were_not_finished())
+            if chosen:
+                _person_said(chosen)
+                said = [chosen]
+    if said:
+        counted, _governing = _said_counted(
+            found, table, settings, named, codes, measurements, decimal_commas, stored_as, said
+        )
+        if counted is not found and session is not None:
+            session.persons_counted = tuple(said)
+        return counted
+    rows, merged = found[4], found[5]
+    if (
+        session is not None
+        and session.floor_refuses
+        and rows >= parsing.TABLE_ROW_FLOOR
+        and merged < parsing.TABLE_PEOPLE_FLOOR
+    ):
+        alone = _people_of_each_key(
+            table, settings, named, list(repeating), codes, measurements, decimal_commas, stored_as
+        )
+        if [count for count in alone if count >= parsing.TABLE_PEOPLE_FLOOR]:
+            raise errors.ProfileError(errors.people_counted_together(rows, merged, list(repeating)))
+    return found
+
+
+def _subject_question_put(
+    repeating: "tuple[str, ...]",
+    reader: "tuple[list[tuple[str, str]] | str | None, list[str | None] | str | None] | None",
+) -> "str | None":
+    """`_subject_question`, put with ``reader``'s screen and reader where a later round's description holds its own back.
+
+    Lane EZ-a's repair (the orchestrator's LANE EZ RULINGS 4 (3) (a)): the
+    real screen and reader stand in for that one question only, and the
+    description's held screen and its 'nobody asked' come back after it,
+    however it ends. ``reader`` None: the run's own, as in the first round.
+    """
+    session = _current()
+    if reader is None or session is None:
+        return _subject_question(repeating)
+    held = (session.screen, session.ask)
+    session.screen, session.ask = reader
+    try:
+        return _subject_question(repeating)
+    finally:
+        session.screen, session.ask = held
+
+
+def _subject_question(repeating: "tuple[str, ...]") -> "str | None":
+    """Ask at the keyboard which repeating column names the people the rows are about (lane EZ-a, plan P4-D479).
+
+    The columns numbered from 1; a number or a column's name is the answer,
+    Enter keeps counting them together as before (the empty text, as
+    `tests/keyboard.py`'s reader gives, too), and the end of input is None.
+    Every read goes through `_read_one_answer`. No value of the table is
+    shown: the columns' names, which the person typed.
+    """
+    lines = ""
+    keys: "list[tuple[str, str]]" = []
+    place = 0
+    for name in repeating:
+        place = place + 1
+        keys += [(f"{place}", name)]
+        lines = lines + f"\n      [{place}] {_shown(name)}"
+    _say(
+        f"\n{'=' * 66}\nWHO ARE THE ROWS ABOUT?\n{'=' * 66}\n"
+        f"These columns hold record numbers, and the values of each repeat on "
+        f"several rows. Which of these columns names the patients the rows are "
+        f"about? The people are then counted by it alone, and the other "
+        f"columns are held as record numbers and join nobody.{lines}\n"
+        f"    Press Enter to count rows sharing a value of any of them as one "
+        f"person, as before."
+    )
+    session = _current()
+    if session is not None:
+        session.offered_now = tuple(keys)
+    try:
+        answer = _read_one_answer(_LEFT_OPEN)
+    finally:
+        if session is not None:
+            session.offered_now = ()
+    if answer is None:
+        return None
+    if answer in repeating:
+        return answer
+    return ""
 
 
 def _chained_description(
@@ -5432,19 +6345,21 @@ def _dates_not_carried(document: "dict[str, object]") -> "tuple[str, ...]":
         if not isinstance(block, dict) or "role" not in block or block["role"] != "identifier":
             continue
         years = block["made_up_years"] if "made_up_years" in block else None
-        if not isinstance(years, list):
+        grain = block["time_grain"] if "time_grain" in block else None
+        # ...a block with a grain publishing none read too: its twin draws
+        # from the room alone (lane ID-ROOM3, plan P4-D488).
+        if not isinstance(years, list) and not isinstance(grain, dict):
             continue
         runs: "list[tuple[int, int]]" = []
-        for run in years:
+        for run in years if isinstance(years, list) else []:
             if isinstance(run, list) and len(run) == 2 and isinstance(run[0], int) and isinstance(run[1], int):
                 runs += [(run[0], run[1])]
         forms = block["layout_forms"] if "layout_forms" in block else None
-        grain = block["time_grain"] if "time_grain" in block else None
         kind = grain["kind"] if isinstance(grain, dict) and "kind" in grain else None
         member = grain["reading"] if isinstance(grain, dict) and "reading" in grain else None
         if generation.dates_written_as_record_numbers(
             [f"{layout}" for layout in forms] if isinstance(forms, dict) else [],
-            tuple(runs),
+            tuple(runs) if isinstance(years, list) else None,
             kind if isinstance(kind, str) else None,
             member if isinstance(member, str) else "",
         ):
@@ -5771,6 +6686,7 @@ def _run_profile(
     chain: "ChainRun | None" = None,
     small_tables_refused: bool = True,
     replace: bool = False,
+    persons_given: "list[str] | None" = None,
 ) -> str:
     """Do the work of `synthtwin profile`; return the exit code (`_run_profile_body`).
 
@@ -5778,9 +6694,71 @@ def _run_profile(
     the installation's data folder is opened and locked BEFORE the table
     is read (contract 4.6b.4: a ledger without its key is refused before
     anything is read), and the lock is released however the run ends.
+
+    LANE EZ-a (plan P4-D479): `--person` (``persons_given``) declares its
+    columns held, as `--identifier` does, and says they name the person
+    (`_people_said_settled`); at a terminal a first line comes at once,
+    before the table is read, and a line for each stage after it
+    (`progress`); and where somebody is at the keyboard, every question the
+    written questions file holds open is put after the files are written
+    (`_profile_rounds`).
     """
+    persons: "list[str]" = []
+    for one in persons_given or []:
+        if one not in persons:
+            persons += [one]
+    forced_identifiers = list(forced_identifiers) + [one for one in persons if one not in forced_identifiers]
+    session = _current()
+    if session is not None:
+        session.persons_said = list(persons)
+        session.persons_typed = list(persons)
+        session.floor_refuses = small_tables_refused
+        session.questions_beside = (table, out_dir)
+        session.rounds_follow = chain is None and _there_is_somebody_to_ask()
+    if _progress_at_a_terminal():
+        _say(_first_line("Reading", table))
+    _counting_switched_on("describing")
+    try:
+        return _run_profile_switched(
+            table, out_dir, smallest_group, floor_chosen, forced_identifiers, forced_codes,
+            forced_measurements, forced_decimal_commas, answers_path, kept_values, missing_values,
+            first_row, day_first, sheet, metadata_rows_given, delimiter_given, date_counts_given,
+            forced_twelve_hours, centuries_given, date_columns_given, first_row_typed, chain,
+            small_tables_refused, replace,
+        )
+    finally:
+        progress.switch_off()
+
+
+def _run_profile_switched(
+    table: str,
+    out_dir: "str | None",
+    smallest_group: int,
+    floor_chosen: bool,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
+    answers_path: "str | None",
+    kept_values: list[str],
+    missing_values: list[str],
+    first_row: str,
+    day_first: bool,
+    sheet: str,
+    metadata_rows_given: str,
+    delimiter_given: str,
+    date_counts_given: "list[list[str]] | None",
+    forced_twelve_hours: "list[str] | None",
+    centuries_given: "list[str] | None",
+    date_columns_given: "list[str] | None",
+    first_row_typed: bool,
+    chain: "ChainRun | None",
+    small_tables_refused: bool,
+    replace: bool,
+) -> str:
+    """`_run_profile`'s two roads: the shipped one with its rounds of questions, and the chain's switch's."""
     if chain is None:
-        return _run_profile_body(
+        return _profile_rounds(
             table=table,
             out_dir=out_dir,
             smallest_group=smallest_group,
@@ -5847,6 +6825,845 @@ def _run_profile(
         )
     finally:
         installation.release(opened)
+
+
+# -- every question at the keyboard (lane EZ-a, plan P4-D479) ----------------
+#
+# THE WALKTHROUGH'S ITEM 4: the Safe Harbor question, the checklist and the
+# questions about the file were put only in the questions file, and the one
+# way to answer them was to hand-edit a nested JSON file of some twenty
+# kilobytes. So, where somebody is at the keyboard, every entry the written
+# questions file holds open and no prompt of this run put is put after the
+# files are written, one renderer for every kind of entry, and the answers
+# go into that file and the table is described again in this process
+# exactly as `--answers` describes it: the keyboard IS the file.
+
+# The rounds of answers a run puts at most: the first, and as many more as
+# the zoo's own rounds allow (`tests/health_zoo.py`'s `ANSWER_ROUNDS_AT_MOST`).
+_ANSWER_ROUNDS_AT_MOST = 6
+
+
+def _questions_beside(table: str, out_dir: "str | None") -> str:
+    """Where this run writes its questions file, as typed; empty where the names cannot be settled yet.
+
+    Asked when an answers file is read, never before: a twin's folder is
+    made only once its questions are answered (lane TT, plan P4-D460).
+    """
+    from synthtwin import profile
+
+    try:
+        return f"{profile.questions_output_path(pathlib.Path(table), out_dir)}"
+    except (PathValidationError, errors.ProfileError, OSError, ValueError):
+        return ""
+
+
+def _progress_at_a_terminal(stream: int = 1) -> bool:
+    """Whether a line written to ``stream`` is shown: the run's screen is the terminal, and that stream is a terminal.
+
+    Lane EZ-a, plan P4-D479 (the walkthrough's item 7). The first line is
+    asked of the output stream (1), which it is written to, as
+    `_a_person_at_the_terminal` asks it; THE COUNTERS ARE ASKED OF THE ERROR
+    STREAM (2), WHICH THEY ARE WRITTEN TO (lane EZ-a's second repair;
+    Codex's item 10: with `2>run.log` the output stream stayed a terminal,
+    the counters went on, and the log filled with lines written over in
+    place). A piped, captured or library run shows nothing new. Raises
+    nothing.
+    """
+    session = _current()
+    if session is None or session.screen != TERMINAL:
+        return False
+    try:
+        return bool(os.isatty(stream))
+    except (OSError, ValueError):
+        return False
+
+
+def _counting_switched_on(what: str) -> None:
+    """Switch the counters on (`progress.switch_on`) only where the error stream they are written to is a terminal (Codex's item 10)."""
+    if _progress_at_a_terminal(2):
+        progress.switch_on(what)
+
+
+def _first_line(doing: str, path: str) -> str:
+    """The line a terminal shows at once, before a long run reads anything (lane EZ-a, plan P4-D479)."""
+    return (
+        f"{doing} {_shown(pathlib.Path(path).name)}: on a large table this takes a "
+        f"long time; do not close this window."
+    )
+
+
+def _entry_key(record: "results.Asked") -> "tuple[str, str, str, str]":
+    """What makes an entry of the questions file the same entry in a later round: its section, subject, role and reason."""
+    return (record.section, record.subject, record.role, record.reason)
+
+
+def _entry_keys(record: "results.Asked") -> "tuple[tuple[str, str], ...]":
+    """Each answer an entry offers, with the key the screen shows beside it.
+
+    Today's key where the answer has one (`_KEY_OF`, `measurement` typed
+    `m` beside `keep`), else the answer's own word; a key two answers would
+    share is the second one's word. The riders that number every question
+    1 to n (the walkthrough's items 8 to 10) are lane EZ-b's.
+    """
+    offered = [offer.answer for offer in record.offers]
+    both = asking.ANSWER_KEEP in offered and asking.ANSWER_MEASUREMENT in offered
+    found: "list[tuple[str, str]]" = []
+    used: "list[str]" = []
+    for answer in offered:
+        key = answer
+        if answer == asking.ANSWER_MEASUREMENT and both:
+            key = "m"
+        elif answer in _KEY_OF:
+            key = _KEY_OF[answer]
+        if key in used:
+            key = answer
+        used += [key]
+        found += [(key, answer)]
+    return tuple(found)
+
+
+def _enter_said(record: "results.Asked") -> str:
+    """What Enter does at one entry, from the reading it stands on unanswered (its `read_as_now`)."""
+    now = record.read_as_now
+    if now == asking.ANSWER_IDENTIFIER:
+        return (
+            "Press Enter to leave it open: the column stays held as record "
+            "numbers, and none of its values is published."
+        )
+    if now == asking.SAFE_HARBOR_TOP_CODED:
+        return (
+            "Press Enter to leave it open: the Safe Harbor top-code stays, so "
+            "no value past it is published or written to the twin."
+        )
+    for offer in record.offers:
+        if offer.answer == now:
+            return f"Press Enter to leave it open: it stays read as {_one_stop(offer.means)}"
+    return "Press Enter to leave it open: it keeps the reading it has now."
+
+
+def _the_entry(record: "results.Asked", number: int, place: int, total: int) -> str:
+    """One entry of the questions file, as the person sees it at the keyboard (lane EZ-a, plan P4-D479).
+
+    THE ENTRY'S OWN WORDS AND NO CELL: what it is about, what synthtwin
+    saw (a count, a width or a separator), each answer with what the
+    description then publishes, and what Enter leaves standing.
+
+    ITS NUMBER IS THE FILE'S (lane EZ-a's repair; the orchestrator's LANE EZ
+    RULINGS 4 (2) (a)): ``number`` is the entry's place among every
+    question the questions file holds open (`contract.question_number`),
+    the number a plain-text answers file names it by; its place in this
+    round follows in brackets. 0 where the file could not be read, and
+    then no number is printed that a line could name.
+    """
+    about = f"'{_shown(record.subject)}'" if record.column else _shown(record.subject)
+    lines = ""
+    keys = _entry_keys(record)
+    for place_offered in range(len(record.offers)):
+        offer = record.offers[place_offered]
+        lines = lines + (
+            f"\n      [{_shown(keys[place_offered][0])}] {offer.means}\n"
+            f"          then the description publishes {offer.publishes}"
+        )
+    named = f"Question {number} ({place} of {total} in this round)" if number else f"({place} of {total} in this round)"
+    return (
+        f"\n  {named}: {about}\n"
+        f"    what synthtwin saw: {_one_stop(record.saw)}\n"
+        f"    Which of these fits it?{lines}\n"
+        f"    {_enter_said(record)}"
+    )
+
+
+def _numbers_in_the_file(records: "list[results.Asked]") -> "list[int]":
+    """Each record's number in the questions file this run wrote last (`contract.question_number`); 0 where it cannot be read.
+
+    Read from the file on disk at this moment, which is the file a
+    plain-text answers file is matched against until the table is
+    described again (lane EZ-a's repair, LANE EZ RULINGS 4 (2) (a)).
+    """
+    from synthtwin import contract
+
+    where = _questions_written()
+    if where is None:
+        return [0 for _record in records]
+    try:
+        document = contract.load_answers(f"{where}")
+    except (PathValidationError, errors.ProfileError):
+        return [0 for _record in records]
+    numbers: "list[int]" = []
+    for record in records:
+        entry = _entry_of(document, record)
+        numbers += [0 if entry is None else contract.question_number(document, entry)]
+    return numbers
+
+
+def _put_the_entries(
+    entries: "list[results.Asked]",
+) -> "tuple[list[tuple[results.Asked, str]], bool]":
+    """Put each entry at the keyboard; return each one read with its answer, and whether the person ended input.
+
+    Every read goes through `_read_one_answer`, the entry's answers on the
+    session while it is on screen. Enter (the reader's own word, or the
+    empty text `tests/keyboard.py`'s reader gives) leaves the entry open,
+    and so does a word the entry does not offer that a stand-in for the
+    person hands back. Each entry read is recorded as put at a prompt.
+    """
+    session = _current()
+    total = len(entries)
+    _say(
+        f"\n{'=' * 66}\n"
+        f"{total} MORE QUESTION(S), FROM THE QUESTIONS FILE\n"
+        f"{'=' * 66}\n"
+        f"The files above are written. These questions are in the questions "
+        f"file too: answer them here, and synthtwin describes the table again "
+        f"with your answers. Press Enter to leave one open; what stands until "
+        f"it is answered is said on its last line. In a text file of answers, "
+        f"write a column's name exactly as shown; the numbers are labels. "
+        f"{_STOP_KEYS_SAID}: the files above stay as they are."
+    )
+    given: "list[tuple[results.Asked, str]]" = []
+    numbers = _numbers_in_the_file(entries)
+    place = 0
+    for record in entries:
+        place = place + 1
+        _say(_the_entry(record, numbers[place - 1], place, total))
+        if session is not None:
+            session.offered_now = _entry_keys(record)
+        try:
+            answer = _read_one_answer(_LEFT_OPEN)
+        finally:
+            if session is not None:
+                session.offered_now = ()
+        if answer is None:
+            return given, True
+        if answer not in [offer.answer for offer in record.offers]:
+            answer = _LEFT_OPEN
+        given += [(record, answer)]
+        if session is not None:
+            put = (record.column, record.role, record.reason)
+            if put not in session.put:
+                session.put += [put]
+            session.prompted = session.prompted + 1
+    return given, False
+
+
+def _entry_of(document: "dict[str, object]", record: "results.Asked") -> "dict[object, object] | None":
+    """The entry of a questions file's document a record stands for, by its section and order; None where it is not there."""
+    if record.section == results.SECTION_CHECKLIST:
+        section = document["checklist"] if "checklist" in document else None
+        entries = section["columns"] if isinstance(section, dict) and "columns" in section else None
+    else:
+        entries = document[record.section] if record.section in document else None
+    if not isinstance(entries, list) or not 1 <= record.order <= len(entries):
+        return None
+    entry = entries[record.order - 1]
+    if not isinstance(entry, dict) or "column" not in entry or entry["column"] != record.subject:
+        return None
+    return entry
+
+
+def _answers_written_into(
+    questions: pathlib.Path,
+    answered: "list[tuple[results.Asked, str]]",
+    guards: "list[tuple[pathlib.Path, str]]",
+) -> str:
+    """Write the keyboard's answers beside 'your_answer' in the questions file this run wrote (lane EZ-a, plan P4-D479).
+
+    Returns the file's text before them, which `_questions_written_back`
+    writes back where the table is not described with them (lane EZ-a's
+    repair): the file was written by `canonical.serialize`, so the document
+    read and serialized again is its text byte for byte.
+    """
+    from synthtwin import canonical, contract, writing
+
+    document = contract.load_answers(f"{questions}")
+    before = canonical.serialize(document)
+    for record, answer in answered:
+        entry = _entry_of(document, record)
+        if entry is not None:
+            entry["your_answer"] = answer
+    writing.write_one_file(
+        questions, canonical.serialize(document), sources=guards, state=writing.DiskState()
+    )
+    return before
+
+
+def _questions_written_back(
+    questions: pathlib.Path, text: str, guards: "list[tuple[pathlib.Path, str]]"
+) -> None:
+    """Write a questions file's earlier text back, where a later round's description did not finish (lane EZ-a's repair).
+
+    Raises what `writing.write_one_file` raises, whose words name what is
+    on disk.
+    """
+    from synthtwin import writing
+
+    writing.write_one_file(questions, text, sources=guards, state=writing.DiskState())
+
+
+def _ended_said() -> None:
+    """What a later round says where the person ended input: the files stand (R7); the questions still open follow (`_still_open_said`)."""
+    _say("\nYou ended the questions here. The files written above stand as they are.")
+
+
+def _open_records() -> "list[results.Asked]":
+    """The entries of this run's questions file that stand open: the questions about the file and the asked ones.
+
+    A checklist entry left blank keeps the reading it names; one held under
+    `identifier` is held by the count in people, which no answer gives back
+    (plan P4-D406), so neither is said to be open. NOR IS A QUESTION WHOSE
+    ANSWER STANDS (lane EZ-a's repair; LANE EZ RULINGS 4 (4)): answered at
+    the first prompt other than with Enter, or in a later round described
+    again, and put again in the file under the reading that answer gave
+    (plan P4-D401) (`_Session.answers_standing`).
+    """
+    session = _current()
+    if session is None:
+        return []
+    return [
+        one
+        for one in session.questions
+        if one.offers
+        and one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)
+        and (one.column, one.role, one.reason) not in session.answers_standing
+    ]
+
+
+def _questions_written() -> "pathlib.Path | None":
+    """The questions file this run wrote, or None."""
+    session = _current()
+    if session is None:
+        return None
+    found = [one.path for one in session.files if one.kind == results.FILE_QUESTIONS]
+    return pathlib.Path(found[len(found) - 1]) if found else None
+
+
+def _still_open_said() -> None:
+    """Say, before the next command, which questions stay open and what stands until they are answered (lane EZ-a, plan P4-D479).
+
+    THE WALKTHROUGH'S ITEM 1, ITS SCREEN PART: 'Next, build the twin' was
+    printed while the Safe Harbor question held weight and heart rate at
+    90. Said where somebody is at the keyboard, from the entries' own
+    readings; nothing where none stays open.
+    """
+    session = _current()
+    if session is None or session.ask is None or session.twin_step:
+        return
+    still = _open_records()
+    if not still:
+        return
+    capped = [one.subject for one in still if one.read_as_now == asking.SAFE_HARBOR_TOP_CODED]
+    held = [
+        one.subject for one in still if one.read_as_now == asking.ANSWER_IDENTIFIER and one.subject not in capped
+    ]
+    said = ""
+    if capped:
+        said = (
+            f" Until you answer, values past the Safe Harbor top-code in "
+            f"{_joined([_shown(one) for one in capped], ' and ')} are written as the "
+            f"top-code (an age above 89 as 90), in the description and in the twin, "
+            f"so the twin is wrong for those columns if they hold no ages."
+        )
+    if held:
+        said = said + (
+            f" {_joined([_shown(one) for one in held], ' and ')} "
+            f"{'stays' if len(held) == 1 else 'stay'} held as "
+            f"record numbers: none of their values is published, and the twin "
+            f"makes them up."
+        )
+    count = len(still)
+    where = _questions_written()
+    named = f" in {_shown(where)}" if where is not None else ""
+    numbers = _numbers_in_the_file(still)
+    listed = [
+        f"question {numbers[place]}, {_shown(still[place].subject)}"
+        for place in range(len(still))
+        if numbers[place]
+    ]
+    numbered = f" ({_joined(listed, '; ')})" if listed else ""
+    _say(
+        f"\n{count} question{'' if count == 1 else 's'} {'is' if count == 1 else 'are'} "
+        f"still open{named}{numbered}.{said}{_how_to_answer_said(where, count)}"
+    )
+
+
+def _profile_again(questions: str) -> str:
+    """The person's own `profile` command line with `--answers` naming ``questions``, typed as a shell reads it; empty where none is known.
+
+    Lane EZ-a's repair (the orchestrator's LANE EZ RULINGS 4 (4)): the
+    closing lines said 'run the same command again', and the same command
+    is refused at once once its files exist (the one overwrite rule, plan
+    P4-D460: measured, exit 1 in 0.3 CPU seconds). `--answers` is the round
+    that rule lets write over the files the round before wrote, and it
+    hands back the questions still open, so this line runs. Every option
+    the person typed is kept, as the twin's commands keep them
+    (`_twin_again`); the seed and `--replace` are no options of this
+    command's round.
+    """
+    session = _current()
+    typed = session.typed if session is not None else None
+    if session is None or typed is None or typed.given is None:
+        return ""
+    # ...less every typed declaration an answer of the file replaced, which
+    # the file's newer answer would otherwise lose to (lane EZ-a's second
+    # repair; Codex's item 1).
+    typed = _options_left(typed, session.typed_replaced)
+    words = _twin_again(f"{typed.given}", dataclasses.replace(typed, answers=questions, seed="0", replace=False))
+    words[1] = _PROFILE
+    return _typed_words(words)
+
+
+def _how_to_answer_said(where: "pathlib.Path | None", count: int = 2) -> str:
+    """The sentence that tells a person at the keyboard how to answer the questions still open: a command that runs (LANE EZ RULINGS 4 (4)).
+
+    'it' for one question still open, 'them' for several (LANE EZ RULINGS 8
+    (5), the verify's MINOR 6).
+    """
+    them = "it" if count == 1 else "them"
+    line = _profile_again(f"{where}") if where is not None else ""
+    if not line:
+        return (
+            f" To answer {them}, run your command again with --answers and the "
+            f"questions file, or write lines 'column = answer' in a text file "
+            f"and name it after --answers."
+        )
+    return (
+        f" To answer {them}, run this at the keyboard:\n  {line}{_quoting_said(line)}\n"
+        f"or write lines 'column = answer' in a text file and name that file "
+        f"after --answers in place of the questions file."
+    )
+
+
+def _closing(description: pathlib.Path) -> None:
+    """The lines that end a profile run that wrote a description: what stays open, then the next command.
+
+    Lane EZ-a, plan P4-D479. Where more rounds of questions may follow the
+    files (`_Session.rounds_follow`), they are held back for `_profile_rounds`
+    to show once, after the last round.
+    """
+    lines = _teaching_generate(description)
+    session = _current()
+    if session is not None and session.rounds_follow:
+        session.closing = lines
+        return
+    _still_open_said()
+    _teach(lines)
+
+
+def _records_put(put: "set[tuple[str, str, str, str]]") -> None:
+    """The run's records of its questions, each entry put at a prompt in any round said put, and the tally again."""
+    session = _current()
+    if session is None or not session.questions:
+        return
+    records = tuple(
+        dataclasses.replace(one, put=True) if _entry_key(one) in put and not one.put else one
+        for one in session.questions
+    )
+    columns = session.tally[0][1] if session.tally else 0
+    _questions_put_in_the_result(records, columns)
+
+
+# WHAT A REFUSAL ENDS WITH WHERE IT WROTE NOTHING, and what a refused later
+# round says in its place: the files the description before it wrote stand
+# (lane EZ-a's repair; the orchestrator's LANE EZ RULINGS 4 (3) (b): a later
+# round refused with 'Nothing was written.' while the first round's three
+# files stood on disk). Longest first, so a sentence is never cut in two;
+# each a literal, as the offline audit reads a method's arguments.
+
+
+def _after_the_files(text: str) -> str:
+    """A refusal's words as a later round shows them: 'Nothing new was written.' where they said nothing was written.
+
+    Raises TypeError for words that are not text (the offline audit's type
+    gate, as `_ends_input`).
+    """
+    if not isinstance(text, str):
+        raise TypeError("a refusal's words must be text")
+    return (
+        text.replace("Nothing was written and your table was not changed.", "Nothing new was written.")
+        .replace("Nothing was written and nothing was changed.", "Nothing new was written.")
+        .replace("Nothing was read and nothing was written.", "Nothing new was written.")
+        .replace("Nothing has been written.", "Nothing new was written.")
+        .replace("Nothing was written.", "Nothing new was written.")
+    )
+
+
+def _described_again(
+    captured: "list[tuple[str, str]]",
+    verdict: str,
+    shown_before: "list[str]",
+    questions: "pathlib.Path | None" = None,
+) -> None:
+    """Show what a run described again with the keyboard's answers said that the person needs: its closing lines.
+
+    The long summary is read once a command: what the run printed from its
+    repeat line, or its "Written:" list, onward is shown, and each warning
+    the runs before it did not already show (``shown_before``); a refusal
+    is shown whole, in words that match the files on disk (`_after_the_files`),
+    and then that the files written before it stand, the questions file
+    without the answers given since (``questions``, written back as it was:
+    `_profile_rounds`), and the command that answers again.
+    """
+    start = len(captured)
+    if verdict == results.NO_MISS:
+        for place in range(len(captured)):
+            stream, text = captured[place]
+            if stream == _OUT and ("TO REPEAT THIS RUN" in text or text[:9] == "\nWritten:"):
+                start = place
+                break
+    for place in range(len(captured)):
+        stream, text = captured[place]
+        if verdict != results.NO_MISS or place >= start:
+            if stream == _ERR and text in shown_before and verdict == results.NO_MISS:
+                continue
+            _show(stream, _after_the_files(text) if verdict != results.NO_MISS else text)
+        elif stream == _ERR and text not in shown_before:
+            _show(stream, text)
+    if verdict != results.NO_MISS and questions is not None:
+        stands = _files_stand_said(questions)
+        session = _current()
+        if session is not None:
+            session.on_disk = parsing.visible_lines(stands)
+        line = _profile_again(f"{questions}")
+        _say(
+            f"\n{stands}"
+            + (f" To answer again, run this at the keyboard:\n  {line}{_quoting_said(line)}" if line else "")
+        )
+
+
+# A LATER ROUND NEVER BRINGS BACK A TYPED DECLARATION THAT A NEWER ANSWER
+# REPLACED (lane EZ-a's second repair; the orchestrator's LANE EZ RULINGS 7,
+# Codex's item 1). Each round after the files hands the table back to
+# `_run_profile_body` with the questions file as `--answers`, and that body
+# reads a typed declaration as later than any answer the file keeps (plan
+# P4-D408, `asking.typed_over_kept`). Inside one command the command line is
+# the OLDEST statement: a keyboard answer at the first prompt is kept under
+# `answered_before`, and a typed `--decimal-comma patient_no` handed on took
+# it back from a newer `identifier`, read seven-figure patient numbers as
+# counts and published them. So each later round, its repeat line and the
+# command a run teaches leave off every typed declaration an answer of the
+# file replaces (`asking.typed_answered_over`).
+
+
+def _typed_said(
+    identifiers: "list[str]",
+    codes: "list[str]",
+    measurements: "list[str]",
+    commas: "list[str]",
+    twelve_hours: "list[str] | None",
+    date_counts_given: "list[list[str]] | None",
+    centuries_given: "list[str] | None",
+    date_columns_given: "list[str] | None",
+    day_first: bool,
+    delimiter_given: str,
+    first_row: str,
+    first_row_typed: bool,
+) -> "tuple[tuple[str, str], ...]":
+    """The command line's declarations as `(column, answer)`, read as `_run_profile_body` reads them (`_typed_answers`); a typed form it would refuse is left out."""
+    counted: "dict[str, str]" = {}
+    for pair in date_counts_given or []:
+        if len(pair) == 2:
+            counted[f"{pair[0]}"] = f"{pair[1]}"
+    centuries: "dict[str, int]" = {}
+    reset: "list[str]" = []
+    for typed_century in centuries_given or []:
+        found = _century_given(typed_century)
+        if found is None:
+            continue
+        if found[1] in parsing.CENTURY_WINDOW_YEARS:
+            centuries[found[0]] = found[1]
+        elif found[0] not in reset:
+            reset += [found[0]]
+    delimiter = _DELIMITER_SPELLINGS[delimiter_given] if delimiter_given in _DELIMITER_SPELLINGS else ""
+    return _typed_answers(
+        list(codes), list(identifiers), list(measurements), list(commas), list(twelve_hours or []),
+        counted, centuries, sorted({one: 1 for one in (date_columns_given or [])}), day_first, delimiter,
+        first_row, reset, first_row_typed,
+    )
+
+
+def _typed_replaced_in(questions: "pathlib.Path | None", typed: "tuple[tuple[str, str], ...]") -> "list[tuple[str, str]]":
+    """The typed declarations an answer of the questions file replaces (`asking.typed_answered_over`); none where the file cannot be read."""
+    from synthtwin import contract
+
+    if questions is None or not typed:
+        return []
+    try:
+        document = contract.load_answers(f"{questions}")
+    except (errors.ProfileError, PathValidationError):
+        return []
+    return list(asking.typed_answered_over(document, typed))
+
+
+def _typed_left(names: "list[str] | None", answer: str, replaced: "list[tuple[str, str]]") -> "list[str]":
+    """The names of one typed list no answer replaced."""
+    return [name for name in names or [] if (name, answer) not in replaced]
+
+
+def _century_left(typed: str, replaced: "list[tuple[str, str]]") -> bool:
+    """Whether a typed `--century COLUMN=YEAR` stands: no answer replaced the window it names."""
+    found = _century_given(typed)
+    if found is None:
+        return True
+    word = asking.century_answer(found[1]) if found[1] in parsing.CENTURY_WINDOW_YEARS else asking.ANSWER_CENTURY_POSIX
+    return (found[0], word) not in replaced
+
+
+def _options_left(options: _Options, replaced: "list[tuple[str, str]]") -> _Options:
+    """The typed command line less each declaration an answer replaced: what the command a run teaches types again."""
+    if not replaced:
+        return options
+    delimiter = _DELIMITER_SPELLINGS[options.delimiter] if options.delimiter in _DELIMITER_SPELLINGS else ""
+    first_row_word = (
+        asking.ANSWER_FIRST_ROW_NAMES if options.first_row == _FIRST_ROW_NAMES
+        else asking.ANSWER_FIRST_ROW_DATA if options.first_row == _FIRST_ROW_DATA
+        else asking.TYPED_FIRST_ROW_AUTOMATIC
+    )
+    first_row_left = (asking.FIRST_ROW_SUBJECT, first_row_word) not in replaced
+    return dataclasses.replace(
+        options,
+        persons=_typed_left(options.persons, asking.ANSWER_IDENTIFIER, replaced),
+        identifiers=_typed_left(options.identifiers, asking.ANSWER_IDENTIFIER, replaced),
+        codes=_typed_left(options.codes, asking.ANSWER_CODE, replaced),
+        measurements=_typed_left(options.measurements, asking.ANSWER_MEASUREMENT, replaced),
+        decimal_commas=_typed_left(options.decimal_commas, asking.ANSWER_DECIMAL_COMMA, replaced),
+        twelve_hours=_typed_left(options.twelve_hours, asking.ANSWER_TWELVE_HOUR, replaced),
+        date_columns=_typed_left(options.date_columns, asking.ANSWER_DATES, replaced),
+        date_counts=[pair for pair in options.date_counts if len(pair) != 2 or (f"{pair[0]}", f"{pair[1]}") not in replaced],
+        centuries=[one for one in options.centuries if _century_left(one, replaced)],
+        day_first=options.day_first and (asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST) not in replaced,
+        delimiter=options.delimiter if (asking.DELIMITER_SUBJECT, asking.delimiter_answer(delimiter)) not in replaced else "",
+        first_row=options.first_row if first_row_left else _FIRST_ROW_AUTOMATIC,
+        first_row_typed=options.first_row_typed and first_row_left,
+    )
+
+
+def _typed_replaced_said() -> "list[str]":
+    """Each typed declaration an answer replaced, written as it is typed: the repeat line says to take it out (`_how_to_repeat`)."""
+    session = _current()
+    said: "list[str]" = []
+    for name, answer in session.typed_replaced if session is not None else []:
+        option = {
+            asking.ANSWER_IDENTIFIER: "--identifier",
+            asking.ANSWER_CODE: "--code",
+            asking.ANSWER_MEASUREMENT: "--measurement",
+            asking.ANSWER_DECIMAL_COMMA: "--decimal-comma",
+            asking.ANSWER_TWELVE_HOUR: "--twelve-hour",
+            asking.ANSWER_DATES: "--date-column",
+        }
+        if answer in option:
+            said += [_typed_option(option[answer], name)]
+        elif answer in date_counts.MEMBERS:
+            said += [f"{_typed_option('--date-count', name)} {answer}"]
+    return said
+
+
+def _files_stand_said(questions: pathlib.Path) -> str:
+    """What is on disk after a later round's description was refused: the files written before it, its answers not among them.
+
+    Said only where that description stopped before writing; a write it
+    began and could not finish names what is on disk in its own words.
+    """
+    return (
+        f"The files written before these answers stand as they were, "
+        f"{_shown(questions)} among them, and hold none of the answers given since."
+    )
+
+
+def _profile_rounds(
+    table: str,
+    out_dir: "str | None",
+    smallest_group: int,
+    floor_chosen: bool,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
+    answers_path: "str | None",
+    kept_values: list[str],
+    missing_values: list[str],
+    first_row: str,
+    day_first: bool,
+    sheet: str = "",
+    metadata_rows_given: str = "",
+    delimiter_given: str = "",
+    date_counts_given: "list[list[str]] | None" = None,
+    forced_twelve_hours: "list[str] | None" = None,
+    centuries_given: "list[str] | None" = None,
+    date_columns_given: "list[str] | None" = None,
+    first_row_typed: bool = False,
+    small_tables_refused: bool = True,
+    replace: bool = False,
+) -> str:
+    """`_run_profile_body`, then, where somebody is at the keyboard, every question left open (lane EZ-a, plan P4-D479).
+
+    ROUNDS AFTER THE FILES. Once the first description and its questions
+    file are written, each entry of the file -- about the file, asked, the
+    checklist; the Safe Harbor questions among them -- that no prompt of
+    this run put is put with one renderer (`_put_the_entries`); the answers
+    are written beside 'your_answer' in that file, and the table is
+    described again by `_run_profile_body` handed the file as `--answers`,
+    in this process, nobody asked meanwhile and its screen held back but
+    for its closing lines (`_described_again`). The rounds stop where
+    nothing is left that no prompt put, where every question put was left
+    open with Enter, or at `_ANSWER_ROUNDS_AT_MOST` descriptions. ENDING
+    INPUT IN A LATER ROUND (Ctrl-D, Ctrl-C, or the end of a library run's
+    list of lines) keeps the files the rounds before it wrote and says how
+    many questions stay open (the orchestrator's LANE EZ RULINGS 1 (6));
+    in the first round it still writes nothing. Nobody at the keyboard,
+    the one description is the whole run, as before.
+    """
+    from synthtwin import profile
+
+    verdict = _run_profile_body(
+        table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
+        forced_identifiers=forced_identifiers, forced_codes=forced_codes,
+        forced_measurements=forced_measurements, forced_decimal_commas=forced_decimal_commas,
+        answers_path=answers_path, kept_values=kept_values, missing_values=missing_values,
+        first_row=first_row, day_first=day_first, sheet=sheet, metadata_rows_given=metadata_rows_given,
+        delimiter_given=delimiter_given, date_counts_given=date_counts_given,
+        forced_twelve_hours=forced_twelve_hours, centuries_given=centuries_given,
+        date_columns_given=date_columns_given, first_row_typed=first_row_typed,
+        small_tables_refused=small_tables_refused, replace=replace,
+    )
+    session = _current()
+    if session is None or not session.rounds_follow:
+        return verdict
+    put: "set[tuple[str, str, str, str]]" = {_entry_key(one) for one in session.questions if one.put}
+    # THE COMMAND LINE IS THE OLDEST STATEMENT OF THE COMMAND (lane EZ-a's
+    # second repair; Codex's item 1): what a later round, its repeat line and
+    # the taught command leave off it, as each answer of the file replaces it.
+    typed = _typed_said(
+        forced_identifiers, forced_codes, forced_measurements, forced_decimal_commas, forced_twelve_hours,
+        date_counts_given, centuries_given, date_columns_given, day_first, delimiter_given, first_row,
+        first_row_typed,
+    )
+    session.typed_replaced = _typed_replaced_in(_questions_written(), typed)
+    rounds = 1
+    while verdict == results.NO_MISS and rounds < _ANSWER_ROUNDS_AT_MOST:
+        questions = _questions_written()
+        entries = [
+            one
+            for one in session.questions
+            if one.section != results.SECTION_HELD and one.offers and _entry_key(one) not in put
+        ]
+        if questions is None or not entries:
+            break
+        given, ended = _put_the_entries(entries)
+        put = put | {_entry_key(record) for record, _answer in given}
+        answered = [(record, answer) for record, answer in given if answer not in ("", _LEFT_OPEN)]
+        if ended:
+            _ended_said()
+            break
+        if not answered:
+            break
+        source = pathlib.Path(validate_local_path(table, purpose="input"))
+        described, summary = profile.default_output_paths(pathlib.Path(table), out_dir)
+        guards = [(source, errors.INPUT_TABLE), (described, errors.INPUT_DESCRIPTION), (summary, errors.INPUT_SUMMARY)]
+        # THE ANSWERS STAND IN THE FILE ONLY ONCE THE TABLE IS DESCRIBED WITH
+        # THEM (lane EZ-a's repair; LANE EZ RULINGS 4 (3) (b)): the file's
+        # text before them is kept and written back wherever the description
+        # does not finish, so 'the files written before these answers stand
+        # as they were' is true of the questions file too.
+        kept_text = _answers_written_into(questions, answered, guards)
+        replaced = _typed_replaced_in(questions, typed)
+        session.typed_replaced = replaced
+        captured: "list[tuple[str, str]]" = []
+        screen, asking_now = session.screen, session.ask
+        seen = list(session.err_shown)
+        before = (session.files, session.warnings, session.left_behind)
+        said_before = len(session.refusal_words)
+        where_before = (session.step, session.phase, session.key)
+        session.screen, session.ask = captured, None
+        # ...and the subject question is put at the keyboard from inside
+        # that description (LANE EZ RULINGS 4 (3) (a)), with the real screen
+        # and reader, for that one question (`_people_said_settled`).
+        session.subject_reader = (screen, asking_now)
+        session.ended_at_subject = False
+        session.files, session.warnings, session.left_behind = [], [], []
+        session.on_disk = ""
+        refused: "BaseException | None" = None
+        verdict = results.REFUSED
+        first_row_word = (
+            asking.ANSWER_FIRST_ROW_NAMES if first_row == _FIRST_ROW_NAMES
+            else asking.ANSWER_FIRST_ROW_DATA if first_row == _FIRST_ROW_DATA
+            else asking.TYPED_FIRST_ROW_AUTOMATIC
+        )
+        first_row_left = (asking.FIRST_ROW_SUBJECT, first_row_word) not in replaced
+        delimiter_word = asking.delimiter_answer(
+            _DELIMITER_SPELLINGS[delimiter_given] if delimiter_given in _DELIMITER_SPELLINGS else ""
+        )
+        try:
+            verdict = _run_profile_body(
+                table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
+                forced_identifiers=_typed_left(forced_identifiers, asking.ANSWER_IDENTIFIER, replaced),
+                forced_codes=_typed_left(forced_codes, asking.ANSWER_CODE, replaced),
+                forced_measurements=_typed_left(forced_measurements, asking.ANSWER_MEASUREMENT, replaced),
+                forced_decimal_commas=_typed_left(forced_decimal_commas, asking.ANSWER_DECIMAL_COMMA, replaced),
+                answers_path=f"{questions}", kept_values=kept_values, missing_values=missing_values,
+                first_row=first_row if first_row_left else _FIRST_ROW_AUTOMATIC,
+                day_first=day_first and (asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST) not in replaced,
+                sheet=sheet, metadata_rows_given=metadata_rows_given,
+                delimiter_given=delimiter_given if (asking.DELIMITER_SUBJECT, delimiter_word) not in replaced else "",
+                date_counts_given=[
+                    pair for pair in date_counts_given or []
+                    if len(pair) != 2 or (f"{pair[0]}", f"{pair[1]}") not in replaced
+                ],
+                forced_twelve_hours=_typed_left(forced_twelve_hours, asking.ANSWER_TWELVE_HOUR, replaced),
+                centuries_given=[one for one in centuries_given or [] if _century_left(one, replaced)],
+                date_columns_given=_typed_left(date_columns_given, asking.ANSWER_DATES, replaced),
+                first_row_typed=first_row_typed and first_row_left,
+                small_tables_refused=small_tables_refused, replace=replace,
+            )
+        except (errors.ProfileError, PathValidationError) as error:
+            # A refusal raised from below, said as the command says one, and
+            # then that the files the rounds before wrote stand.
+            refused = error
+            verdict = results.REFUSED
+        finally:
+            session.screen, session.ask = screen, asking_now
+            session.subject_reader = None
+            # A write the description began and could not finish names what
+            # is on disk itself (`_stopped_writing`); any other stop wrote
+            # nothing, and the questions file goes back to what it held.
+            stopped_writing = bool(session.on_disk)
+            if verdict != results.NO_MISS and not stopped_writing:
+                _questions_written_back(questions, kept_text, guards)
+                session.typed_replaced = _typed_replaced_in(questions, typed)
+        if session.ended_at_subject:
+            # ENDING INPUT AT THE SUBJECT QUESTION keeps the files the rounds
+            # before wrote, as ending it at any later question does (R7).
+            session.files, session.warnings, session.left_behind = before
+            session.refusal_words = session.refusal_words[:said_before]
+            session.step, session.phase, session.key = where_before
+            verdict = results.NO_MISS
+            _ended_said()
+            break
+        if refused is not None:
+            if isinstance(refused, errors.KeyedRefusal):
+                session.key = refused.key
+            captured += [(_ERR, parsing.visible_lines(f"{_shown(refused)}") + "\n")]
+            session.refusal_words += [parsing.visible_lines(f"{_shown(refused)}")]
+        if verdict != results.NO_MISS:
+            session.files, session.warnings, session.left_behind = (
+                before[0] + session.files, before[1] + session.warnings, before[2] + session.left_behind
+            )
+            session.refusal_words = session.refusal_words[:said_before] + [
+                _after_the_files(one) for one in session.refusal_words[said_before:]
+            ]
+        else:
+            for record, _answer in answered:
+                _answer_stands(_answer, (record.column, record.role, record.reason))
+        _described_again(captured, verdict, seen, None if stopped_writing else questions)
+        rounds = rounds + 1
+    if verdict != results.NO_MISS:
+        return verdict
+    _records_put(put)
+    session.rounds_follow = False
+    session.typed_replaced = _typed_replaced_in(_questions_written(), typed)
+    _still_open_said()
+    if session.closing:
+        _teach(session.closing)
+    return verdict
 
 
 def _run_profile_body(
@@ -5952,6 +7769,9 @@ def _run_profile_body(
     # -- lane TR (P4-D473): THE COLUMNS SAID TO HOLD CLOCK TIMES WRITTEN AS
     # FIGURES (Q-CLOCK's answer `clock-figures`; rule 5c).
     clock_figures: "list[str]" = []
+    # -- lane NOTES (P4-D481): THE COLUMNS OF SENTENCES ANSWERED `text`, which
+    # declare nothing and are carried so their question is not put again.
+    sentences_text: "list[str]" = []
     # THE CENTURIES OF TWO-FIGURE YEARS (landing R2a, question Q5): each
     # `--century COLUMN=YEAR`, refused before the table is opened where it
     # is not that, and the window that stands where nothing was said
@@ -6047,6 +7867,11 @@ def _run_profile_body(
     # ...and those whose question Q-COMMA the file answered `keep` (plan
     # P4-D443): nothing is declared, and Q-COMMA is not put again.
     commas_kept: "list[str]" = []
+    # -- lane KV (P4-D487): the value columns answered `keyed` and `keep` to
+    # question Q-KEYED; `keep` describes the column as one column, and
+    # neither is put the question again.
+    values_keyed: "list[str]" = []
+    values_kept_whole: "list[str]" = []
     # ...and the columns whose question offering `identifier` the file
     # answered `keep` (plan P4-D401): nothing is declared, and their
     # values are published as their reading publishes them.
@@ -6061,6 +7886,11 @@ def _run_profile_body(
     # (plan P4-D408).
     carried_answers: "tuple[tuple[str, str, str], ...]" = ()
     identities_kept_answered: "tuple[str, ...]" = ()
+    # ...and of those, the columns whose own question of a key beside a
+    # person was answered `keep` (lane ID-ROOM4, plan P4-D489): only such
+    # a `keep` releases that question's column (`asking.
+    # kept_beside_own_questions`).
+    people_keys_kept: "tuple[str, ...]" = ()
     # ...and the columns the file answered `no` to the Safe Harbor
     # question (plan P4-D427): read without the top-code, or no longer
     # held for their five figures.
@@ -6100,7 +7930,7 @@ def _run_profile_body(
     centuries_kept: "list[str]" = []
     if answers_path is not None:
         try:
-            handed_back = contract.load_answers(answers_path)
+            handed_back = _answers_loaded(answers_path)
             # ...and, behind the chain's switch alone, the pairs its entry
             # asks to add or drop (lane CHa, repair 2, Codex's item 6).
             if chain_state is not None:
@@ -6223,6 +8053,9 @@ def _run_profile_body(
             + list(written.units_kept)
             # ...and the columns answered `keep` to Q-COMMA (plan P4-D443).
             + list(written.commas_kept)
+            # -- lane KV (P4-D487): ...and to Q-KEYED, either way.
+            + list(written.values_keyed)
+            + list(written.values_kept_whole)
             # ...and the columns answered `no` or `yes` to the Safe Harbor
             # question (plan P4-D427; Codex's review of lane SH, item 7):
             # an answer beside a correction of the reading is refused, as
@@ -6383,6 +8216,9 @@ def _run_profile_body(
         clock_figures = sorted(
             {one: 1 for one in clock_figures + list(written.clock_figures)}
         )
+        # -- lane NOTES (P4-D481): ...and a column of sentences answered `text`.
+        sentences_text = list(written.sentences_text)
+        names_by_answer += sentences_text
         # ...and those answered `keep`, carried so Q6 is not put again.
         dates_kept = list(written.date_columns_kept)
         # ...and Q-UNIT's `keep`, carried so Q-UNIT is not put again (plan
@@ -6391,6 +8227,10 @@ def _run_profile_body(
         # ...and Q-COMMA's `keep`, carried so Q-COMMA is not put again (plan
         # P4-D443).
         commas_kept = list(written.commas_kept)
+        # -- lane KV (P4-D487): ...and Q-KEYED's answers, carried so it is
+        # not put again; `keep` reads the column as one column.
+        values_keyed = list(written.values_keyed)
+        values_kept_whole = list(written.values_kept_whole)
         # ...and the columns answered `keep` to a question offering
         # `identifier` (plan P4-D401). Under an answer that changes the
         # reading a name may land on another column, so there such a
@@ -6399,6 +8239,7 @@ def _run_profile_body(
         if not reading_changed:
             identities_kept = written.identities_kept
             identities_kept_answered = written.identities_kept_answered
+            people_keys_kept = written.people_keys_kept
             identities_held = written.identities_held
             names_by_answer += named_columns
             names_by_answer += list(identities_kept_answered)
@@ -6864,7 +8705,9 @@ def _run_profile_body(
                 tuple(safe_harbor_no), tuple(safe_harbor_yes),
                 tuple(units_kept), tuple(commas_kept), ages_counted_in,
                 tuple(safe_harbor_dates_no), tuple(safe_harbor_dates_yes),
-                tuple(clock_figures),
+                tuple(clock_figures), tuple(sentences_text),
+                people_keys_kept=people_keys_kept,
+                values_keyed=tuple(values_keyed), values_kept_whole=tuple(values_kept_whole),
             ),
         )
         if not_kept:
@@ -7085,6 +8928,10 @@ def _run_profile_body(
     # Safe Harbor question; those no question holds whole are written with
     # those values read as blank cells.
     dated_values: "list[str]" = []
+    # -- P4-D487 (lane KV): the pairs the describe reads as keyed, for
+    # question Q-KEYED; the value columns answered `keep` are not keyed.
+    keyed_found: "list[profile.KeyedPair]" = []
+    keyed_named: "list[str]" = []
     document = profile.build_document(
         read,
         settings,
@@ -7137,6 +8984,15 @@ def _run_profile_body(
         # The description's own readings kept for the chain (lane CHs,
         # plan P4-D462): only behind the chain's switch.
         kept_spellings=chain_state.kept if chain_state is not None else None,
+        keyed_kept=list(values_kept_whole),
+        keyed_found=keyed_found,
+        # ...a value column's `yes` to EITHER question carrying the keyed
+        # clause -- its Safe Harbor question and its question about values
+        # that read as dates, both asking whether a value could name a
+        # person -- holds what the clause lists whatever the other was
+        # answered: ANY YES HOLDS (the orchestrator's LANE KV RULINGS 6 (1)).
+        keyed_yes=list(safe_harbor_yes) + list(safe_harbor_dates_yes),
+        keyed_named=keyed_named,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -7352,7 +9208,26 @@ def _run_profile_body(
     # AN ANSWER GIVEN IS NOT ASKED AGAIN (plan P4-D408; the orchestrator's
     # LANE UN-1a RULINGS 1 (2)): Q-UNIT answered `keep` stays answered.
     asked_about = _units_not_asked_again(
-        first_questions.asked, units_kept + commas_kept
+        first_questions.asked, units_kept + commas_kept, identities_kept_answered
+    )
+    # THE PEOPLE'S QUESTION OF A KEY BESIDE A PERSON IS ITS OWN (lane
+    # ID-ROOM4, plan P4-D489; skeptic 1's item 1, the orchestrator's LANE
+    # ID-ROOM4 RULINGS 4, item 1): a `keep` given to another question --
+    # the person question, the truthful answer for a key beside the patient,
+    # or Q2 or Q6 -- in this round or an earlier one, releases no column
+    # that question holds, so it leaves the answers kept here, and every
+    # place below that a kept answer exempts from a hold reads the list
+    # without it: the hold of an open question (`unanswered_identities`, at
+    # the prompt and after it), a blank under `identifier`, the open person
+    # question's candidates, the census places of an open question, the
+    # Safe Harbor question's open questions, the questions it is put in
+    # place of and those its answer closes, and the chain's describe; the
+    # describe's own kept answers read only the comma of record numbers
+    # with a check digit, which no such key holds. Only its own answer,
+    # here (`answered_here`) or in the file (`Answers.people_keys_kept`),
+    # releases it.
+    identities_kept = asking.kept_beside_own_questions(
+        tuple(identities_kept), asked_about, people_keys_kept
     )
     split_columns = first_questions.split
     codes_seen = first_questions.codes_seen
@@ -7595,6 +9470,8 @@ def _run_profile_body(
                 harbor_reasons = {}
                 ages_established = {}
                 dated_values = []
+                keyed_found = []
+                keyed_named = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -7630,6 +9507,10 @@ def _run_profile_body(
                     # The description's own readings kept for the chain (lane CHs,
                     # plan P4-D462): only behind the chain's switch.
                     kept_spellings=chain_state.kept if chain_state is not None else None,
+                    keyed_kept=list(values_kept_whole),
+                    keyed_found=keyed_found,
+                    keyed_yes=list(safe_harbor_yes) + list(safe_harbor_dates_yes),
+                    keyed_named=keyed_named,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -7666,6 +9547,32 @@ def _run_profile_body(
     # only finding IS this list showed nothing at all. It is the one
     # class of column nothing else can reach, so it is the last thing
     # that should depend on another column raising a question.
+    # ...LESS THE COLUMNS SYNTHTWIN'S OWN MADE-UP SPELLINGS WOULD WRITE AS
+    # REAL VALUES (lane ID-ROOM4, plan P4-D489): numbers too large or too
+    # small to hold whose writer spells, from fixed counters, a value 1 to
+    # f-1 people hold are spelled one letter or figure wider whatever the
+    # answer (`_made_up_spellings_held`; method G10.5 step 8), so they are
+    # no measurement to list; read again on the description written,
+    # below. THE HOLDERS ARE COUNTED IN THE SUBJECTS THE DESCRIPTION IS
+    # COUNTED IN (skeptic 1 of lane ID-ROOM4, item 2; the orchestrator's
+    # LANE ID-ROOM4 RULINGS 4, item 2): here the person columns and every
+    # column an open question offering `identifier` still names, the most
+    # the final describe can count in (a code on twenty rows of one person
+    # was copied while the person question was open, counted in rows).
+    early_subjects = list(person_columns) + [
+        question.name
+        for question in asked_about
+        if asking.question_put(question) not in answered_here
+        and asking.offers_identifier(question)
+        and question.name not in person_columns
+        and question.name not in forced_identifiers + forced_codes + forced_measurements
+        and question.name not in forced_decimal_commas
+        and question.name not in identities_kept
+    ]
+    # ...and a column whose spellings cannot be made at all is held whole as
+    # record numbers (Codex's review of lane ID-ROOM4, item 1).
+    spelled_held, spelled_unmade = _made_up_spellings_held(read, document, settings, early_subjects)
+    listed_about = [question for question in listed_about if question.name not in spelled_held]
     if listed_about:
         _say(f"\n{_checklist_notice(listed_about)}\n")
     # ...AND THE TWO QUESTIONS ABOUT DATES, ONCE PER RUN AND WHOEVER IS
@@ -7767,11 +9674,12 @@ def _run_profile_body(
     for question in asked_about:
         if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
             person_asked += [question.name]
-    if person_asked and not person_columns and not assumptions_said:
+    if person_asked and not person_columns and not assumptions_said and not _persons_given():
         _warn(
             _counted_in_rows_notice(person_asked, small_tables_refused),
             caution=results.CAUTION_COUNTED_IN_ROWS,
         )
+    _rows_counted_beside(person_asked, person_columns)
 
     # NO VALUE OF A COLUMN WHOSE IDENTITY QUESTION IS STILL OPEN (plan
     # P4-D401). Where nobody was at the keyboard, a column a question
@@ -8011,6 +9919,21 @@ def _run_profile_body(
         for name in dated_values
         if name not in withheld and name not in five_held and name not in harbor_held
     )
+    # ...AND THE MADE-UP SPELLINGS READ AGAIN IN THE SUBJECTS THE FINAL
+    # DESCRIBE COUNTS IN (lane ID-ROOM4, plan P4-D489; the orchestrator's
+    # LANE ID-ROOM4 RULINGS 4, item 2): the person columns, the keys an open
+    # question holds and the open person question's candidates. A column
+    # named above stays named (the rule errs toward holding).
+    final_subjects = list(person_columns) + list(withheld) + candidates
+    final_held, final_unmade = _made_up_spellings_held(read, document, settings, final_subjects)
+    spelled_held = spelled_held + tuple(name for name in final_held if name not in spelled_held)
+    spelled_unmade = spelled_unmade + tuple(
+        name for name in final_unmade if name not in spelled_unmade
+    )
+    # ...and those whose spellings one letter or figure wider would still
+    # meet a value, or whose spellings cannot be made, held as record
+    # numbers (below).
+    spelled_apart: "tuple[str, ...]" = spelled_unmade
     published = document
     if (
         withheld
@@ -8021,6 +9944,7 @@ def _run_profile_body(
             identities_open, rare_listed, levels_pooled, names_published
         )
         or dated_held
+        or spelled_held
     ):
         if withheld:
             _warn(_withheld_notice(withheld), caution=results.CAUTION_WITHHELD)
@@ -8035,6 +9959,26 @@ def _run_profile_body(
         # is described first as the count in people holds it; one that count
         # does not hold whole is described again, held as the others are
         # (one more description, only for such a column).
+        # ...AND THE MADE-UP SPELLINGS READ AGAIN ON THE DESCRIPTION WRITTEN
+        # (lane ID-ROOM4, plan P4-D489): the writer steps over the hole
+        # spellings of the description it is handed, and a hold above can
+        # take one away, so a column its counters now spell as a value
+        # few people hold is spelled wider too, and described once more; a
+        # column already spelled wider whose wider spellings still meet
+        # such a value -- a real cell the published `max_length` does not
+        # measure, ordinary text of figures and marks -- is held as record
+        # numbers (P4-D432's writer). This second reading is the path that
+        # keeps NF139's promise, not a defensive one: it holds as a record
+        # number a column whose wider spellings meet any real value or
+        # cannot be made (live on codes beside eleven cells `t10000`, Codex's
+        # review of lane ID-ROOM4, item 5); a hold changed no block's hole
+        # spellings on any table measured.
+        # ONE LOOP, TWO STOP CONDITIONS (the orchestrator's LANE ID-ROOM4
+        # RULINGS 3 (5)): a pass ends it only when every names column waiting
+        # is held whole by the count in people (`unheld` empty) and the second
+        # reading names no column more (`again` and `apart` empty); every
+        # further pass takes a name off `waiting` or adds one to the made-up
+        # holds, so the loop ends.
         waiting = list(names_beside_open)
         while True:
             counted_in_people = []
@@ -8058,8 +10002,9 @@ def _run_profile_body(
                     if not (name in harbor_reasons and harbor_reasons[name] == taxonomy.HELD_DATES)
                     and name not in waiting
                 ]
-                + harbor_held,
-                subjects=list(person_columns) + list(withheld) + candidates,
+                + harbor_held
+                + list(spelled_apart),
+                subjects=list(final_subjects),
                 counted_in_subjects=counted_in_people,
                 top_code=True,
                 safe_harbor_no=safe_harbor_no,
@@ -8070,14 +10015,48 @@ def _run_profile_body(
                 dated_held=dated_held,
                 dated_values_no=safe_harbor_dates_no,
                 dates_answered=tuple(answered_missing_dates + answered_real_values),
+                # ...and the columns its Safe Harbor question holds for what
+                # their numbers may be -- ZIP codes, years, dates -- so a held
+                # column of counts that may be dates is read as such (lane
+                # ID-ROOM3, plan P4-D488).
+                counts_held_for_dates=tuple(five_held)
+                + tuple(
+                    name for name in harbor_held
+                    if name in harbor_reasons and harbor_reasons[name] in profile.DATES_HOLD_REASONS
+                ),
                 # The description's own readings kept for the chain (lane CHs,
                 # plan P4-D462): only behind the chain's switch.
                 kept_spellings=chain_state.kept if chain_state is not None else None,
+                made_up_held=list(spelled_held),
+                # -- P4-D487 (lane KV): the value columns answered `keep`, the
+                # Safe Harbor `yes`, and the columns an open question offering
+                # `identifier` holds, whose value column is held whole.
+                keyed_kept=list(values_kept_whole),
+                keyed_yes=list(safe_harbor_yes) + list(safe_harbor_dates_yes),
+                keyed_open=list(withheld) + list(candidates),
             )
             unheld = [name for name in waiting if name not in counted_in_people]
-            if not unheld:
+            named_again, unmade_again = _made_up_spellings_held(
+                read, published, settings, final_subjects
+            )
+            again = tuple(name for name in named_again if name not in spelled_held)
+            # ...a column already spelled wider whose wider spellings still
+            # meet a value, or any column whose spellings cannot be made
+            # (Codex's review of lane ID-ROOM4, item 1), held as record
+            # numbers.
+            apart = tuple(
+                name
+                for name in named_again
+                if (name in spelled_held or name in unmade_again) and name not in spelled_apart
+            )
+            if not unheld and not again and not apart:
                 break
             waiting = [name for name in waiting if name not in unheld]
+            spelled_held = spelled_held + again
+            spelled_apart = spelled_apart + apart
+            spelled_unmade = spelled_unmade + tuple(
+                name for name in unmade_again if name not in spelled_unmade
+            )
         five_held = [name for name in five_held if name not in waiting]
         lane_sh = tuple(name for name in five_held if name not in harbor_reasons)
         lane_sh2 = tuple(name for name in five_held if name in harbor_reasons)
@@ -8090,6 +10069,11 @@ def _run_profile_body(
             _warn(
                 _safe_harbor_held_notice(lane_sh2),
                 caution=results.CAUTION_SAFE_HARBOR,
+            )
+        if spelled_held:
+            _warn(
+                _made_up_held_notice(spelled_held, spelled_apart, spelled_unmade),
+                caution=results.CAUTION_WITHHELD,
             )
     if counted_in_rows:
         _warn(
@@ -8147,9 +10131,11 @@ def _run_profile_body(
             published,
             settings,
             tuple(withheld) + tuple(candidates),
-            forced_codes,
-            forced_measurements,
-            forced_decimal_commas,
+            # ...a column held whatever the answer (plan P4-D489) declared as
+            # nothing else.
+            [name for name in forced_codes if name not in spelled_held],
+            [name for name in forced_measurements if name not in spelled_held],
+            [name for name in forced_decimal_commas if name not in spelled_held],
             storage,
             tuple(
                 question.name
@@ -8158,7 +10144,7 @@ def _run_profile_body(
                 and (question.name in withheld or question.name in candidates)
             ),
             tuple(safe_harbor_no),
-            tuple(withheld) + tuple(five_held) + tuple(harbor_held),
+            tuple(withheld) + tuple(five_held) + tuple(harbor_held) + tuple(spelled_held),
             not identities_open,
             harbor_year,
             tuple(identities_kept),
@@ -8319,7 +10305,13 @@ def _run_profile_body(
         for one in typed_list:
             if one not in final_of:
                 taken_out += [_typed_option(option, one)]
-    if (answered or answers_were_handed_back) and (
+    # -- lane EZ-a (P4-D479): an answer no option repeats stands, or one
+    # was typed at the keyboard, so the repeat line names the questions file.
+    kept_stands = bool(answered_here) or bool(_answers_that_stand()) or _a_kept_answer_stands(
+        safe_harbor_no + safe_harbor_yes + safe_harbor_dates_no + safe_harbor_dates_yes,
+        list(identities_kept_answered) + units_kept + commas_kept + dates_kept, answered_month_first,
+    )
+    if (answered or answers_were_handed_back or kept_stands or _persons_answered()) and (
         counted
         or forced_codes
         or forced_identifiers
@@ -8333,6 +10325,7 @@ def _run_profile_body(
         or centuries
         or date_columns
         or clock_figures
+        or kept_stands
     ):
         _say(
             _how_to_repeat(
@@ -8351,11 +10344,13 @@ def _run_profile_body(
                     for one_century in sorted(centuries)
                 ),
                 date_columns=tuple(date_columns),
-                # -- lane TR (P4-D473; its skeptic 1, item 3): an answer of
-                # `clock-figures`, which no option repeats, is repeated by
-                # the questions file this run writes.
+                # -- lanes TR (P4-D473; its skeptic 1, item 3) and EZ-a
+                # (P4-D479): an answer of `clock-figures`, or an answer
+                # `_a_kept_answer_stands` names, which no option repeats, is
+                # repeated by the questions file this run writes.
                 answers_file=(
-                    f"--answers {_typed_path(questions_path)}" if clock_figures else ""
+                    f"--answers {_typed_path(questions_path)}"
+                    if (kept_stands or clock_figures) and not questions_collides else ""
                 ),
             )
         )
@@ -8544,9 +10539,16 @@ def _run_profile_body(
     day_or_month = last_questions.day_or_month
     coded_about = list(codes_seen.questions)
     asked_about = _units_not_asked_again(
-        last_questions.asked, units_kept + commas_kept
+        last_questions.asked, units_kept + commas_kept, identities_kept_answered
     )
-    listed_about = last_questions.listed
+    # ...the people's own question read again on the last questions (plan
+    # P4-D489): the Safe Harbor question and the file read the list below.
+    identities_kept = asking.kept_beside_own_questions(
+        tuple(identities_kept), asked_about, people_keys_kept
+    )
+    # ...less the columns held whatever the answer (plan P4-D489): no reading
+    # of theirs is a measurement to name, and the file says why (below).
+    listed_about = [question for question in last_questions.listed if question.name not in spelled_held]
     asked_about = asked_about + coded_about
     # ...AND QUESTION Q5, of every column of dates whose years are two
     # figures and whose century nobody gave (landing R2a), and of every
@@ -8616,6 +10618,11 @@ def _run_profile_body(
         # beside a padded key, held in people at 20,000 rows, were put it).
         rare_named=tuple(
             name for name in rare_named if name in _read_as_labels_in(published)
+        ),
+        # -- P4-D487 (lane KV): the clause each keyed pair's questions gain.
+        keyed_keys=tuple(keyed_named),
+        keyed_values=tuple(
+            (pair.value, pair.key) for pair in keyed_found if pair.value not in values_kept_whole
         ),
     )
     if harbor_asked:
@@ -8698,6 +10705,21 @@ def _run_profile_body(
     # LANE SH2 RULINGS 4 (3), G3: DICOM ages and ZIP codes answered `keep`
     # and then `yes` were put the person question once more in every later
     # round, under `read_as_now: keep`).
+    # ...AND QUESTION Q-KEYED (lane KV, plan P4-D487), one to each value
+    # column the describe read as keyed and nobody answered, put beside the
+    # others: it holds nothing (unanswered means keyed).
+    # ...one question a column: a value column another question is put
+    # this round is put Q-KEYED once that one is answered.
+    asked_about = asked_about + asking.keyed_questions(
+        published,
+        [
+            (pair.key, pair.value, len(pair.common), pair.readings)
+            for pair in keyed_found
+        ],
+        tuple(values_keyed + values_kept_whole)
+        + tuple(question.name for question in asked_about),
+        settings.small_cell_floor,
+    )
     harbor_answered = safe_harbor_no + safe_harbor_yes
     if harbor_answered:
         asked_about = [
@@ -8708,6 +10730,25 @@ def _run_profile_body(
                 and question.name in identities_kept
                 and asking.offers_identifier(question)
             )
+        ]
+    # ...AND THE QUESTION OF A COLUMN OF SENTENCES (lane NOTES, plan P4-D481;
+    # the orchestrator's LANE NOTES RULINGS 1 (3)): one to each column the
+    # published description reads as free text for its sentences whose
+    # question was not answered `text`; ONE QUESTION A COLUMN, so any other
+    # question this file would put to such a column gives way to it -- and to
+    # a column answered `text` too, which is put none again (lane NOTES's
+    # repair 1: the question whether it names the person came back once its
+    # own was answered).
+    sentence_asked = asking.sentence_questions(
+        published, tuple(sentences_text), settings.small_cell_floor
+    )
+    if sentence_asked or sentences_text:
+        sentenced = [question.name for question in sentence_asked] + list(sentences_text)
+        asked_about = [
+            question for question in asked_about if question.name not in sentenced
+        ] + sentence_asked
+        listed_about = [
+            question for question in listed_about if question.name not in sentenced
         ]
     # AND ITS DESTINATION IS GUARDED LIKE ANY OTHER (review item
     # L17b-R1-1). On POSIX a link left at this name resolves to a
@@ -8787,7 +10828,7 @@ def _run_profile_body(
                 f"\n{_LOWERED_FLOOR_REMINDER}",
                 caution=results.CAUTION_LOWERED_FLOOR_REMINDER,
             )
-        _teach(_teaching_generate(profile_path))
+        _closing(profile_path)
         return results.NO_MISS
     written_questions = True
     questions_state = writing.DiskState()
@@ -8808,12 +10849,19 @@ def _run_profile_body(
                     # table says less than the other four do. A twin's
                     # profile step adds the sentence binding its answers
                     # to its reading (lane TT's repair, `_bound_reading`).
-                    _table_sentences(document) + _binding_said(),
+                    _table_sentences(document) + _binding_said()
+                    # ...and why a column is held whatever the answer
+                    # (lane ID-ROOM4, plan P4-D489).
+                    + (
+                        [_made_up_held_said(spelled_held, spelled_apart, spelled_unmade)]
+                        if spelled_held
+                        else []
+                    ),
                     # ...and EVERY ANSWER THIS RUN ACTED ON, from the file,
                     # from an earlier run's kept answers or from the
                     # command line, so that handing this file back keeps
                     # them all (plans P4-D401 and P4-D408).
-                    answered=asking.answered_before(
+                    answered=_persons_marked(asking.answered_before(
                         _answers_given(
                             read.column_names, forced_codes,
                             forced_identifiers, forced_measurements,
@@ -8829,8 +10877,15 @@ def _run_profile_body(
                             tuple(safe_harbor_dates_no),
                             tuple(safe_harbor_dates_yes),
                             tuple(clock_figures),
+                            # -- lane NOTES (P4-D481): only a column whose
+                            # question is still its own (the kind's answer
+                            # replaces it, `asking.answered_before`).
+                            tuple(sentences_text),
+                            people_keys_kept=people_keys_kept,
+                            values_keyed=tuple(values_keyed),
+                            values_kept_whole=tuple(values_kept_whole),
                         )
-                    ),
+                    )),
                     # ...with the names those answers use (P4-D408).
                     answered_columns=list(read.column_names),
                     # ...and, behind the chain's switch alone, its one
@@ -8908,7 +10963,7 @@ def _run_profile_body(
             f"\n{_LOWERED_FLOOR_REMINDER}",
             caution=results.CAUTION_LOWERED_FLOOR_REMINDER,
         )
-    _teach(_teaching_generate(profile_path))
+    _closing(profile_path)
     return results.NO_MISS
 
 
@@ -9155,7 +11210,15 @@ def _run_generate(
     # compactly, never the whole table as Python objects, and its text
     # written from them a piece at a time, never made whole.
     _at(results.STEP_CONTENT)
-    twin = generation.generate_held(loaded, seed)
+    # A FIRST LINE AND PROGRESS AT A TERMINAL (lane EZ-a, plan P4-D479).
+    if _progress_at_a_terminal():
+        _say(_first_line("Building the twin from", description))
+    _counting_switched_on("building")
+    try:
+        twin = generation.generate_held(loaded, seed)
+        progress.stage("writing the twin and its report")
+    finally:
+        progress.switch_off()
     # The twin's bytes are NOT put through the display boundary. That
     # boundary is for text a person reads, and a cell that reached it
     # would arrive in the twin as the escape rather than as the value --
@@ -9552,15 +11615,22 @@ def _run_validate(
     # MEASURING STARTS BY OPENING THE FILE: a refusal there is about the
     # input (a G12 refusal names its own step, `content`).
     _at(results.STEP_INPUT)
+    # A FIRST LINE AND PROGRESS AT A TERMINAL (lane EZ-a, plan P4-D479).
+    if _progress_at_a_terminal():
+        _say(_first_line("Measuring", measured))
+    _counting_switched_on("checking")
     # THE DEFAULT CALL IS THE CALL IT WAS (skeptic 1 of lane CHv, item 1):
     # a run without the chain's switch hands `measure` the three arguments
     # it always took, so a caller that wraps `measure` with that signature
     # (the health zoo's battery) still runs; only the switched run hands it
     # the parsed document.
-    if document is None:
-        outcome = validation.measure(loaded, measured, sheet)
-    else:
-        outcome = validation.measure(loaded, measured, sheet, document)
+    try:
+        if document is None:
+            outcome = validation.measure(loaded, measured, sheet)
+        else:
+            outcome = validation.measure(loaded, measured, sheet, document)
+    finally:
+        progress.switch_off()
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to
@@ -10479,6 +12549,7 @@ def _twin_words(
         words += [f"--seed={options.seed}"]
     if command == _PROFILE:
         for option, values in (
+            ("--person", options.persons),
             ("--identifier", options.identifiers),
             ("--code", options.codes),
             ("--measurement", options.measurements),
@@ -10547,6 +12618,9 @@ def _twin_step(
         del _OPEN.sessions[len(_OPEN.sessions) - 1]
     if step.promptable:
         parent.promptable = list(step.promptable)
+    # ...and the questions whose answers stand, which the twin's last lines
+    # count no more than profile's do (lane EZ-a's repair, LANE EZ RULINGS 4 (4)).
+    parent.answers_standing += [one for one in step.answers_standing if one not in parent.answers_standing]
     return _result_of(step, verdict)
 
 
@@ -10745,6 +12819,7 @@ def _twin_again(table: str, options: _Options) -> "list[str]":
     if options.seed != "0":
         words += _option_words("--seed", options.seed)
     for option, values in (
+        ("--person", options.persons),
         ("--identifier", options.identifiers),
         ("--code", options.codes),
         ("--measurement", options.measurements),
@@ -10872,18 +12947,17 @@ def _twin_ended(
         one
         for one in first.questions
         if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)
+        and (one.column, one.role, one.reason) not in session.answers_standing
     ]
     # ...AND THE QUESTIONS THE ANSWERS COMMAND CAN PUT ON SCREEN, apart from
     # those answered in the file alone (lane TT's repair; Codex's item 9,
     # skeptic 1's item 5): the Safe Harbor questions and those about the
     # file itself are never put at a prompt, and the line counted them as
     # though they were (measured: 6 said, 3 put).
-    on_screen = [
-        one
-        for one in open_now
-        if one.section == results.SECTION_ASKED
-        and (one.column, one.role, one.reason) in session.promptable
-    ]
+    # ...AND SINCE LANE EZ-a EVERY ONE OF THEM (plan P4-D479): where somebody
+    # is at the keyboard, the rounds after the files put each entry no prompt
+    # put, the Safe Harbor questions and those about the file among them.
+    on_screen = list(open_now)
     if kept:
         _say(
             f"Its questions and the answers given stay in {_shown(kept[0])}: "
@@ -10896,10 +12970,22 @@ def _twin_ended(
             # taught wherever a question is still open, after Enter too
             # (lane TT's repair 2; the verify of repair 1 measured a
             # person who pressed Enter at 3 questions taught no command).
+            # ...LESS EVERY TYPED DECLARATION AN ANSWER OF THAT FILE REPLACED
+            # (lane EZ-a's second repair; Codex's item 1): handed back with
+            # the file, a typed option is read as later than the file's kept
+            # answer, and `--decimal-comma` typed over a record number
+            # answered `identifier` at the first prompt published its values.
+            typed_now = _typed_said(
+                list(options.identifiers) + [one for one in options.persons if one not in options.identifiers],
+                options.codes, options.measurements, options.decimal_commas, options.twelve_hours,
+                options.date_counts, options.centuries, options.date_columns, options.day_first,
+                options.delimiter, options.first_row, options.first_row_typed,
+            )
             words = _twin_again(
                 table,
                 dataclasses.replace(
-                    options, out_dir=f"{folder}", answers=kept[0], replace=True
+                    _options_left(options, _typed_replaced_in(pathlib.Path(kept[0]), typed_now)),
+                    out_dir=f"{folder}", answers=kept[0], replace=True,
                 ),
             )
             command = _next(results.PURPOSE_ANSWER_QUESTIONS, *words)
@@ -11305,6 +13391,7 @@ def _dispatch(
                 least_read,
                 chain=chain is not None,
             )
+        session.typed = options
         return _run_profile(
             named,
             options.out_dir,
@@ -11330,6 +13417,7 @@ def _dispatch(
             chain=chain,
             small_tables_refused=small_tables_refused,
             replace=options.replace,
+            persons_given=options.persons,
         )
     except PathValidationError as error:
         # The message is treated as a VALUE, not as something synthtwin

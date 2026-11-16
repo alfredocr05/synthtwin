@@ -2092,6 +2092,10 @@ def _answer_rounds(
             # units, lane SH3): answered by the column's `harbor` answer.
             if "no" in offered and "yes" in offered:
                 wanted = answers.get(f"{column} harbor", "")
+            # Question Q-KEYED offers `keyed` and `keep` (lane KV, plan P4-D487):
+            # answered by the column's `keyed` answer.
+            if "keyed" in offered and "keep" in offered:
+                wanted = answers.get(f"{column} keyed", "")
             if wanted in offered:
                 entry["your_answer"] = wanted
                 fresh = fresh + 1
@@ -2192,6 +2196,13 @@ def test_at_the_owner_floor_the_closed_list_analyst_runs_and_no_safe_harbor_colu
         # ages, so `yes` keeps its top-code (lane SH3) and the column is read
         # with no `no` of its own -- fix (c): no figure word is named.
         "reported_age harbor": "yes",
+        # ...and question Q-KEYED (lane KV, plan P4-D487), truthfully `keep`: the
+        # table's every tenth and twelfth rows, where the result and the age are
+        # words, fall on six and five of the sixty codes, so the code decides
+        # their kind and the reading reads both as typed by it; neither is a
+        # measurement a diagnosis code names, so the holder keeps them whole.
+        "result keyed": "keep",
+        "reported_age keyed": "keep",
     }
     _answer_rounds(source, tmp_path, answers, True)
     described = {

@@ -31,7 +31,7 @@ import pathlib
 import random
 import sys
 
-from synthtwin import contract, dialect, generation
+from synthtwin import contract, dialect, generation, twinstore
 
 import lowered_floor  # a floor under 11 (plan P4-D426)
 
@@ -306,20 +306,56 @@ def recorded_columns(described: contract.Profile, seed: int) -> "list[tuple[str,
 
     Each is recorded where it is handed to `dialect.placed_column`: the
     cells 8a02faa3 appended to its grid as `tuple(spelled)`.
+
+    A DESCRIPTION WITH A KEYED VALUE COLUMN (lane KV, plan P4-D487): each
+    key block is written by `generate_held` on the block as a table of its
+    own, whose columns are no column of this twin and are not recorded (the
+    walk's depth is read), and the value column is written again from its
+    key's blocks after it is placed (method G8.3f), so the columns are
+    recorded where the finished columns are handed to
+    `dialect.arranged_columns` -- the same cells as at `placed_column` for
+    every other column, where the form places no all-empty record
+    (asserted; the zoo's keyed tables place none).
     """
     seen: "list[tuple[str, ...]]" = []
+    depth = 0
+    keyed = any(column.keyed_by for column in described.columns)
     shipped = dialect.placed_column
+    shipped_arranged = dialect.arranged_columns
+    shipped_held = generation.generate_held
 
     def recording(state: dialect.Arranging, cells: "list[str]") -> "list[str]":
         nonlocal seen
-        seen = seen + [tuple(cells)]
+        if depth == 1:
+            seen = seen + [tuple(cells)]
         return shipped(state, cells)
 
+    def arranging(
+        state: dialect.Arranging, columns: "list[twinstore.HeldColumn]", rows_moved: "list[int] | None" = None
+    ) -> "list[twinstore.HeldColumn]":
+        nonlocal seen
+        if depth == 1 and keyed:
+            assert not any(state.targets), "a keyed twin whose form places an all-empty record"
+            seen = [tuple(twinstore.column_cells(column)) for column in columns]
+        return shipped_arranged(state, columns, rows_moved)
+
+    def walked(profile: contract.Profile, words: int) -> generation.Twin:
+        nonlocal depth
+        depth = depth + 1
+        try:
+            return shipped_held(profile, words)
+        finally:
+            depth = depth - 1
+
     dialect.placed_column = recording  # type: ignore[assignment]
+    dialect.arranged_columns = arranging  # type: ignore[assignment]
+    generation.generate_held = walked  # type: ignore[assignment]
     try:
         generation.generate_held(described, seed)
     finally:
         dialect.placed_column = shipped  # type: ignore[assignment]
+        dialect.arranged_columns = shipped_arranged  # type: ignore[assignment]
+        generation.generate_held = shipped_held  # type: ignore[assignment]
     return seen
 
 

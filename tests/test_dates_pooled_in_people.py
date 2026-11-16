@@ -1032,25 +1032,31 @@ def test_a_published_layout_no_date_wears_is_written_as_made_up(tmp_path: pathli
                          "--seed", "0", "--replace"]) == 0
     cells = _column(tmp_path / "unread-twin.csv", "visit_date")
     unread = [cell for cell in cells if _parses([cell], "%Y-%m-%d")]
-    assert len(unread) == 12 and all(len(cell) == 7 and cell.isalpha() for cell in unread), unread
+    # SINCE LANE ID-ROOM3 (plan P4-D488) its census, withheld but for `pending`, is read in its reading's layout:
+    # the stand-ins are dates of the room, and the one made-up value of the longest length no date of the room
+    # wears stays the walk's (two rows), so the block's lengths hold and the twin validates.
+    longest = [cell for cell in unread if len(cell) == block["max_length"]]
+    assert len(unread) == 12 + len(longest) and 0 < len(longest) <= 2, unread
+    assert all(len(cell) == 7 and cell.isalpha() for cell in unread if cell not in longest), unread
     outcome = validation.measure(contract.load_profile(f"{tmp_path / 'unread-profile.json'}"),
                                  f"{tmp_path / 'unread-twin.csv'}")
     missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
-    assert missed == ["length.max"], missed
-    assert "max_length" in (tmp_path / "unread-twin-report.txt").read_text(encoding="utf-8")
+    assert missed == [], missed
     # ...and every made-up cell of `&&&&&&&` wears the layout's excluded template (plan P4-D432).
     written = block["layout_exclusions"]["&&&&&&&"]
     place = [at for at in range(7) if written[at] != "&"][0]
-    assert all(cell[place] == written[place] for cell in unread), (written, unread)
+    assert all(cell[place] == written[place] for cell in unread if cell not in longest), (written, unread)
 
 
 @pytest.mark.parametrize("shape", ("pending", "short"))
 def test_a_length_no_valid_date_wears_is_named_in_the_twins_report(tmp_path: pathlib.Path, shape: str) -> None:
-    """The verify's item 2 (`pending`, three people) and Codex's item 4 (one cell `x`): the report names the length.
+    """The verify's item 2 (`pending`, three people) and Codex's item 4 (one cell `x`): the report named the length.
 
     The G1 floor writes valid dates, and no valid ISO date is seven or one
-    character long: `validate` misses `min_length`, and the twin's own
-    report, measured on the cells as they leave, names the same miss.
+    character long: `validate` missed `min_length`, and the twin's own
+    report, measured on the cells as they leave, named the same miss.
+    Since lane ID-ROOM3 the shortest made-up value stays the walk's
+    (below), and the miss is gone.
     """
     text = persons_counted.unread_dates_table(3, 0) if shape == "pending" else persons_counted.one_short_cell_table()
     column = "visit_date" if shape == "pending" else "seen"
@@ -1060,13 +1066,18 @@ def test_a_length_no_valid_date_wears_is_named_in_the_twins_report(tmp_path: pat
     with contextlib.redirect_stdout(quiet), contextlib.redirect_stderr(quiet):
         assert cli.main(["generate", f"{tmp_path / (shape + '-profile.json')}", "--out-dir", f"{tmp_path}",
                          "--seed", "0", "--replace"]) == 0
-    assert _parses(_column(tmp_path / f"{shape}-twin.csv", column), "%Y-%m-%d") == 0
+    # SINCE LANE ID-ROOM3 (plan P4-D488) the census, withheld whole, is read in its reading's layout and its
+    # stand-ins are dates of the room, but the one made-up value of the shortest length no date of the room wears
+    # stays the walk's, so `min_length` holds and the twin validates; every other cell is a date of the room.
+    cells = _column(tmp_path / f"{shape}-twin.csv", column)
+    shortest = _block(described, column)["min_length"]
+    unread = [cell for cell in cells if cell and _parses([cell], "%Y-%m-%d")]
+    assert unread and all(len(cell) == shortest for cell in unread), unread[:5]
+    assert {cell[0:4] for cell in cells if cell and cell not in unread} <= {"2028", "2029", "2030", "2031"}
     outcome = validation.measure(contract.load_profile(f"{tmp_path / (shape + '-profile.json')}"),
                                  f"{tmp_path / (shape + '-twin.csv')}")
     missed = sorted({f"{check.subcheck}" for check in outcome.checks if check.verdict == validation.MISSED})
-    assert missed == ["length.min"], missed
-    report = (tmp_path / f"{shape}-twin-report.txt").read_text(encoding="utf-8")
-    assert "min_length" in report and "no valid one of its reading" in " ".join(report.split()), report[-3000:]
+    assert missed == [], missed
 
 
 def test_a_span_too_narrow_for_the_count_never_leaves_a_made_up_cell(tmp_path: pathlib.Path) -> None:
@@ -1199,12 +1210,20 @@ def test_a_held_month_column_holds_its_count_in_the_widened_span(
     """The second verify's item 2 (its shapes `rep4` and `rep2`): 530 and 600 birth months, held with no span.
 
     The capacity is measured in the layout's finest written detail (months
-    for `%Y-%m`, `grains.held_spans`) and the fixed span widened by whole
-    decades from 2000 to twice the published count (`grains.fixed_span_holding`):
-    every twin cell is a valid month and the twin holds every one. Before,
-    the 360 months of 2000 to 2029 left `rep4`'s 530 at 360 (n_distinct,
-    `_by_occurrences` and `_folded` missed at exit 3); a span of exactly
-    `rep2`'s 600 months left 582 (room of one).
+    for `%Y-%m`): every twin cell of `rep4` is a valid month and the twin
+    holds every one. Before, the 360 months of 2000 to 2029 left `rep4`'s
+    530 at 360 (n_distinct, `_by_occurrences` and `_folded` missed at exit
+    3); a span of exactly `rep2`'s 600 months left 582 (room of one).
+    SINCE LANE ID-ROOM3 (plan P4-D488) a held column draws its made-up
+    dates from the made-up-date room alone: `rep4`'s 530 months (births of
+    1920 to 1999) are written in the 89 years from 2028; `rep2`'s births run
+    one a year to 2049, so a real month names every year of the room and
+    the column writes no date -- where the method's fixed span, widened to
+    2000 to 2049, wrote real birth months of single patients. Since lane
+    ID-ROOM3's repair 1 (LANE ID-ROOM3 RULINGS 5 (3) and 6 (3)) a held date
+    with no room is written BLANK, never the walk's record numbers (600 of
+    them on the build's head), and the validator lists the column's facts
+    over present cells with the reason, so the twin still validates.
     """
     # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
     # that shows an age of 90 or more until its question is answered; this
@@ -1217,8 +1236,16 @@ def test_a_held_month_column_holds_its_count_in_the_widened_span(
     assert block["n_distinct"] == count and block["time_grain"]["finest"] == "month", block["n_distinct"]
     twin, _real = _generated_and_validated(tmp_path, shape)
     cells = _column(tmp_path / f"{shape}-twin.csv", name)
-    assert _parses(cells, "%Y-%m") == 0, sorted(set(cells))[:5]
-    assert len(set(cells)) == count and name not in twin, (len(set(cells)), twin)
+    real = set(_column(tmp_path / f"{shape}.csv", name))
+    assert not set(cells) & real, sorted(set(cells) & real)[:5]
+    if shape == "rep4":
+        assert block["made_up_years"] == [[2028, 2116]], block["made_up_years"]
+        assert _parses(cells, "%Y-%m") == 0, sorted(set(cells))[:5]
+        assert len(set(cells)) == count, len(set(cells))
+    else:
+        assert block["made_up_years"] == [], block["made_up_years"]
+        assert cells and all(cell == "" for cell in cells), sorted(set(cells))[:5]
+    assert name not in twin, twin
     assert _validated_exit(tmp_path, shape, tmp_path / f"{shape}-twin.csv") == 0
 
 
@@ -1230,7 +1257,10 @@ def test_a_value_no_span_can_take_unrepeated_repeats_a_valid_one(tmp_path: pathl
     2000 to 2029 alone: 360 months for 530 values. Each value the walk
     cannot take unrepeated repeats a valid month in the last span; none
     is left as made up. Without the repeat the cells no walk placed stayed
-    stand-ins.
+    stand-ins. SINCE LANE ID-ROOM3 (plan P4-D488) a held column of dates
+    draws from the made-up-date room alone, so the case gives its room two
+    years, 24 months for the 530 values: each value the room cannot take
+    unrepeated repeats a valid month of the room.
     """
     # THE SAFE HARBOR DATES (plan P4-D434) hold a column of dates in a year
     # that shows an age of 90 or more until its question is answered; this
@@ -1241,12 +1271,15 @@ def test_a_value_no_span_can_take_unrepeated_repeats_a_valid_one(tmp_path: pathl
     column = [one for one in loaded.columns if one.name == "birth_month"][0]
     short = dataclasses.replace(column, n_distinct=10)
     assert grains.held_spans(short.time_grain, 10) == [grains.fixed_span(grains.DATE)]  # type: ignore[arg-type]
+    assert isinstance(short.facts, contract.IdentifierFacts)
+    short = dataclasses.replace(short, facts=dataclasses.replace(short.facts, made_up_years=((2028, 2029),)))
     cells = _column(tmp_path / "born.csv", "birth_month")
     draw = random.Random(0)
     words = [draw.getrandbits(64) for _cell in cells]
     found, unwritten = generation._inside_the_grain(short, cells, words)
     assert unwritten == 0 and _parses(found, "%Y-%m") == 0, (unwritten, sorted(set(found))[:5])
-    assert len(set(found)) <= 360 < len(set(cells)), (len(set(found)), len(set(cells)))
+    assert len(set(found)) <= 24 < len(set(cells)), (len(set(found)), len(set(cells)))
+    assert {cell[0:4] for cell in found} <= {"2028", "2029"}, sorted(set(found))[:5]
 
 
 def test_the_counter_reads_every_spelling_of_nobody(tmp_path: pathlib.Path) -> None:

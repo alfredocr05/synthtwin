@@ -318,6 +318,25 @@ agreement of the file's plain reading with the product's one definition
 of a space and a dash over every code point (4.5 s in the merge
 step's run).
 
+ONE ROW ADDED 2026-11-11, by lane HB3-a (plan P4-D482): its gate file,
+`tests/test_age_phrases_and_key_rooms.py`, 23.0 s (9 cases: the generated age
+phrases, the words that are no age, the dash and the zeros after the word,
+the gender letter and the months part, the reach of each family, the phrase
+column at the owner's floor, the generated key shapes of the room, the
+description's noughts widths and held-back mean, and the key room at the
+owner's floor), timed by one `pytest` process over the file on the lane's
+head, CPU seconds, user and system, at the machine's load. RESTATED BY LANE
+HB3-a's REPAIR 1 (2026-11-12): 63.0 s, 19 cases (the ten new ones: the
+gender letters a column writes, every age of a cell, a number its unit
+follows anywhere, zeros before a unit, a gender after a mark, the reach of
+40 characters, a unit named after the word, a gender after a unit and a
+slash, the characters that print nothing, and the counter's six texts), timed
+as two `pytest` processes over the file's unit cases (46.2 s) and its two
+tables at the owner's floor (16.8 s) on the repair's head. Kept at 63.0 s by
+lane HB3-a's repair 2 (2026-11-13): 21 cases (the two new ones: every gender
+word beside a lone m, and the noughts' room spent), 63.0 s timed by one
+`pytest` process over the file on the repair's code head.
+
 TWO ROWS ADDED 2026-11-11, at batch 4s's merge of lane HB2 (plan P4-D477):
 the lane's two gate files, each timed by one `pytest` process over the
 file on the merge step's code, CPU seconds, user and system, at the
@@ -389,6 +408,243 @@ call and teardown seconds summed from the round's final run of it on the fix
 head `85eb6754`, one `pytest -q --durations=0` process under Python 3.11 at
 a one-minute load of about 80 to 100 (100.3 CPU s, 407 s of wall).
 
+TWO ROWS ADDED 2026-11-10, by lane EZ-a (plan P4-D479): its gate files,
+each timed alone by one `pytest -q --durations=0` process on the lane's
+head under Python 3.11 and by `/usr/bin/time` around it, on a machine
+other work was loading far past the others' (one-minute load average 80
+to 118), so each row is the process's CPU seconds, user and system,
+which a quiet machine's wall clock reads for these single-process files,
+rather than its summed durations, which the load stretched more than
+twice: `tests/test_keyboard_answers.py`, 116.94 s (18 cases, one at
+20,000 rows; durations summed 264.23 s), and `tests/test_people_said.py`,
+12.85 s (9 cases, one at 20,000 rows; durations summed 27.76 s). BOTH
+RE-MEASURED 2026-11-11 by the lane's repair 1, the same way and in CPU
+seconds for the same reason (summed durations under this machine's
+load are two to three times the CPU), under a load of 51 to 81: 149.0 s (21 cases; 99.1 user and 49.9 system, the
+system share the loaded machine's paging; durations summed 390.19 s,
+the case at 20,000 rows 260.72 s) and 17.46 s (11 cases; durations
+summed 42.94 s). BOTH RE-MEASURED 2026-11-12 by the lane's repair 2, the
+same way, under a load of 58 to 69: 167.44 s (32 cases; 109.16 user and
+58.28 system; the process 359.52 s on the wall clock, its case at 20,000
+rows the longest) and 20.87 s (17 cases; 17.78 user and 3.09 system; 45.24
+s on the wall clock), 188.31 s together.
+BOTH RE-MEASURED 2026-11-13 at batch 4t's merge of the lane (step 1),
+the same way, with the three cases its scoped verify 2 owed added,
+under a load of 38 to 56: 178.35 s (33 cases; 124.53 user and 53.82
+system; 268 s on the wall clock) and 25.95 s (19 cases; 22.31 user and
+3.64 system; 41 s on the wall clock), 204.30 s together.
+
+ONE ROW ADDED 2026-11-10, at lane WIN (plan P4-D483): the lane's gate
+file weighed the default. `tests/test_windows_bundle.py`, 4.63 s at the
+lane's repair 2 (4.59 s at its repair 1, 82 cases; 2.03 s at its build,
+48 cases; now 126: the workflow file's text, its mutants and a generated
+case adding each of 23 foreign lines to each step after the denial, the
+builder of the ready folder on stub wheels and a stub embeddable Python,
+two builds in two folders, the folder's check and window, the
+import-table reader on Windows program files built byte by byte, the
+Python pin in both its states, the answers, the guard and its proofs,
+the trial driver and each of its verdicts, and the guides; one of them
+runs only where PyYAML is installed, so never in CI), timed alone by one
+`pytest -q --durations=5` process on the lane's head under Python 3.11,
+2.64 CPU seconds, on a machine other work was loading (one-minute load
+about 70).
+
+ONE ROW ADDED 2026-11-12, by lane HB3-b at its repair 2 (plan P4-D490;
+Codex's review of the lane, item 7): `tests/test_held_writer_time.py`,
+455.96 s (its gate file, 18 cases, one of them at 20,000 rows: 63.99 s),
+timed alone by one `pytest -q --durations=0` process on the repair's
+code under Python 3.11, its setup, call and teardown seconds summed, on a
+machine other work was loading (162.3 CPU seconds, user plus system, for
+its 457.8 s). The second check file of the lane's repair 1 left with the
+integer program it checked, so it has no row.
+
+ONE ROW ADDED 2026-11-13, at batch 4t's merge of lane CZ-G (step 4;
+plan P4-D493; LANE CZ-G RULINGS 6 (2)): `tests/test_value_reader_residuals.py`,
+64.68 s (its gate file, 113 cases, one of them at 20,000 rows: 40.31 s),
+timed alone by one `pytest -q --durations=0` process on the step's head
+`a2d6b36b` under Python 3.11, its setup, call and teardown seconds summed,
+on a machine other work was loading (65.23 CPU seconds, user plus system,
+for its 65.7 s on the wall clock; the lane's last step had read the file
+at 63.1 CPU seconds).
+
+ONE ROW ADDED 2026-11-13, at batch 4t's merge of lane CZ-G-b (step 5;
+plan P4-D494): `tests/test_persons_names_residuals.py`, 38.01 s (its gate
+file, 60 cases, two of them through the commands at 20,000 rows: 15.04 s
+and 6.62 s), timed by one `pytest -q --durations=0` process on the merge
+commit `9f9987f2` under Python 3.11, its setup, call and teardown seconds
+summed, on a machine other work was loading (38.60 CPU seconds, user plus
+system, for its 38.7 s on the wall clock). The lane's other gate file,
+`tests/test_zoo_persons_names.py`, keeps lane CZ-F's row.
+
+ONE ROW ADDED 2026-11-12, lane HB3-a2 (plan P4-D486): its gate file
+`tests/test_ages_widened_and_units.py`, 38.8 s (9 cases), timed by one
+`pytest` process over the file on the lane's code, CPU seconds, user and
+system, at the machine's load; re-weighed at the lane's repair 1, 57.7 s
+(17 cases), by the same means.
+
+ONE ROW ADDED 2026-11-14, at batch 4t's merge of lane NOTES (step 8;
+plan P4-D481): `tests/test_notes_sentences.py`, 30.09 s (its gate file,
+22 cases, one of them through the commands at 20,000 rows: 16.99 s, its
+twin checked whole and in groups of one column since the validator's
+hand-over), timed by one `pytest -q --durations=0` process on the tree
+of the hand-over commit `4f4ddef8` under Python 3.11, its setup, call and
+teardown seconds summed (30.55 CPU seconds, user plus system, for its
+31 s on the wall clock).
+
+ONE ROW ADDED 2026-11-13, on lane ID-ROOM4's branch (plan P4-D489; the
+outside review of the lane, item 9): `tests/test_made_up_keys_never_real.py`,
+214.05 s (37 cases since the lane's repair 2: the made-up spellings'
+one source, the oracle's ten frozen columns, the generated columns of
+each writer and three 20,000-row cases), timed alone by one
+`pytest -q --durations=0` process on the repair's code under Python
+3.11, its setup, call and teardown seconds summed as the table's other
+rows are, on a machine other work was loading (one-minute load
+average about 34; 150.8 CPU seconds).
+
+Lane ID-ROOM3 (plan P4-D488) adds `tests/test_counted_dates_room.py`: at its repair 2, 36 cases, one of
+them at 20,000 rows, 174.37 s, the CPU seconds, user and system, of one `pytest -q` process over the file
+on the repair's code `cb93596f` under Python 3.11 (259 s of wall, the machine loaded), as the rows of
+lanes HB2 and CZ-E were measured at their merges; its repair 1 measured 111.59 s for 29 cases and its
+build 173.84 s of wall for 21.
+
+ONE ROW ADDED 2026-11-13, at lane KV's last step (plan P4-D487; the
+orchestrator's LANE KV RULINGS 7): the lane's second gate file
+`tests/test_key_value_terms.py`, 6.8 s (2 cases), one `pytest` process
+over the file on the step's code `80fe6129`, CPU seconds, user and
+system, at the machine's load (13.7 s of wall), where the other rows sum
+the setup, call and teardown seconds `--durations=0` prints (10.33 s
+here). Its two cases stand in a file of their own so that the lane's
+gate file `tests/test_key_value.py` takes no more CPU time.
+
+TWO ROWS WEIGHED 2026-11-14, at batch 4t's merge of lane KV (step 11;
+plan P4-D487; the orchestrator's ruling R4 of the step): the lane's
+gate file `tests/test_key_value.py`, 101.04 s (41 cases, one of them
+at the table floor through the commands; it had no row and weighed
+`DEFAULT_SECONDS`, and the lane's last step read it at 274.3 s and
+183.5 CPU seconds at a one-minute load of about 62), and its second
+file `tests/test_key_value_terms.py`, 7.2 s (5 cases: the gate file's
+two older cases of the terms the last step pinned moved beside its
+two, so that the gate file stays under its three CPU minutes, and the
+merge's case of lane NOTES's sentence reading), each timed alone by
+one `pytest -q --durations=0` process on the step's code `077ed95d`
+under Python 3.11, its setup, call and teardown seconds summed, the
+machine quiet (102.0 and 8.2 CPU seconds, user plus system).
+
+39 ROWS WEIGHED AGAIN 2026-11-14, at batch 4t's owed items (the merge
+part's checks, on the merged head `ec4fe687`): every gate file the batch's
+lanes added and every test file a lane or a merge step of the batch
+changed, each timed alone by one `pytest -q --durations=0` process under
+Python 3.11 over an extracted copy of that head, its setup, call and
+teardown seconds summed as the table's other rows are, on a quiet machine
+(one-minute load average about 2 to 3; most rows above were weighed at
+loads of 34 to 140, so a quiet row reads lower beside them, the packing a
+convenience as said above), the process's CPU seconds, user and system,
+and its wall beside each. A row more than a quarter off its measurement
+was set to it: `tests/test_keyboard_answers.py` 89.69 s (33 cases, 90.8
+CPU s, 91 s of wall; the row was 178.35); `tests/test_people_said.py`
+18.60 s (19 cases, 19.3 CPU s, 19 s of wall; the row was 25.95);
+`tests/test_windows_bundle.py` 1.26 s (125 cases, 1.7 CPU s, 2 s of wall;
+the row was 4.63); `tests/test_held_writer_time.py` 101.88 s (18 cases,
+102.8 CPU s, 103 s of wall; the row was 455.96);
+`tests/test_zoo_persons_names.py` 28.29 s (299 cases, 29.2 CPU s, 29 s of
+wall; the row was 90.27); `tests/test_age_phrases_and_key_rooms.py` 39.00
+s (21 cases, 39.7 CPU s, 40 s of wall; the row was 63.0);
+`tests/test_made_up_keys_never_real.py` 95.12 s (37 cases, 95.9 CPU s, 96
+s of wall; the row was 214.05); `tests/test_merged_line_review_items.py`
+76.69 s (22 cases, 77.4 CPU s, 77 s of wall; the row was 403.77);
+`tests/test_answers_across_rounds.py` 112.76 s (77 cases, 113.3 CPU s, 113
+s of wall; the row was 434.87); `tests/test_claim_inventory.py` 24.08 s
+(85 cases, 26.1 CPU s, 26 s of wall; the row was 80.12);
+`tests/test_contract_loader.py` 9.43 s (444 cases, 9.4 CPU s, 9 s of wall;
+the row was 38.72); `tests/test_dates_pooled_in_people.py` 62.68 s (61
+cases, 63.6 CPU s, 64 s of wall; the row was 338.01);
+`tests/test_failure_catalog.py` 1.20 s (332 cases, 1.8 CPU s, 2 s of wall;
+the row was 3.32); `tests/test_held_dates_off_the_real_widths.py` 93.33 s
+(5 cases, 93.8 CPU s, 94 s of wall; the row was 192.55);
+`tests/test_kpi_ledger_integrity.py` 6.09 s (45 cases, 6.2 CPU s, 6 s of
+wall; the row was 21.86); `tests/test_labelled_record_numbers.py` 140.54 s
+(62 cases, 141.3 CPU s, 141 s of wall; the row was 400.77);
+`tests/test_lm1_numbers_as_written.py` 29.59 s (42 cases, 30.5 CPU s, 31 s
+of wall; the row was 112.12); `tests/test_p1r7f2_withholding_block.py`
+0.56 s (19 cases, 1.2 CPU s, 1 s of wall; the row was 1.08);
+`tests/test_p2c4f1_disposition_registry.py` 13.10 s (51 cases, the three
+seal cases red until the seal step writes the seal, 14.1 CPU s, 14 s of
+wall; the row was 42.51); `tests/test_p3v1f2_entry_table.py`
+117.20 s (26 cases, 118.1 CPU s, 118 s of wall; the row was 543.87);
+`tests/test_p4d341_population_floor.py` 3.60 s (55 cases, 4.3 CPU s, 4 s
+of wall; the row was 13.78);
+`tests/test_privacy_unanswered_identifiers.py` 210.66 s (175 cases, 211.3
+CPU s, 212 s of wall; the row was 1297.86);
+`tests/test_profile_version_5.py` 0.31 s (19 cases, 1.2 CPU s, 1 s of
+wall; the row was 1.08); `tests/test_provenance.py` 37.07 s (37 cases,
+37.0 CPU s, 37 s of wall; the row was 107.49);
+`tests/test_readers_once_a_spelling.py` 4.68 s (39 cases, 5.2 CPU s, 5 s
+of wall; the row was 8.99); `tests/test_safe_harbor_age_words.py` 42.70 s
+(21 cases, 43.4 CPU s, 43 s of wall; the row was 141.05);
+`tests/test_safe_harbor_ends_and_bounds.py` 48.00 s (19 cases, 48.5 CPU s,
+48 s of wall; the row was 192.92); `tests/test_stage3_gate.py` 9.46 s (67
+cases, 10.3 CPU s, 10 s of wall; the row was 34.77);
+`tests/test_stage3b_full_precision.py` 28.27 s (33 cases, 29.2 CPU s, 29 s
+of wall; the row was 87.79); `tests/test_stage3b_reader.py` 11.02 s (101
+cases, 12.0 CPU s, 12 s of wall; the row was 37.7);
+`tests/test_stage4_allocator_walk.py` 31.02 s (29 cases, 31.9 CPU s, 32 s
+of wall; the row was 609.72); `tests/test_stage5_gate.py` 116.09 s (37
+cases, 117.0 CPU s, 117 s of wall; the row was 349.56);
+`tests/test_table_floor.py` 26.71 s (43 cases, 27.2 CPU s, 27 s of wall;
+the row was 85.52); `tests/test_terminal_twin.py` 42.24 s (30 cases, 42.8
+CPU s, 43 s of wall; the row was 71.33);
+`tests/test_terminal_twin_held.py` 97.08 s (12 cases, 97.6 CPU s, 98 s of
+wall; the row was 136.04); `tests/test_version_reach.py` 13.48 s (5 cases,
+13.6 CPU s, 14 s of wall; the row was 53.13);
+`tests/test_zoo_held_layouts.py` 286.06 s (85 cases, 287.0 CPU s, 287 s of
+wall; the row was 904.32); `tests/test_zoo_rare_names.py` 88.54 s (106
+cases, 89.5 CPU s, 90 s of wall; the row was 377.02);
+`tests/test_zoo_value_readers.py` 123.00 s (254 cases, 123.8 CPU s, 124 s
+of wall; the row was 341.0). Within a quarter, kept:
+`tests/test_value_reader_residuals.py` (56.66 s against 64.68);
+`tests/test_persons_names_residuals.py` (36.32 s against 38.01);
+`tests/test_ages_widened_and_units.py` (52.32 s against 57.7);
+`tests/test_notes_sentences.py` (30.43 s against 30.09);
+`tests/test_counted_dates_room.py` (136.94 s against 174.37);
+`tests/test_key_value.py` (102.71 s against 101.04);
+`tests/test_key_value_terms.py` (7.25 s against 7.2);
+`tests/test_held_dates_off_the_real.py` (16.06 s against 16.17);
+`tests/test_p4a60_answers_handed_back.py` (3.71 s against 3.74).
+
+THREE ROWS ADDED 2026-11-15, at batch 4t's first seal: the gate files of
+the fix round's first three code rounds, each as its round measured it
+alone, the CPU seconds, user and system, of one `pytest` process over the
+file under Python 3.11 at the machine's load, as lane KV's last step
+weighed its second file:
+`tests/test_merged_line_review_items_4t.py` 175.0 s (33 cases; user 164,
+system 11; 175 s of wall at a one-minute load of about 3),
+`tests/test_merged_line_last_round_4t.py` 90.5 s (15 cases; user 79.4,
+system 11.2; 90.7 s of wall at a load of 2.3) and
+`tests/test_merged_line_held_codes_4t.py` 65.1 s (8 cases; user 57.7,
+system 7.4; 63.8 s of wall at a load of about 3).
+`tests/test_counted_dates_room.py` keeps its row of 174.37 s: the fix
+round's item 8 adds one case (37), and the lane's own reading at 37 cases,
+173.46 CPU seconds, is within a quarter of the row, the rule of the
+paragraph above.
+
+TWO ROWS ADDED 2026-11-16, at batch 4t's second seal: the gate files of
+the fix round's rounds 4 and 5 (plan P4-D494), each as its round measured
+it alone, the CPU seconds, user and system, of one `pytest` process over
+the file under Python 3.11 at the machine's load, as the paragraph above
+weighed the first three rounds' files:
+`tests/test_merged_line_names_with_roles_4t.py` 53.7 s (8 cases; user
+44.1, system 9.6; 54.9 s of wall; round 4's own reading on its head,
+before round 5 restated its mutant case) and
+`tests/test_names_before_older_role_words_4t.py` 126.3 s (9 cases; user
+118.4, system 7.9; 124.0 s of wall; round 5's own reading on its head).
+`tests/test_persons_names_residuals.py` keeps its row of 38.01 s: rounds
+4 and 5 restated assertions in it and added no case (60), and one
+`pytest -q --durations=0` process over it at this seal, on the stamps'
+commit `9e7a7a5f` under Python 3.11 on a quiet machine (one-minute load
+average about 1.5), summed 39.20 s of setup, call and teardown (39.7 CPU
+seconds, user plus system), within a quarter of the row, the rule of the
+paragraph of the 39 rows.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Only a file added since
 the last measurement has none: it is placed like an ordinary small file
 and runs in its shard from the commit that adds it. A file every case of
@@ -402,12 +658,14 @@ a row of 0.0, as said above.
 DEFAULT_SECONDS = 2.0
 
 SECONDS = {
+    "tests/test_age_phrases_and_key_rooms.py": 39.0,
     "tests/test_ages_named_on_held_columns.py": 23.96,
+    "tests/test_ages_widened_and_units.py": 57.7,
     "tests/test_all_different_numbers_asked.py": 161.92,
     "tests/test_analyst_battery.py": 159.24,
     "tests/test_analyst_kit.py": 13.36,
     "tests/test_analyst_tables.py": 12.18,
-    "tests/test_answers_across_rounds.py": 434.87,
+    "tests/test_answers_across_rounds.py": 112.76,
     "tests/test_ap311_lowered_floor.py": 22.99,
     "tests/test_ap312_fold_repair.py": 269.94,
     "tests/test_ap313_stated_limit.py": 0.38,
@@ -424,7 +682,7 @@ SECONDS = {
     "tests/test_chain_table_layer.py": 13.5,
     "tests/test_ci_demo_steps.py": 30.63,
     "tests/test_ci_shards.py": 0.07,
-    "tests/test_claim_inventory.py": 80.12,
+    "tests/test_claim_inventory.py": 24.08,
     "tests/test_cli.py": 0.04,
     "tests/test_cli_generate.py": 4.04,
     "tests/test_cli_profile.py": 14.31,
@@ -434,11 +692,12 @@ SECONDS = {
     "tests/test_commit_messages.py": 4.53,
     "tests/test_commonest_width_grid.py": 6.65,
     "tests/test_computer.py": 0.0,
-    "tests/test_contract_loader.py": 38.72,
+    "tests/test_contract_loader.py": 9.43,
     "tests/test_contract_self_check.py": 8.75,
+    "tests/test_counted_dates_room.py": 174.37,
     "tests/test_date_spread.py": 73.14,
     "tests/test_dates_held_by_the_floor.py": 61.7,
-    "tests/test_dates_pooled_in_people.py": 338.01,
+    "tests/test_dates_pooled_in_people.py": 62.68,
     "tests/test_dates_written_forms_disclosed.py": 21.23,
     "tests/test_decontamination.py": 2549.59,
     "tests/test_dependencies.py": 13.21,
@@ -446,7 +705,7 @@ SECONDS = {
     "tests/test_extra_review_dates.py": 7.84,
     "tests/test_extra_round_disclosure.py": 35.61,
     "tests/test_extra_round_numbers.py": 9.98,
-    "tests/test_failure_catalog.py": 3.32,
+    "tests/test_failure_catalog.py": 1.2,
     "tests/test_file_dialect_round_trip.py": 92.56,
     "tests/test_files_review_2026_09_18.py": 9.04,
     "tests/test_files_review_repairs.py": 21.17,
@@ -464,20 +723,24 @@ SECONDS = {
     "tests/test_held_dates_off_the_real.py": 16.17,
     "tests/test_held_dates_off_the_real_shapes.py": 219.91,
     "tests/test_held_dates_off_the_real_typed.py": 83.54,
-    "tests/test_held_dates_off_the_real_widths.py": 192.55,
+    "tests/test_held_dates_off_the_real_widths.py": 93.33,
     "tests/test_held_dates_off_the_real_writers.py": 266.28,
     "tests/test_held_dates_off_the_real_zoo.py": 40.57,
     "tests/test_held_dates_reader_readings.py": 86.52,
     "tests/test_held_dates_spellings.py": 99.14,
     "tests/test_held_unit_search.py": 48.04,
+    "tests/test_held_writer_time.py": 101.88,
     "tests/test_identifier_room.py": 99.59,
     "tests/test_joined_battery_readings.py": 413.72,
     "tests/test_joined_pair_round_trip.py": 77.22,
     "tests/test_k_p3_03_outer_tail_spread.py": 64.99,
+    "tests/test_key_value.py": 101.04,
+    "tests/test_key_value_terms.py": 7.2,
+    "tests/test_keyboard_answers.py": 89.69,
     "tests/test_kpi_ledger.py": 2473.74,
-    "tests/test_kpi_ledger_integrity.py": 21.86,
+    "tests/test_kpi_ledger_integrity.py": 6.09,
     "tests/test_l0_method_page.py": 0.28,
-    "tests/test_labelled_record_numbers.py": 400.77,
+    "tests/test_labelled_record_numbers.py": 140.54,
     "tests/test_landing_2b12_identifiers_codes_text.py": 18.4,
     "tests/test_landing_2b13_numbers_beside_labels.py": 10.22,
     "tests/test_landing_2b15_unanchored_numbers.py": 19.24,
@@ -493,11 +756,16 @@ SECONDS = {
     "tests/test_lane_l2_spaced_meridiem.py": 99.06,
     "tests/test_lane_l3_stamp_forms.py": 188.23,
     "tests/test_levels_few_people_hold.py": 69.39,
-    "tests/test_lm1_numbers_as_written.py": 112.12,
+    "tests/test_lm1_numbers_as_written.py": 29.59,
     "tests/test_lone_figure_nought.py": 0.28,
     "tests/test_lone_pools_every_reader.py": 7.46,
+    "tests/test_made_up_keys_never_real.py": 95.12,
     "tests/test_merge_close_2026_09_18.py": 12.42,
-    "tests/test_merged_line_review_items.py": 403.77,
+    "tests/test_merged_line_held_codes_4t.py": 65.1,
+    "tests/test_merged_line_last_round_4t.py": 90.5,
+    "tests/test_merged_line_names_with_roles_4t.py": 53.7,
+    "tests/test_merged_line_review_items.py": 76.69,
+    "tests/test_merged_line_review_items_4t.py": 175.0,
     "tests/test_method_citations_resolve.py": 1.38,
     "tests/test_mixture_reader_bounds.py": 30.15,
     "tests/test_module_names_once.py": 1.72,
@@ -507,7 +775,9 @@ SECONDS = {
     "tests/test_moment_polish_sort.py": 55.07,
     "tests/test_moment_rule_b.py": 60.27,
     "tests/test_moment_window_anchor.py": 8.62,
+    "tests/test_names_before_older_role_words_4t.py": 126.3,
     "tests/test_no_quadratic_list_growth.py": 11.2,
+    "tests/test_notes_sentences.py": 30.09,
     "tests/test_numba_vectors.py": 1.0,
     "tests/test_number_censuses_name_no_row.py": 28.6,
     "tests/test_numbers_beside_labels.py": 45.38,
@@ -527,7 +797,7 @@ SECONDS = {
     "tests/test_p1r7f1_transaction_disclosure.py": 0.16,
     "tests/test_p1r7f2_declaration_disclosure.py": 1.02,
     "tests/test_p1r7f2_disclosure_is_true.py": 1.98,
-    "tests/test_p1r7f2_withholding_block.py": 1.08,
+    "tests/test_p1r7f2_withholding_block.py": 0.56,
     "tests/test_p1r7f3_exact_declarations.py": 8.32,
     "tests/test_p1r8f1_guard_seam.py": 7.18,
     "tests/test_p1r8f1_working_name_claim.py": 2.67,
@@ -548,7 +818,7 @@ SECONDS = {
     "tests/test_p2c2f7_oracle_identifier_bands.py": 0.03,
     "tests/test_p2c2f8_invention_walk_bound.py": 0.06,
     "tests/test_p2c3f1_published_margins.py": 30.43,
-    "tests/test_p2c4f1_disposition_registry.py": 42.51,
+    "tests/test_p2c4f1_disposition_registry.py": 13.1,
     "tests/test_p2c4f2_text_shape.py": 52.77,
     "tests/test_p2c4f3_style_capacity.py": 62.79,
     "tests/test_p2c5f2_identifier_classes.py": 894.21,
@@ -562,7 +832,7 @@ SECONDS = {
     "tests/test_p3v11f2_no_refusal_quotes_your_spelling.py": 1.07,
     "tests/test_p3v12f2_a_miss_says_what_it_found.py": 15.92,
     "tests/test_p3v1f12_one_target_transaction.py": 4.35,
-    "tests/test_p3v1f2_entry_table.py": 543.87,
+    "tests/test_p3v1f2_entry_table.py": 117.2,
     "tests/test_p3v2a1_presence_split.py": 1280.47,
     "tests/test_p3v3f1_description_equivalence.py": 29.33,
     "tests/test_p3v3f3_refused_files.py": 3.06,
@@ -634,7 +904,7 @@ SECONDS = {
     "tests/test_p4d30_field_widths.py": 2.26,
     "tests/test_p4d32_empty_bins.py": 23.17,
     "tests/test_p4d334_sentence_arguments.py": 55.37,
-    "tests/test_p4d341_population_floor.py": 13.78,
+    "tests/test_p4d341_population_floor.py": 3.6,
     "tests/test_p4d349_tail_reconstruction.py": 8.39,
     "tests/test_p4d353_cost_rule.py": 39.61,
     "tests/test_p4d357_review_of_followup_a.py": 100.31,
@@ -671,20 +941,22 @@ SECONDS = {
     "tests/test_parsing.py": 0.01,
     "tests/test_paths.py": 0.01,
     "tests/test_patient_page.py": 0.58,
+    "tests/test_people_said.py": 18.6,
+    "tests/test_persons_names_residuals.py": 38.01,
     "tests/test_pool_alone_marks.py": 92.96,
     "tests/test_pool_start_keeps_off_keys.py": 11.29,
     "tests/test_pooled_number_scale.py": 5.19,
     "tests/test_pooled_scale_refusals.py": 7.19,
-    "tests/test_privacy_unanswered_identifiers.py": 1297.86,
+    "tests/test_privacy_unanswered_identifiers.py": 210.66,
     "tests/test_profile_document.py": 4.88,
     "tests/test_profile_version_4.py": 0.49,
-    "tests/test_profile_version_5.py": 1.08,
-    "tests/test_provenance.py": 107.49,
+    "tests/test_profile_version_5.py": 0.31,
+    "tests/test_provenance.py": 37.07,
     "tests/test_r5_trailing_delimiter_reading.py": 19.72,
     "tests/test_r6_quoted_closing_reading.py": 83.07,
     "tests/test_r6_taxonomy_contract.py": 14.24,
     "tests/test_r6f5_write_transaction.py": 0.1,
-    "tests/test_readers_once_a_spelling.py": 8.99,
+    "tests/test_readers_once_a_spelling.py": 4.68,
     "tests/test_offsets_follow_the_date.py": 145.94,
     "tests/test_reading.py": 7.51,
     "tests/test_reading_agreement.py": 7.9,
@@ -697,9 +969,9 @@ SECONDS = {
     "tests/test_ruling_identifier_prefix.py": 18.2,
     "tests/test_ruling_levels_counted_by_subtraction.py": 6.57,
     "tests/test_ruling_pooled_held_back_levels.py": 6.97,
-    "tests/test_safe_harbor_age_words.py": 141.05,
+    "tests/test_safe_harbor_age_words.py": 42.7,
     "tests/test_safe_harbor_ages_and_address_parts.py": 244.5,
-    "tests/test_safe_harbor_ends_and_bounds.py": 192.92,
+    "tests/test_safe_harbor_ends_and_bounds.py": 48.0,
     "tests/test_safe_harbor_numbers.py": 210.24,
     "tests/test_safe_harbor_places_years_devices.py": 279.66,
     "tests/test_shipped_page_review.py": 3.56,
@@ -718,7 +990,7 @@ SECONDS = {
     "tests/test_stage2_timestamp_spellings.py": 141.78,
     "tests/test_stage3_answer_paths.py": 3.02,
     "tests/test_stage3_default_floor.py": 171.4,
-    "tests/test_stage3_gate.py": 34.77,
+    "tests/test_stage3_gate.py": 9.46,
     "tests/test_stage3_review_dates.py": 3.19,
     "tests/test_stage3_review_numeric_robustness.py": 11.32,
     "tests/test_stage3_review_sentences.py": 8.56,
@@ -733,7 +1005,7 @@ SECONDS = {
     "tests/test_stage3b_counted_codex.py": 196.32,
     "tests/test_stage3b_date_questions.py": 67.47,
     "tests/test_stage3b_day_of_month.py": 158.95,
-    "tests/test_stage3b_full_precision.py": 87.79,
+    "tests/test_stage3b_full_precision.py": 28.27,
     "tests/test_stage3b_gate.py": 202.03,
     "tests/test_stage3b_heavy_dates.py": 181.7,
     "tests/test_stage3b_hour.py": 254.47,
@@ -741,7 +1013,7 @@ SECONDS = {
     "tests/test_stage3b_joint.py": 389.13,
     "tests/test_stage3b_layout.py": 299.16,
     "tests/test_stage3b_minutes.py": 551.79,
-    "tests/test_stage3b_reader.py": 37.7,
+    "tests/test_stage3b_reader.py": 11.02,
     "tests/test_stage3b_reader_review.py": 8.64,
     "tests/test_stage3b_route2.py": 84.54,
     "tests/test_stage3b_second_cut_work.py": 2.96,
@@ -751,7 +1023,7 @@ SECONDS = {
     "tests/test_stage3b_weekday_moments.py": 150.51,
     "tests/test_stage3b_weekday_review.py": 189.77,
     "tests/test_stage3b_width.py": 246.43,
-    "tests/test_stage4_allocator_walk.py": 609.72,
+    "tests/test_stage4_allocator_walk.py": 31.02,
     "tests/test_stage4_arrow_groups.py": 31.79,
     "tests/test_stage4_counted_in_persons.py": 865.11,
     "tests/test_stage4_counts_together.py": 1.57,
@@ -767,7 +1039,7 @@ SECONDS = {
     "tests/test_stage4_sign_repairs.py": 43.59,
     "tests/test_stage4_tier2a.py": 247.32,
     "tests/test_stage4_validate_groups.py": 218.82,
-    "tests/test_stage5_gate.py": 349.56,
+    "tests/test_stage5_gate.py": 116.09,
     "tests/test_stage6_band_totals.py": 70.36,
     "tests/test_stage6_chain_describe_scale.py": 126.48,
     "tests/test_stage6_chain_generate.py": 338.92,
@@ -780,19 +1052,21 @@ SECONDS = {
     "tests/test_stage6_selftest_reports.py": 158.03,
     "tests/test_stage6_validate_chain.py": 62.22,
     "tests/test_summary_and_properties.py": 7.22,
-    "tests/test_table_floor.py": 85.52,
+    "tests/test_table_floor.py": 26.71,
     "tests/test_tail_back_solve_without_recursion.py": 17.81,
     "tests/test_taxonomy.py": 0.47,
     "tests/test_terminal_install.py": 2.38,
-    "tests/test_terminal_twin.py": 71.33,
-    "tests/test_terminal_twin_held.py": 136.04,
+    "tests/test_terminal_twin.py": 42.24,
+    "tests/test_terminal_twin_held.py": 97.08,
     "tests/test_twin_golden.py": 5.0,
     "tests/test_types_and_flags.py": 85.21,
     "tests/test_u1u2_count_every_present_cell.py": 0.53,
     "tests/test_validate_lock.py": 1.32,
     "tests/test_validation.py": 43.17,
-    "tests/test_version_reach.py": 53.13,
+    "tests/test_value_reader_residuals.py": 64.68,
+    "tests/test_version_reach.py": 13.48,
     "tests/test_window_agreement.py": 177.58,
+    "tests/test_windows_bundle.py": 1.26,
     "tests/test_workbook_dates.py": 13.16,
     "tests/test_workbook_round_trip.py": 296.89,
     "tests/test_workbook_stream_writer.py": 484.99,
@@ -800,10 +1074,10 @@ SECONDS = {
     "tests/test_zoo_codes_in_pattern.py": 210.41,
     "tests/test_zoo_dates_in_disguise.py": 86.52,
     "tests/test_zoo_few_valued_gap.py": 562.84,
-    "tests/test_zoo_held_layouts.py": 904.32,
+    "tests/test_zoo_held_layouts.py": 286.06,
     "tests/test_zoo_identifiers.py": 86.77,
-    "tests/test_zoo_persons_names.py": 90.27,
-    "tests/test_zoo_rare_names.py": 377.02,
+    "tests/test_zoo_persons_names.py": 28.29,
+    "tests/test_zoo_rare_names.py": 88.54,
     "tests/test_zoo_reading_page.py": 3.74,
     "tests/test_zoo_safe_harbor_forms.py": 192.29,
     "tests/test_zoo_safe_harbor_forms_walk.py": 42.6,
@@ -811,5 +1085,5 @@ SECONDS = {
     "tests/test_zoo_time_readers.py": 163.24,
     "tests/test_zoo_units.py": 52.99,
     "tests/test_zoo_units_order.py": 84.66,
-    "tests/test_zoo_value_readers.py": 341.0,
+    "tests/test_zoo_value_readers.py": 123.0,
 }

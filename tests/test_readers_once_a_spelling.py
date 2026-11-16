@@ -592,11 +592,13 @@ def test_the_pooled_top_category_reads_a_spelling_once(monkeypatch: pytest.Monke
     original = taxonomy.safe_harbor_number
 
     def counted(
-        cell: str, comma: bool = False, affixes: bool = True, words: bool = False
+        cell: str, comma: bool = False, affixes: bool = True, words: bool = False, genders: bool = False
     ) -> "taxonomy.SafeHarborNumber | None":
+        # ...the reader's fifth argument since lane HB3-a's repair 1 (plan P4-D482): whether the column writes a
+        # gender after its ages, read once for the column (`taxonomy.genders_beside_ages`).
         nonlocal read
         read += [cell]
-        return original(cell, comma, affixes, words)
+        return original(cell, comma, affixes, words, genders)
 
     monkeypatch.setattr(taxonomy, "safe_harbor_number", counted)
     taxonomy.top_category_pooled(cells, False, frozenset({""}), 11)

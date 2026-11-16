@@ -140,6 +140,14 @@ ANSWER_CLOCK_FIGURES = "clock-figures"
 # landing, and a list of labels is written exactly alike, so the run asks.
 # Enter keeps the times; `code` is `--code`, which reads it as labels.
 BECAUSE_FEW_CLOCK_TIMES = "few-times-of-day-each-shared-by-many-rows"
+# ...and the question of a column of sentences (lane NOTES, plan P4-D481;
+# the orchestrator's LANE NOTES RULINGS 1 (6), N2): its answer `text` says
+# the column is free text, notes or comments, which is the reading that
+# stands where nobody answers, and is kept so the question is not put again;
+# `identifier` is record numbers, as on every question offering it. Its kept
+# answers are a family of their own (`_FAMILY_SENTENCES`).
+ANSWER_TEXT = "text"
+BECAUSE_SENTENCES = "values-written-as-sentences"
 
 # THE FIFTH DECLARATION, AND THE FIRST THAT IS NOT ABOUT A COLUMN (plan
 # P4-D81). Some survey exports write two rows UNDER the column names
@@ -346,6 +354,17 @@ BECAUSE_COMMA = "a-comma-between-figures"
 # between thousands writes too. Read with the comma between thousands
 # until answered; answers `measurement` (Enter), `decimal_comma`, `code`.
 BECAUSE_COMMA_THOUSANDS = "three-figures-after-the-comma"
+
+# QUESTION Q-KEYED (lane KV, plan P4-D487): a value column whose kind and
+# scale a key column decides -- a long table's measurement column under the
+# column that says which measurement each row is -- is described key by key
+# (`profile.keyed_pairs_read`); one question a keyed pair, on the value
+# column, its words naming no value: the number of keys and the readings
+# seen. `keyed` (Enter: unanswered means keyed) or `keep` (one measurement,
+# described as one column). It holds nothing: every key block meets every
+# floor and Safe Harbor rule a column of its name would.
+BECAUSE_KEYED = "a-value-column-typed-by-a-key-column"
+ANSWER_KEYED = "keyed"
 
 # A fixed-width all-digit column is asked about from three digits up.
 # Below that the shape is too common to mean anything: a column of `1`
@@ -801,6 +820,14 @@ def _publishes_under(answer: str, role: str, floor: int) -> str:
             f"from its figures -- two of hour, two of minute, and two of "
             f"second where written -- and the twin writes its times in the "
             f"same figures, a fraction of a second written as noughts"
+        )
+    if answer == ANSWER_TEXT:
+        # -- lane NOTES (P4-D481): a column of sentences as free text.
+        return (
+            "no value of the column: how long its values are, how many "
+            "words they hold and how often they repeat, which is what it "
+            "publishes now, and the twin writes made-up text of those "
+            "lengths"
         )
     # ANSWER_KEEP: whatever the column already is.
     if role == taxonomy.ROLE_CLOCK or role == taxonomy.ROLE_DATETIME:
@@ -1549,12 +1576,21 @@ def questions_and_splits_for(
     settings: taxonomy.Settings,
     already: "list[str]",
     decimal_commas: "tuple[str, ...]" = (),
+    people: "list[tuple[str, list[str]]] | None" = None,
 ) -> "tuple[list[Question], SplitColumns]":
     """Every column worth asking about, in the table's own order.
 
     Returned with the present cells split out of every column read on
     the way (`SplitColumns`), which `person_questions` takes rather than
     splitting the same columns again.
+
+    ``people`` is the table's person columns read as the people they
+    name (`people_of`), given by a caller that hands over a GROUP of the
+    table's columns (`profile.questions_of` on a table read in groups;
+    Codex's review of lane ID-ROOM4, item 2): a key whose person column
+    stands in another group is counted in its people all the same, so the
+    questions are the same whole and in groups. None reads them from
+    ``document`` and ``table_columns``, the whole table.
 
     Guarantees:
 
@@ -1580,6 +1616,12 @@ def questions_and_splits_for(
     if not isinstance(blocks, list):
         return [], SplitColumns(settings, split_cells, split_present)
     asked: list[Question] = []
+    # THE PEOPLE THE TABLE IS COUNTED BY (lane ID-ROOM4, plan P4-D489): each
+    # person column's cells as the people they name, for lane HX5's rule
+    # counted in people (`_each_on_one_person`); none where the table
+    # counts rows. A caller handing over a group gives the whole table's.
+    if people is None:
+        people = _people_of(blocks, table_columns, settings)
     position = 0
     for block in blocks:
         if not isinstance(block, dict):
@@ -1649,7 +1691,19 @@ def questions_and_splits_for(
         # and five figures; the numeric roles are asked below, after the
         # width questions, which keep their own.
         comma = name in decimal_commas
-        if (
+        # ...AND COUNTED IN PEOPLE beside a person column of the table (lane
+        # ID-ROOM4, plan P4-D489): a second key that repeats on a person's
+        # rows, one question and one hold, HX5's.
+        holders: "list[list[str]]" = []
+        if role in _EACH_ON_ONE_ROW_ROLES:
+            holders = _holders_of(table_columns[position], present, people, name, settings)
+        by_people = (
+            role not in NUMERIC_ROLES
+            and bool(holders)
+            and not _whole_numbers_each_on_one_row(present, role, comma, name)
+            and _each_on_one_person(present, holders, role, comma, name)
+        )
+        if by_people or (
             role not in NUMERIC_ROLES
             and _whole_numbers_each_on_one_row(present, role, comma, name)
         ):
@@ -1658,7 +1712,11 @@ def questions_and_splits_for(
                     name,
                     role,
                     BECAUSE_EACH_ON_ONE_ROW,
-                    _each_on_one_row_said(present, comma, name, role),
+                    (
+                        _each_on_one_person_said(present, holders, comma, name, role)
+                        if by_people
+                        else _each_on_one_row_said(present, comma, name, role)
+                    ),
                     _each_on_one_row_choices(role, settings.small_cell_floor),
                     ANSWER_KEEP,
                 )
@@ -1749,12 +1807,22 @@ def questions_and_splits_for(
         # ...AND WHOLE NUMBERS EACH ON ONE ROW OR IN SEQUENCE (lane HX5,
         # plan P4-D436), where no width question is put: `9701` up, one a
         # row, crosses a power of ten and was a count asked nothing.
+        by_people = False
         if (
             reason is None
             and role in NUMERIC_ROLES
             and _whole_numbers_each_on_one_row(present, role, comma, name)
         ):
             reason = BECAUSE_EACH_ON_ONE_ROW
+        elif (
+            reason is None
+            and role in NUMERIC_ROLES
+            and holders
+            and _each_on_one_person(present, holders, role, comma, name)
+        ):
+            # ...counted in people beside a person column (plan P4-D489).
+            reason = BECAUSE_EACH_ON_ONE_ROW
+            by_people = True
         # -- 3b.R4 (P4-D384): QUESTION Q3, where the description's own
         # remarks say the column's numbers lie where a counting system
         # writes dates (NF113) -- one question with the fixed-width one
@@ -1815,7 +1883,7 @@ def questions_and_splits_for(
             # description would not.
             if reason == BECAUSE_PADDED and taxonomy.safe_harbor_reach(
                 shaped, False, frozenset([""]), settings.small_cell_floor,
-                False, True,
+                False, True, said=taxonomy.named_as_an_age(name),
             ) == taxonomy.SAFE_HARBOR_AGES:
                 shaped = taxonomy.top_coded_cells(shaped)
             said = _shape_of(
@@ -1825,6 +1893,8 @@ def questions_and_splits_for(
                 # ...said under the column's own decimal comma and name,
                 # as the rule read it (Codex's review of lane HX5, item 4).
                 said = _each_on_one_row_said(present, comma, name, role)
+                if by_people:
+                    said = _each_on_one_person_said(present, holders, comma, name, role)
             asked += [
                 Question(
                     name,
@@ -2116,6 +2186,10 @@ def unit_questions(
         ) and not taxonomy.safe_harbor_reach(
             present, name in decimal_commas, frozenset(),
             settings.small_cell_floor, True,
+            # ...its name read as the description reads it (lane HB3-a2,
+            # plan P4-D486): a column named as an age never leaves the
+            # reach by the units its cells write.
+            said=taxonomy.named_as_an_age(name),
         ):
             reached += [name]
             if name not in spoken:
@@ -3218,7 +3292,11 @@ def _the_row_sequence(name: str, present: "list[str]") -> bool:
 
 
 def _each_on_one_row_arm(
-    present: "list[str]", comma: bool = False, name: str = "", affixed: bool = False
+    present: "list[str]",
+    comma: bool = False,
+    name: str = "",
+    affixed: bool = False,
+    holders: "list[str] | None" = None,
 ) -> "tuple[str, bool]":
     """Which arm of lane HX5's rule reaches the cells, and whether a cell was set aside unread (P4-D436).
 
@@ -3228,6 +3306,19 @@ def _each_on_one_row_arm(
     between the affixes that reading takes, `_a_whole_number_between_affixes`;
     lane ID-ROOM2, plan P4-D457), in time linear in the cells. Raises
     nothing. No I/O, and no cell reaches what it returns.
+
+    COUNTED IN PEOPLE where ``holders`` is given (lane ID-ROOM4, plan
+    P4-D489; `_each_on_one_person`): the merged key of the person on the
+    row of each present cell, in the order of ``present``, from one person
+    column. A value then stands on as many holders as the people it is
+    written for, not on as many rows: fewer than two people a value on
+    average, and every value on one person (or all but one in a hundred)
+    for arm (a). Arm (b), a run in sequence under one opening, is read so
+    without the five-figure line (RULING D4 of lane ID-ROOM4): a second
+    key of four figures runs in sequence as record numbers do. Every
+    other condition is the rows' arm's. The people are counted in a
+    second pass that stops once the pairs of a value and a person reach
+    two a value, so it holds at most that many.
     """
     if _the_row_sequence(name, present):
         return "", False
@@ -3261,7 +3352,11 @@ def _each_on_one_row_arm(
     keys_noted: "dict[str, tuple[tuple[str, str, str], bool] | None]" = {}
     keys_older: "dict[str, tuple[tuple[str, str, str], bool] | None]" = {}
     answered = 0
-    for value in present:
+    # Each present cell's key, kept for the second pass that counts the
+    # people (lane ID-ROOM4, plan P4-D489): only where ``holders`` is given.
+    cell_keys: "list[tuple[str, str, str] | None]" = []
+    for place in range(len(present)):
+        value = present[place]
         if _set_aside_beside_keys(value):
             if _is_plain_whole_number(value):
                 nines[value] = True
@@ -3305,32 +3400,50 @@ def _each_on_one_row_arm(
             numbers[key] = 1
         if wide_figures:
             wide[key] = True
+        if holders is not None:
+            while len(cell_keys) < place:
+                cell_keys += [None]
+            cell_keys += [key]
     if stray * _STRAY_SHARE > len(present):
         return "", False
     if cells < _KEY_CELLS_AT_LEAST or len(numbers) < 2:
         return "", False
-    if cells >= PERSON_ROWS_PER_VALUE * len(numbers):
+    if holders is not None:
+        # ...COUNTED IN PEOPLE (plan P4-D489): each value's people stand in
+        # for its rows, the walk stopping once the pairs reach two a value
+        # (`pairs_held`, a count of its own: ``held`` above is the forms'
+        # memo of lane CZ-A2's readings, batch 4t's merge of this lane).
+        pairs: "dict[tuple[str, str, str], dict[str, bool]]" = {}
+        limit = PERSON_ROWS_PER_VALUE * len(numbers)
+        pairs_held = 0
+        for place in range(min(len(cell_keys), len(holders))):
+            counted = cell_keys[place]
+            if counted is None:
+                continue
+            if counted not in pairs:
+                pairs[counted] = {}
+            if holders[place] not in pairs[counted]:
+                pairs[counted][holders[place]] = True
+                pairs_held = pairs_held + 1
+                if pairs_held >= limit:
+                    return "", False
+        for key in numbers:
+            numbers[key] = len(pairs[key]) if key in pairs else 0
+    elif cells >= PERSON_ROWS_PER_VALUE * len(numbers):
         return "", False
-    if len(wide) * 2 < len(numbers):
+    # ...the five-figure line, which a run in sequence passes where the
+    # values are counted in people (RULING D4 of lane ID-ROOM4), read by
+    # the arm's one test (`_a_run_in_sequence`, Codex's review of lane
+    # ID-ROOM4, item 3).
+    if len(wide) * 2 < len(numbers) and not (holders is not None and _a_run_in_sequence(numbers, nines)):
         return "", False
     unread = stray > 0
     repeated = 0
-    forms: "dict[tuple[str, str], bool]" = {}
-    short_enough = True
     prefixed = 0
-    smallest = -1
-    largest = -1
     for key in numbers:
-        opening, figures, closing = key
+        opening, _figures, closing = key
         if numbers[key] > 1:
             repeated = repeated + 1
-        forms[(opening, closing)] = True
-        if len(figures) > _SEQUENCE_FIGURES_AT_MOST:
-            short_enough = False
-        elif len(forms) == 1:
-            number = int(figures)
-            smallest = number if smallest < 0 or number < smallest else smallest
-            largest = number if number > largest else largest
         # A sign alone is no prefix: a signed measurement that repeats is
         # not reached through arm (c).
         if (opening not in _NO_PREFIX or closing) and key in wide:
@@ -3339,27 +3452,303 @@ def _each_on_one_row_arm(
         return _ARM_DIFFERENT, unread
     if repeated * _NEARLY_ALL_DIFFERENT <= len(numbers):
         return _ARM_NEARLY, unread
-    if len(forms) == 1 and short_enough:
-        # A RUN: the smallest, the largest and the count of different
-        # values say it in one pass (Codex's review, item 6) ...
-        if largest - smallest + 1 == len(numbers):
-            return _ARM_SEQUENCE, unread
-        if ("", "") in forms:
-            # ...through a set-aside `0` or nines alone standing INSIDE
-            # the run, where they close its gaps (Codex's review, item 1:
-            # a `0` or `999999` outside it is no gap of the run).
-            closed = len(numbers)
-            for value in nines:
-                if len(value) > _SEQUENCE_FIGURES_AT_MOST:
-                    continue
-                number = int(value)
-                if smallest < number < largest and ("", _without_leading_noughts(value), "") not in numbers:
-                    closed = closed + 1
-            if largest - smallest + 1 == closed:
-                return _ARM_SEQUENCE, unread
+    # A RUN: the smallest, the largest and the count of different values
+    # say it in one pass (Codex's review of lane HX5, item 6), through a
+    # set-aside `0` or nines alone standing INSIDE the run (its item 1):
+    # the arm's one test.
+    if _a_run_in_sequence(numbers, nines):
+        return _ARM_SEQUENCE, unread
     if prefixed * 2 > len(numbers):
         return _ARM_PREFIXED, unread
     return "", False
+
+
+def _a_run_in_sequence(
+    numbers: "dict[tuple[str, str, str], int]", nines: "dict[str, bool]"
+) -> bool:
+    """Whether the keys read are one run in sequence under one opening, each the last one plus one (P4-D436, P4-D489).
+
+    ARM (b) OF `_each_on_one_row_arm`, ITS ONE DEFINITION (Codex's review
+    of lane ID-ROOM4, item 3; the orchestrator's LANE ID-ROOM4 RULINGS 6
+    (1)): read by that arm, and before its five-figure line where the
+    values are counted in people (RULING D4 of lane ID-ROOM4). One form
+    of opening and closing, every number at most
+    `_SEQUENCE_FIGURES_AT_MOST` figures, judged by the smallest, the
+    largest and the count in one pass (Codex's review of lane HX5, item
+    6); under no opening at all, a set-aside `0` or nines alone
+    (``nines``, the plain whole numbers the walk set aside) standing
+    INSIDE the run closes its gap, as record numbers written for nobody
+    do (`99999` between `99998` and `100000`; a `0` or `999999` outside
+    the run is no gap of it, Codex's review of lane HX5, item 1). A
+    second copy of this test that left the nines out read `9999` bare
+    among keys written `8,900` to `10,899` as a gap, and the twin wrote
+    19,980 real keys beside a declared person. Raises nothing. No I/O.
+    """
+    forms: "dict[tuple[str, str], bool]" = {}
+    smallest = -1
+    largest = -1
+    for opening, figures, closing in numbers:
+        forms[(opening, closing)] = True
+        if len(forms) > 1 or len(figures) > _SEQUENCE_FIGURES_AT_MOST:
+            return False
+        number = int(figures)
+        smallest = number if smallest < 0 or number < smallest else smallest
+        largest = number if number > largest else largest
+    if not numbers:
+        return False
+    if largest - smallest + 1 == len(numbers):
+        return True
+    if ("", "") not in forms:
+        return False
+    closed = len(numbers)
+    for value in nines:
+        if len(value) > _SEQUENCE_FIGURES_AT_MOST:
+            continue
+        number = int(value)
+        if smallest < number < largest and ("", _without_leading_noughts(value), "") not in numbers:
+            closed = closed + 1
+    return largest - smallest + 1 == closed
+
+
+def _each_on_one_person(
+    present: "list[str]",
+    holders: "list[list[str]]",
+    role: str,
+    comma: bool = False,
+    name: str = "",
+) -> bool:
+    """See `_each_on_one_person_arm`: whether it reaches the column under any person column."""
+    return _each_on_one_person_arm(present, holders, role, comma, name)[0] != ""
+
+
+def _each_on_one_person_arm(
+    present: "list[str]",
+    holders: "list[list[str]]",
+    role: str,
+    comma: bool = False,
+    name: str = "",
+) -> "tuple[str, bool]":
+    """Lane HX5's trigger COUNTED IN PEOPLE, beside a person column of the table (lane ID-ROOM4, plan P4-D489).
+
+    A key that repeats on a person's rows -- a second patient number, an
+    encounter number -- stands on two rows a value or more, so the rows'
+    arm never reaches it; beside a declared person (``holders`` the merged
+    keys of the person on each present cell's row, one list a person
+    column) it was read as a number and drawn inside its dense published
+    range, and the twin wrote 19,990 of 20,000 real keys. Counted in the
+    people each value stands on (`_each_on_one_row_arm`'s ``holders``), the
+    same rule reaches it, and HX5's question and hold follow. Where the
+    table names its people in more than one column, the arm is read under
+    each, and reaching under one is enough (HIPAA first). Guarantees:
+    accepts the present cells, their holders (one list a person column),
+    the column's role, its declared decimal comma and its name; returns
+    the arm and whether a cell was set aside unread, ("", False) where
+    none reaches. A fixed function of them, linear in the cells. Raises
+    nothing. No I/O, and no cell reaches what it returns.
+    """
+    if role not in _EACH_ON_ONE_ROW_ROLES:
+        return "", False
+    for keyed in holders:
+        found = _each_on_one_row_arm(present, comma, name, role == taxonomy.ROLE_AFFIXED, keyed)
+        if found[0]:
+            return found
+    return "", False
+
+
+def _people_of(
+    blocks: "list[object]",
+    table_columns: "list[list[str]]",
+    settings: taxonomy.Settings,
+) -> "list[tuple[str, list[str]]]":
+    """Each person column of the table with its cells as the people they name (plan P4-D489).
+
+    The columns `settings.person_columns` names -- declared, said or
+    answered to name the people the rows are about, whichever way they
+    were said -- each cell read as `profile.subject_keys` reads a subject:
+    its merged key (`parsing.merged_key`, the one rule), every spelling of
+    nobody (`parsing.is_missing_text`, or a declared missing spelling,
+    folded) one unknown person. Empty where the table counts rows.
+    Linear in the cells. Raises nothing.
+    """
+    named: "list[tuple[str, list[str]]]" = []
+    if not settings.person_columns:
+        return named
+    for place in range(min(len(blocks), len(table_columns))):
+        block = blocks[place]
+        if not isinstance(block, dict) or f"{block['name']}" not in settings.person_columns:
+            continue
+        named += [(f"{block['name']}", table_columns[place])]
+    return people_of(named, settings)
+
+
+def people_of(
+    named: "list[tuple[str, list[str]]]", settings: taxonomy.Settings
+) -> "list[tuple[str, list[str]]]":
+    """Person columns, each name with its cells, read as the people they name (plan P4-D489).
+
+    THE ONE READING of `_people_of`, whole table or group (Codex's review
+    of lane ID-ROOM4, item 2: a table read in groups handed each group
+    to `questions_and_splits_for`, so a key whose person column stood in
+    another group was counted in rows, and the twin wrote 19,990 real
+    keys where the whole reading held the column). Each cell is read as
+    `profile.subject_keys` reads a subject: its merged key
+    (`parsing.merged_key`, the one rule), every spelling of nobody
+    (`parsing.is_missing_text`, or a declared missing spelling, folded)
+    one unknown person. Guarantees: the columns in the order given, each
+    with one key a row, every key of a spelling the one string. Linear in
+    the cells. Raises nothing. No I/O.
+    """
+    found: "list[tuple[str, list[str]]]" = []
+    nobody: "dict[str, bool]" = {}
+    for spelling in settings.declared_missing_values:
+        nobody[parsing.folded(spelling)] = True
+    for name, cells in named:
+        merged: "dict[str, str]" = {}
+        keys: "list[str]" = []
+        for cell in cells:
+            if cell not in merged:
+                if parsing.is_missing_text(cell) or parsing.folded(cell) in nobody:
+                    merged[cell] = ""
+                else:
+                    merged[cell] = parsing.merged_key(cell)
+            keys += [merged[cell]]
+        found += [(name, keys)]
+    return found
+
+
+def _holders_of(
+    cells: "list[str]",
+    present: "list[str]",
+    people: "list[tuple[str, list[str]]]",
+    name: str,
+    settings: taxonomy.Settings,
+) -> "list[list[str]]":
+    """The person on the row of each present cell, one list a person column; empty for a person column itself (plan P4-D489).
+
+    ``present`` is `taxonomy.split_missing`'s, the cells in row order with
+    the absent ones left out, and whether a cell is absent is a fixed
+    function of its text, so each present cell is matched to its row in
+    one pass. Raises nothing.
+    """
+    if not people or name in settings.person_columns:
+        return []
+    held: "list[list[str]]" = []
+    for _person, keys in people:
+        row = 0
+        keyed: "list[str]" = []
+        for cell in present:
+            while row < len(cells) and cells[row] != cell:
+                row = row + 1
+            keyed += [keys[row] if row < len(keys) else ""]
+            row = row + 1
+        held += [keyed]
+    return held
+
+
+def _each_on_one_person_said(
+    present: "list[str]",
+    holders: "list[list[str]]",
+    comma: bool = False,
+    name: str = "",
+    role: str = "",
+) -> str:
+    """What `_each_on_one_person` saw, in words carrying no value or count, and what an answer then writes (P4-D489).
+
+    EACH ARM SAYS WHAT ITS OWN CONDITION ESTABLISHES (Codex's review of
+    lane ID-ROOM4, item 6; the orchestrator's LANE ID-ROOM4 RULINGS 6
+    (6)): arm (a), every value on one person, or all but one in a
+    hundred; arms (b) and (c) only that the values stand on fewer than
+    two people each on average -- keys `P100000` to `P101999` on two
+    people each but the last ran in sequence, and the question said each
+    stood on the rows of one person.
+    """
+    arm, unread = _each_on_one_person_arm(present, holders, role, comma, name)
+    said = "each value standing on the rows of one person"
+    if arm == _ARM_NEARLY:
+        said = "nearly each value standing on the rows of one person"
+    elif arm == _ARM_SEQUENCE:
+        said = (
+            "running in sequence, each the last one plus one, with fewer "
+            "than two people a value on average"
+        )
+    elif arm == _ARM_PREFIXED:
+        said = (
+            "most of them letters and five figures or more, with fewer than "
+            "two people a value on average"
+        )
+    aside = ""
+    if unread:
+        aside = "; a few cells that read as none of these are set aside"
+    # Each answer worded as it writes (skeptic 1 of lane ID-ROOM4, item 8):
+    # the question offers keep, code and identifier.
+    return (
+        f"{_EACH_ON_ONE_ROW_OPENING} (words and placeholders aside), {said}, "
+        f"{_EACH_ON_ONE_PERSON_SEEN}{aside}; until this question itself is "
+        f"answered it is described as record numbers; keep describes it as "
+        f"it reads now, the twin then drawing its values inside the range the "
+        f"description publishes, so that record numbers written in a run "
+        f"come back as real ones; code describes it as codes, the twin "
+        f"drawing made-up codes in the forms its values take; identifier "
+        f"keeps it described as record numbers"
+    )
+
+
+# WHAT TELLS THE PEOPLE'S OWN QUESTION FROM THE ROWS' (lane ID-ROOM4, plan
+# P4-D489; the orchestrator's LANE ID-ROOM4 RULINGS 4, item 1): the words
+# it says it saw, and those a kept answer to it carries into the next
+# round's file. Only an answer to this question releases its column.
+_EACH_ON_ONE_PERSON_SEEN = "as a second patient number or an encounter number does"
+PEOPLE_KEY_KEPT_SAW = (
+    "You gave this answer in an earlier run to the question about values "
+    "standing on the rows of one person or of few, "
+    f"{_EACH_ON_ONE_PERSON_SEEN}; it is kept here."
+)
+
+
+def on_one_persons_rows(question: "Question") -> bool:
+    """Whether a question is lane HX5's counted in people: a key beside a person, released only by its own answer (P4-D489)."""
+    return (
+        question.reason == BECAUSE_EACH_ON_ONE_ROW
+        and _EACH_ON_ONE_PERSON_SEEN in question.shape
+    )
+
+
+def _on_one_persons_rows_entry(entry: object) -> bool:
+    """Whether a questions file's entry is that question, asked here or kept from a round before (P4-D489).
+
+    Read by index and never by `.get`, as `_entry_answer` reads (plan
+    D6.2). Raises nothing. No I/O.
+    """
+    if not isinstance(entry, dict) or "what_synthtwin_saw" not in entry:
+        return False
+    saw = entry["what_synthtwin_saw"]
+    return isinstance(saw, str) and _EACH_ON_ONE_PERSON_SEEN in saw
+
+
+def kept_beside_own_questions(
+    kept: "tuple[str, ...]",
+    asked: "list[Question]",
+    answered: "tuple[str, ...]",
+) -> "tuple[str, ...]":
+    """The columns answered `keep`, less those whose own question of a key beside a person is put and not answered so (P4-D489).
+
+    THE PEOPLE'S QUESTION IS ITS OWN (skeptic 1 of lane ID-ROOM4, item
+    1; the orchestrator's LANE ID-ROOM4 RULINGS 4, item 1). A `keep`
+    given to the person question -- the truthful answer for a key beside
+    the patient, "not a person: it repeats for some other reason" -- or to
+    Q2 or Q6, in this round or an earlier one, released the second keys
+    the people's question holds: 19,990, 19,999 and 19,990 of 20,000 twin
+    cells were real keys, validate exiting 0. So a column whose question
+    of this kind is among ``asked`` keeps its hold unless ``answered``
+    (`Answers.people_keys_kept`) names it. Guarantees: ``kept`` in its
+    own order, less those. A fixed function of the arguments. Raises
+    nothing. No I/O.
+    """
+    own: "dict[str, bool]" = {}
+    for question in asked:
+        if on_one_persons_rows(question) and question.name not in answered:
+            own[question.name] = True
+    return tuple(name for name in kept if name not in own)
 
 
 def _whole_numbers_each_on_one_row(
@@ -3506,6 +3895,90 @@ def _signs_said(signs: int, population: int, floor: int) -> str:
         f"placeholder -- a negative whole number, a lone 0, or nines "
         f"alone"
     )
+
+
+def keyed_questions(
+    document: "dict[str, object]",
+    found: "list[tuple[str, str, int, tuple[str, ...]]]",
+    answered: "tuple[str, ...]",
+    floor: int,
+) -> "list[Question]":
+    """Question Q-KEYED, one to each value column read as keyed and not answered (lane KV, plan P4-D487).
+
+    ``found`` holds, for each pair the describe read as keyed, the key
+    column, the value column, how many keys the floor's people hold and
+    the readings the value column's cells take under them
+    (`profile.KeyedPair`); ``answered`` the value columns already answered
+    `keyed` or `keep`, never asked again. The words name no value of the
+    table: the key column's name, the number of keys, the readings. The
+    unanswered reading is `keyed`, so a person who leaves the question
+    blank gets each key's own description. In the table's column order.
+    Guarantees: a fixed function of its arguments. Raises nothing. No I/O.
+    """
+    order: "list[str]" = []
+    blocks = document["columns"] if "columns" in document else []
+    roles: "dict[str, str]" = {}
+    held_whole: "dict[str, bool]" = {}
+    if isinstance(blocks, list):
+        for block in blocks:
+            if isinstance(block, dict) and "name" in block:
+                order += [f"{block['name']}"]
+                roles[f"{block['name']}"] = f"{block['role']}" if "role" in block else ""
+                # A value column held whole and described under no key -- a
+                # question offering `identifier` open on it, whose own entry
+                # the questions file then carries (plan P4-D401) -- is put
+                # no Q-KEYED this round: one question a column, and that
+                # one first (the whole suite of lane KV's build: a padded
+                # patient key put Q-KEYED lost its codes question's entry).
+                held_whole[f"{block['name']}"] = (
+                    "role" in block and block["role"] == taxonomy.ROLE_IDENTIFIER and "by_key" not in block
+                )
+    asked: "list[Question]" = []
+    for name in order:
+        for key, value, keys, readings in found:
+            if value != name or value in answered or held_whole[name]:
+                continue
+            # The readings joined by hand: the offline audit accepts a text
+            # method's argument only where it resolves every value in it.
+            written = ""
+            for each in readings:
+                written = f"{each}" if not written else f"{written}, {each}"
+            shape = (
+                f"each row's value is read by the column {key}, which says "
+                f"which measurement the row holds: {keys} measurements held "
+                f"by {floor} people or more, their values written as "
+                f"{written}, one kind and scale under each; "
+                f"until this question is answered the column is described "
+                f"measurement by measurement (keyed), each measurement as a "
+                f"column of its name would be, every floor and Safe Harbor "
+                f"rule of such a column applied to it"
+            )
+            asked += [
+                Question(
+                    name,
+                    roles[name] if name in roles else "",
+                    BECAUSE_KEYED,
+                    shape,
+                    [
+                        Choice(
+                            ANSWER_KEYED,
+                            f"each row's value is a measurement of the kind {key} names",
+                            "each measurement's own description, held by the floor's "
+                            "people, and the twin writes each row's value from its "
+                            "measurement's description",
+                        ),
+                        Choice(
+                            ANSWER_KEEP,
+                            "the column holds one measurement",
+                            "the column described as one column, its values drawn "
+                            "apart from the measurement names",
+                        ),
+                    ],
+                    ANSWER_KEYED,
+                )
+            ]
+            break
+    return asked
 
 
 def file_questions(
@@ -6056,20 +6529,32 @@ def _a_register_key(value: str, present: "list[str]", held: "dict[str, bool]") -
 # register key and lane HX5's arm read such a cell as one record number
 # only where its shape says one: one to twelve letters of any script (a
 # sign before them as the label reader reads one, the spaces and dashes at
-# either end set aside), figures, ONE such space and figures closing the
+# either end set aside), figures, ONE such space (a run of them since lane
+# CZ-G, below) and figures closing the
 # cell, each group two figures or more and six figures or more in all
-# (`taxonomy._NUMBER_FIGURES_AT_LEAST`, a record number's fewest), so two
-# spaces part no groups, a fiscal quarter (`Q3 2024`: a group of one
+# (`taxonomy._NUMBER_FIGURES_AT_LEAST`, a record number's fewest), so a
+# fiscal quarter (`Q3 2024`: a group of one
 # figure) and a version (`v10 12`: four figures) are none; and not in a
 # column every such cell of which is a period, a year (four figures from
 # 1900 to 2099) beside two figures or a second year (`W23 2024`,
 # `FY2023 24`, `FY2023 2024`). Over the zoo's catalogue at 20,000 rows (77
 # tables, 839 columns, 2,485,093 different cells) the shape reads no cell.
+# AND (lane CZ-G, plan P4-D493, item 4; LANE CZ-A2 RULINGS 11 (2), limit (n)):
+# a run of such spaces between the groups (`MR100  0013`), one dash joining the
+# label to the first group (`MR-100 0013`) and the cell in round or curly
+# brackets (`(MR100 0013)`; square brackets are lane HX4's list of one record
+# number): each one a person at 1,000 people of 20 rows published 1,000 values
+# and wrote 20,000 real twin cells at 20,000 rows on the public head. Five
+# figures in all (limit (m), `MR10 000`) stays unread: priced, it held five-
+# figure versions (`v10 123`), amounts written after their currency
+# (`EUR10 000`), dashed codes and lots (`ICD-10 123`, `LOT-10 200`), each a
+# column of 20,000 cells, by route two (plan P4-D493's stated limits).
 _GROUP_FIGURES_AT_LEAST = 2
 # ...and six figures in all: a record number's fewest, the six taxonomy's
 # readers of a record number take (its `_NUMBER_FIGURES_AT_LEAST`, which the
 # offline audit lets no other module read).
 _GROUPS_FIGURES_AT_LEAST = 6
+_GROUPS_ENCLOSED = (("(", ")"), ("{", "}"))
 _PERIOD_YEAR_FIGURES = 4
 _PERIOD_YEAR_FROM = "1900"
 _PERIOD_YEAR_TO = "2099"
@@ -6084,16 +6569,32 @@ def _record_number_groups(value: str) -> "tuple[str, str, str] | None":
     dashes at either end set aside (`_edges_set_aside`), as the label
     reader sets them aside, and read by `_groups_of_a_plain_cell`, each
     reading of the cell in turn (`taxonomy.plain_readings`: the soft hyphen
-    read as a dash and set aside; batch 4s's merge). A fixed function of the
-    text. Raises TypeError for a value that is not text. No I/O.
+    read as a dash and set aside; batch 4s's merge); a tab at either end is
+    set aside with them (lane CZ-G, LANE CZ-G RULINGS 3 (3): the plain
+    reading keeps a tab, which parts a joined name's fields, and
+    `\tMR100 0013` was read as no groups by any reader where ` MR100 0013`
+    was). A fixed function of the text. Raises TypeError for a value that
+    is not text. No I/O.
     """
     if not isinstance(value, str):
         raise TypeError("a cell to ask about must be text")
     for plain in taxonomy.plain_readings(value):
-        found = _groups_of_a_plain_cell(_edges_set_aside(plain))
+        edged = _edges_and_tabs_set_aside(plain)
+        found = _groups_of_a_plain_cell(edged)
+        for opening, closing in _GROUPS_ENCLOSED:
+            # ...the cell in one pair of brackets (lane CZ-G, item 4).
+            if found is None and edged[:1] == opening and edged[-1:] == closing:
+                found = _groups_of_a_plain_cell(_edges_set_aside(edged[1:-1]))
         if found is not None:
             return found
     return None
+
+
+def _edges_and_tabs_set_aside(text: str) -> str:
+    """A text read plain with the spaces, dashes and tabs at either end set aside (`_record_number_groups`; lane CZ-G)."""
+    if not isinstance(text, str):
+        raise TypeError("a cell to ask about must be text")
+    return text.strip("\t- ")
 
 
 def _groups_of_a_plain_cell(plain: str) -> "tuple[str, str, str] | None":
@@ -6101,11 +6602,12 @@ def _groups_of_a_plain_cell(plain: str) -> "tuple[str, str, str] | None":
 
     One of `_LABEL_SIGNS` and spaces or none, one to
     `_OPENING_LETTERS_AT_MOST` letters of any script
-    (`_a_letter_of_any_script`), a group of figures, one space (` ` or the
-    tab, `_LABEL_SPACES`, as the label reader reads a text read plain) and
-    a group of figures closing the cell; each group
-    `_GROUP_FIGURES_AT_LEAST` figures or more, the two
-    `_GROUPS_FIGURES_AT_LEAST` or more together. The label, its sign with
+    (`_a_letter_of_any_script`), one dash or none, a group of figures, a
+    run of spaces (` ` or the tab, `_LABEL_SPACES`, as the label reader
+    reads a text read plain) and a group of figures closing the cell; each
+    group `_GROUP_FIGURES_AT_LEAST` figures or more, the two
+    `_GROUPS_FIGURES_AT_LEAST` or more together (lane CZ-G widened the
+    dash and the run of spaces; `_record_number_groups` the brackets). The label, its sign with
     it, is returned in upper case, as `_a_whole_number_after_letters`
     returns an opening. A fixed function of the text. Raises TypeError for
     a value that is not text. No I/O.
@@ -6120,18 +6622,25 @@ def _groups_of_a_plain_cell(plain: str) -> "tuple[str, str, str] | None":
     letters = place
     while place < len(plain) and place - letters < _OPENING_LETTERS_AT_MOST and _a_letter_of_any_script(plain[place]):
         place = place + 1
+    label_end = place
+    if place > letters and plain[place:place + 1] == "-":
+        # ...one dash joining the label to the first group (lane CZ-G, item 4).
+        place = place + 1
     first = place
     while place < len(plain) and "0" <= plain[place] <= "9":
         place = place + 1
-    if first == letters or place == first or place >= len(plain) or plain[place] not in _LABEL_SPACES:
+    if label_end == letters or place == first or place >= len(plain) or plain[place] not in _LABEL_SPACES:
         return None
     mark = place
-    place = place + 1
+    while place < len(plain) and plain[place] in _LABEL_SPACES:
+        # ...a run of spaces between the groups (lane CZ-G, item 4).
+        place = place + 1
+    second = place
     while place < len(plain) and "0" <= plain[place] <= "9":
         place = place + 1
     if place != len(plain):
         return None
-    opening, closing = plain[first:mark], plain[mark + 1:]
+    opening, closing = plain[first:mark], plain[second:]
     if (
         len(opening) < _GROUP_FIGURES_AT_LEAST
         or len(closing) < _GROUP_FIGURES_AT_LEAST
@@ -7229,6 +7738,99 @@ def _listed_choices(role: str, floor: int) -> "list[Choice]":
     ]
 
 
+# THE QUESTION OF A COLUMN OF SENTENCES (lane NOTES, plan P4-D481; the
+# orchestrator's LANE NOTES RULINGS 1 (3), (5) and (6)). ONE QUESTION ABOUT
+# THE DATA, put to each column the description reads as free text for its
+# sentences (`taxonomy.EVIDENCE_SENTENCES_AS_TEXT`) and not answered
+# before: is it free text, or record numbers? Unanswered, it stays free
+# text -- only how long its values are, how many words they hold and how
+# often they repeat -- which is the safe reading and the README's promise
+# for a note column. Its words name no value: the counts it says are the
+# description's own (the cells, the different values, the words a value
+# holds on average). COUNTING THE PHRASES AS LABELS IS NOT OFFERED: the
+# screened publication left the lane under the size valve of RULINGS 1 (3)
+# for lane NOTES-b, and the question says so. It stands in place of the
+# question about levels few people hold, which a column of sentences no
+# longer raises (its hold gives way to free text), so a physician answers
+# one question for such a column.
+_SENTENCES_EVIDENCE = taxonomy.rendered(taxonomy.EVIDENCE_SENTENCES_AS_TEXT, ())
+
+
+def sentence_questions(
+    document: "dict[str, object]", answered: "tuple[str, ...]", floor: int
+) -> "list[Question]":
+    """The question put to each column the description reads as free text for its sentences (plan P4-D481).
+
+    ``answered`` names the columns whose question was answered `text` here
+    or in an earlier round, which are asked nothing; a column answered
+    `identifier` is held as record numbers and no longer reads so.
+    Guarantees: a fixed function of the arguments, in the description's
+    column order. Raises nothing. No I/O, and no cell of any column
+    appears in what it returns.
+    """
+    blocks = document["columns"]
+    if not isinstance(blocks, list):
+        return []
+    found: "list[Question]" = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        name = f"{block['name']}"
+        if name in answered:
+            continue
+        if "detection_evidence" not in block or block["detection_evidence"] != _SENTENCES_EVIDENCE:
+            continue
+        role = f"{block['role']}"
+        present = block["n_present"] if "n_present" in block else 0
+        distinct = block["n_distinct"] if "n_distinct" in block else 0
+        words = block["words"] if "words" in block else None
+        mean_words = 0
+        if isinstance(words, dict) and "mean" in words:
+            mean = words["mean"]
+            if isinstance(mean, (int, float)):
+                mean_words = int(mean + 0.5)
+        found += [
+            Question(
+                name,
+                role,
+                BECAUSE_SENTENCES,
+                f"{present} values, {distinct} of them different, about "
+                f"{mean_words} words each on average; half or more of them "
+                f"are sentences -- three words or more with a full stop, a "
+                f"question or exclamation mark, a colon or a semicolon, or a "
+                f"line break -- which is how a note or a comment is written, "
+                f"and a note can hold a name, a date or a place. Until this "
+                f"question is answered the column is treated as free text: "
+                f"only how long its values are, how many words they hold and "
+                f"how often they repeat are written, and the twin writes "
+                f"made-up text of those lengths. Is it free text, or record "
+                f"numbers? (Publishing its phrases that many patients share "
+                f"is not offered yet.)",
+                _sentence_choices(role, floor),
+                ANSWER_TEXT,
+            )
+        ]
+    return found
+
+
+def _sentence_choices(role: str, floor: int) -> "list[Choice]":
+    """The two answers the question of a column of sentences offers (plan P4-D481)."""
+    return [
+        Choice(
+            ANSWER_TEXT,
+            "free text: notes, comments or remarks written in sentences, "
+            "which nothing should publish word for word",
+            _publishes_under(ANSWER_TEXT, role, floor),
+        ),
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers: each value names a record -- of a person, a "
+            "visit, a sample or a document -- which nothing should publish",
+            _publishes_under(ANSWER_IDENTIFIER, role, floor),
+        ),
+    ]
+
+
 # THE SAFE HARBOR QUESTION (plan P4-D427; the owner's Z1 sentence of
 # 2026-10-16, verbatim in plan-dec/OWNER-ANSWERS.md; lane ZR-b's page,
 # ZS.3). ONE question, about the data and never the analysis, put in the
@@ -7569,7 +8171,8 @@ def _value_reader_seen(reason: str) -> str:
             "written in words that hold a name after a title or "
             "after a word (Dr, Mrs, wife), initials, a family name and an "
             "initial, a telephone number, a month and a day, a run of "
-            f"{taxonomy.IDENTIFIER_WORD_FIGURES} figures or more, a network "
+            f"{taxonomy.IDENTIFIER_WORD_FIGURES} figures or more, an age of "
+            "90 or more written in words (94 yo, aged 97), a network "
             "address, or a latitude and a longitude, as a remark, "
             "a list of names or a label naming a person may be written, and "
             "such a value names a person, a date, a record, a device or a "
@@ -7690,20 +8293,27 @@ def _persons_names_seen(reason: str) -> str:
     """What the Safe Harbor question says it saw of a column held for persons' names (plan P4-D478), naming no value.
 
     It says what was LOOKED AT: the different values read, every one or,
-    where the column holds more than the reader reads, a sample met in
-    cells spread over the whole column (lane CZ-F's repair 2, Codex's item
-    3); and the shapes read, the name field cut at `^` and the small words
-    of a family name among them (Codex's item 5).
+    where the column holds more than the reader reads, a sample of them
+    drawn by a fixed rule from the values themselves, whatever the order of
+    the rows (lane CZ-F's repair 2, Codex's item 3; the sample by rank of
+    lane CZ-G-b, plan P4-D494 item 2), and those met in cells spread over
+    the whole column, each as often as its rows (lane CZ-F's walk, kept
+    beside the sample by lane CZ-G-b's repair 1); the value arm's share,
+    half or more (item 1; two in three in the walk), and the heading arm's,
+    most; and the shapes read, the name field cut at `^` and the small
+    words of a family name among them (Codex's item 5).
     """
     read = (
         f"of its different values read -- every one, or, where it holds more "
         f"than {taxonomy.PERSONS_NAMES_READ_AT_MOST:,}, a sample of "
-        f"{taxonomy.PERSONS_NAMES_READ_AT_MOST:,} met in cells spread over "
-        f"the whole column --"
+        f"{taxonomy.PERSONS_NAMES_READ_AT_MOST:,} drawn by a fixed rule from "
+        f"the values themselves, whatever the order of the rows, and "
+        f"{taxonomy.PERSONS_NAMES_READ_AT_MOST:,} met in cells spread over the "
+        f"whole column, each as often as its rows --"
     )
     if reason == BECAUSE_SAFE_HARBOR_PERSONS_NAMES:
         return (
-            f"{read} most, and {taxonomy.NAMES_AT_LEAST} or more, are written "
+            f"{read} half or more, and {taxonomy.NAMES_AT_LEAST} or more, are written "
             f"as a person's name is written whole: a family name, a comma and "
             f"a given name; a given name and a family name; or a health "
             f"message's name field, its parts cut at ^, the family name first; "
@@ -7994,6 +8604,8 @@ def safe_harbor_questions(
     dates_answered: "tuple[str, ...]" = (),
     beside: "tuple[str, ...]" = (),
     rare_named: "tuple[str, ...]" = (),
+    keyed_keys: "tuple[str, ...]" = (),
+    keyed_values: "tuple[tuple[str, str], ...]" = (),
 ) -> "list[Question]":
     """The Safe Harbor questions a run puts, in the table's own column order.
 
@@ -8116,7 +8728,58 @@ def safe_harbor_questions(
         elif name in rare_named and name not in waiting:
             found += [_safe_harbor_question(name, role, BECAUSE_SAFE_HARBOR_RARE_NAMES)]
             named[name] = True
-    return found
+    return [_with_keyed_words(question, keyed_keys, keyed_values) for question in found]
+
+
+# THE WORDS A KEYED PAIR'S SAFE HARBOR QUESTIONS GAIN (lane KV, plan P4-D487;
+# the orchestrator's LANE KV RULINGS 1 (2) K4 and (3) K8 with its condition):
+# ONE clause each, no new question.
+KEYED_KEY_CLAUSE = (
+    " This column says which measurement each row is: with no, the "
+    "measurements too few people hold are also named beside the rows they "
+    "cover together, never with how many rows or people hold each, and the "
+    "twin writes them in their rows."
+)
+
+
+def keyed_value_clause(key: str) -> str:
+    """The clause the Safe Harbor question of a value column typed by ``key`` gains (lane KV, plan P4-D487, K8): what `yes` and `no` do, said for a physician."""
+    return (
+        f" This column holds a different measurement on each row, as the "
+        f"column {key} says, and it is described measurement by measurement: "
+        f"until this question is answered no, and after a yes to it or to any "
+        f"other question put to this column about whether a value could name "
+        f"a person, the measurements "
+        f"written as words, free text, dates or times of day are held (no "
+        f"value of them published, the twin making up values in their "
+        f"layouts), the dates also while the question about values that read "
+        f"as dates is open or answered yes; a "
+        f"measurement whose name or values read as a person's name or "
+        f"details is held whatever the answer; the measurements written as "
+        f"numbers or as two numbers are described whatever the answer, each "
+        f"as a column of its name would be, every "
+        f"floor and Safe Harbor rule of such a column applied to it, except "
+        f"that one some of whose values fewer people hold than the smallest "
+        f"group is held until no and after any such yes, and is otherwise "
+        f"described with those values counted together."
+    )
+
+
+def _with_keyed_words(
+    question: Question,
+    keyed_keys: "tuple[str, ...]",
+    keyed_values: "tuple[tuple[str, str], ...]",
+) -> Question:
+    """A Safe Harbor question with the clause its column's keyed pair adds, or as it is (lane KV, plan P4-D487)."""
+    shape = question.shape
+    if question.name in keyed_keys:
+        shape = shape + KEYED_KEY_CLAUSE
+    for value, key in keyed_values:
+        if value == question.name:
+            shape = shape + keyed_value_clause(key)
+    if shape == question.shape:
+        return question
+    return dataclasses.replace(question, shape=shape)
 
 
 def _bands_published(block: "dict[str, object]") -> bool:
@@ -9666,7 +10329,15 @@ HOW_TO_ANSWER = (
     "Write one of the answers offered beside 'your_answer' for any "
     "column you want to correct, save the file, and run synthtwin "
     "profile again on the same table naming this file after --answers. "
-    "Columns you leave blank keep the reading named in 'read_as_now'."
+    "Or leave this file as it is and write your answers in a plain text "
+    "file instead, one line each, 'column = answer', and name that file "
+    "after --answers. Write each column's name exactly as this file "
+    "writes it, capitals included; the numbers the screen prints beside "
+    "the questions are not read there, but a number alone answers a "
+    "question about the file. Where two questions about one column take "
+    "the same answer, answer them here or at the keyboard. At a keyboard "
+    "synthtwin also puts these questions on the screen. Columns you leave "
+    "blank keep the reading named in 'read_as_now'."
 )
 
 
@@ -10417,8 +11088,23 @@ class Answers:
     # offers neither reading, so both stay empty on every shipped path.
     persons_said: "tuple[str, ...]" = ()
     records_said: "tuple[str, ...]" = ()
+    # ...AND THE COLUMNS WHOSE OWN QUESTION OF A KEY BESIDE A PERSON WAS
+    # ANSWERED `keep` (lane ID-ROOM4, plan P4-D489; the orchestrator's LANE
+    # ID-ROOM4 RULINGS 4, item 1), here or in an earlier round
+    # (`on_one_persons_rows`): only such a `keep` releases that column,
+    # never one given to the person question, to Q2 or to Q6. Each also
+    # stands in `identities_kept`.
+    people_keys_kept: "tuple[str, ...]" = ()
     # -- lane TR (P4-D473): the columns answered `clock-figures` (rule 5c).
     clock_figures: "tuple[str, ...]" = ()
+    # -- lane NOTES (P4-D481): the columns of sentences answered `text`,
+    # which declare nothing (free text is what the column is unanswered)
+    # and are carried so their question is not put again.
+    sentences_text: "tuple[str, ...]" = ()
+    # -- lane KV (P4-D487): the value columns answered `keyed` and `keep` to
+    # question Q-KEYED; `keep` describes the column as one column.
+    values_keyed: "tuple[str, ...]" = ()
+    values_kept_whole: "tuple[str, ...]" = ()
 
 
 def _entry_answer(
@@ -10679,6 +11365,7 @@ def answers_in(document: object, shown: str) -> Answers:
     first_row = ""
     twelve_hours: list[str] = []
     clock_figures: list[str] = []
+    sentences_text: list[str] = []
     day_first = False
     month_first = False
     # -- 3b.R4 (P4-D384): the columns answered with a counting system.
@@ -10706,6 +11393,10 @@ def answers_in(document: object, shown: str) -> Answers:
     # readings (lane GRa, plan P4-D449).
     persons_said: "list[str]" = []
     records_said: "list[str]" = []
+    people_keys_kept: "list[str]" = []
+    # -- lane KV (P4-D487): question Q-KEYED's answers.
+    values_keyed: "list[str]" = []
+    values_kept_whole: "list[str]" = []
     # EVERY ENTRY READ FIRST, so an earlier round's answer can be set
     # against every later one before any is acted on (plan P4-D408).
     entries: "list[tuple[object, str, bool, tuple[str, str, tuple[str, ...]] | None]]" = []
@@ -10791,6 +11482,9 @@ def answers_in(document: object, shown: str) -> Answers:
         elif written == ANSWER_CLOCK_FIGURES:
             # -- lane TR (P4-D473): rule 5c's reading, by the answer alone.
             clock_figures += [name]
+        elif written == ANSWER_TEXT:
+            # -- lane NOTES (P4-D481): free text, carried, declaring nothing.
+            sentences_text += [name]
         elif written in date_counts.MEMBERS:
             # Question Q3 (landing R4): `--date-count COLUMN MEMBER`.
             counted += [(name, written)]
@@ -10865,6 +11559,10 @@ def answers_in(document: object, shown: str) -> Answers:
             # are no longer held back for want of an answer.
             identities_kept += [name]
             identities_kept_answered += [name]
+            # ...and the people's own question of a key beside a person
+            # (plan P4-D489) answered so, here or kept from a round before.
+            if _on_one_persons_rows_entry(entry) and name not in people_keys_kept:
+                people_keys_kept += [name]
         elif written == ANSWER_KEEP and _unit_offer(offered):
             # ...and question Q-UNIT answered `keep` (plan P4-D438): nothing
             # declared, and the column carried so Q-UNIT is not put again.
@@ -10874,6 +11572,14 @@ def answers_in(document: object, shown: str) -> Answers:
             # comma is not read as the decimal point, and the column is
             # carried so Q-COMMA is not put again.
             commas_kept += [name]
+        elif written == ANSWER_KEYED:
+            # ...and question Q-KEYED answered `keyed` (lane KV, plan
+            # P4-D487): the reading that stands, carried so it is not put
+            # again.
+            values_keyed += [name]
+        elif written == ANSWER_KEEP and ANSWER_KEYED in offered:
+            # ...or `keep`: the column described as one column.
+            values_kept_whole += [name]
         elif written != ANSWER_KEEP:
             # Offered by the file but not a word this module acts on,
             # which a questions file synthtwin wrote cannot contain and
@@ -10913,6 +11619,7 @@ def answers_in(document: object, shown: str) -> Answers:
         date_columns=tuple(date_columns),
         identities_kept=tuple(identities_kept),
         identities_kept_answered=tuple(identities_kept_answered),
+        people_keys_kept=tuple(people_keys_kept),
         identities_held=tuple(identities_held),
         units_kept=tuple(units_kept),
         commas_kept=tuple(commas_kept),
@@ -10926,6 +11633,9 @@ def answers_in(document: object, shown: str) -> Answers:
         persons_said=tuple(persons_said),
         records_said=tuple(records_said),
         clock_figures=tuple(clock_figures),
+        sentences_text=tuple(sentences_text),
+        values_keyed=tuple(values_keyed),
+        values_kept_whole=tuple(values_kept_whole),
     )
 
 
@@ -11008,6 +11718,11 @@ _FAMILY_UNIT = "unit"
 # answer of what a column holds lists no clock beside it, and its question
 # decides both families.
 _FAMILY_FIGURES = "clock-figures"
+# The question of a column of sentences (lane NOTES, plan P4-D481): its
+# answer `text`, a family of its own; its `identifier` is the kind's.
+_FAMILY_SENTENCES = "sentences"
+# -- lane KV (P4-D487): question Q-KEYED's answers, its `keep` its own.
+_FAMILY_KEYED = "keyed"
 _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_KIND: (
         ANSWER_KEEP, ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT,
@@ -11033,6 +11748,8 @@ _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     _FAMILY_SAFE_HARBOR_DATES: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES),
     _FAMILY_UNIT: (ANSWER_KEEP, ANSWER_MEASUREMENT, ANSWER_CODE),
     _FAMILY_FIGURES: (ANSWER_KEEP, ANSWER_CLOCK_FIGURES),
+    _FAMILY_SENTENCES: (ANSWER_TEXT,),
+    _FAMILY_KEYED: (ANSWER_KEYED, ANSWER_KEEP),
 }
 # The subject a question about the whole file is filed under, which is
 # the `column` its entry names.
@@ -11056,6 +11773,11 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_DECIMAL_COMMA: "numbers written with a comma before the decimals",
     ANSWER_TWELVE_HOUR: "a 12-hour clock written without AM or PM",
     ANSWER_CLOCK_FIGURES: "clock times written as figures alone",
+    ANSWER_TEXT: (
+        "free text: only how long its values are, how many words they hold "
+        "and how often they repeat are published"
+    ),
+    ANSWER_KEYED: "each row's value a measurement of the kind its key column names",
     ANSWER_NO_DATE: "its few repeated codes stand for a missing date or time",
     ANSWER_REAL_VALUE: "its few repeated codes are values of their own",
     ANSWER_DATES: "dates, with the values written another way left unread",
@@ -11120,6 +11842,9 @@ _CANNOT_STAND_TOGETHER: "tuple[tuple[tuple[str, ...], tuple[str, ...]], ...]" = 
         (ANSWER_CLOCK_FIGURES,),
         (ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT) + tuple(date_counts.MEMBERS),
     ),
+    # -- lane NOTES (P4-D481): free text is not codes, record numbers or
+    # measurements, so the newer of the two replaces the other.
+    ((ANSWER_TEXT,), (ANSWER_CODE, ANSWER_IDENTIFIER, ANSWER_MEASUREMENT)),
 )
 
 
@@ -11131,6 +11856,8 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
     A fixed function of the two. Raises nothing. No I/O.
     """
     if answer == ANSWER_KEEP:
+        if ANSWER_KEYED in offered:
+            return _FAMILY_KEYED
         if ANSWER_IDENTIFIER in offered:
             return _FAMILY_KIND
         if ANSWER_DATES in offered:
@@ -11152,7 +11879,7 @@ def _family_of(answer: str, offered: "tuple[str, ...]") -> str:
         _FAMILY_KIND, _FAMILY_GRAMMAR, _FAMILY_CLOCK, _FAMILY_COUNTED,
         _FAMILY_DATE_CODES, _FAMILY_CENTURY, _FAMILY_DATES, _FAMILY_FIRST_ROW,
         _FAMILY_METADATA, _FAMILY_DELIMITER, _FAMILY_DAY_ORDER,
-        _FAMILY_SAFE_HARBOR, _FAMILY_FIGURES,
+        _FAMILY_SAFE_HARBOR, _FAMILY_FIGURES, _FAMILY_SENTENCES, _FAMILY_KEYED,
     ):
         if answer in _FAMILY_WORDS[family]:
             return family
@@ -11354,6 +12081,62 @@ def typed_over_kept(
     return narrowed
 
 
+def typed_answered_over(
+    document: object, typed: "tuple[tuple[str, str], ...]"
+) -> "tuple[tuple[str, str], ...]":
+    """The typed declarations a LATER answer in the questions file replaces: `typed_over_kept` the other way round.
+
+    Lane EZ-a's second repair (the orchestrator's LANE EZ RULINGS 7, Codex's
+    item 1). Where the questions file is newer than the command line -- a
+    round after the files, described again in the same command with the
+    answers typed at the keyboard in any round, or the command a run teaches
+    to answer what stays open -- every answer the file holds, kept under
+    `answered_before` or written beside `your_answer`, is later than every
+    declaration typed: it replaces a typed declaration about the same column
+    where it decides the typed one's family or the column cannot hold the
+    two (`_answered_again`), and is another answer than the typed one.
+    Measured before this at 20,000 rows: `--decimal-comma patient_no`
+    typed, `identifier` answered at the first prompt, `measurement` at a
+    checklist question in the round after the files: that round's
+    description took the comma back over the newer `identifier`
+    (`typed_over_kept`), read the seven-figure patient numbers as counts and
+    published them. Returns those `(column, answer)` of ``typed``, in its
+    order, for the caller to leave off the command line it hands on. Read by
+    index and never by `.get` (plan D6.2). A fixed function of the two.
+    Raises nothing. No I/O.
+    """
+    if not typed or not isinstance(document, dict):
+        return ()
+    later: "list[tuple[str, str, tuple[str, ...]]]" = []
+    for section in ("about_your_file", "asked", ANSWERED_BEFORE):
+        entries = document[section] if section in document else []
+        for entry in entries if isinstance(entries, list) else []:
+            later += _answer_held(entry, section == ANSWERED_BEFORE)
+    checklist = document["checklist"] if "checklist" in document else None
+    listed = checklist["columns"] if isinstance(checklist, dict) and "columns" in checklist else []
+    for entry in listed if isinstance(listed, list) else []:
+        later += _answer_held(entry, False)
+    replaced: "list[tuple[str, str]]" = []
+    for name, answer in typed:
+        others = [one for one in later if one[0] == name and one[1] != answer]
+        if others and _answered_again(name, answer, _kept_family(answer, ()), others):
+            replaced += [(name, answer)]
+    return tuple(replaced)
+
+
+def _answer_held(entry: object, kept: bool) -> "list[tuple[str, str, tuple[str, ...]]]":
+    """`(column, answer, families it decides)` of one entry that holds an answer, as `typed_answered_over` sets it against a typed one; none where it holds none."""
+    if not isinstance(entry, dict) or "column" not in entry or "answers_you_can_give" not in entry:
+        return []
+    offered = _offered_words(entry)
+    given = _kept_word(entry) if kept else ""
+    if not kept and "your_answer" in entry and isinstance(entry["your_answer"], str):
+        given = parsing.trimmed(entry["your_answer"])
+    if not given or given not in offered:
+        return []
+    return [(f"{entry['column']}", given, _decided_by(given, offered))]
+
+
 def kept_reading(document: object) -> "tuple[tuple[str, str], ...]":
     """How the run that wrote a questions file read the table (plan P4-D408).
 
@@ -11458,8 +12241,17 @@ class Given:
     date_columns: "tuple[str, ...]" = ()
     date_columns_kept: "tuple[str, ...]" = ()
     identities_kept: "tuple[str, ...]" = ()
+    # ...and of those, the columns whose own question of a key beside a
+    # person was answered `keep` (plan P4-D489): kept with that question's
+    # words, so the next round reads it as an answer to that question.
+    people_keys_kept: "tuple[str, ...]" = ()
     # -- lane TR (P4-D473): the columns answered `clock-figures`.
     clock_figures: "tuple[str, ...]" = ()
+    # -- lane NOTES (P4-D481): the columns of sentences answered `text`.
+    sentences_text: "tuple[str, ...]" = ()
+    # -- lane KV (P4-D487): question Q-KEYED answered `keyed` and `keep`.
+    values_keyed: "tuple[str, ...]" = ()
+    values_kept_whole: "tuple[str, ...]" = ()
     # Question Q-UNIT answered `keep` (plan P4-D438).
     units_kept: "tuple[str, ...]" = ()
     # Question Q-COMMA answered `keep` (plan P4-D443).
@@ -11580,10 +12372,18 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     commas = {name: True for name in given.decimal_commas}
     kept_commas = {name: True for name in given.commas_kept}
     kept_identity = {name: True for name in given.identities_kept}
+    people_kept = {name: True for name in given.people_keys_kept}
     kept_units = {name: True for name in given.units_kept}
     clocks = {name: True for name in given.twelve_hours}
     # -- lane TR (P4-D473): Q-CLOCK's answer, kept in its own family.
     figured = {name: True for name in given.clock_figures}
+    # -- lane NOTES (P4-D481): a column of sentences answered `text`, kept in
+    # its own family, but where an answer of the kind declares it otherwise.
+    texted = {name: True for name in given.sentences_text if name not in kinds}
+    # -- lane KV (P4-D487): Q-KEYED's answer, kept in its own family.
+    keyed_answers: "dict[str, str]" = {name: ANSWER_KEYED for name in given.values_keyed}
+    for name in given.values_kept_whole:
+        keyed_answers[name] = ANSWER_KEEP
     counted = {name: member for name, member in given.date_counts}
     coded: "dict[str, tuple[str, str]]" = {}
     for name, saw in given.missing_dates:
@@ -11626,6 +12426,8 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     for table in (
         kinds, commas, kept_commas, kept_identity, kept_units, clocks,
         counted, coded, centuries, dated, harbored, harbored_dates, figured,
+        texted,
+        keyed_answers,
     ):
         for name in table:
             if name not in named:
@@ -11634,6 +12436,8 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
     for name in order:
         if name in kinds:
             found += [_kept_entry(name, kinds[name], _FAMILY_KIND, "")]
+        elif name in kept_identity and name in people_kept:
+            found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_KIND, PEOPLE_KEY_KEPT_SAW)]
         elif name in kept_identity:
             found += [_kept_entry(name, ANSWER_KEEP, _FAMILY_KIND, "")]
         elif name in kept_units:
@@ -11652,6 +12456,8 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
             found += [
                 _kept_entry(name, ANSWER_CLOCK_FIGURES, _FAMILY_FIGURES, "")
             ]
+        if name in texted:
+            found += [_kept_entry(name, ANSWER_TEXT, _FAMILY_SENTENCES, "")]
         if name in counted:
             found += [_kept_entry(name, counted[name], _FAMILY_COUNTED, "")]
         if name in coded:
@@ -11674,6 +12480,8 @@ def answered_before(given: Given) -> "list[dict[str, object]]":
                     SAFE_HARBOR_DATES_KEPT_SAW,
                 )
             ]
+        if name in keyed_answers:
+            found += [_kept_entry(name, keyed_answers[name], _FAMILY_KEYED, "")]
     return found
 
 

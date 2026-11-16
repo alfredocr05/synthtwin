@@ -95,7 +95,14 @@ import persons_names_forms as names  # noqa: E402
 ROWS = 20000
 ITEMS = pathlib.Path(tempfile.gettempdir()) / "synthtwin-kpi" / "kpi_persons_names-items.txt"
 SUMS = ("real_values_shown", "real_twin_cells", "twin_complete_runs", "questions_not_put", "freed_by_no_values_shown",
-        "residual_values_shown", "residual_twin_cells")
+        "residual_values_shown", "residual_twin_cells", "generate_stopped")
+# THE HELD WRITER'S TIME CLIFF (lane CZ-G-b; STANDING NOTE ADDENDUM 2 (8),
+# owner lane HB3-b): since lane CZ-G-b's share of half holds the share edge,
+# its census (1,000 names on 19 rows, 520 small spellings on one) meets the
+# cliff in generate on this line, so each item's generate is bounded at this
+# many CPU seconds; an item stopped there counts in `generate_stopped`, its
+# twin unread, a bar item failing on its exit as before.
+GENERATE_BOUND = 120.0
 # The layouts and shapes measured, each with its modes: every shape alone,
 # the others in the shape a patient table writes most, in every mode; and
 # those of lane CZ-F's repair in the modes its rulings name.
@@ -132,6 +139,7 @@ RESIDUAL = (("alone", "family"), ("alone", "small_letters"), ("alone", "no_capit
 def judge(seen: "dict") -> "dict[str, int]":
     """One item's counts."""
     counts = {key: 0 for key in SUMS}
+    counts["generate_stopped"] = 1 if seen.get("generate") == names.GENERATE_STOPPED else 0
     shown = max(int(seen.get("shown") or 0), int(seen.get("shown_folded") or 0))
     if seen.get("residual"):
         counts["residual_values_shown"] = shown
@@ -202,7 +210,7 @@ def main(argv: "list[str]") -> int:
             started = time.monotonic()
             rows = (names.ERA_EARLY * names.ERA_EARLY_ROWS + names.ERA_LATE * names.ERA_LATE_ROWS if layout == "era"
                     else names.BLOCKS * names.BLOCK_ROWS if layout == "blocks" else ROWS)
-            seen = names.measure(folder, layout, shape, rows, mode)
+            seen = names.measure(folder, layout, shape, rows, mode, generate_cpu_at_most=GENERATE_BOUND)
             seen["residual"] = name.startswith("residual:")
             wall = time.monotonic() - started
             counts = judge(seen)

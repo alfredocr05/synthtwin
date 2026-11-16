@@ -189,8 +189,10 @@ def test_f3c_a_pool_past_the_block_keeps_the_room_and_its_lengths(tmp_path: path
     layout and publishes nothing, and its G1 floor draws from its grain's span whatever the pool's years: this pool
     and F2u's beside other companions (a two-level label alternating row by row, a measurement cycling with the
     row), 17,513 of 20,000 cells each equal to a real birth by chance, and the pool of 1980 to 1985 beside this
-    gate's own companions 17,517, each exiting 3 in validation, as on the public head 2af926ce. These companions hid it;
-    P4-D457 states it (owner lane ID-ROOM3). Mutant M17.
+    gate's own companions 17,517, each exiting 3 in validation, as on the public head 2af926ce. These companions hid it.
+    Since lane ID-ROOM3 (plan P4-D488, K-HZ-06's path A) such a column is read in the layout its grain's reading
+    writes a day in and writes its dates in the room, its stand-ins too: 0 equal, merged or on the same day, and
+    it validates (K-HZ-06's census-withheld leg). Mutant M17.
     """
     seen = _run(tmp_path, _other_width(True, 1905, 1925), [])
     assert seen["exits"] == (0, 0, 0)

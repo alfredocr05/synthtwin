@@ -811,7 +811,12 @@ MIXED_SEED = 8101
 MIXED_AT_668F276 = {
     "mixed-1000-s1-profile.json": "4c31290cc223df3d9b92e42780ddbfe3ab86320bd6a12de702c4b7ca18987408",
     "mixed-1000-s1-profile.txt": "1a615c0070fd7173faa26a3fa86ad6307232bb9d997c4514bbd2ecfbe2bddeed",
-    "mixed-1000-s1-questions.json": "a2364bd076a58f8eaf80aa5517a7d8b90438652e98022ee7b19523973bc30c47",
+    # The questions file's how-to names the plain-text answers file and
+    # where a question's number is printed since lane EZ-a (plan P4-D479),
+    # and since its repair 2 that a column is named exactly and the numbers
+    # are not read back: its bytes moved with those sentences alone; the
+    # description, its summary, the twin and its report keep 668f276's.
+    "mixed-1000-s1-questions.json": "956ee00ee105bc2aa827b41d1076549dfe9ef672c03a880da1f3adc43d98262d",
     "mixed-1000-s1-twin.csv": "fcae8034d6551018be81752c89d66faff8d7589e764565b89225cc9bde9d235a",
     "mixed-1000-s1-twin-report.txt": "03fb04b18cfefb7f15cb60309a209342d9e7a3a7166b923e868b6e05594bd213",
 }

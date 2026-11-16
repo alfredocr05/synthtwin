@@ -253,6 +253,13 @@
       "sha256": "0b4f2a7e774c0e19d809345022aeaea3da475a064fb14b1869d617886120486b"
     },
     {
+      "generator": "tools/reference/make_generation_branch_vectors_33.py",
+      "justification": "The content lists synthtwin's generation method requires, in section G10.5 step 8 of docs/spec/generation-method-v1.md, of a column of numbers too large or too small to hold whose made-up spellings would be real values (lane ID-ROOM4, plan P4-D489; the orchestrator's LANE ID-ROOM4 RULINGS 5 (2), A-P4-59), computed by the same oracle from each block alone: codes past a double's range, the same with a leading minus, fractions too small to hold, a minus inside brackets, codes beside numbers the format holds, codes whose case folds two spellings onto one, fractions too small to hold beside numbers of 100 and of 690 figures (the exponent's field read off the oracle's own reading, four figures past a three-figure exponent's room), numbers of 1,312 figures beside a 7 (a whole number the format holds with a four-figure exponent), and three rounds of folded partners, each cell one letter or figure longer than the column's longest value, each spelling with the number of cells that hold it. Committed rather than built at test time for the reason every vector file is: an oracle the implementation cannot influence, held to the product by tests/test_made_up_keys_never_real.py. A file of its own because the method step is new.",
+      "path": "tests/reference/generation-branch-vectors-33.json",
+      "seed": 0,
+      "sha256": "c1c231bf0708369800043111fef6c1f98bd41ab064b3930f05f797599c32bc95"
+    },
+    {
       "generator": "tools/reference/selftest_oracle.py",
       "justification": "The values the self-test of lane ST requires (plan P4-D458): SplitMix64's words of each sampled row keyed by a constant and the row's content hash, the four half-splits, the walk's hidden sums of each family, the shuffle's order of each column, the yardstick scaled to the whole table with RULE W2, a family's judged word on its joint estimates, the worst of the trial keys' words, a pair's word from its table at the finest level its cells support and its correlation, F1's label levels, the line of a table without relationships and a family of fewer than five comparisons read not carried only where every one stands past the line, computed from docs/spec/profile-contract-v6.md 4.6b.8 as amended and docs/spec/generation-method-v1.md G16.8 alone, each case beside its mutant's outcome. They are committed rather than built at test time because they are the frozen reference src/synthtwin/chain_selftest.py is checked against, so a change that moved them must show as a changed file in review.",
       "path": "tests/reference/selftest-oracle-vectors.json",

@@ -83,6 +83,9 @@ INELIGIBLE_REASONS = (
     "one_band",
     "computed",
     "position_like",
+    # A value column typed by a key column (lane KV, plan P4-D487; contract
+    # 6.3k): not one distribution, its key column a label candidate.
+    "keyed",
 )
 
 # The settings of 4.6b.14 recorded in `procedure` (4.6b.5).

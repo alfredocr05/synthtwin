@@ -152,8 +152,22 @@ GENERAL_ANSWERS = frozenset(
         # ...and that a column holds clock times written as figures alone,
         # `0742` (lane TR, plan P4-D473; the zoo-fix reading page's Q-CLOCK).
         "clock-figures",
+        # ...and that a column of sentences is free text, notes or comments
+        # (lane NOTES, plan P4-D481).
+        "text",
+        # ...and that a column's values are each a measurement of the kind its
+        # key column names (lane KV, plan P4-D487, question Q-KEYED).
+        "keyed",
     }
 )
+# THE VALUE COLUMNS THE ZOO KNOWS ARE TYPED BY A KEY (lane KV, plan P4-D487):
+# question Q-KEYED is answered `keyed` on these, as the column truly is, and
+# `keep` on any other column it is put to (a column holding one measurement).
+KEYED_VALUES = frozenset({
+    ("flowsheet", "flo_value"), ("omop_measurement", "value_as_number"),
+    ("fhir_observations", "value_quantity_value"), ("hl7_obx", "obx_5"),
+    ("answers_long", "answer_value"), ("flow_values", "result_value"), ("results_dated", "result_value"),
+})
 # The units the Safe Harbor question offers beside `no` and `yes` for a
 # column of ages that states none (lane SH3, plan P4-D454).
 AGE_UNIT_ANSWERS = frozenset({"years", "months", "weeks", "days"})
@@ -2842,6 +2856,9 @@ def answer_generally(
         # answered `keep`, "not a person: it repeats for some other reason".
         if given == "identifier" and table.person and column != table.person and _asks_for_people(entry):
             given = "keep" if "keep" in offered else ""
+        # QUESTION Q-KEYED (lane KV, plan P4-D487), answered as the column truly is.
+        if "keyed" in offered and column in every_column:
+            given = "keyed" if (table.name, column) in KEYED_VALUES else "keep"
         # THE ZOO ANSWERS TRUTHFULLY (the orchestrator, 2026-10-25 00:56): the
         # Safe Harbor question is answered as the column truly is -- `yes`
         # for a ZIP, a city or another place smaller than a state, a device
@@ -2866,6 +2883,10 @@ def answer_generally(
                 if names_a_safe_harbor_element(table, column, old_ages) or column in SAFE_HARBOR_ELEMENTS
                 else "no"
             )
+        # ...and the question of a column of sentences (lane NOTES, plan
+        # P4-D481): a column of notes is free text, `text`, as it truly is.
+        if not given and "text" in offered and any(column in table.kinds.get(kind, ()) for kind in KINDS_OF_NOTES):
+            given = "text"
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -3162,6 +3183,10 @@ SAFE_HARBOR_THOUGH_NOT_READ = frozenset({"zip3"})
 # Safe Harbor question the value readers now put to it, and the column
 # stays held: the reports' check of the templated share is the price.
 NAMES_A_CLINICIAN = frozenset({"report_text"})
+# THE KINDS WHOSE TEXT COLUMNS ARE NOTES (lane NOTES, plan P4-D481): the
+# question of a column of sentences is answered `text` there, as the column
+# truly is, by the kind's name and never by the column's.
+KINDS_OF_NOTES = frozenset({"clinical_notes", "report_text_with_headings", "long_cell"})
 
 
 def _is_an_age(column: str) -> bool:
@@ -3560,6 +3585,11 @@ def _by_chance(real: "set[str]", twin: "list[str]") -> "tuple[bool, int]":
 NEEDS_OWNER = "needs owner"
 ZOO_LANES = (
     "UN-1a", "UN-1b", "CODES-1", "CODES-2", "CODES-3", "GG", "TR", "SS", "LISTS", "UN-2", "NOTES", "KV", "GR",
+    # Lane KV's follow-up, which takes what a long table still misses after
+    # lane KV (plan P4-D487's limits (a) to (c) and (k): the visit view, the
+    # per-key checklist, the dependent columns; the orchestrator's LANE KV
+    # RULINGS 4 (4), the statistics check's item 5).
+    "KV-b",
     # Lane TR's item (e), the warehouse date key beside -1 and -2, cut to a
     # lane of its own (the zoo plan's section 2.5, its named cut; plan P4-D473).
     "TR-e",
@@ -3568,6 +3598,11 @@ ZOO_LANES = (
     # registry mix answered as dates, among others (LANE TR RULINGS 2 (5)
     # and 3 (4); plan P4-D473).
     "TR2",
+    # ...and free text's own facts -- a census of lines, a closed list of
+    # de-identification markers, the filler writing them, percentiles -- the
+    # rest of the zoo plan's NOTES after lane NOTES (the orchestrator's LANE
+    # NOTES RULINGS 1 (7) and (11), N9; plan P4-D481).
+    "NOTES-b",
 )
 
 
@@ -3760,19 +3795,23 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
             "miss temp", columns=("temp",))),
     ),
     "flowsheet_long": (
-        ("KV", "a long table's value is read by its row name; the twin carries no relation "
-               "between the two columns (the between-columns program, TRACKED T1 and T2)", covers(
+        ("KV-b", "a long table's value is read by its row name since lane KV (plan P4-D487); a key block a "
+                 "question of its own holds stays held (the joined pressures by the identifier question, "
+                 "a temperature in degrees Fahrenheit and an oxygen saturation by the age top-code): the "
+                 "per-key checklist, P4-D487's limit (c)", covers(
             "BP rows hold '120/80' (read by row name)", "other rows hold numbers (read by row name)",
             columns=("flo_value",))),
     ),
     "clinical_notes": (
-        ("NOTES", "free text publishes no line, marker or length facts: at 600 rows the twin's notes "
-                  "hold no line break and no de-identification token, few quotes and lengths near "
-                  "one value; at 20,000 the column turns long tail and most notes are 'group-N'", covers(
+        ("NOTES-b", "free text publishes no line, marker or length facts: the twin's notes hold no line "
+                    "break and no de-identification token, few quotes and lengths near one value; since "
+                    "lane NOTES (plan P4-D481) the notes are free text at 20,000 rows too", covers(
             "some note runs over several lines", "some note keeps a de-identification token",
             "some note runs over several lines, as a share", "some note keeps a de-identification token, as a share",
             "some note quotes a phrase", "some note quotes a phrase, as a share",
             "note lengths at the 10th, 50th and 90th percentiles", columns=("note_text",))),
+        # The validator's misses of the notes' role and type on the twin's free text closed at batch 4t's
+        # merge of lane NOTES, with the validator's hand-over of the columns read so (plan P4-D481).
     ),
     # LANE GG (plan P4-D440) closed the kind's few-valued twin: a score
     # beside -99 answered `no` to its Safe Harbor question lists its values
@@ -3824,12 +3863,16 @@ OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
          covers("birth years read into the 1900s fall from 1930 to 1999", columns=("dob_short",))),
         # ...and since lane ID-ROOM2 (plan P4-D457) no made-up date of the held column may be a real one:
         # its real years take a year of every block of two-figure years its values need, so its twin
-        # writes record numbers kept off the real, which no date reader takes.
-        ("ID-ROOM2", "held as an identifier; by design (plan P4-D457, contract 7.12c): the column's real "
-                     "birth dates take a year of the block of two-figure years its made-up dates would "
-                     "need, so its twin writes its made-up values as record numbers kept off every real "
-                     "value, not as dates",
-         covers("dob_short parses as %d/%m/%y")),
+        # wrote record numbers kept off the real, which no date reader takes; and since lane ID-ROOM3's
+        # repair 1 (plan P4-D488, NF137) a held date with no room is written blank, never text that is no
+        # date, so the analyst's reader meets an empty column there (its type, forms, shapes and missing
+        # cells at 20,000 rows, where the parse alone failed before).
+        ("ID-ROOM2", "held as an identifier; by design (plan P4-D457, contract 7.12c, NF137; plan P4-D488): "
+                     "the column's real birth dates take a year of the block of two-figure years its made-up "
+                     "dates would need, so its twin has no room for them and writes the column blank, never "
+                     "a date of the table nor text that is no date (record numbers kept off every real value "
+                     "before lane ID-ROOM3's repair 1)",
+         covers("dob_short parses as %d/%m/%y", columns=("dob_short",))),
     ),
     "wearables": (
         ("PS2", POOLED_FEW_HOURS, covers("miss ts")),

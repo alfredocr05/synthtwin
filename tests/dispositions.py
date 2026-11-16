@@ -616,6 +616,11 @@ PLAN4_REGIONS = {
         "## Decision P4-D471 — rare values of category and code columns "
         "named beside their pooled total"
     ),
+    # VALUES TYPED BY A KEY (lane KV), disposed in the decision that built
+    # them, as CODES-2's names are.
+    "keyed-pairs": (
+        "## Decision P4-D487 — values typed by a key"
+    ),
     # The joined role's own eight facts, disposed when the role was
     # found to have no table at all.
     "joined": (
@@ -650,6 +655,12 @@ PLAN4_REGIONS = {
     "id-room": (
         "## Decision P4-D432 — no twin identifier cell equals a real "
         "identifier of its column, by construction"
+    ),
+    # A column of numbers too large to hold whose made-up spellings would be
+    # real values (lane ID-ROOM4): spelled one letter or figure wider.
+    "made-up-wider": (
+        "## Decision P4-D489 — made-up keys and codes a twin must never "
+        "write as a real one"
     ),
     # A column's time grain (contract TG1, plan P4-D417), which no group
     # held until lane S5b: a run's result names a generator miss of it
@@ -1896,6 +1907,17 @@ REGISTRY += [
         plan_words="holds its held-back spellings to the published names",
         plan_region="rare-names",
     ),
+    # THE KEY BLOCKS OF A VALUE COLUMN TYPED BY A KEY COLUMN (lane KV, plan
+    # P4-D487, contract 6.3k, validation V19, method G8.3f): in the label
+    # group, the key column's, and EXACT-OBSERVABLE, since the validator
+    # recounts each block's rows and present cells exactly.
+    Fact(
+        "label",
+        "by_key",
+        EXACT_OBSERVABLE,
+        plan_words="recounts each key block's rows and present cells",
+        plan_region="keyed-pairs",
+    ),
 ]
 
 # `datetime`. The two ends carry no authorization at all, which is the
@@ -2229,6 +2251,16 @@ REGISTRY += [
 # the entry table had no row to bind. A file of twelve 400-character
 # numerals against a description publishing 399 and 401 was reported
 # with no miss at all.
+# ...AND A MADE-UP SPELLING WRITTEN WIDER (lane ID-ROOM4, plan P4-D489,
+# 2026-11-11; method G10.5 step 8): a column whose block carries NF139 has
+# every twin cell one letter or figure longer than every real value, so no
+# cell of it equals one of the table's, and the two lengths it moves are
+# APPROXIMATED, measured. The lesser outcome is the plan's, quoted here.
+_SPELLED_WIDER_CORNER = "a made-up spelling written wider"
+_SPELLED_WIDER_SAID = (
+    "**In a made-up spelling written wider, `min_length` and `max_length` "
+    "are APPROXIMATED**"
+)
 REGISTRY += [
     Fact(
         "numeric_unrepresentable",
@@ -2237,6 +2269,7 @@ REGISTRY += [
         plan_region="unrepresentable-widths",
         plan_words="writes within the published range, end carriers "
         "pinned",
+        authorized=((_SPELLED_WIDER_CORNER, _SPELLED_WIDER_SAID),),
     )
     for field in ("min_length", "max_length")
 ]
@@ -2350,6 +2383,15 @@ AUTHORIZED_BY: "dict[tuple[str, str, str], tuple[str, str]]" = {
     ("identifier", "min_length", _WIDER_CORNER): ("id-room", APPROXIMATED),
     ("identifier", "max_length", _WIDER_CORNER): ("id-room", APPROXIMATED),
     ("identifier", "layout_forms", _WIDER_CORNER): ("id-room", APPROXIMATED),
+    # ...and a made-up spelling written wider (plan P4-D489), measured.
+    ("numeric_unrepresentable", "min_length", _SPELLED_WIDER_CORNER): (
+        "made-up-wider",
+        APPROXIMATED,
+    ),
+    ("numeric_unrepresentable", "max_length", _SPELLED_WIDER_CORNER): (
+        "made-up-wider",
+        APPROXIMATED,
+    ),
     # The one corner P2-D9 gives a column of dates: offsets the
     # disclosure rules withheld cannot be put back without making them
     # up. It reaches the offset fields, never the two ends.

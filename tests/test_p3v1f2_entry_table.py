@@ -1126,6 +1126,40 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         )
     assert next(column for column in named.columns if column.name == "route").facts.held_back_names  # type: ignore[union-attr]
     named_twin = rendering.twin_csv(generation.generate(named, SEED))
+    # ...AND SO IS A KEY BLOCK'S RECOUNT (lane KV, plan P4-D487; the whole
+    # suite of its head named `label.by_key` unbound): a value column typed by
+    # a key column, described key by key where the reading is asked for
+    # (`keyed_kept`), which no fixture of this battery is. One long table of
+    # 160 people, six keys of their own readings and scales, is measured beside
+    # the others; the binding asked is only that the fact is filed.
+    drawn = random.Random(31)
+    keyed_lines = ["person_id,item_key,item_value"]
+    for place in range(160):
+        for _visit in range(4):
+            keyed_lines += [
+                f"Q{7000 + 3 * place},pulse,{max(40, round(drawn.gauss(78, 8)))}",
+                f"Q{7000 + 3 * place},temp_c,{drawn.gauss(36.9, 0.4):.1f}",
+                f"Q{7000 + 3 * place},glucose_mg,{max(50, round(drawn.gauss(140, 40)))}",
+                f"Q{7000 + 3 * place},airway,{drawn.choice(('Clear', 'Wheeze', 'Crackles'))}",
+                f"Q{7000 + 3 * place},grip_kg,{drawn.gauss(30, 8):.1f}",
+                f"Q{7000 + 3 * place},skin,{drawn.choice(('Warm', 'Cool', 'Pale'))}",
+            ]
+    keyed_table = reading.read_table(str(fixtures.write(tmp_path, "keyed.csv", "\n".join(keyed_lines) + "\n")))
+    keyed = contract.load_profile(
+        str(
+            fixtures.write_profile(
+                tmp_path,
+                "keyed-profile.json",
+                profile.build_document(
+                    keyed_table, SETTINGS, ["person_id"], subjects=["person_id"], top_code=True,
+                    harbor_year=taxonomy.SAFE_HARBOR_REFERENCE_YEAR, keyed_kept=[],
+                    safe_harbor_no=["item_value"], dated_values_no=["item_value"],
+                ),
+            )
+        )
+    )
+    assert next(column for column in keyed.columns if column.name == "item_value").key_blocks, "premise: the value column is keyed"
+    keyed_twin = rendering.twin_csv(generation.generate(keyed, SEED))
     for name, described, twin in runs + [
         ("spelled-codes", spelled, spelled_twin),
         ("workbook", booked, book.read_bytes()),
@@ -1138,6 +1172,7 @@ def test_every_registry_fact_is_bound_to_one_of_the_three_kinds(
         ("listed", few_listed, few_listed_twin),
         ("ruled-offsets", ruled, ruled_twin),
         ("named", named, named_twin),
+        ("keyed", keyed, keyed_twin),
     ]:
         outcome = _measured(tmp_path, described, twin, f"{name}.csv")
         for check in outcome.checks:

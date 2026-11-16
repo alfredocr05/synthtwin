@@ -1906,6 +1906,12 @@ def _filled_own(
     clocked = reading.kind == CLOCK or (
         reading.kind == STAMP
         and (not parsing.is_layout_name(reading.member) or parsing.layout_has_clock(reading.member))
+    ) or (
+        # ...a count of a member finer than a day keeps its time of day
+        # too (lane ID-ROOM3, plan P4-D488).
+        reading.kind == COUNTED
+        and reading.member in date_counts.MEMBERS
+        and date_counts.TABLE[reading.member].unit < _NS_DAY
     )
     unit = _NS_SECOND if clocked else _NS_DAY
     count = (end - first) // unit
@@ -2101,14 +2107,25 @@ def _filled_count(
     if not whole:
         return None
     first, end = span
-    unit = _NS_DAY
-    count = (end - first) // unit
+    # AT THE COLUMN'S OWN FINEST UNIT (lane ID-ROOM3, plan P4-D488): the
+    # step its figures carry, its member's unit over ten to the figures it
+    # writes after the mark, so a made-up count keeps its clock where the
+    # column writes one (a held serial with five figures after the point
+    # wrote `42494.00000`, every made-up moment midnight; a count of
+    # seconds stepped by whole days); a day count writing none steps by
+    # days, as before.
+    unit = max(date_counts.TABLE[reading.member].unit // 10**places, 1)
+    count = (end - first) // _NS_DAY
     if count <= 0:
         return None
     place = bounded(word, count)
+    # ...its days stepped as before, and its moment inside the day drawn
+    # from the same word at that unit, the same on every day it steps to.
+    a_day = max(_NS_DAY // unit, 1)
+    inside = (bounded(word, count * a_day) % a_day) * unit if unit < _NS_DAY else 0
     form = date_counts.CountForm(places, False, None, False, reading.mark, None)
     for tries in range(min(count, 400000)):
-        moment = first + ((place + tries) % count) * unit
+        moment = first + ((place + tries) % count) * _NS_DAY + inside
         found = date_counts.count_of(reading.member, moment, date_counts.NANOSECOND)
         if found is None:
             continue

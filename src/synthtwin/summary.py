@@ -1138,6 +1138,13 @@ _HELD_IN_ROWS_EVIDENCE = taxonomy.rendered(taxonomy.EVIDENCE_HELD_IN_ROWS, ())
 _COUNTED_DATES_HELD_EVIDENCE = taxonomy.rendered(
     taxonomy.EVIDENCE_COUNTED_DATES_HELD, ()
 )
+# ...and one of numbers too large or too small to hold whose made-up
+# spellings would be written as real values (lane ID-ROOM4, plan P4-D489,
+# contract NF139): spelled one letter or figure wider, or held, whatever the
+# answer.
+_MADE_UP_SPELLED_EVIDENCE = taxonomy.rendered(
+    taxonomy.EVIDENCE_MADE_UP_SPELLED_REAL, ()
+)
 
 
 # THE PATIENT LAYER'S EMPTIED BLOCKS (lane GRa, plan P4-D449; contract
@@ -1168,6 +1175,86 @@ def _emptied_lines(column: "dict[str, object]") -> "list[str]":
     ]
 
 
+def _names_in_a_list(names: "list[str]") -> str:
+    """Names written one after another, a comma and a space between, joined by hand (the offline audit reads a text method's argument only where it resolves every value in it)."""
+    written = ""
+    for name in names:
+        written = name if not written else f"{written}, {name}"
+    return written
+
+
+def _keyed_lines(column: "dict[str, object]", floor: int) -> "list[str]":
+    """The lines a keyed pair adds to its columns' blocks (lane KV, plan P4-D487): none on every other column.
+
+    On the value column: that its counts on the page read every keyed row
+    as blank, how many measurements are described each as a column of its
+    name, how many of them are held, and that the rare measurements' values
+    are read together. On the key column: which column its keys type, and,
+    where it names its rare keys, that they are named and never counted.
+    Names only counts and column names. Raises nothing. No I/O.
+    """
+    found: "list[str]" = []
+    by_key = column["by_key"] if "by_key" in column else None
+    if isinstance(by_key, dict):
+        blocks = by_key["key_blocks"] if "key_blocks" in by_key else []
+        listed = blocks if isinstance(blocks, list) else []
+        held = 0
+        # EACH HELD AND EACH TOP-CODED MEASUREMENT NAMED (the orchestrator's
+        # LANE KV RULINGS 4 (1), the statistics check's item 2 (d)): the page
+        # tells a physician which measurements the twin makes up and which it
+        # writes 90 for every value from 90, so no analysis of them is run on
+        # the twin unawares. The names are the published keys'.
+        held_names: "list[str]" = []
+        capped_names: "list[str]" = []
+        for entry in listed:
+            block = entry["block"] if isinstance(entry, dict) and "block" in entry else None
+            if not isinstance(block, dict):
+                continue
+            if block["role"] == taxonomy.ROLE_IDENTIFIER:
+                held = held + 1
+                held_names += [_text_of(block["name"])]
+            elif "top_coded" in block:
+                capped_names += [_text_of(block["name"])]
+        found += [
+            f"    values typed by a key: the counts of this column on this page "
+            f"read as blank every row on which the column "
+            f"{_text_of(by_key['key'])} names a measurement; on such a row the "
+            f"value is that measurement's, and {_count_of(len(listed))} "
+            f"measurements held by {floor} people or more are described each "
+            f"as a column of its name ({_count_of(held)} of them held, their "
+            f"values made up in the twin)"
+            + (
+                f"; the measurements fewer than {floor} people hold are read "
+                f"together"
+                if "pool" in by_key
+                else ""
+            )
+        ]
+        if held_names:
+            found += [
+                "    measurements held, their values made up in the twin: "
+                + _names_in_a_list(held_names)
+            ]
+        if capped_names:
+            found += [
+                "    measurements whose every value from 90 up is written as 90 "
+                "(the rule for an age over 89): "
+                + _names_in_a_list(capped_names)
+            ]
+    if "keyed" in column:
+        found += [
+            f"    keys: this column says which measurement each row of the "
+            f"column {_text_of(column['keyed'])} holds"
+            + (
+                f"; the measurements fewer than {floor} people hold are named "
+                f"in one list, none of them counted"
+                if "held_back_names" in column
+                else ""
+            )
+        ]
+    return found
+
+
 def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     """The block of lines describing one column."""
     role = _text_of(column["role"])
@@ -1186,6 +1273,14 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     held_in_rows = (
         role == taxonomy.ROLE_IDENTIFIER
         and _text_of(column["detection_evidence"]) == _HELD_IN_ROWS_EVIDENCE
+    )
+    spelled_held = (
+        role == taxonomy.ROLE_IDENTIFIER
+        and _text_of(column["detection_evidence"]) == _MADE_UP_SPELLED_EVIDENCE
+    )
+    spelled_wider = (
+        role == taxonomy.ROLE_UNREPRESENTABLE
+        and _text_of(column["detection_evidence"]) == _MADE_UP_SPELLED_EVIDENCE
     )
     said_role = _role_words(role)
     if unanswered:
@@ -1206,6 +1301,20 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
         said_role = (
             "record numbers or codes, because its counts did not read as "
             "the dates you named"
+        )
+    if spelled_held:
+        said_role = (
+            "record numbers or codes, whatever the answer, because "
+            "synthtwin's own made-up spellings for numbers this large or "
+            "this small would be written like some of its values or "
+            "cannot be made at its width"
+        )
+    if spelled_wider:
+        said_role = (
+            f"{said_role}, each written one letter or figure longer than "
+            "its longest value whatever the answer, because synthtwin's own "
+            "made-up spellings for numbers this large or this small would be "
+            "written like some of its values"
         )
     # A COLUMN COUNTED ABSENT (plan P4-D453): how many of its cells hold a
     # value is not published, and nothing here says the real table is empty.
@@ -1238,6 +1347,9 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
             )
         ),
     ]
+    # VALUES TYPED BY A KEY (lane KV, plan P4-D487): the lines above speak of
+    # the rows that hold no key; these say how the rest is described.
+    lines = lines + _keyed_lines(column, floor)
     # THE SAFE HARBOR TOP-CODE (plan P4-D427), said where it was applied.
     # The answer `yes` keeps it (lane SH3, plan P4-D454); `no` lifts it.
     # ...and the pooling of a small top category, said in words true of

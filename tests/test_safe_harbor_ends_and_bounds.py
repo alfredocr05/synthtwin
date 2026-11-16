@@ -479,9 +479,12 @@ def test_at_the_owner_floor_a_held_top_coded_column_keeps_its_layouts(tmp_path: 
                for _person in range(1000)]
     rows = [[f"P{who:05d}", f"{weights[who]:.1f} kg"] for who in range(1000) for _row in range(20)]
     source = tmp_path / "t.csv"
+    # (Since lane HB3-a2's reading rule, plan P4-D486, a column of kilograms
+    # nothing says holds ages leaves the age reach; the case names its column
+    # as an age, so the column stays held and top-coded, the bound's premise.)
     with open(source, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["pid", "weight"])
+        writer.writerow(["pid", "age_on_the_scale"])
         writer.writerows(rows)
     screen = io.StringIO()
     with _nobody_at_the_keyboard(), contextlib.redirect_stdout(screen), contextlib.redirect_stderr(screen):
@@ -491,11 +494,11 @@ def test_at_the_owner_floor_a_held_top_coded_column_keeps_its_layouts(tmp_path: 
                             "--out-dir", f"{tmp_path}", "--replace"])]
     assert exits == [0, 0, 0], (exits, screen.getvalue()[-2000:])
     block = next(one for one in json.loads((tmp_path / "t-profile.json").read_text(encoding="utf-8"))["columns"]
-                 if one["name"] == "weight")
+                 if one["name"] == "age_on_the_scale")
     assert block["role"] == taxonomy.ROLE_IDENTIFIER and block["top_coded"] == 90
     with open(tmp_path / "t-twin.csv", encoding="utf-8", newline="") as handle:
         twin = list(csv.reader(handle))
-    place = twin[0].index("weight")
+    place = twin[0].index("age_on_the_scale")
     cells = [row[place] for row in twin[1:]]
     real = {row[1] for row in rows}
     assert len(cells) == 20000 and not [cell for cell in cells if cell in real]
@@ -599,8 +602,10 @@ def test_the_generators_bound_writes_a_weight_past_125_at_or_below_the_top_code(
 
     draw = random.Random(4796)
     path = tmp_path / "weights.csv"
-    path.write_text("weight\n" + "".join(f"{draw.uniform(40, 124):.1f} kg\n" for _row in range(3000)), encoding="utf-8",
-                    newline="\n")
+    # (Named as an age: since lane HB3-a2's reading rule, plan P4-D486, a
+    # column of kilograms nothing says holds ages is not top-coded.)
+    path.write_text("age_on_the_scale\n" + "".join(f"{draw.uniform(40, 124):.1f} kg\n" for _row in range(3000)),
+                    encoding="utf-8", newline="\n")
     document = profile.build_document(reading.read_table(f"{path}"), taxonomy.Settings(), [], top_code=True)
     column = contract.load_profile(f"{fixtures.write_profile(tmp_path, 't-profile.json', document)}").columns[0]
     assert column.top_coded == 90 and isinstance(column.facts, (contract.NumericFacts, contract.AffixedFacts))

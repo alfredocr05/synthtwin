@@ -1454,7 +1454,7 @@ def the_table_is_below_the_floor(
     held = f"{rows:,} rows that hold a value"
     if column:
         held = (
-            f"{held} and {people:,} people, counted by "
+            f"{held} and {_people_said(people)}, counted by "
             f"'{_shown(column)}': rows whose values of it are written "
             f"alike, apart from case, spaces, punctuation and leading "
             f"zeros, are one person, and rows holding no value of it "
@@ -1612,7 +1612,8 @@ def the_population_is_too_small(count: int, unit: str, column: str) -> str:
     counted); returns one paragraph. Determinism: a fixed function of
     the three. Raises nothing. No I/O of any kind.
     """
-    counted = f"{count} {unit}"
+    # Never '1 people' (lane EZ-a, plan P4-D479).
+    counted = "1 person" if count == 1 and unit == "people" else f"{count} {unit}"
     by = (
         " Check that this is the table you meant to describe and that "
         "it was read the way you expect: the count above is the rows "
@@ -2230,7 +2231,14 @@ def profile_version_is_older(found: int, reads: int) -> str:
     value" the person named -- and what to do, which is to describe the
     table again UNDER THE SAME OPTIONS.
 
-    IT NAMES SEVENTEEN OPTIONS. `--date-column` joined with landing R2c
+    IT NAMES EIGHTEEN OPTIONS. `--person` joined with lane EZ-a (plan
+    P4-D479): it holds its column as `--identifier` does and counts the
+    people by it, so a re-run without it describes that column like any
+    other where `--identifier` does not name it, and counts the people
+    by every repeating record-number column together; the person
+    question's `identifier` answers it, so the `--answers` clause names
+    it too. Before it named seventeen.
+    `--date-column` joined with landing R2c
     (plan P4-D383): left out, a column holding dates beside values written
     another way, or written as a year and a day of the year, is described
     as text or numbers, and none of its dates is published; question Q6
@@ -2348,7 +2356,7 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"exactly. Please make the "
         f"description again by running 'synthtwin profile' on your "
         f"table, giving it every option you gave the first time: "
-        f"--keep-value, --missing-value, --identifier, --code, --date-count, "
+        f"--keep-value, --missing-value, --identifier, --person, --code, --date-count, "
         f"--measurement, --decimal-comma, --smallest-group, --first-row, "
         f"--day-first, --twelve-hour, --century, --date-column, "
         f"--metadata-rows, --sheet, "
@@ -2360,7 +2368,12 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"old one held back: without the --smallest-group you gave, a "
         f"value that fewer rows share can be named; without the "
         f"--identifier you gave, a column of record numbers is "
-        f"described like any other column; without the --code you gave, a column of codes is described as measurements, so its values are described by a ladder and by the two groups beyond it, and an end a group of rows shares \u2014 which is a real code \u2014 is published; its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --date-count you gave, a column whose dates are written as counts -- days, seconds or milliseconds from a fixed day -- is described as numbers, so the twin keeps how the numbers spread but loses the day of the week and the time of day each date falls on; without the --missing-value "
+        f"described like any other column; without the --person you gave, "
+        f"the column naming the people the rows are about is described "
+        f"like any other column unless --identifier names it, and where "
+        f"another column of record numbers repeats beside it, rows sharing "
+        f"a value of either are counted as one person, so the table can "
+        f"read as fewer people and be refused; without the --code you gave, a column of codes is described as measurements, so its values are described by a ladder and by the two groups beyond it, and an end a group of rows shares \u2014 which is a real code \u2014 is published; its twin loses any leading zeros; without the --measurement you gave, a column of readings written as two numbers in one cell, such as a blood pressure, is described as text and its twin holds no readings at all; without the --decimal-comma you gave, a column whose numbers are written with a comma where the decimal point goes is read by the ordinary rules, so a column of quantities is described as text and every number in it is lost, or a value such as 1,234 is published as one thousand two hundred and thirty-four; without the --date-count you gave, a column whose dates are written as counts -- days, seconds or milliseconds from a fixed day -- is described as numbers, so the twin keeps how the numbers spread but loses the day of the week and the time of day each date falls on; without the --missing-value "
         f"you gave, a stand-in is read as a real reading, and the "
         f"stand-in itself can be published as the column's smallest "
         f"value; without the --keep-value you gave, a word you had "
@@ -2398,7 +2411,8 @@ def profile_version_is_older(found: int, reads: int) -> str:
         f"column name the description publishes and every value it "
         f"describes; and without the --answers you "
         f"gave, every answer you wrote in the questions file is gone \u2014 "
-        f"each of them was a --code, an --identifier, a --date-count, a "
+        f"each of them was a --code, an --identifier, a --person, a "
+        f"--date-count, a "
         f"--measurement, "
         f"a --decimal-comma, a --metadata-rows, a --delimiter, a "
         f"--twelve-hour, a --century, a --date-column, a --day-first, "
@@ -2997,6 +3011,288 @@ def answers_file_is_not_one(path: str) -> str:
         f"and a section called 'checklist', and this one does not. "
         f"{_A_QUESTIONS_FILE_IS_WRITTEN} If you have one, name that "
         f"file after --answers instead."
+    )
+
+
+# THE ANSWERS FILE'S OWN MESSAGES (lane EZ-a, plan P4-D479; the usability
+# walkthrough's item 5): `contract.load_answers` raised the description's
+# messages, so a curly quotation mark a text editor put in the questions
+# file was reported as "the description ... stopped making sense" with the
+# advice to make the description again and use it exactly as written -- the
+# opposite of what the person had just been told to do. These are raised
+# from `load_answers` alone; `generate` and `validate` keep the description's
+# words byte for byte. Each names the answers file, never the description,
+# and ends by asking for the same command again.
+_SAME_COMMAND_AGAIN = "then run the same command again."
+# A curly double quotation mark, which a text editor's smart quotes put
+# where a straight one belongs.
+CURLY_DOUBLE_QUOTES = "“”„‟"
+
+
+def answers_file_missing(path: str) -> str:
+    """No file is at the path typed after `--answers`."""
+    return (
+        f"There is no file at {path}. That is where synthtwin looked for "
+        f"your answers, the file you named after --answers. Please check the "
+        f"spelling of the path and that the file is on this computer, "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_path_is_a_folder(path: str) -> str:
+    """A folder was named after `--answers`."""
+    return (
+        f"{path} is a folder, not a file. Please name your answers file itself "
+        f"after --answers -- the questions file whose name ends in "
+        f"-questions.json, or a text file of lines 'column = answer' -- and "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_not_text(path: str) -> str:
+    """The answers file's bytes are not UTF-8 text."""
+    return (
+        f"Your answers file at {path} is not readable as text. Please open it "
+        f"in a plain text editor, save it as plain text (UTF-8), and "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_out_of_memory(path: str) -> str:
+    """The answers file could not be held in memory."""
+    return (
+        f"This computer ran out of memory reading your answers file at "
+        f"{path}, which is far larger than a questions file ever is. Please "
+        f"check that the path after --answers names your questions file or "
+        f"your text file of answers, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_file_unreadable(path: str, detail: str) -> str:
+    """The answers file exists but could not be opened."""
+    return (
+        f"Your answers file at {path} could not be opened "
+        f"({_shown(detail)}). Please check that you have permission to read "
+        f"it, that the drive or folder it is on is still connected, and that "
+        f"no other program is holding it open, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_not_json(path: str, line: int, character: int, curly: bool) -> str:
+    """The questions file handed back stopped making sense at one place.
+
+    ``curly`` is whether its text holds a curly double quotation mark, which
+    is said first: a text editor's smart quotes are the commonest cause.
+    """
+    where = f"at line {line}, character {character}"
+    if curly:
+        return (
+            f"Your answers file at {path} holds curly quotation marks, and "
+            f"synthtwin could not read it {where}. A text editor may have "
+            f"turned the straight quotation marks (\") into curly ones: "
+            f"please put straight quotes back around every answer and name, "
+            f"save the file as plain text, and {_SAME_COMMAND_AGAIN}"
+        )
+    return (
+        f"Your answers file at {path} could not be read {where}. Please check "
+        f"the quotation marks there: a text editor may have turned them "
+        f"curly, so use straight quotes (\") around every answer, check the "
+        f"commas between entries, save the file, and {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_nested_too_deeply(path: str, limit: int) -> str:
+    """The answers file nests blocks deeper than any questions file does."""
+    return (
+        f"Your answers file at {path} has blocks nested inside one another "
+        f"more than {limit} deep, which no questions file synthtwin writes "
+        f"has. Please check that the path after --answers names your "
+        f"questions file, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_number_too_long(path: str, limit: int) -> str:
+    """The answers file holds a number longer than any questions file does."""
+    return (
+        f"Your answers file at {path} holds a number written with more than "
+        f"{limit} characters, which no questions file synthtwin writes "
+        f"holds. Please check that the path after --answers names your "
+        f"questions file, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+# THE PLAIN-TEXT ANSWERS FILE (lane EZ-a, plan P4-D479; the walkthrough's
+# item 4): lines `column = answer`, matched against the questions file the
+# last run wrote, so the person need not edit that file at all. A refusal
+# names the line and the column the line names, and quotes no answer
+# written there.
+def answers_text_without_questions(path: str, questions: str) -> str:
+    """A text answers file, and no questions file beside the table to match it against."""
+    return (
+        f"Your answers file at {path} is written as lines 'column = answer', "
+        f"which synthtwin matches against the questions file it wrote beside "
+        f"your table, and there is none at {questions}. Please run synthtwin "
+        f"profile on your table once without --answers to write it, "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_not_understood(path: str, line: int) -> str:
+    """One line of a text answers file is not `column = answer`."""
+    return (
+        f"Line {line} of your answers file at {path} is not written as "
+        f"'column = answer'. Please write each answer on a line of its own: "
+        f"the column's name exactly as the questions file writes it, an "
+        f"equals sign, and one of the answers that question offers; a line "
+        f"opening with # is a note and is skipped. Fix that line, "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_names_nothing(path: str, line: int, column: str) -> str:
+    """One line of a text answers file names no open question."""
+    return (
+        f"Line {line} of your answers file at {path} names "
+        f"'{_shown(column)}', and no open question of the questions file "
+        f"synthtwin wrote beside your table is about that. Please check the "
+        f"name against that file, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+# WHERE TWO QUESTIONS ABOUT ONE COLUMN TAKE ONE ANSWER, OR A NUMBER STANDS
+# BEFORE A COLUMN (lane EZ-a's second repair; the orchestrator's LANE EZ
+# RULINGS 7, Codex's items 2 and 3): a text line names a column and an
+# answer and no question, so it is never settled by which question comes
+# first, and the numbers the screen prints are labels a text file does not
+# read back for a column, so that a number copied from an older screen, or
+# mistyped, can never answer another question.
+_ANSWER_THEM_ELSEWHERE = (
+    "answer it at the keyboard (run your command again with --answers and "
+    "the questions file), or write the answer beside 'your_answer' in the "
+    "questions file itself and name that file after --answers"
+)
+
+
+def answers_line_asks_twice(path: str, line: int, column: str, which: list[str]) -> str:
+    """One line of a text answers file names a column more than one question about it could take its answer for."""
+    return (
+        f"Line {line} of your answers file at {path} names "
+        f"'{_shown(column)}', and more than one question about that column "
+        f"takes the answer it gives ({_listed(which)}), so a line of text "
+        f"cannot say which it means. Please delete the line and "
+        f"{_ANSWER_THEM_ELSEWHERE}, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_numbered(path: str, line: int, number: int, column: str) -> str:
+    """One line of a text answers file writes a question's number before a column."""
+    return (
+        f"Line {line} of your answers file at {path} writes the number "
+        f"{number} before '{_shown(column)}'. The numbers the screen prints "
+        f"beside the questions are not read in a text answers file, so that "
+        f"a number copied from an older screen can never answer another "
+        f"question: please write the column's name alone, "
+        f"'{_shown(column)} = ' and the answer; where two questions about it "
+        f"take that answer, {_ANSWER_THEM_ELSEWHERE}, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_number_alone(path: str, line: int, number: int, column: str) -> str:
+    """One line of a text answers file gives a question's number with no column, and that question is about a column."""
+    return (
+        f"Line {line} of your answers file at {path} gives the number "
+        f"{number} alone, and question {number} of the questions file "
+        f"synthtwin wrote beside your table is about the column "
+        f"'{_shown(column)}'. A number alone answers only a question about "
+        f"the file; a question about a column is answered by the column's "
+        f"name: please write '{_shown(column)} = ' and the answer, "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_number_not_there(path: str, line: int, number: int) -> str:
+    """One line of a text answers file gives a number alone, and the questions file holds no open question of that number."""
+    return (
+        f"Line {line} of your answers file at {path} gives the number "
+        f"{number} alone, and the questions file synthtwin wrote beside your "
+        f"table holds fewer open questions than that. The numbers count the "
+        f"questions still open, so they change once questions are answered, "
+        f"and an answer given in an earlier run is kept in that file already: "
+        f"please delete the line, or check the number against the last "
+        f"screen, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_capitals(path: str, line: int, column: str, written: list[str]) -> str:
+    """One line of a text answers file names a column with other capitals than the questions file writes it."""
+    return (
+        f"Line {line} of your answers file at {path} names "
+        f"'{_shown(column)}', and the questions file synthtwin wrote beside "
+        f"your table writes {_quoted(written)}. A column is named exactly as "
+        f"that file writes it, capitals included, because two columns may "
+        f"differ by their capitals alone: please write the name exactly, "
+        f"{_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_answers_again(path: str, line: int, column: str, earlier: int) -> str:
+    """Two lines of a text answers file answer one question."""
+    return (
+        f"Line {line} of your answers file at {path} answers the question "
+        f"about '{_shown(column)}' that line {earlier} answers already, and "
+        f"synthtwin will not choose between them. Please delete the line you "
+        f"did not mean, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+def answers_line_not_offered(path: str, line: int, column: str, offered: list[str]) -> str:
+    """One line of a text answers file gives an answer its question does not offer."""
+    return (
+        f"Line {line} of your answers file at {path} answers "
+        f"'{_shown(column)}' with a word its question does not offer. Please "
+        f"write one of these instead: {_listed(offered)}; or delete the line "
+        f"to leave the question open, {_SAME_COMMAND_AGAIN}"
+    )
+
+
+# PEOPLE COUNTED BY THE COLUMN SAID TO NAME THEM (lane EZ-a, plan P4-D479;
+# the walkthrough's item 2): several repeating record-number columns are
+# counted together, so a key many people share -- a clinician number -- joins
+# them all into one, and a table of 1,000 patients read as one person.
+def _people_said(count: int) -> str:
+    """A count of people in words: '1 person', '1,000 people'."""
+    return "1 person" if count == 1 else f"{count:,} people"
+
+
+def people_counted_together(rows: int, people: int, columns: list[str]) -> str:
+    """A scripted run's table is below the people floor only because several repeating keys are counted together.
+
+    Said where nothing names which column is the person, two or more
+    declared record-number columns repeat, the rows sharing a value of ANY of
+    them are one person, and counting by one of them alone would reach the
+    floor. The base's floor message stays for a table small by every count.
+
+    IT NAMES NO COLUMN AS AN EXAMPLE (lane EZ-a's second repair; LANE EZ
+    RULINGS 8 (4)): the first column in name order was offered as 'for
+    example --person', which on a table with a clinician number beside the
+    patient number is the clinician number, and followed, it counted the
+    clinicians as the people and published a level 5 patients hold. Each
+    column is a choice of its own, asked as the keyboard's neutral question
+    asks it, and none is offered first or as a default.
+    """
+    choices = _listed([f"--person {one}" for one in columns])
+    return (
+        f"synthtwin makes twins of large tables only, and this table reads as "
+        f"{_people_said(people)}, below its floor of "
+        f"{parsing.TABLE_PEOPLE_FLOOR:,} people, because rows sharing a value "
+        f"of ANY of {_listed(columns)} are counted as one person: a number "
+        f"several people share, such as a clinician's, joins all of them "
+        f"into one. The table holds {rows:,} rows that hold a value. Which of "
+        f"these columns names the patients the rows are about? Only you know: "
+        f"please say it with --person and that column's name, one of "
+        f"{choices}; "
+        f"the other columns stay held as record numbers and join nobody. Then "
+        f"run the command again. Nothing was written."
     )
 
 

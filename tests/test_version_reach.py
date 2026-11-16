@@ -68,7 +68,17 @@ nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the floor's cells while this file says nothing about it.
-The tree holds EIGHTY-FOUR such calls (counted again at batch 4p's
+The tree holds NINETY-TWO such calls (counted again at batch 4t's
+merge of lane ID-ROOM4, 2026-11-14: lane ID-ROOM4's thirty-third
+vectors file adds one, 2026-11-13, plan P4-D489; counted again at batch 4t's
+merge of lane HB3-b part a, 2026-11-13: its gate file,
+`tests/test_held_writer_time.py`, adds four, two `exec` and two
+`compile`, plan P4-D490; counted again at batch 4t's
+merge of lane WIN, 2026-11-13: lane WIN's in-process network guard,
+`tools/bundle/guard_run.py`, adds one, 2026-11-11, plan P4-D483, and lane
+DST's gate file, `tests/test_offsets_follow_the_date.py`, two, plan
+P4-D474, the figure having stood two short since batch 4s's merge of
+lane DST; counted again at batch 4p's
 merge of lane BT2, 2026-11-05: lane PL's thirty-second vectors file
 adds one beside BT2's; lane BT2's thirty-first vectors file adds one,
 2026-11-04, the figure having stood two short; lane GG's twenty-ninth vectors file
@@ -88,7 +98,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so an eighty-fifth cannot arrive unread.
+holds the tree to that list, so a ninety-second cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -170,6 +180,15 @@ calls are held by what they are handed or by where they run:
   mutant's edits of the test's own: a condition, a name or a line left
   out, which every Python spells alike, so it adds no spelling the
   floor could miss.
+- `tests/test_held_writer_time.py` runs `exec(compile(source, ...))`
+  twice, in `_compiled_mutant` and `_stand_in_mutant` (lane HB3-b part
+  a, plan P4-D490), where `source` is a function of the layout pass of
+  `src/synthtwin/generation.py` (`_layout_allotted`,
+  `_layout_walk_counted`, `_layout_next`, `_layout_nearer`,
+  `_layout_stand_in`), read by `inspect.getsource` from a file this
+  guard reads, with one mutant's edits of the test's own: a condition
+  or a key replaced, or a line left out, which every Python spells
+  alike, so it adds no spelling the floor could miss.
 - `runpy.run_path` runs the same kind of committed file: twice in
   `tests/`, in the two stage-2 oracle tests, and nineteen times in
   `tools/` -- one for the provenance guard's own runner and one for
@@ -184,10 +203,13 @@ calls are held by what they are handed or by where they run:
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
   the file each runs is one of the files this guard reads.
-- `runpy.run_module` runs once, in `tests/test_terminal_install.py`
-  (plan P4-D397): `python -m synthtwin` in the test's own process, which
+- `runpy.run_module` runs twice: in `tests/test_terminal_install.py`
+  (plan P4-D397), `python -m synthtwin` in the test's own process, which
   runs the committed `src/synthtwin/__main__.py`, a file this guard
-  reads.
+  reads; and in `tools/bundle/guard_run.py` (plan P4-D483), which runs
+  the same `synthtwin` package's `__main__` inside the Windows
+  rehearsal once the socket calls are made to raise, so what it runs is
+  that same committed file.
 - `tests/test_stage3b_shared_steps.py` builds a module with
   `exec(compile(source, ...))` (plan P4-D366, the review of landing
   3b.D0), where `source` is `src/synthtwin/generation.py`, a file this
@@ -371,6 +393,11 @@ ROUTES_THAT_RUN_SOURCE = {
     ("tests/test_stage4_allocator_walk.py", "exec"): 1,
     ("tests/test_stage4_padded_swap_scale.py", "compile"): 1,
     ("tests/test_stage4_padded_swap_scale.py", "exec"): 1,
+    # Lane HB3-b part a (plan P4-D490): its gate file compiles functions of
+    # the layout pass again from their own text, each with one mutant's
+    # edits, for the length of a check.
+    ("tests/test_held_writer_time.py", "compile"): 2,
+    ("tests/test_held_writer_time.py", "exec"): 2,
     ("tests/test_stage2_datetime_oracle.py", "runpy.run_path"): 1,
     ("tests/test_stage2_grouping_oracle.py", "runpy.run_path"): 1,
     ("tools/provenance/guard_runner.py", "runpy.run_path"): 1,
@@ -502,6 +529,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # The thirty-second, lane PL's method G8.3d (plan P4-D453): it runs the
     # same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_32.py", "runpy.run_path"): 1,
+    # The thirty-third, lane ID-ROOM4's method G10.5 step 8 (plan P4-D489):
+    # it runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_33.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
     # Lane TI (plan P4-D397): `python -m synthtwin`, run in the test's own
     # process the way the interpreter runs it, on the committed
@@ -514,6 +544,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # by path, to hold its tally to a table that did not check. Both are
     # files this guard reads.
     ("tests/test_offsets_follow_the_date.py", "runpy.run_path"): 2,
+    # Lane WIN (plan P4-D483): the Windows rehearsal's in-process network
+    # guard runs the `synthtwin` package's `__main__` the way `python -m`
+    # does, on the same committed `src/synthtwin/__main__.py`.
+    ("tools/bundle/guard_run.py", "runpy.run_module"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
 
@@ -841,7 +875,53 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # call, to read the driver's judge (the lane's branch moved no number: its own
 # suite was not run before its merge). What it loads is a committed file under
 # tools/, which this guard reads directly.
-FILES_LOADED_AS_MODULES = 69
+#
+# 69 ON LANE WIN (plan P4-D483, its repair 1 of 2026-11-11), on the batch
+# 4s line's 67: the gate file `tests/test_windows_bundle.py` loads the
+# lane's tools by path in `_load` (one call, the files under
+# tools/bundle/ and tests/test_bundle.py), and the trial driver
+# `tools/bundle/rehearse_windows.py` loads the ready folder's
+# `scripts/check_folder.py` in `_load_check_folder` (one call), a copy,
+# byte for byte, of the committed `tools/bundle/check_folder.py`. Each
+# loads a file this guard reads directly, so the floor holds for them as
+# it does for the other sixty-seven.
+#
+# 71 AT BATCH 4t'S MERGE OF LANE WIN (plan P4-D483; 2026-11-13, step 2): the
+# line's 69 and the lane's two above (69 on its branch, on the batch 4s
+# line's 67), each loaded once.
+#
+# 69 ON LANE HB3-a (plan P4-D482, on batch 4s's 68): the age phrases' gate,
+# `tests/test_age_phrases_and_key_rooms.py`, loads the generation oracle in
+# `_oracle`, one call, to hold the product's reading of an age's phrase to the
+# oracle's. What it loads is a committed file under tools/, which this guard
+# reads directly.
+#
+# 72 AT BATCH 4t'S MERGE OF LANE HB3-a (plan P4-D482; 2026-11-13, step 6): the
+# line's 71 and the lane's one above (69 on its branch, on batch 4s's 68),
+# loaded once.
+#
+# 69 ON LANE HB3-a2 (plan P4-D486, its repair 1 of 2026-11-12, on batch 4s
+# step 8's 68): the widened ages' gate, `tests/test_ages_widened_and_units.py`,
+# loads the generation oracle in `_oracle`, one call, to hold the oracle's
+# reading of an age in brackets to the product's top-code bound (A-P4-59).
+# What it loads is a committed file under tools/, which this guard reads
+# directly.
+#
+# 73 AT BATCH 4t'S MERGE OF LANE HB3-a2 (plan P4-D486; 2026-11-14, step 7):
+# the line's 72 and the lane's one above (69 on its branch, on batch 4s step
+# 8's 68), loaded once.
+#
+# 70 ON LANE KV (plan P4-D487, on batch 4s's 69): the keyed pair's gate,
+# `tests/test_key_value.py`, loads the generation oracle,
+# `tools/reference/make_generation_reference_vectors.py`, one call (`_oracle`),
+# to hold the product's keyed layout and word plan to the oracle's mirrors
+# (A-P4-59). What it loads is a committed file under tools/, which this guard
+# reads directly.
+#
+# 74 AT BATCH 4t'S MERGE OF LANE KV (plan P4-D487; 2026-11-14, step 11):
+# the line's 73 and the lane's one above (70 on its branch, on batch 4s's
+# 69), loaded once.
+FILES_LOADED_AS_MODULES = 74
 
 
 def _files() -> "list[pathlib.Path]":

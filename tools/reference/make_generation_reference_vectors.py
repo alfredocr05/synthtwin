@@ -13615,6 +13615,69 @@ def named_pool_cells(column, content, floor):
     return answer
 
 
+def keyed_value_cells(key_cells, labels, absent, own_cells, block_cells, pool_cells, kept_empty=None):
+    """A keyed value column's cells and its count of rows left short -- method G8.3f (lane KV, plan P4-D487), from its own words.
+
+    Each block's cells are what the column writer writes on that key's block
+    as a table of its own, from one word of the stream each, the blocks in
+    their labels' rising order and the pooled block last. Row by row: a key
+    whose folded spelling is a published label takes the next cell of its
+    block; a blank key, or one of the spellings written as no value, takes
+    the next of the value column's own cells that holds anything, else a
+    blank; any other key is rare and takes the next cell of the pool. A
+    block that runs out leaves its rows blank, each counted short. A row
+    ``kept_empty`` names, one of the form's all-empty records, is written
+    blank and takes no own cell.
+    """
+    at_label = {label: place for place, label in enumerate(labels)}
+    taken = [0] * len(labels)
+    own = [cell for cell in own_cells if cell != ""]
+    own_taken = 0
+    pool_taken = 0
+    short = 0
+    answer = []
+    for cell in key_cells:
+        key = folded(cell)
+        if key in at_label:
+            place = at_label[key]
+            if taken[place] < len(block_cells[place]):
+                answer.append(block_cells[place][taken[place]])
+            else:
+                answer.append("")
+                short += 1
+            taken[place] += 1
+        elif kept_empty is not None and kept_empty[len(answer)]:
+            answer.append("")
+        elif not key or cell in absent:
+            answer.append(own[own_taken] if own_taken < len(own) else "")
+            own_taken += 1
+        else:
+            if pool_taken < len(pool_cells):
+                answer.append(pool_cells[pool_taken])
+            else:
+                answer.append("")
+                short += 1
+            pool_taken += 1
+    return answer, short
+
+
+def keyed_word_counts(value_columns):
+    """The words of the stream each keyed value column takes -- method G8.3f's word plan (lane KV, plan P4-D487), from its own words.
+
+    ``value_columns``: for each column of the description in its order, a
+    triple (whether it is typed by a key column the description holds, its
+    number of key blocks, whether it carries the rare keys' pooled block).
+    Each typed column takes one word for each key block and one for the
+    pooled block, drawn together in the description's column order; a
+    column typed by no key takes none and is not listed.
+    """
+    answer = []
+    for typed, blocks, pooled in value_columns:
+        if typed:
+            answer.append(blocks + (1 if pooled else 0))
+    return answer
+
+
 # THE THIRTY-SECOND FILE: method G8.3d, a pool counted in people and a column
 # of words counted absent (lane PL's repair 1, plan P4-D453; the
 # orchestrator's LANE PL RULINGS 1 (3), A-P4-59). Not a file of placed twin
@@ -14299,9 +14362,8 @@ def _label_content(column):
             listed=listed, drawn=drawn,
         )
     published = list(content)
-    # ...the class walk's numbers keep their spelling too (G8.3a's scale).
-    if placed:
-        published += list(placed.values())
+    # ...the class walk's numbers are kept off the real runs as every other
+    # stand-in is (lane HB3-a, plan P4-D482, limit (ae)): no exemption.
     for spelling, size in stand_ins:
         content.extend([spelling] * size)
         used.append(spelling)
@@ -28866,6 +28928,268 @@ def a_list_layout(layout):
     return False
 
 
+def _count_layout(layout):
+    """Whether a census layout writes counts: figures, a sign before them, a mark and figures after (G9.6c, P4-D488)."""
+    body = layout[1:] if layout.startswith("-") else layout
+    whole, mark, fraction = body.partition(".") if "." in body else body.partition(",")
+    if not whole or set(whole) != {"%"}:
+        return False
+    return not mark or (bool(fraction) and set(fraction) == {"%"})
+
+
+def _read_by_numbers(text):
+    """How a reader of numbers (binary64) reads a decimal number with an optional sign, point and exponent: "whole",
+    "fraction" (a number past the largest is whole, one too small to hold a fraction), or "" where it is no number."""
+    if not re.fullmatch(r"[+-]?([0-9]+(\.[0-9]*)?|\.[0-9]+)([eE][+-]?[0-9]+)?", text):
+        return ""
+    value = float(text)
+    if math.isinf(value):
+        return "whole"
+    mantissa = text.lower().partition("e")[0]
+    if value == 0 and any(c in "123456789" for c in mantissa):
+        return "fraction"
+    return "whole" if value == math.floor(value) else "fraction"
+
+
+def counts_off_the_real(column, content, member=""):
+    """A held column of counts that may be dates, each value off every real day (G9.6c, P4-D488), from the rule statement.
+
+    Asked of a record number with no `time_grain` whose `made_up_years` is
+    published and whose census names counts alone beside layouts holding
+    no figure (a stray word's), none a date's form, or no layout at all
+    (withheld whole) -- a named layout holding a figure that writes no
+    count, a date's form among them, passed over where such layouts hold
+    at most a third of the present cells, and bounding no width. A cell
+    holding no figure is kept as it is. A
+    different value, in the order it first appears, is KEPT where, read in
+    the system ``member`` it is declared in, the noughts opening its whole
+    part set aside, its width the written one (repair 2) -- or, declared in none, in
+    each system in which ten to the power of the most whole figures of its
+    own or of the census's widest layout of counts holds more than 366
+    days' counts -- with the point and with the comma alike, it names no
+    date; names a four-figure year
+    `made_up_years` publishes; holds a whole part at least ten to the
+    power of the spill's merged length less one, plus a day's counts; or,
+    where every present cell stands in a named layout and every named
+    layout of the widest whole width carries exclusions all opening with
+    a nine at the first figure, opens with a nine at that width, a day's
+    counts inside its nine hundreds -- neither of these two where the column
+    reads cells as blank (`n_missing_blank` above nought: its real cells are
+    then not bounded by its published facts). Every other value takes, keeping its
+    sign and its figures after the mark, at such a width with no opening
+    nought, the next whole part from nine hundreds and the most of the
+    systems' day's counts less one, up to ten to the width less those
+    counts, that no cell of the content and no value taken before it is
+    (each width carrying on from where its last left off); else the first
+    of nine times ten to the power of the spill's merged length less one
+    (at least one), and onward, that none is; where the column reads cells
+    as blank, a plus in place of its sign and the power the larger of the
+    census's longest whole part of counts and the spill's merged length
+    less one less the figures after its mark (at least one); and so, the
+    column reading cells as blank or not, where a reader of numbers reads
+    the value as a fraction, the first of those spills as a whole number
+    and the plus one as a fraction (the suite repair).
+    """
+    years = column.get("made_up_years")
+    if column.get("time_grain") is not None or years is None:
+        return content
+    census = column.get("layout_forms") or {}
+    named = [name for name in census if name != WITHHELD and "%" in name]
+    # ...a named layout holding a figure that writes no count -- an ISO date's beside counts -- is passed over while
+    # such layouts hold at most a third of the present cells (lane ID-ROOM3's repair 2).
+    strays = [name for name in named if not _count_layout(name) or date_form_fields(name)]
+    if 3 * sum(census[name] for name in strays) > (column.get("n_present") or 0):
+        return content
+    named = [name for name in named if name not in strays]
+    widest = max((len(name.lstrip("-").split(".")[0].split(",")[0]) for name in named), default=0)
+    census_widest = widest
+    exclusions = column.get("layout_exclusions") or {}
+    spill = exclusions.get("(spill)") or []
+    beyond = len([c for c in spill[0] if c.isalnum() or c == "%"]) - 1 if spill else -1
+    published = {year for first, last in years for year in range(first, last + 1) if year > 99}
+    # ...a column whose description reads cells as blank: its real cells unbounded by the published facts.
+    unbounded = (column.get("n_missing_blank") or 0) > 0
+    nines = set()
+    if not unbounded and WITHHELD not in census and sum(census.values()) >= (column.get("n_present") or 0):
+        widths = {}
+        for name in named:
+            body = name[1:] if name.startswith("-") else name
+            whole = len(body.split(".")[0].split(",")[0])
+            first = name.index("%")
+            templates = exclusions.get(name) or []
+            good = bool(templates) and all(len(t) == len(name) and t[first] == "9" for t in templates)
+            widths[whole] = widths.get(whole, True) and good
+        widest = max(widths) if widths else 0
+        if widths and widths[widest]:
+            nines.add(widest)
+
+    def day_counts(system):
+        return max(int(_COUNTED_DAY / COUNTED_SYSTEMS[system][1]), 1)
+
+    def off(core, system):
+        return off_in(core, system, ".") and off_in(core, system, ",")
+
+    def unpadded(core):
+        # ...noughts opening the whole part set aside, the sign kept, one figure at least before the mark (repair 2).
+        sign = "-" if core.startswith("-") else ""
+        body = core[len(sign):]
+        place = 0
+        while place < len(body) - 1 and body[place] == "0" and "0" <= body[place + 1] <= "9":
+            place += 1
+        return sign + body[place:]
+
+    def off_in(core, system, mark):
+        core = unpadded(core)
+        try:
+            iso = counted_reading(system, core, mark, _COUNTED_DAY)
+        except (OverflowError, ValueError):
+            # ...a count past the calendar names no date.
+            iso = None
+        if iso is None:
+            return True
+        if int(iso[0:4]) in published:
+            return True
+        value = _counted_number(core, mark)
+        whole = abs(int(value))
+        a_day = day_counts(system)
+        if not unbounded and beyond > 0 and whole >= 10**beyond + a_day:
+            return True
+        figures = len(str(whole)) if whole > 0 else 0
+        return figures in nines and 9 * 10 ** (figures - 1) + a_day - 1 <= whole <= 10**figures - a_day
+
+    taken = {cell for cell in content if cell.strip()}
+    written, step, out, inside = {}, 0, [], {}
+    for cell in content:
+        if cell in written:
+            out.append(written[cell])
+            continue
+        core = cell.strip()
+        if not core or _counted_number(unpadded(core), ".") is None and _counted_number(unpadded(core), ",") is None:
+            written[cell] = cell
+            out.append(cell)
+            continue
+        if member:
+            systems = [member]
+        else:
+            digits = core.lstrip("-").split(".")[0].split(",")[0].lstrip("0")
+            systems = [s for s in COUNTED_SYSTEMS if 10 ** max(len(digits), widest) // day_counts(s) > 366]
+        if (beyond <= 0 and not unbounded) or all(off(core, system) for system in systems):
+            written[cell] = cell
+            out.append(cell)
+            continue
+        lead = cell[: len(cell) - len(cell.lstrip())]
+        trail = cell[len(lead) + len(core):]
+        sign = "-" if core.startswith("-") else ""
+        cut = max(core.find("."), core.find(","))
+        after = core[cut:] if cut > 0 else ""
+        whole_text = core[len(sign):cut if cut > 0 else len(core)]
+        # ...at the width it is written at, noughts before its figures counted (repair 2).
+        figures = len(whole_text)
+        candidate = None
+        if figures in nines and whole_text.isdigit():
+            margin = max(day_counts(system) for system in systems) if systems else 1
+            lowest = 9 * 10 ** (figures - 1) + margin - 1
+            whole = lowest + inside.get(figures, 0)
+            while whole <= 10**figures - margin:
+                trial = f"{lead}{sign}{whole}{after}{trail}"
+                whole += 1
+                if trial not in taken:
+                    candidate = trial
+                    break
+            inside[figures] = whole - lowest
+        width = max(beyond, 1)
+        # ...one figure past the census's longest whole part, its merged key as long as the spill's with the
+        # figures after its mark (lane ID-ROOM3's repair 2).
+        kept = max(census_widest, beyond - sum(1 for c in after if "0" <= c <= "9"), 1)
+        # ...the plus spill too, bounded or not, for a value a reader of numbers reads as a fraction where that reader
+        # reads its spill back whole and its plus spill as a fraction (lane ID-ROOM3's suite repair).
+        if unbounded or (
+            candidate is None
+            and _read_by_numbers(core) == "fraction"
+            and _read_by_numbers(f"{9 * 10**width}{after}") == "whole"
+            and _read_by_numbers(f"{9 * 10**kept}{after}") == "fraction"
+        ):
+            sign = "+"
+            width = kept
+        while candidate is None:
+            trial = f"{lead}{sign}{9 * 10**width + step}{after}{trail}"
+            step += 1
+            if trial not in taken:
+                candidate = trial
+        taken.add(candidate)
+        written[cell] = candidate
+        out.append(candidate)
+    return out
+
+
+def _held_mantissa_nought(core):
+    """Whether a number written with an exponent ends its mantissa with a nought (G9.6b; batch 4t's last code round, item 1).
+
+    Written from the rule statement: the figure just before the exponent's
+    `e` or `E` of a cell read as a number; such a mantissa holds a figure
+    its number does not need (`10e451` is `1e452`), so the held writer
+    never writes it.
+    """
+    found = re.fullmatch(r"[+-]?(\d*\.?\d*)[eE][+-]?\d+", core)
+    return bool(found) and found.group(1).replace(".", "")[-1:] == "0"
+
+
+# A named layout that writes a number (G9.6b; batch 4t's last code round, item 1): a sign mark, figures (the zero fill
+# among them) with at most one point, and where it has one a letter, a sign mark and figures.
+_NUMBER_LAYOUT = r"([-+]?)([%!]+(?:\.%*)?|\.%+)(?:([&@])([-+]?)(%+))?"
+
+
+def _spellings_of_the_number(number, name, template, convention):
+    """The fillings of one named layout that read as ``number`` (G9.6b; batch 4t's last code round, item 1).
+
+    Written from the rule statement: a layout of a sign mark, figures (the
+    zero fill among them) with at most one point and, where it has one, a
+    letter, a sign mark and figures after it. Each power of ten the
+    exponent's places can write is tried where the mantissa's places could
+    hold the number over it (those near the number's own magnitude), the
+    mantissa's figures being the number over that power where they are a
+    whole number the places hold; a filling is one where it wears the
+    layout's template and reads as exactly ``number``. Zero is noughts
+    alone where the layout has no exponent, and none is listed where it
+    has one (every power writes zero; the caller refuses it there). Every
+    other layout writes none here.
+    """
+    found = re.fullmatch(_NUMBER_LAYOUT, name)
+    if not found:
+        return []
+    sign, mantissa, letter, exponent_sign, exponent = found.groups()
+    if number == 0 and letter:
+        return []
+    if number < 0 and sign != "-" or number > 0 and sign == "-":
+        return []
+    places = len(mantissa.replace(".", ""))
+    after = len(mantissa.split(".")[1]) if "." in mantissa else 0
+    powers = [0]
+    if letter and number != 0:
+        size = abs(number)
+        magnitude = len(str(size.numerator)) - len(str(size.denominator))
+        powers = [
+            power
+            for power in range(magnitude + after - places - 2, magnitude + after + 3)
+            if 0 <= (-power if exponent_sign == "-" else power) < 10 ** len(exponent)
+        ]
+    spellings = []
+    for power in powers:
+        written = -power if exponent_sign == "-" else power
+        figures = abs(number) * fractions.Fraction(10) ** after / fractions.Fraction(10) ** power
+        if figures.denominator != 1 or figures.numerator >= 10 ** places:
+            continue
+        body = f"{figures.numerator:0{places}d}"
+        if after:
+            body = body[: places - after] + "." + body[places - after:]
+        spelling = sign + body
+        if letter:
+            spelling += ("e" if letter == LAYOUT_LOWER else "E") + exponent_sign + f"{written:0{len(exponent)}d}"
+        if wears_template(spelling, template, convention) and number_read(spelling) == number:
+            spellings.append(spelling)
+    return spellings
+
+
 def spelled_off_the_real(column, content):
     """Every present cell of a record number written where no real cell is (G9.6b, P4-D432).
 
@@ -28875,7 +29199,14 @@ def spelled_off_the_real(column, content):
     spill's (every real cell's is shorter), or where it wears its own
     layout's excluded template, or in lower case the lowered excluded
     template of a named layout its own folds to, dropping no nought the
-    template does not.  Every other value takes the first spelling, its
+    template does not -- and, read as a number (batch 4t's last code round,
+    item 1), only where no nought ends a mantissa written with an exponent,
+    zero is not written where a named layout writes an exponent, and every
+    filling of a named layout reading as its number is kept so by its
+    merged key, its own merged key aside (the oracle reads a sign, figures,
+    one point and a power of ten; the grouping marks, brackets and the
+    minus sign U+2212 the product's reader also takes are in no frozen
+    case).  Every other value takes the first spelling, its
     fillings read from the first and the nought filling last (each
     template its own step, at most 4,096 a value before the next template
     is asked, a search that finds nothing giving its step back), that neither spells nor folds onto any cell of the content
@@ -28959,7 +29290,7 @@ def spelled_off_the_real(column, content):
             if each[:1] == "0" and set(name) == {LAYOUT_DIGIT}:
                 nought_led.setdefault(template_layout(each, convention), []).append(each)
 
-    def off_the_real(cell):
+    def off_the_real_by_key(cell):
         core = cell.strip()
         if bound and len(merged_key(core)) >= bound:
             return True
@@ -28974,6 +29305,33 @@ def spelled_off_the_real(column, content):
             and keeps_its_places(core.lower(), template)
             for template in lowered.get(folded_marks(layout_of(core, convention)), [])
         )
+
+    # ...AND BY THE NUMBER IT WRITES (batch 4t's last code round, item 1): a
+    # value read as a number is off the real only where the figure before its
+    # exponent's letter is no nought, and where every spelling of its number in
+    # a named layout of the column (a real cell writing that number there is
+    # one of them) is off the real by its merged key, its own merged key aside.
+    numbered = [name for name in sorted(census) if name != WITHHELD and not a_list_layout(name)]
+
+    def off_the_real(cell):
+        if not off_the_real_by_key(cell):
+            return False
+        core = cell.strip()
+        number = number_read(core)
+        if number is None:
+            return True
+        if _held_mantissa_nought(core):
+            return False
+        if number == 0 and any(
+            re.fullmatch(_NUMBER_LAYOUT, name) and re.fullmatch(_NUMBER_LAYOUT, name).group(3) for name in numbered
+        ):
+            return False
+        own = merged_key(core)
+        for name in numbered:
+            for spelling in _spellings_of_the_number(number, name, template_of(name, prefixes.get(name, whole)), convention):
+                if merged_key(spelling) != own and not off_the_real_by_key(spelling):
+                    return False
+        return True
 
     # The lengths widened layouts of letters, and of figures alone, take: no
     # length holds both kinds, the spill's among the figures'.
@@ -30968,7 +31326,7 @@ def _unrepresentable_spelling(shape, sign, order, asked, family=SPELLING_PLAIN):
     raise AssertionError(f"{shape!r} is not one of the six shapes of G10.5")
 
 
-def _unrepresentable_recount(column, content):
+def _unrepresentable_recount(column, content, wider=False):
     """The published unrepresentable facts, recounted from the finished cells.
 
     Method section G10.5 step 6 recounts every one of ``n_whole``,
@@ -31016,6 +31374,19 @@ def _unrepresentable_recount(column, content):
         for cell in content
         if NOTATION_TEXT not in notation_reading(cell)
     ]
+    # ...AND IN STEP 8 EVERY NUMERIC-LOOKING CELL HOLDS MORE LETTERS AND
+    # FIGURES THAN ``max_length`` (no run of figures opened by a nought), so
+    # its merged key is longer than any real cell (lane ID-ROOM4).
+    if wider:
+        for cell in numeric_looking:
+            kept = [character for character in cell if character.isalnum()]
+            if len(kept) <= column["max_length"]:
+                raise AssertionError(
+                    f"a step-8 cell holds {len(kept)} letters and figures, "
+                    f"no more than the published max_length "
+                    f"{column['max_length']}"
+                )
+        return
     if numeric_looking:
         widths = [len(cell) for cell in numeric_looking]
         for name, value in (
@@ -31083,6 +31454,11 @@ def _unrepresentable_content(column):
     # what shape it took (G10.5 revision 4).
     shapes_taken = [shapes[(cell[0], cell[1])] for cell in cells]
     signs_taken = [cell[2] for cell in cells]
+    # STEP 8 (lane ID-ROOM4, plan P4-D489): a column whose block carries
+    # NF139 is spelled one letter or figure wider, the same shape and sign
+    # a group and the same census.
+    if column.get("detection_evidence") == SPELLED_WIDER_EVIDENCE:
+        return _spelled_wider_content(column, groups, shapes_taken, signs_taken)
     asked = _unrepresentable_widths(column, shapes_taken, signs_taken)
     content = []
     spent = {}
@@ -31119,6 +31495,836 @@ def _unrepresentable_content(column):
         content.extend([spelling] * size)
     _unrepresentable_recount(column, content)
     return content
+
+
+# ------------------------------- step 8: the spellings one letter wider
+
+
+# THE DETECTION EVIDENCE THAT ASKS FOR STEP 8 (contract NF139; lane
+# ID-ROOM4, plan P4-D489), its sentence written out as the contract writes
+# it: this file reads no package. `synthtwin profile` sets it on a column of
+# this role whose step-4 spellings would equal a value of its own that 1 to
+# f-1 people hold, and the column's cells are then spelled by step 8.
+SPELLED_WIDER_EVIDENCE = (
+    "this column holds numbers too large or too small for this file format "
+    "to hold, and synthtwin's own made-up spellings for such numbers would "
+    "be written like some of its values or cannot be made at its width, so "
+    "whatever the answer none of its values is published and its twin "
+    "writes made-up values that no value of it equals"
+)
+# Past a figure that opens it, a whole number this format holds may have at
+# most 307 more figures (step 8's in-range whole numbers past 309 figures).
+WIDER_HOLDABLE_PLACES = 307
+# A run of turned-down candidates this long ends a family's walk (step 8).
+WIDER_TURNED_DOWN = 100000
+
+
+def _wider_width(shape, width):
+    """The letters and figures one shape holds where the column is spelled wider -- G10.5 step 8.
+
+    One more than the published ``max_length``, never fewer than the
+    shape's own shortest spelling: five for the two exponent shapes (a
+    figure, ``e``, three figures), two for a fraction and for ordinary
+    text.
+    """
+    if shape in ("too_large", "too_small"):
+        return max(width, EXPONENT_LARGE_ROOM)
+    if shape in ("fraction_in_range", "ordinary_text"):
+        return max(width, 2)
+    return max(width, 1)
+
+
+def _wider_figures(places, offset):
+    """The ``places`` figures of ten to the ``places`` - 1 plus a small ``offset``, as text: a one, the offset zero-filled behind it."""
+    if offset >= 10 ** (places - 1):
+        return str(10 ** (places - 1) + offset)
+    return "1" + str(offset).zfill(places - 1)
+
+
+# Each field step 8 reads off this file's own reading, found once a width.
+_WIDER_FIELDS = {}
+
+
+def _wider_too_small_field(width):
+    """The exponent's figures and its first exponent for a fraction too small spelled at ``width`` letters and figures -- step 8.
+
+    READ, NOT CALCULATED (Codex's review of lane ID-ROOM4, item 1, and the
+    orchestrator's LANE ID-ROOM4 RULINGS 6 (10): this file found its fields
+    the way the product computes them, and the two agreed by sharing the
+    defect). For three figures, then four and on, the mantissa takes the
+    letters and figures the exponent leaves, and the exponent counts up
+    from 400 (from the first of its figures past three) until the LARGEST
+    mantissa of that many figures reads out of range by
+    ``notation_reading`` -- this file's exact rational reading against
+    binary64's two midpoints -- so every mantissa does; the field is the
+    first count of figures that has one.
+    """
+    key = ("too_small", width)
+    if key not in _WIDER_FIELDS:
+        figures = 3
+        found = None
+        while found is None:
+            places = width - 1 - figures
+            exponent = EXPONENT_HOME if figures == 3 else 10 ** (figures - 1)
+            while exponent <= 10 ** figures - 1:
+                if notation_reading("9" * places + "e-" + str(exponent))[0] == NOTATION_OUT_OF_RANGE:
+                    found = (figures, exponent)
+                    break
+                exponent = exponent + 1
+            figures = figures + 1
+        _WIDER_FIELDS[key] = found
+    return _WIDER_FIELDS[key]
+
+
+def _wider_whole_field(width):
+    """The exponent's figures, its largest exponent and how many exponents run below it, for a whole number this format holds spelled at ``width`` letters and figures of 310 or more -- step 8.
+
+    READ, NOT CALCULATED, as the field above: for each count of figures
+    from three while its first exponent fits the noughts, the exponents
+    counting down from the largest the noughts allow while a nine, the
+    noughts and the exponent read as a whole number in range; the count
+    whose run is the longest, the fewer on a tie.
+    """
+    key = ("whole_in_range", width)
+    if key not in _WIDER_FIELDS:
+        best = None
+        figures = 3
+        while 10 ** (figures - 1) <= width - 2 - figures:
+            noughts = width - 2 - figures
+            top = min(10 ** figures - 1, noughts)
+            exponent = top
+            while exponent >= 10 ** (figures - 1):
+                notation, whole, _sign = notation_reading("9" + "0" * noughts + "e-" + str(exponent))
+                if notation != NOTATION_NUMBER or whole != WHOLE_YES:
+                    break
+                exponent = exponent - 1
+            if best is None or top - exponent > best[2]:
+                best = (figures, top, top - exponent)
+            figures = figures + 1
+        _WIDER_FIELDS[key] = best
+    return _WIDER_FIELDS[key]
+
+
+def _wider_exponent_walk(step, start, figures):
+    """The ``step``-th exponent of step 8's walk: up from ``start`` to the largest of ``figures`` figures, then down from ``start`` less one to the smallest; None past it."""
+    if step <= 10 ** figures - 1 - start:
+        return start + step
+    power = start - (step - (10 ** figures - 1 - start))
+    if power < 10 ** (figures - 1):
+        return None
+    return power
+
+
+def _wider_candidate(shape, negative, width, index):
+    """The ``index``-th candidate of one shape and sign holding ``width`` letters and figures -- step 8.
+
+    No run of figures opens with a nought, so a candidate's merged key is
+    as long as its letters and figures: contradictory notation ``(-N)``; a
+    whole number too large to hold, the sign and ``width`` figures at 310
+    figures or more, else the sign, a mantissa, ``e`` and a three-figure
+    exponent walking as step 4's, the mantissa moving first; a fraction
+    too small to hold, the sign, a mantissa, ``e-`` and an exponent whose
+    field this file reads off its own reading (``_wider_too_small_field``),
+    walking the same way from where it starts; a whole number this format
+    holds, the sign and ``width`` figures up to 309, and past them a
+    figure, noughts, ``e-`` and an exponent of the field its reading finds
+    (``_wider_whole_field``), walking down; a fraction it holds, the sign,
+    a figure, a point and ``width`` - 1 figures; ordinary text, ``t`` and
+    ``width`` - 1 figures. None once the family has no ``index``-th member.
+    """
+    lead = "-" if negative else ""
+    if shape == "contradictory":
+        if index >= 9 * 10 ** (width - 1):
+            return None
+        return "(-" + _wider_figures(width, index) + ")"
+    if shape == "whole_in_range" and width >= OVERFLOW_FIGURES:
+        figures, top, run = _wider_whole_field(width)
+        if index // 9 >= run:
+            return None
+        noughts = width - 2 - figures
+        return lead + str(index % 9 + 1) + "0" * noughts + "e-" + str(top - index // 9)
+    if (shape == "too_large" and width >= OVERFLOW_FIGURES) or shape == "whole_in_range":
+        if index >= 9 * 10 ** (width - 1):
+            return None
+        return lead + _wider_figures(width, index)
+    if shape in ("too_large", "too_small"):
+        figures, start = (3, EXPONENT_HOME) if shape == "too_large" else _wider_too_small_field(width)
+        places = width - 1 - figures
+        span = 9 * 10 ** (places - 1)
+        power = _wider_exponent_walk(index // span, start, figures)
+        if power is None:
+            return None
+        minus = "-" if shape == "too_small" else ""
+        return lead + _wider_figures(places, index % span) + "e" + minus + str(power)
+    if shape == "fraction_in_range":
+        if index // 9 >= 9 * 10 ** (width - 2):
+            return None
+        return lead + str(index % 9 + 1) + "." + _wider_figures(width - 1, index // 9)
+    if index >= 9 * 10 ** (width - 2):
+        return None
+    return "t" + _wider_figures(width - 1, index)
+
+
+def _wider_reads_back(shape, sign, candidate):
+    """Whether a step-8 candidate reads back as its shape and sign -- the three answers step 6 asks."""
+    notation, whole, said = notation_reading(candidate)
+    for name, wanted, whole_wanted, signs in UNREPRESENTABLE_SHAPES:
+        if name == shape:
+            return notation == wanted and whole == whole_wanted and said == (
+                sign if sign in signs else SIGN_UNSETTLED
+            )
+    raise AssertionError(f"{shape!r} is not one of the six shapes of G10.5")
+
+
+def _wider_mantissa_nought(shape, candidate):
+    """Whether a step-8 candidate's mantissa ends with a nought, which step 8 steps past (batch 4t's last code round, item 1).
+
+    The figure just before the exponent's ``e``, or the cell's last figure
+    where it has no exponent: a nought there is a figure the number does not
+    need, so a real cell no wider than ``max_length`` could be that number.
+    Contradictory notation and ordinary text name no number, and a whole
+    number this format holds written with an exponent (past 309 figures, a
+    figure and noughts) is a figure and noughts by construction: neither
+    is stepped past here.
+    """
+    if shape in ("contradictory", "ordinary_text"):
+        return False
+    if "e" in candidate:
+        if shape == "whole_in_range":
+            return False
+        return candidate[candidate.index("e") - 1] == "0"
+    return candidate[-1] == "0"
+
+
+def _wider_case_variant(spelling, order):
+    """The ``order``-th case variant of a spelling, method G9.3: bit zero turns the leftmost letter."""
+    places = [
+        place
+        for place in range(len(spelling))
+        if len(spelling[place].upper()) == 1
+        and len(spelling[place].lower()) == 1
+        and spelling[place].upper() != spelling[place].lower()
+    ]
+    if not places or order < 1 or order >= (1 << len(places)):
+        return None
+    turned = {places[index] for index in range(len(places)) if (order >> index) & 1}
+    return "".join(
+        (spelling[place].lower() if spelling[place].isupper() else spelling[place].upper())
+        if place in turned
+        else spelling[place]
+        for place in range(len(spelling))
+    )
+
+
+def _spelled_wider_content(column, groups, shapes_taken, signs_taken):
+    """The content list of a column spelled wider -- method section G10.5 step 8.
+
+    The groups, their shapes and their signs are step 2's, so the census
+    and every count of notation, whole number and sign stay the published
+    ones. Each shape and sign walks its own family from its own start,
+    stepping past a candidate the reading files under another shape or
+    sign and one whose mantissa ends with a nought (``_wider_mantissa_nought``:
+    every number written then needs all its letters and figures, so none
+    equals a real value by value either). A group beyond the published folded count is a respelling of an
+    earlier value of its own family -- the one with the fewest partners
+    yet, the earliest first -- by its case variants and then by one, two,
+    three ... spaces after it, which keeps its letters and figures. Every
+    numeric-looking cell then holds more letters and figures than any
+    real cell holds characters (the recount below).
+    """
+    width = max(column["max_length"], 1) + 1
+    folded_count = min(column["n_distinct_folded"], len(groups))
+    used = set()
+    walked = {}
+    parents = {}
+    partners = []
+    spellings = []
+    for index in range(len(groups)):
+        shape = shapes_taken[index]
+        negative = signs_taken[index] == SIGN_NEGATIVE
+        family = (shape, negative)
+        partners.append(0)
+        if index >= folded_count and family in parents:
+            chosen = parents[family][0]
+            for place in parents[family]:
+                if partners[place] < partners[chosen]:
+                    chosen = place
+            parent = spellings[chosen]
+            member = None
+            order = 1
+            variant = _wider_case_variant(parent, order)
+            while variant is not None:
+                if variant not in used:
+                    member = variant
+                    break
+                order = order + 1
+                variant = _wider_case_variant(parent, order)
+            spaces = 1
+            while member is None:
+                if parent + " " * spaces not in used:
+                    member = parent + " " * spaces
+                spaces = spaces + 1
+            partners[chosen] = partners[chosen] + 1
+            used.add(member)
+            spellings.append(member)
+            continue
+        here = _wider_width(shape, width)
+        turned_down = 0
+        limit = min(9 * 10 ** max(here - 5, 0), WIDER_TURNED_DOWN) + len(used) + 1
+        spelling = None
+        while turned_down <= limit:
+            at = walked.get(family, 0)
+            walked[family] = at + 1
+            candidate = _wider_candidate(shape, negative, here, at)
+            if candidate is None:
+                break
+            if (
+                not _wider_reads_back(shape, signs_taken[index], candidate)
+                or _wider_mantissa_nought(shape, candidate)
+                or candidate in used
+            ):
+                turned_down = turned_down + 1
+                continue
+            spelling = candidate
+            break
+        if spelling is None:
+            raise AssertionError(
+                f"no family of {shape!r} can supply another value of "
+                f"{here} letters and figures"
+            )
+        used.add(spelling)
+        spellings.append(spelling)
+        if index < folded_count:
+            parents.setdefault(family, []).append(index)
+    content = []
+    for size, spelling in zip(groups, spellings):
+        content.extend([spelling] * size)
+    _unrepresentable_recount(column, content, wider=True)
+    return content
+
+
+SPELLED_WIDER_CASES = {
+    "wider_fold_partners_rounds": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 6,
+            "min_length": 5,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 12,
+            "n_distinct_by_occurrences": {
+                "1": 12
+            },
+            "n_distinct_folded": 3,
+            "n_fraction": 0,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 12,
+            "n_positive": 12,
+            "n_present": 12,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 12,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "12 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 0 of its 12 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 12
+    },
+    "wider_too_small_four_figures": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 690,
+            "min_length": 6,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 11,
+            "n_distinct_by_occurrences": {
+                "2": 11
+            },
+            "n_distinct_folded": 11,
+            "n_fraction": 20,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 22,
+            "n_positive": 22,
+            "n_present": 22,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 2,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "22 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 0 of its 22 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 22
+    },
+    "wider_too_small_past_room": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 100,
+            "min_length": 6,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 21,
+            "n_distinct_by_occurrences": {
+                "2": 21
+            },
+            "n_distinct_folded": 21,
+            "n_fraction": 40,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 2,
+            "n_out_of_range": 40,
+            "n_positive": 42,
+            "n_present": 42,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 2,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "40 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 2 of its 42 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 42
+    },
+    "wider_whole_four_figures": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 1312,
+            "min_length": 1,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 6,
+            "n_distinct_by_occurrences": {
+                "2": 6
+            },
+            "n_distinct_folded": 6,
+            "n_fraction": 0,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 2,
+            "n_out_of_range": 10,
+            "n_positive": 12,
+            "n_present": 12,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 12,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "10 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 2 of its 12 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 12
+    },
+    "wider_beside_numbers": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 6,
+            "min_length": 1,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 34,
+            "n_distinct_by_occurrences": {
+                "1": 4,
+                "2": 30
+            },
+            "n_distinct_folded": 34,
+            "n_fraction": 2,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 1,
+            "n_not_numeric": 0,
+            "n_numeric": 4,
+            "n_out_of_range": 60,
+            "n_positive": 63,
+            "n_present": 64,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 62,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "60 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 4 of its 64 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 64
+    },
+    "wider_bracket": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 5,
+            "min_length": 4,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 80,
+            "n_distinct": 40,
+            "n_distinct_by_occurrences": {
+                "2": 40
+            },
+            "n_distinct_folded": 40,
+            "n_fraction": 0,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 0,
+            "n_positive": 0,
+            "n_present": 80,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 80,
+            "n_whole": 0,
+            "n_whole_unknown": 80,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "80 value(s) are written in a form whose meaning contradicts itself -- a plus or minus sign inside brackets, where the brackets already mean negative. synthtwin will not guess which was meant, so these values are left out of every statistic. Write them with a sign or with brackets, not both, and run the command again",
+                "this column is written as numbers, but only 0 of its 80 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 80
+    },
+    "wider_exponent": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 5,
+            "min_length": 5,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 30,
+            "n_distinct_by_occurrences": {
+                "3": 30
+            },
+            "n_distinct_folded": 30,
+            "n_fraction": 0,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 90,
+            "n_positive": 90,
+            "n_present": 90,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 90,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "90 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 0 of its 90 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 90
+    },
+    "wider_fold_partners": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 5,
+            "min_length": 5,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 26,
+            "n_distinct_by_occurrences": {
+                "1": 26
+            },
+            "n_distinct_folded": 20,
+            "n_fraction": 0,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 26,
+            "n_positive": 26,
+            "n_present": 26,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 26,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "26 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 0 of its 26 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 26
+    },
+    "wider_negative": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 6,
+            "min_length": 6,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 24,
+            "n_distinct_by_occurrences": {
+                "2": 24
+            },
+            "n_distinct_folded": 24,
+            "n_fraction": 0,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 48,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 48,
+            "n_positive": 0,
+            "n_present": 48,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 48,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "48 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 0 of its 48 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 48
+    },
+    "wider_too_small": {
+        "block": {
+            "detection_evidence": "this column holds numbers too large or too small for this file format to hold, and synthtwin's own made-up spellings for such numbers would be written like some of its values or cannot be made at its width, so whatever the answer none of its values is published and its twin writes made-up values that no value of it equals",
+            "max_length": 6,
+            "min_length": 6,
+            "missing_by_class": {
+                "(blank)": 0,
+                "(date-sentinel)": 0,
+                "(declared-missing)": 0,
+                "(numeric-sentinel)": 0,
+                "(text-code)": 0,
+                "(withheld)": 0
+            },
+            "missing_by_source": {},
+            "n_contradictory": 0,
+            "n_distinct": 24,
+            "n_distinct_by_occurrences": {
+                "2": 24
+            },
+            "n_distinct_folded": 24,
+            "n_fraction": 48,
+            "n_missing": 0,
+            "n_missing_blank": 0,
+            "n_missing_withheld": 0,
+            "n_negative": 0,
+            "n_not_numeric": 0,
+            "n_numeric": 0,
+            "n_out_of_range": 48,
+            "n_positive": 48,
+            "n_present": 48,
+            "n_sentinel_candidates_unpublished": 0,
+            "n_sign_unknown": 0,
+            "n_whole": 0,
+            "n_whole_unknown": 0,
+            "name": "c",
+            "position": 1,
+            "quality_state": "unrepresentable",
+            "remarks": [
+                "48 value(s) are numbers too large or too small for this file format to hold. They are counted as numbers for deciding what this column is, and their sign and whole-number status are counted too, but they are left out of every statistic",
+                "this column is written as numbers, but only 0 of its 48 numeric values is a number this file format can hold -- the rest are too large or too small, or in a form whose meaning contradicts itself. Too few of them are left to describe the column, and synthtwin will not invent values in their place, so no statistic and no value of this column is published. Rescale the column (for example, record thousands instead of units) and run the command again"
+            ],
+            "role": "numeric_unrepresentable",
+            "sentinel_verdicts": [],
+            "statistical_type": "numeric",
+            "structural_role": "data"
+        },
+        "rows": 48
+    }
+}
+
+
+def spelled_wider_document():
+    """The thirty-third file's document: each case's block and its content list, method G10.5 step 8."""
+    cases = {}
+    for name in sorted(SPELLED_WIDER_CASES):
+        case = SPELLED_WIDER_CASES[name]
+        block = json.loads(json.dumps(case["block"]))
+        counted = {}
+        for cell in _unrepresentable_content(block):
+            counted[cell] = counted.get(cell, 0) + 1
+        cases[name] = {"block": case["block"], "rows": case["rows"], "content": counted}
+    return {
+        "what": (
+            "The content lists method section G10.5 step 8 requires of a column "
+            "of numbers too large or too small to hold whose made-up spellings "
+            "would be real values (lane ID-ROOM4, plan P4-D489): each cell one "
+            "letter or figure longer than its longest value, the census, the "
+            "shapes and the signs kept, from each block alone, before "
+            "placement: each spelling with the number of cells that hold it."
+        ),
+        "method": "docs/spec/generation-method-v1.md",
+        "section": "G10.5 step 8",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
+
+
+def write_spelled_wider_vectors(argv=None):
+    """Write the thirty-third file to --out; the seed is accepted and ignored (a fixed transform)."""
+    parser = argparse.ArgumentParser(description=spelled_wider_document.__doc__)
+    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--out", required=True)
+    arguments = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    text = json.dumps(spelled_wider_document(), indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+    with open(arguments.out, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+    return 0
 
 
 # ----------------------------------------------------------- free text
@@ -32393,8 +33599,18 @@ def figure_runs_off_the_real(column, content, kept=()):
     # named: its noughts keep that length (LANE HB RULINGS 13).
     formed = {len(run) for form in (column.get("shape_forms") or {}) for run in re.findall("%+", form)}
 
+    # ...and wider where a held key of noughts alone is the run's width (lane
+    # HB3-a, plan P4-D482, limit (af): `figure_noughts`).
+    noughts_held = set(column.get("figure_noughts") or [])
+    if noughts_held:
+        wide = max(wide, max(noughts_held) + 1)
+    written_width = {}
+
     def nought_length(run):
-        return len(run) if len(run) in formed else max(len(run), wide)
+        own = written_width.get(run, len(run))
+        if len(run) in formed and len(run) not in noughts_held and own not in noughts_held:
+            return len(run)
+        return max(len(run), wide)
 
     renamed, steps, moved = {}, {}, {}
 
@@ -32498,9 +33714,17 @@ def figure_runs_off_the_real(column, content, kept=()):
             if end - whole < 4 or stands(cell[start:end], cell[whole:end]):
                 continue
             name = cell[whole:end] if padded else cell[start:end]
+            written_width[name] = max(written_width.get(name, 0), end - whole)
             if name not in renamed:
                 renamed[name] = rename(name)
             parts.append((whole, end, name))
+        # ...and a run of noughts alone at a width a held key of noughts alone
+        # holds is written wider than every width named and held (plan P4-D482,
+        # limit (af)).
+        for match in re.finditer(r"[0-9]+", cell) if noughts_held else []:
+            if set(match.group(0)) == {"0"} and len(match.group(0)) in noughts_held:
+                renamed[match.group(0)] = "0" * wide
+                parts = sorted(parts + [(match.start(), match.end(), match.group(0))])
         if parts:
             plan[cell] = parts
 
@@ -60266,6 +61490,8 @@ def build_case(name):
     elif column["role"] == "identifier":
         walked = _identifier_content(working)
         content = dates_in_their_layouts(column, walked, spelled_off_the_real(column, list(walked)))
+        # ...and a held column of counts that may be dates (G9.6c, P4-D488).
+        content = counts_off_the_real(column, content, spec.get("date_count_member") or "")
     elif column["role"] == "free_text":
         content = _free_text_content(working)
     elif column["role"] == "numeric_unrepresentable":
@@ -71312,6 +72538,15 @@ _HARBOR_MILLIONTHS = 10 ** 6
 _HARBOR_AFFIX = re.compile(r"^(\s*)([+-]?)(\d+)(?:\.(\d*))?([ -]{0,2}[A-Za-z][A-Za-z/.]*(?:[ -][A-Za-z]+)?\s*)$")
 
 
+# ...and since lane HB3-a2's repair 1 (plan P4-D486; the orchestrator's LANE
+# HB3-a2 RULINGS 5 (2) and 7 (5)) a number in brackets, spaces inside them or
+# not, a unit word after them or not: the bracket is the number's sign, as
+# the profiler's number reader reads an accountant's negative (`(95)` is -95,
+# `(095)` too, `( 95 ) years` -95 years), so G7.14 writes a whole one below
+# -9 at or below 90, as it writes `-95`, and keeps one with decimals.
+_HARBOR_BRACKETED = re.compile(r"^(\s*)\([ \t]*(\d+)(?:\.(\d*))?[ \t]*\)((?:\s*[A-Za-z][A-Za-z .]*)?\s*)$")
+
+
 # ...and since lane HB2 (plan P4-D477) the age words around one number, read
 # only where the description records them: `age` or `aged` before it, whole,
 # in any case, spaces and at most one of `:`, `=`, `-` between (a hyphen
@@ -71426,14 +72661,24 @@ def _harbor_frame(cell):
     found = _HARBOR_AGE_WORD.match(plain[inside:end])
     if found is not None:
         at = inside + found.end()
+        # ...a point against the word is its mark (`Age.95` is 95; lane HB3-a,
+        # plan P4-D482), one after a space opens the number.
+        if plain[at:at + 1] == "." and _harbor_dashes_then_number(plain[:end], at + 1):
+            at += 1
         while at < end and plain[at] == " ":
             at += 1
+        # ...and a dash after the word is never a sign: an age is never
+        # negative (`Age -95` is 95; lane HB3-a, plan P4-D482).
         sign = (
-            plain[at:at + 1] in ("-", "+")
+            plain[at:at + 1] == "+"
             and at > inside + found.end()
             and _harbor_opens(plain[:end], at + 1, False)
         )
         if not sign and at < end and plain[at] in (":", "=", "-"):
+            at += 1
+            while at < end and plain[at] == " ":
+                at += 1
+        while not sign and plain[at:at + 1] == "-" and _harbor_dashes_then_number(plain[:end], at):
             at += 1
             while at < end and plain[at] == " ":
                 at += 1
@@ -71485,7 +72730,12 @@ def _harbor_frame(cell):
 
 
 def _harbor_tail_words(tail):
-    """A tail's words without the brackets its frame wrote: `yrs)`, ` (years)` and `) years` read `yrs`, `years` and `years`, its spaces and dashes plain."""
+    """A tail's words without the brackets its frame wrote: `yrs)`, ` (years)` and `) years` read `yrs`, `years` and `years`, its spaces and dashes plain; an age's phrase's unit alone (plan P4-D482)."""
+    if isinstance(tail, _HarborPhraseTail):
+        words = _harbor_plain("".join(character for character in tail.unit if not _harbor_prints_nothing(character))).strip()
+        if len(words) >= 2 and words[0] in _HARBOR_PAIRS and words[-1] == _HARBOR_PAIRS[words[0]]:
+            words = words[1:-1].strip()
+        return words if words or not tail.named else tail.named
     words = _harbor_plain(tail).strip()
     if words[:1] in (")", "]"):
         words = words[1:].strip()
@@ -71570,7 +72820,7 @@ def _harbor_number(text):
     return head, sign, whole, fraction, tail, value, "," if form_comma else form
 
 
-def _harbor_read(cell, words=False):
+def _harbor_read(cell, words=False, genders=False):
     """(head, sign, whole, fraction, tail, exact value, form) of a cell the forms above write; None otherwise.
 
     ``words`` (plan P4-D477): the cell's age words read around its number
@@ -71579,9 +72829,46 @@ def _harbor_read(cell, words=False):
     (`_harbor_number`, lane HB2's repair 2: `Age .95e2`, `Age (95) years`).
     ``form`` (since that repair): "e" for a number written with an
     exponent (no places, no padding), "," for one read with a comma for
-    its point, "" otherwise.
+    its point, "" otherwise. Since lane HB3-a's repair 1 (plan P4-D482): the
+    cell's edges are cut at every space of the one definition, a character
+    that prints nothing among them (`<U+200B>95`); a number no reading reads
+    is read again with each character that prints nothing inside it set
+    aside (`9<U+200B>5`); ``genders`` (the column writes both gender letters
+    after its ages, or a gender word) reads a lone `m` after an age as a
+    gender, never months.
     """
+    first, last = _harbor_edges(cell)
+    lead, body, trail = cell[:first], cell[first:last], cell[last:]
+    found = _harbor_read_body(body, words, genders)
+    if found is None and any(_harbor_prints_nothing(character) for character in body):
+        kept = [place for place, character in enumerate(body) if not _harbor_prints_nothing(character)]
+        text = "".join(body[place] for place in kept)
+        squeezed = _harbor_read_body(text, False, False)
+        if squeezed is not None and squeezed[0] == "" and len(text) > len(squeezed[4]):
+            # ...cut out of the cell as written after the number's last figure.
+            end = kept[len(text) - len(squeezed[4]) - 1] + 1
+            found = ("", squeezed[1], squeezed[2], squeezed[3], body[end:], squeezed[5], squeezed[6])
+    if found is None:
+        return None
+    head, sign, whole, fraction, tail, value, form = found
+    if isinstance(tail, _HarborPhraseTail):
+        tail = _HarborPhraseTail(tail + trail, tail.unit, tail.coded + trail, tail.named)
+    else:
+        tail = tail + trail
+    if isinstance(head, _HarborPhraseHead):
+        head = _HarborPhraseHead(lead + head, lead + head.coded)
+    else:
+        head = lead + head
+    return head, sign, whole, fraction, tail, value, form
+
+
+def _harbor_read_body(cell, words, genders):
+    """`_harbor_read` of a cell cut at its edges."""
     if words:
+        # ...the frame first, then the bare reading, each where it reads the
+        # cell whole (`_harbor_whole`), else the age's phrase (lane HB3-a,
+        # plan P4-D482; `_harbor_phrase`).
+        framed_read = None
         framed = _harbor_frame(cell)
         if framed is not None:
             before, inner, after, worded, unit, plain, alone = framed
@@ -71593,9 +72880,24 @@ def _harbor_read(cell, words=False):
                 head, sign, whole, fraction, tail, value, form = read
                 # ...the head and the tail cut out of the cell as written.
                 head, tail = inner[:len(head)], inner[len(inner) - len(tail):]
-                return before + head, sign, whole, fraction, tail + after, value, form
+                framed_read = (before + head, sign, whole, fraction, tail + after, value, form)
+        if framed_read is not None and _harbor_whole(cell, framed_read, genders):
+            return framed_read
+        bare = None if framed_read is not None else _harbor_read_body(cell, False, False)
+        if bare is not None and _harbor_whole(cell, bare, genders):
+            return bare
+        phrased = _harbor_phrase(cell, genders)
+        if phrased is not None:
+            return phrased
+        return framed_read if framed_read is not None else bare
     found = _HARBOR_NUMBER.match(cell)
     if found is None:
+        bracketed = _HARBOR_BRACKETED.match(cell)
+        if bracketed is not None:
+            head, whole, fraction, tail = bracketed.groups()
+            fraction = fraction or ""
+            value = -fractions.Fraction(int(whole + fraction), 10 ** len(fraction))
+            return head, "-", whole, fraction, tail, value, ""
         found = _HARBOR_AFFIX.match(cell)
         if found is None or not _harbor_own_unit(found.group(5)):
             return None
@@ -71605,6 +72907,495 @@ def _harbor_read(cell, words=False):
     if sign == "-":
         value = -value
     return head, sign, whole, fraction, tail, value, ""
+
+
+# THE CELL'S EDGES AND WHAT PRINTS NOTHING (lane HB3-a's repair 1, plan
+# P4-D482): every space of the one definition is an edge space; a space that
+# prints nothing is one `str.split()` does not cut at (a control or format
+# character, the soft hyphen among them).
+_HARBOR_VISIBLE = "\t\n\x0b\x0c\r\x1c\x1d\x1e\x1f \x85\xa0 " + "".join(
+    chr(code) for code in range(0x2000, 0x200B)
+) + "    　"
+
+
+def _harbor_prints_nothing(character):
+    """Whether one character is a space of the one definition that a display draws as nothing."""
+    return _harbor_space(character) and character not in _HARBOR_VISIBLE
+
+
+def _harbor_edges(cell):
+    """Where a cell's text starts and ends inside the spaces of the one definition at its edges."""
+    first = 0
+    while first < len(cell) and _harbor_space(cell[first]):
+        first += 1
+    last = len(cell)
+    while last > first and _harbor_space(cell[last - 1]):
+        last -= 1
+    return first, last
+
+
+# THE AGE'S PHRASE (lane HB3-a, plan P4-D482; since its repair 1, the
+# orchestrator's LANE HB3-a RULINGS 7), read on its own here: every word `age`
+# or `aged`, whole (no cased letter against it), not followed next by a
+# group's word, opens a clause to the next such word, a semicolon before a
+# letter (a line break is a space) or forty characters, and every number in
+# it is an age (a figure right after the word its number); a unit word right
+# after the word (`Age (months):`, `Age in days:`) is the unit of each number
+# of the clause that writes none; and,
+# wherever it stands, a number with an age's unit after it, a gender after a
+# mark, or standing first a capital M or a gender word apart. A number past
+# 125 years in its unit is passed over unless the cell holds no other. The
+# read stands on the largest age in years, the first among equals; every
+# other one of 90 years or more is written as its unit's mark by the top
+# code, the parts of smaller units after it 0. After each number: its unit (a
+# capital M apart, or alone in brackets, a gender; with ``genders`` a lone m
+# of any case one too; a gender letter after a unit and a slash, or against a
+# unit of years, ends the unit), the parts of smaller units, and the rest as
+# written. A cell holding a character that prints nothing is read a second
+# time with each such character set aside, the larger age taken unless both
+# stand on the same number.
+_HARBOR_GROUPED = (
+    "group", "groups", "grp", "band", "bands", "bracket", "brackets", "range", "ranges",
+    "class", "classes", "category", "categories", "cohort", "cohorts", "stratum", "strata", "care",
+)
+_HARBOR_GENDERS = ("female", "females", "male", "males", "woman", "women", "man", "men", "girl", "boy", "f", "m")
+# ...a semicolon before a letter ends the clause; a line break is a space to it
+# (lane HB3-a's repair 2, the orchestrator's LANE HB3-a RULINGS 9 (1)).
+_HARBOR_BREAK = ";"
+_HARBOR_REACH = 40
+
+
+class _HarborPhraseTail(str):
+    """The tail of an age's phrase, with its ``unit`` as written right after the number, its ``coded`` tail and the unit letter ``named`` before it."""
+
+    unit: str
+    coded: str
+    named: str
+
+    def __new__(cls, tail, unit, coded, named=""):
+        made = super().__new__(cls, tail)
+        made.unit = unit
+        made.coded = coded
+        made.named = named
+        return made
+
+
+class _HarborPhraseHead(str):
+    """The head of an age's phrase, with its ``coded`` head: every other age of 90 years or more written as its unit's mark."""
+
+    coded: str
+
+    def __new__(cls, head, coded):
+        made = super().__new__(cls, head)
+        made.coded = coded
+        return made
+
+
+def _harbor_written_tail(tail):
+    """What the top code writes after a number it rewrites: an age's phrase's coded tail, as a phrase's tail."""
+    if isinstance(tail, _HarborPhraseTail):
+        return _HarborPhraseTail(tail.coded, tail.unit, tail.coded, tail.named)
+    return tail
+
+
+def _harbor_written_head(head):
+    """What the top code writes before a number it rewrites: an age's phrase's coded head."""
+    if isinstance(head, _HarborPhraseHead):
+        return head.coded
+    return head
+
+
+def _harbor_cased(character):
+    """Whether one character is a letter with a capital and a small form."""
+    return character.lower() != character.upper()
+
+
+def _harbor_small(text):
+    """A text in small letters, one character for one."""
+    return "".join(character.lower() if len(character.lower()) == 1 else character for character in text)
+
+
+def _harbor_dashes_then_number(plain, at):
+    """Whether dashes and spaces alone stand at a place before a number opens, unsigned."""
+    while plain[at:at + 1] in ("-", " ") and at < len(plain):
+        at += 1
+    return _harbor_opens(plain, at, False)
+
+
+def _harbor_whole(cell, read, genders=False):
+    """Whether a read leaves nothing after its number but an age's unit, its frame or nothing."""
+    head, _sign, _whole, _fraction, tail, _value, _form = read
+    number = cell[len(head): len(cell) - len(tail)]
+    if number[-1:] in (",", "."):
+        return False
+    words = _harbor_tail_words(tail)
+    if not words:
+        return True
+    if words in ("M", "M.") and tail[:1] != "M":
+        return False
+    if genders and words.rstrip(".").lower() in ("m", "f") and len(words.rstrip(".")) == 1:
+        return False
+    return _harbor_own_unit(tail) != ""
+
+
+def _harbor_number_token(plain, begin):
+    """Where a number opening at ``begin`` ends: figures, groups of three, decimals, an exponent."""
+    at = begin + (1 if plain[begin:begin + 1] == "." else 0)
+    first = at
+    while at < len(plain) and plain[at].isdigit() and plain[at].isascii():
+        at += 1
+    led = plain[begin:begin + 1] == "."
+    while (not led and at - first <= 3 and plain[at:at + 1] in (",", "'")
+           and re.fullmatch(r"[0-9]{3}", plain[at + 1:at + 4]) and not re.match(r"[0-9]", plain[at + 4:at + 5])):
+        at += 4
+        first = at - 3
+    if not led and plain[at:at + 1] in (".", ",") and re.match(r"[0-9]", plain[at + 1:at + 2]):
+        at += 1
+        while at < len(plain) and re.match(r"[0-9]", plain[at]):
+            at += 1
+    found = re.match(r"[eE][+-]?[0-9]+", plain[at:])
+    if found is not None and not _harbor_cased(plain[at + found.end():at + found.end() + 1] or " "):
+        at += found.end()
+    return at
+
+
+def _harbor_unit_and_gender(word):
+    """How long the unit is that a gender letter follows in a word (`y/f`, `yrs/m`, `mo/f`; `yf`, `y/of` against a unit of years), or 0."""
+    for cut in range(len(word) - 1, 0, -1):
+        if word[cut:] not in ("m", "f"):
+            continue
+        written = word[:cut].rstrip("/")
+        unit = written.rstrip(".")
+        if unit in _HARBOR_UNIT_WORDS and (word[:cut].endswith("/") or _HARBOR_UNIT_WORDS[unit] == "y"):
+            return len(written)
+    return 0
+
+
+def _harbor_passed(plain, end):
+    """Where a number ending at ``end`` is passed over to (a clock, a date of three fields, a word), or ``end``."""
+    following = plain[end:end + 1]
+    clock = re.match(r":[0-9][0-9:.]*", plain[end:])
+    if clock is not None:
+        return end + clock.end()
+    if following in ("-", "/", "."):
+        date = re.match(re.escape(following) + r"[0-9]+" + re.escape(following) + r"[0-9]+", plain[end:])
+        if date is not None:
+            return end + date.end()
+    if following and _harbor_cased(following):
+        stop = end
+        while stop < len(plain) and (_harbor_cased(plain[stop]) or plain[stop] in "/."):
+            stop += 1
+        word = _harbor_small(plain[end:stop]).rstrip("./")
+        if word in _HARBOR_UNIT_WORDS or word in _HARBOR_GENDERS or _harbor_unit_and_gender(word):
+            return end
+        while stop < len(plain) and (_harbor_cased(plain[stop]) or re.match(r"[0-9]", plain[stop])):
+            stop += 1
+        return stop
+    return end
+
+
+def _harbor_unit_end(plain, end, genders=False):
+    """Where the age's unit right after a number ending at ``end`` ends, or ``end`` (a capital M apart, or alone in brackets, is a gender; with ``genders`` a lone m too)."""
+    lowered = _harbor_small(plain)
+    at = end + len(plain[end:]) - len(plain[end:].lstrip(" "))
+    dashed = end
+    while dashed < len(plain) and dashed - end < 2 and plain[dashed] in " -":
+        dashed += 1
+    for start in dict.fromkeys((dashed, at)):
+        affixes = [unit + joint + "old" for unit in _HARBOR_OLD_UNITS for joint in ("-", " ")]
+        for affix in ("y/o", "m/o", "w/o", "d/o", *affixes):
+            if not lowered.startswith(affix, start):
+                continue
+            stop = start + len(affix)
+            if not _harbor_cased(plain[stop:stop + 1] or " "):
+                return stop
+            if (
+                lowered[stop:stop + 1] in ("m", "f")
+                and not _harbor_cased(plain[stop + 1:stop + 2] or " ")
+                and _harbor_unit_and_gender(lowered[start:stop + 1]) == len(affix)
+            ):
+                return stop
+    if plain[at:at + 1] in _HARBOR_PAIRS:
+        shut = plain.find(_HARBOR_PAIRS[plain[at]], at)
+        inside = plain[at + 1:shut].strip() if shut > at else ""
+        if inside.endswith("."):
+            inside = inside[:-1]
+        if shut > at and inside.lower() in _HARBOR_UNIT_WORDS:
+            if inside == "M" or (genders and inside.lower() in ("m", "f")):
+                return end
+            return shut + 1
+        return end
+    stop = at
+    while stop < len(plain) and (_harbor_cased(plain[stop]) or plain[stop] in "/."):
+        stop += 1
+    while stop > at and plain[stop - 1] in "/.":
+        stop -= 1
+    word = lowered[at:stop]
+    if word and word not in _HARBOR_UNIT_WORDS:
+        return at + _harbor_unit_and_gender(word) if _harbor_unit_and_gender(word) else end
+    if not word or (plain[at:stop] == "M" and at > end) or (genders and word in ("m", "f")):
+        return end
+    if plain[stop:stop + 1] == "." and not re.match(r"[0-9]", plain[stop + 1:stop + 2]):
+        stop += 1
+    return stop
+
+
+def _harbor_gender_after(plain, end, genders, first):
+    """Whether a gender follows a number ending at ``end``: after a comma, a slash, a dash or an opening bracket; with ``genders`` a lone letter glued or apart; standing ``first``, a capital M or a gender word apart."""
+    at = end
+    while at < len(plain) and plain[at] in " ,/-([":
+        at += 1
+    stop = at
+    while stop < len(plain) and _harbor_cased(plain[stop]):
+        stop += 1
+    word = _harbor_small(plain[at:stop])
+    if stop <= at or word not in _HARBOR_GENDERS:
+        return False
+    if plain[end:at].strip(" "):
+        return True
+    if at == end:
+        return genders and word in ("m", "f")
+    if genders and word in ("m", "f"):
+        return True
+    return first and (plain[at:stop] == "M" or len(word) > 1)
+
+
+def _harbor_named_unit(plain, end):
+    """The unit letter a unit word names right after an age word ending at ``end`` (`Age (months):`, `Age in days:`), or ""."""
+    lowered = _harbor_small(plain)
+    at = end
+    while at < len(plain) and plain[at] in " ([,:=-":
+        at += 1
+    if lowered.startswith("in ", at):
+        at += 3
+        while at < len(plain) and plain[at] == " ":
+            at += 1
+    stop = at
+    while stop < len(plain) and (_harbor_cased(plain[stop]) or plain[stop] == "."):
+        stop += 1
+    word = lowered[at:stop].rstrip(".")
+    if re.match(r"[0-9]", plain[stop:stop + 1]) or word not in _HARBOR_UNIT_WORDS or "/" in word or "." in word:
+        return ""
+    if len(word) == 1 and plain[at - 1:at] not in ("(", "["):
+        return ""
+    return _HARBOR_UNIT_WORDS[word]
+
+
+def _harbor_age_at(plain, begin, end, named, genders):
+    """One age read at ``begin``: (begin, end, unit end, after its parts, parts, (sign, whole, fraction, form, value), unit text, named), or None."""
+    read = None
+    while read is None and end > begin:
+        read = _harbor_number_text(plain[begin:end])
+        form_comma = False
+        if read is None and "," in plain[begin:end]:
+            read = _harbor_number_text(plain[begin:end].replace(".", "").replace(",", "."))
+            form_comma = read is not None
+        if read is None:
+            short = begin + (1 if plain[begin] == "." else 0)
+            while short < end and re.match(r"[0-9]", plain[short]):
+                short += 1
+            end = short if short < end else begin
+    if read is None:
+        return None
+    if form_comma:
+        read = (read[0], read[1], read[2], ",", read[4])
+    lowered = _harbor_small(plain)
+    unit_end = _harbor_unit_end(plain, end, genders)
+    parts = []
+    after = unit_end
+    if unit_end > end:
+        named = ""
+        previous = _harbor_cell_mark(_HarborPhraseTail("", plain[end:unit_end], ""), 0)
+        at = unit_end
+        while previous:
+            part = re.match(r"[ ,&]*(?:and +)?([0-9]+)", lowered[at:])
+            if part is None:
+                break
+            number_end = at + part.end()
+            stop = _harbor_unit_end(plain, number_end, genders)
+            mark = _harbor_cell_mark(_HarborPhraseTail("", plain[number_end:stop], ""), 0) if stop > number_end else 0
+            if not mark or mark <= previous:
+                break
+            parts.append((at + part.start(1), number_end))
+            previous = mark
+            at = stop
+            after = stop
+    return begin, end, unit_end, max(after, end), parts, read, plain[end:unit_end], named
+
+
+def _harbor_years(age):
+    """An age's value in years by its own unit, the unit named before it, else years; at or past its unit's decimal cut, 90."""
+    _begin, _end, _unit_end, _after, _parts, read, unit, named = age[:8]
+    tail = _HarborPhraseTail("", unit, "", named)
+    mark = _harbor_cell_mark(tail, 90)
+    value = read[4]
+    if read[2] and mark in _HARBOR_CUTS and _HARBOR_CUTS[mark] <= value < mark:
+        return fractions.Fraction(90)
+    return value * 90 / mark
+
+
+def _harbor_ages(plain, genders):
+    """Every age of an age's phrase on one reading of a cell, in order, and the place of the one the read stands on; None where none."""
+    lowered = _harbor_small(plain)
+    ages = []
+    past = []
+    words = []
+    for found in re.finditer(r"aged|age", lowered):
+        start, stop = found.span()
+        if (start and _harbor_cased(plain[start - 1])) or _harbor_cased(plain[stop:stop + 1] or " "):
+            continue
+        word_at = stop + len(plain[stop:]) - len(plain[stop:].lstrip(" -_"))
+        word_end = word_at
+        while word_end < len(plain) and _harbor_cased(plain[word_end]):
+            word_end += 1
+        if lowered[word_at:word_end] in _HARBOR_GROUPED:
+            continue
+        words.append((start, stop))
+    for index, (start, stop) in enumerate(words):
+        limit = words[index + 1][0] if index + 1 < len(words) else len(plain)
+        named = _harbor_named_unit(plain, stop)
+        at = stop
+        while at < limit and at - stop <= _HARBOR_REACH:
+            if plain[at] == _HARBOR_BREAK:
+                ahead = re.match(r" *", plain[at + 1:])
+                after = at + 1 + (ahead.end() if ahead else 0)
+                if after < len(plain) and _harbor_cased(plain[after]):
+                    break
+            if not re.match(r"[0-9]", plain[at]):
+                at += 1
+                continue
+            if at > stop and (_harbor_cased(plain[at - 1]) or re.match(r"[0-9]", plain[at - 1])):
+                while at < len(plain) and (_harbor_cased(plain[at]) or re.match(r"[0-9]", plain[at])):
+                    at += 1
+                continue
+            opening = at
+            if at >= 2 and plain[at - 1] == "." and at - 1 >= stop and not _harbor_cased(plain[at - 2]) and not re.match(r"[0-9]", plain[at - 2]):
+                opening = at - 1
+            end = _harbor_number_token(plain, opening)
+            passed = _harbor_passed(plain, end)
+            if passed > end:
+                at = passed
+                continue
+            age = _harbor_age_at(plain, opening, end, named, genders)
+            if age is None:
+                at = max(end, at + 1)
+                continue
+            (past if _harbor_years(age) > 125 else ages).append(age + (start,))
+            at = max(age[3], at + 1)
+    covered = sorted((age[0], age[3]) for age in ages + past)
+    first = re.match(r"[ ([{<]*", plain).end()
+    at = 0
+    while at < len(plain):
+        inside = [span for span in covered if span[0] <= at < span[1]]
+        if inside:
+            at = inside[0][1]
+            continue
+        if not re.match(r"[0-9]", plain[at]):
+            at += 1
+            continue
+        if at and (_harbor_cased(plain[at - 1]) or re.match(r"[0-9]", plain[at - 1])):
+            while at < len(plain) and (_harbor_cased(plain[at]) or re.match(r"[0-9]", plain[at])):
+                at += 1
+            continue
+        opening = at
+        if at >= 2 and plain[at - 1] == "." and not _harbor_cased(plain[at - 2]) and not re.match(r"[0-9]", plain[at - 2]):
+            opening = at - 1
+        elif at == 1 and plain[0] == ".":
+            opening = 0
+        end = _harbor_number_token(plain, opening)
+        passed = _harbor_passed(plain, end)
+        if passed > end:
+            at = passed
+            continue
+        if _harbor_unit_end(plain, end, genders) > end or _harbor_gender_after(
+            plain, end, genders, opening == first or at == first
+        ):
+            age = _harbor_age_at(plain, opening, end, "", genders)
+            if age is not None:
+                (past if _harbor_years(age) > 125 else ages).append(age + (-1,))
+                at = max(age[3], at + 1)
+                continue
+        at = max(end, at + 1)
+    if not ages:
+        if not past:
+            return None
+        ages = [min(past, key=lambda age: age[0])]
+    ages.sort(key=lambda age: age[0])
+    largest = 0
+    for index in range(1, len(ages)):
+        if _harbor_years(ages[index]) > _harbor_years(ages[largest]):
+            largest = index
+    return ages, largest
+
+
+def _harbor_phrase(cell, genders=False):
+    """(head, sign, whole, fraction, tail, exact value, form) of a cell read as an age's phrase, the head a `_HarborPhraseHead` and the tail a `_HarborPhraseTail`; None where it holds none."""
+    first, last = _harbor_edges(cell)
+    lead, body, trail = cell[:first], cell[first:last], cell[last:]
+    readings = [(_harbor_plain(body), list(range(len(body))))]
+    if any(_harbor_prints_nothing(character) for character in body):
+        kept = [place for place, character in enumerate(body) if not _harbor_prints_nothing(character)]
+        readings.append((_harbor_plain("".join(body[place] for place in kept)), kept))
+    best = None
+    for plain, places in readings:
+        found = _harbor_ages(plain, genders)
+        if found is None:
+            continue
+        ages, largest = found
+        years = _harbor_years(ages[largest])
+        rank = (years <= 125, years)
+        if best is not None and len(places) < len(body):
+            best_ages, best_largest, best_places, _rank = best
+            if (places[ages[largest][0]] == best_places[best_ages[best_largest][0]]
+                    and ages[largest][5][1] == best_ages[best_largest][5][1]):
+                continue
+        if best is None or rank > best[3]:
+            best = (ages, largest, places, rank)
+    if best is None:
+        return None
+    ages, largest, places, _rank = best
+
+    def opens(at):
+        return places[at] if at < len(places) else len(body)
+
+    def closes(at):
+        return places[at - 1] + 1 if at > 0 else 0
+
+    begin, end, unit_end, _after, parts, read, _unit, named, _word = ages[largest]
+    replaced = [(opens(start), closes(stop), "0") for start, stop in parts]
+    for index, other in enumerate(ages):
+        if index == largest or not 90 <= _harbor_years(other) <= 125:
+            continue
+        o_begin, o_end, _o_unit_end, _o_after, o_parts, o_read, o_unit, o_named, _o_word = other
+        mark = _harbor_cell_mark(_HarborPhraseTail("", o_unit, "", o_named), 90)
+        sign, whole, fraction, form, _value = o_read
+        text = f"{mark}"
+        if form != "e" and whole[:1] == "0" and len(whole) > len(text):
+            text = "0" * (len(whole) - len(text)) + text
+        if fraction:
+            text = text + ("," if form == "," else ".") + "0" * len(fraction)
+        if sign == "+":
+            text = "+" + text
+        replaced.append((opens(o_begin), closes(o_end), text))
+        replaced += [(opens(start), closes(stop), "0") for start, stop in o_parts]
+
+    def written(start, stop):
+        text = ""
+        at = start
+        for one, two, figures in sorted(replaced):
+            if one < start or two > stop or one < at:
+                continue
+            text += body[at:one] + figures
+            at = two
+        return text + body[at:stop]
+
+    sign, whole, fraction, form, value = read
+    number_start, number_end = opens(begin), closes(end)
+    head = _HarborPhraseHead(lead + body[:number_start], lead + written(0, number_start))
+    tail = _HarborPhraseTail(
+        body[number_end:] + trail, body[number_end:closes(unit_end)], written(number_end, len(body)) + trail, named
+    )
+    return head, sign, whole, fraction, tail, value, form
 
 
 # G7.14's unit letters (lane SH2's close round, ADDENDUM 4): one letter
@@ -71700,11 +73491,56 @@ def _harbor_changed(read, mark=90, bounded=False):
     return years > 125 or (whole and value < 0)
 
 
-def _harbor_held_within_the_mark(cells, absent, mark, words=False):
+def _harbor_lone_gender_letter(cell):
+    """Whether a cell writes m or f, either case, with no cased letter against it and a figure before it, spaces of the one definition, a point and the gender's marks alone between."""
+    for at, character in enumerate(cell):
+        if character not in "mMfF":
+            continue
+        if (at and _harbor_cased(cell[at - 1])) or _harbor_cased(cell[at + 1:at + 2] or " "):
+            continue
+        back = at - 1
+        while back >= 0 and (cell[back] in ",/-([." or _harbor_space(cell[back])):
+            back -= 1
+        if back >= 0 and _harbor_figure(cell[back]):
+            return True
+    return False
+
+
+def _harbor_genders(cells, absent=frozenset()):
+    """Whether a column writes a gender after its ages: both letters m and f, or a gender word, after a number -- apart, glued, bracketed, after a mark or an age's unit (lane HB3-a's repair 1, plan P4-D482); read only where a lone gender letter stands beside a figure (`95 m`, `95M`, `95 (f)`), spaces, a point and the gender's marks alone between."""
+    if not any(_harbor_lone_gender_letter(cell) for cell in dict.fromkeys(cells) if cell not in absent):
+        return False
+    letters = set()
+    for cell in dict.fromkeys(cells):
+        if cell in absent or not re.search(r"[0-9]", cell):
+            continue
+        plain = _harbor_plain(cell)
+        lowered = _harbor_small(plain)
+        # ...a spelling holding no gender word at all passed over, `girl` and `boy` among them (lane HB3-a's repair 2).
+        if not any(word in lowered for word in _HARBOR_GENDERS):
+            continue
+        for number in re.finditer(r"[0-9]+", plain):
+            at = _harbor_unit_end(plain, number.end(), True)
+            while at < len(plain) and plain[at] in " .,/-([":
+                at += 1
+            stop = at
+            while stop < len(plain) and _harbor_cased(plain[stop]):
+                stop += 1
+            word = lowered[at:stop]
+            if word in ("m", "f"):
+                letters.add(word)
+                if len(letters) == 2:
+                    return True
+            elif word in _HARBOR_GENDERS:
+                return True
+    return False
+
+
+def _harbor_held_within_the_mark(cells, absent, mark, words=False, genders=False):
     """A held age column's made-up whole numbers past 125 years written as their remainder by their unit's mark, as wide as written."""
     written = []
     for cell in cells:
-        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell, words)
+        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell, words, genders)
         if read is None or read[3] or read[6] == "e" or read[5] < 0 or read[5] / _harbor_unit(read[4], mark) <= 125:
             written.append(cell)
             continue
@@ -71712,11 +73548,11 @@ def _harbor_held_within_the_mark(cells, absent, mark, words=False):
         figures = f"{int(value) % _harbor_cell_mark(tail, mark)}"
         if len(figures) < len(whole):
             figures = "0" * (len(whole) - len(figures)) + figures
-        written.append(head + ("+" if sign == "+" else "") + figures + tail)
+        written.append(_harbor_written_head(head) + ("+" if sign == "+" else "") + figures + _harbor_written_tail(tail))
     return written
 
 
-def _harbor_stand_ins_below_the_mark(cells, absent, mark, words=False):
+def _harbor_stand_ins_below_the_mark(cells, absent, mark, words=False, genders=False):
     """A label twin's made-up labels past the mark, each a free spelling below it (lane SH3's second repair).
 
     Each different cell the top-code would change, whole and not
@@ -71735,19 +73571,24 @@ def _harbor_stand_ins_below_the_mark(cells, absent, mark, words=False):
         if cell in chosen:
             written.append(chosen[cell])
             continue
-        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell, words)
+        read = None if cell in absent or cell.strip() in absent else _harbor_read(cell, words, genders)
         if read is None or read[3] or read[6] == "e" or read[5] < 0 or not _harbor_changed(read, mark):
             written.append(cell)
             continue
         head, sign, whole, _fraction, tail, _value, _form = read
+        head = _harbor_written_head(head)
         width = len(whole)
         padded = width >= 2 and whole[0] == "0"
         letter = _harbor_tail_words(tail)
+        tail = _harbor_written_tail(tail)
         tails = [tail]
         if len(letter) == 1 and tail[:1] == letter and letter.lower() in _HARBOR_MARKS:
             for other in "ymwd":
                 if other != letter.lower():
-                    tails.append(tail.replace(letter, other if letter == letter.lower() else other.upper()))
+                    swapped = (other if letter == letter.lower() else other.upper()) + tail[1:]
+                    if isinstance(tail, _HarborPhraseTail):
+                        swapped = _HarborPhraseTail(swapped, swapped[: len(tail.unit)], swapped, tail.named)
+                    tails.append(swapped if isinstance(tail, _HarborPhraseTail) else tail.replace(letter, swapped[0]))
         spelling = ""
         for option in tails:
             unit_mark = _harbor_cell_mark(option, mark)
@@ -71813,13 +73654,16 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
     def kept(cell):
         return cell in absent or cell.strip() in absent
 
+    # ...a lone m after an age read as a gender where the column writes both
+    # gender letters, or a gender word (lane HB3-a's repair 1, plan P4-D482).
+    genders = words and _harbor_genders(cells, absent)
     if held:
-        cells = _harbor_held_within_the_mark(cells, absent, mark, words)
+        cells = _harbor_held_within_the_mark(cells, absent, mark, words, genders)
     if labels:
-        cells = _harbor_stand_ins_below_the_mark(cells, absent, mark, words)
+        cells = _harbor_stand_ins_below_the_mark(cells, absent, mark, words, genders)
     at_the_marks = set()
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell, words)
+        read = None if kept(cell) else _harbor_read(cell, words, genders)
         if (
             read is not None
             and _harbor_cell_mark(read[4], mark) != 90
@@ -71828,7 +73672,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
             at_the_marks.add(_harbor_cell_mark(read[4], mark))
     at_ninety = False
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell, words)
+        read = None if kept(cell) else _harbor_read(cell, words, genders)
         if (
             read is not None
             and _harbor_unit(read[4], mark) == 1
@@ -71842,7 +73686,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
     lowest = 90 * _HARBOR_MILLIONTHS
     padded = set()
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell, words)
+        read = None if kept(cell) else _harbor_read(cell, words, genders)
         if read is None:
             continue
         if read[6] != "e" and len(read[2]) >= 2 and read[2][0] == "0":
@@ -71859,7 +73703,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
     chosen = {}
     written = []
     for cell in cells:
-        read = None if kept(cell) else _harbor_read(cell, words)
+        read = None if kept(cell) else _harbor_read(cell, words, genders)
         if read is None or not (
             _harbor_changed(read, mark, bounded)
             or (published is False and read[5] == _harbor_cell_mark(read[4], mark))
@@ -71875,7 +73719,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
                 text = "0" * (len(whole) - len(text)) + text
             if fraction:
                 text = text + ("," if form == "," else ".") + "0" * len(fraction)
-            written.append(head + ("+" if sign == "+" else "") + text + tail)
+            written.append(_harbor_written_head(head) + ("+" if sign == "+" else "") + text + _harbor_written_tail(tail))
             continue
         head, sign, whole, fraction, tail, value, form = read
         places = len(fraction)
@@ -71902,7 +73746,7 @@ def safe_harbor_ages_twin(cells, absent=frozenset(), mark=90, held=False, publis
             own = text if point < 0 else text[:point]
             if len(own) < len(whole):
                 text = "0" * (len(whole) - len(own)) + text
-        written.append(head + ("+" if sign == "+" else "") + text + tail)
+        written.append(_harbor_written_head(head) + ("+" if sign == "+" else "") + text + _harbor_written_tail(tail))
     return written
 
 

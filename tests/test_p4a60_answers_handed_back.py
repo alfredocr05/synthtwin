@@ -392,7 +392,7 @@ def test_the_questions_file_never_survives_a_terminal_answer(
     monkeypatch.setattr(cli, "_there_is_somebody_to_ask", lambda: True)
     answers = iter([asking.ANSWER_CODE, "", ""])
     monkeypatch.setattr(
-        cli, "_read_one_answer", lambda standing: next(answers)
+        cli, "_read_one_answer", lambda standing: next(answers, "")
     )
     assert _run(tmp_path) == 0
     capsys.readouterr()
@@ -604,6 +604,9 @@ def test_a_key_typed_at_the_prompt_stands_over_a_blank_handed_back_under_identif
         return "1" if lines["read"] <= 4 else None
 
     monkeypatch.setattr(cli, "_asked", typed)
+    # ...and no round after the files (lane EZ-a, plan P4-D479): it would put
+    # the Safe Harbor question this case answers in the file.
+    monkeypatch.setattr(cli, "_ANSWER_ROUNDS_AT_MOST", 1)
     draw = random.Random(17)
     cells = [str(int(round(draw.lognormvariate(10.8, 0.7), -2))) for _row in range(20000)]
     table = fixtures.write(tmp_path, "incomes.csv", "value\n" + "".join(cell + "\n" for cell in cells))

@@ -599,7 +599,10 @@ def test_a_question_still_open_after_the_screen_is_taught_its_command(ran: "dict
     run with somebody at the keyboard taught none, so a person who
     pressed Enter was never told how to answer what Enter left open. The
     one question open here is answered in the questions file alone, so
-    the line sends the person to that file, then to the command.
+    the line sends the person to that file, then to the command. SINCE
+    LANE EZ-a (plan P4-D479) that question is put on screen after the
+    files are written -- the run's lines end there, so it stays open -- and
+    the line says every open question can be answered on screen.
     """
     made, screen = ran["B"]
     folder = pathlib.Path(made.files[0].path).parent
@@ -618,7 +621,8 @@ def test_a_question_still_open_after_the_screen_is_taught_its_command(ran: "dict
     )
     shown = _text(screen)
     assert "\n1 question(s) are still open, so each of their columns kept the reading" in shown
-    assert "They are answered in" in shown and "Nobody was at the keyboard" not in shown
+    assert "1 of them can be answered on screen" in shown and "Nobody was at the keyboard" not in shown
+    assert "You ended the questions here." in shown
 
 
 def test_a_second_run_asks_nothing_and_writes_the_same_six_files(ran: "dict[str, typing.Any]") -> None:

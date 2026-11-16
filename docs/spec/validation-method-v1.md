@@ -2437,6 +2437,17 @@ unrelated to the number of G12 refusals, which method G12 fixes):
   to one of the published prefixes (Codex's review of the lane, item 4).
   A real table holds no cell written wider and is asked every fact
   exactly.
+- **V4.1-A3 (lane ID-ROOM4, plan P4-D489, 2026-11-12): a made-up spelling
+  written wider**, measured, never assumed. A `numeric_unrepresentable`
+  block carrying the detection evidence NF139 has every twin cell written
+  one letter or figure longer than the column's longest value (method
+  G10.5 step 8), so that none equals a real one. THE EXACT BAR IS TRIED
+  FIRST: subchecks `counts.min_length` and `counts.max_length` MISSED by a
+  length the measured file holds LONGER than the published one are an
+  AUTHORIZED-DEVIATION citing the plan; a shorter length stays MISSED, and
+  every other count of the block -- the census, the signs, the wholes --
+  stays exact. A real table holds no cell written wider and is asked both
+  lengths exactly.
 
 - **datetime-offsets-withheld** (P2-D9): a datetime column whose
   `utc_offsets` map is the single `(withheld)` key. Then `utc_offsets`
@@ -2975,6 +2986,18 @@ measurement, and it is the same words on every file. **WHAT IS NOT
 CHANGED:** every bullet above stands exactly, and nothing measured
 enters a report that could not enter it before. HELD is left silent,
 because nothing failed there and no reader is waiting to be told.
+
+**V5.4-A2 The keyed recount's counts go through the floor** (batch 4t's
+fix round, item 3; plan P4-D487; V19). Each count V19's recount measures
+on the checked file -- rows, and present cells among them -- is written
+out only where it is 0 or holds the floor's rows held by the floor's
+people or more (the description's person columns read as the producer
+merges them); fewer rows than the floor read `fewer than 11`, and the
+floor's rows of fewer people `of fewer than 11 people`. Measured on the
+review's table (4,000 pulse values of 1,000 people) checked against a
+file blank but one value: the quality file printed `4000 rows, 1 of them
+holding a value`, and prints `4000 rows, fewer than 11 of them holding a
+value`, still MISSED. The verdict is unchanged.
 
 **V5.5 On the ordinary case the gate does not close.** When the measured
 file IS the twin built from this profile, Phase 2's owner decisions 5, 8
@@ -4361,6 +4384,24 @@ the block's, never the clock's, so a file checked in a later year is
 read as it was described. Measured on K-S3-64's top-coded year shape at
 600 and 20,000 rows: the twin and the real table both at exit 0.
 
+*Restated by lane HB3-a (plan P4-D482, 2026-11-11):* a column whose block records
+`top_coded_words` is read with an age's phrase too (contract TC1's amendment:
+the first number after an age word within its clause, a dash after the word a
+mark, a capital M apart from an age a gender, a smaller unit's part written
+`0` at the top code), by the same reader its profiler and its generator use.
+*Restated by lane HB3-a's repair 1 (plan P4-D482, 2026-11-12):* every age of
+the phrase is read and the cell is read by its largest in years, every other
+one of 90 years or more written as its unit's mark; a number with an age's
+unit after it, or a gender after a mark, is an age wherever it stands; a lone
+`m` after an age is a gender where the checked column writes both gender
+letters, or a gender word, after its ages; and the cell's edges are cut at
+every space of the one definition, and every character that prints nothing is
+set aside on a second reading (contract TC1's amendment).
+*Restated by lane HB3-a's repair 2 (plan P4-D482, 2026-11-13):* a line break is
+a space to an age's clause, only a semicolon with a letter after it ending one,
+and the gender words `girl` and `boy` count toward the checked column's gender
+rule as every other gender word does (contract TC1's amendment).
+
 ## V16. Held-back codes written in pattern (lane CODES-1, plan P4-D439)
 
 **V16.1 Rule A1, read alike.** A label column whose block carries
@@ -4420,6 +4461,45 @@ either side, their citation saying they are not available and why (rule key
 `count-not-published`); its place and name, and the document's bytes, are
 checked as ever. No such check is counted HELD, and the report never says the
 file was found to hold no present cell.
+
+## V19. Values typed by a key (lane KV, plan P4-D487)
+
+A value column whose block carries `by_key` (contract 6.3k) is read with every
+row that holds a key written blank, so its own block is judged on the rows that
+hold no key as any column is; and each key block is RECOUNTED on the checked
+file: the rows whose key, trimmed and case-folded, is the block's label, and the
+value column's present cells among them (a cell present where it is not blank
+and is no spelling the block counts absent), against the block's rows and
+`n_present` (`label.by_key`, subcheck `by_key.<label>`, the published label),
+and the rows of every rare key together against the pooled block's
+(`by_key.pool`, naming no key). HELD where both counts are met, MISSED otherwise,
+the counts printed: each is the block's own published fact. A BLOCK COUNTED
+ABSENT (`present_count_withheld`: its present cells fewer people's than the
+floor) is recounted on its rows alone, its present cells not observed on either
+file, as V17.2 reads a column counted absent: it publishes no count of them, the
+twin writes its made-up word in the floor's number of its cells (method G8.3d)
+and the real table its own values (lane KV's repair 2, the orchestrator's LANE
+KV RULINGS 6 (2): validate missed on the product's own twin). A keyed key column
+whose description names its pool is read with the rare keys of the checked file
+as its held-back spellings, and V18 judges the names. A block's other facts are
+the column writer's and are not judged here (lane KV-b's per-key lines).
+
+**Amended by batch 4t's fix round (plan P4-D487; the outside review of
+the merged line, items 3, 5 and 6).** (1) The recount writes every count
+it measures on the checked file through that file's floor (V5.4-A2), in
+rows and in the people behind them, in both its branches. (2) A table
+read in groups carries the keyed rows' mask as one more rewrite of its
+columns, so the grouped route reads each keyed value column blank on its
+keyed rows as the whole route does, and the recount reads the cells as
+written: on the review's table read in groups (a group's budget one
+byte) the value column read 24,000 present and missed five checks where
+the whole route read it held; both routes now give the same checks. (3)
+The recount reads a cell absent where it is blank, a spelling the block
+publishes, or a spelling the producer's own reading calls no value under
+the description's settings, whether or not the floor let the block
+publish that spelling, in the pooled branch too: three `NA` cells of
+three people in 4,000 pulse cells were recounted present (4,000) and
+missed; they are read absent (3,997) and held.
 
 ## V18. A named pool (lane CODES-2, plan P4-D471)
 

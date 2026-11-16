@@ -513,6 +513,9 @@ LABEL_KEYS = (
     # carried only where a width's rows are mostly held back, so it is read as
     # empty where absent (`LABEL_READ_AS_EMPTY_WHEN_ABSENT`).
     "figure_openings",
+    # THE WIDTHS AT WHICH A HELD KEY OF NOUGHTS ALONE EXISTS (lane HB3-a, plan
+    # P4-D482): carried only where one does, so read as empty where absent.
+    "figure_noughts",
     # THE NAMES OF THE LEVELS THE FLOOR HELD BACK (lane CODES-2, plan P4-D471):
     # carried only where the column names its pool, so read as empty where
     # absent too.
@@ -687,10 +690,10 @@ DATETIME_READ_AS_EMPTY_WHEN_ABSENT = (
 # HB, plan P4-D442): `figure_openings` is written where a run of four figures
 # or more is held, as `time_grain` is where a grain is; absent, nothing is
 # published, which is what an empty one says.
-TEXT_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings",)
+TEXT_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings", "figure_noughts")
 # ...and the four label roles and a compound column's label half carry it only
 # where it applies too (LANE HB RULINGS 6, plan P4-D442).
-LABEL_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings", "held_back_names")
+LABEL_READ_AS_EMPTY_WHEN_ABSENT = ("figure_openings", "held_back_names", "figure_noughts")
 _LABEL_OPENING_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
 CLOCK_READ_AS_EMPTY_WHEN_ABSENT = (
     "clock_census",
@@ -940,6 +943,9 @@ TEXT_KEYS = (
     # only by a column holding a run of four figures or more, so it is read
     # as empty where absent (`TEXT_READ_AS_EMPTY_WHEN_ABSENT`).
     "figure_openings",
+    # ...and the widths at which a held key of noughts alone exists (lane
+    # HB3-a, plan P4-D482), read as empty where absent too.
+    "figure_noughts",
     "length",
     "n_all_digits",
     "n_code_alphabet",
@@ -1554,11 +1560,30 @@ INVARIANTS = {
     "B4g": (
         "the names of the labels held back name every label held back and no "
         "published one, in no more spellings than the rows they cover, "
-        "only of a pool the floor made, never one counted in people, and "
-        "share the pool's rows by the classes its counts of numbers leave them"
+        "only of a pool the floor made or the pool counted in people of a "
+        "keyed key column, and share the pool's rows by the classes its "
+        "counts of numbers leave them"
     ),
     "B4h": (
         "a pool whose labels are named publishes no scale of its numbers"
+    ),
+    # VALUES TYPED BY A KEY (lane KV, plan P4-D487, contract 6.3k).
+    "KV1": (
+        "a key column's keyed names the value column whose by_key names it, "
+        "and a value column's by_key names a key column of labels whose "
+        "keyed names it"
+    ),
+    "KV2": (
+        "each key block stands under a published level of its key column and "
+        "holds exactly that level's rows"
+    ),
+    "KV3": (
+        "the pooled block of rare keys stands exactly where the key column "
+        "holds a level back, and holds exactly its pooled rows"
+    ),
+    "KV4": (
+        "a keyed value column's own block holds no more present cells than "
+        "the rows that hold no key"
     ),
     "B5": (
         "a label is published only at the smallest group size or more"
@@ -3620,6 +3645,11 @@ class LabelFacts:
     figure_openings: "dict[int, str]" = dataclasses.field(
         default_factory=dict, kw_only=True
     )
+    # THE WIDTHS AT WHICH A HELD KEY OF NOUGHTS ALONE EXISTS (6.3; lane HB3-a,
+    # plan P4-D482; the orchestrator's LANE HB3-a RULINGS 1 (2), limit (af)): a
+    # width, never a value; the twin writes no run of noughts alone at such a
+    # width, so no stand-in is that key.
+    figure_noughts: "list[int]" = dataclasses.field(default_factory=list, kw_only=True)
     # THE SPELLINGS OF THE LEVELS THE FLOOR HELD BACK, NAMED WITHOUT THEIR
     # COUNTS (6.3; lane CODES-2, plan P4-D471; the owner's answer Z1 = B):
     # sorted, each once, every spelling of every held-back level, beside the
@@ -4086,6 +4116,9 @@ class TextFacts:
     # where none was found; absent, or empty, where the column holds no
     # such run. The twin writes every run of such a width wearing it.
     figure_openings: "dict[int, str]" = dataclasses.field(default_factory=dict)
+    # ...and the widths at which a run of noughts alone is held (lane HB3-a,
+    # plan P4-D482): the twin writes no run of noughts alone at such a width.
+    figure_noughts: "list[int]" = dataclasses.field(default_factory=list)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4425,6 +4458,16 @@ class ColumnBlock:
     # writes the column from its rule (method G16.2 step 5).
     computed_from: str = ""
     computed_layout: "tuple[tuple[str, object], ...]" = ()
+    # VALUES TYPED BY A KEY (lane KV, plan P4-D487, contract 6.3k): on a key
+    # column, the value column its keys type, its block's `keyed`, and ""
+    # elsewhere; on a value column, its key column (`by_key.key`), one block
+    # a common key -- the key's published label and a column block of that
+    # key's cells, read as a column of as many rows as the key holds -- and
+    # the rare keys' pooled block, or nothing elsewhere.
+    keyed: str = ""
+    keyed_by: str = ""
+    key_blocks: "tuple[tuple[str, ColumnBlock], ...]" = ()
+    key_pool: "ColumnBlock | None" = None
 
 
 # -- the two halves of a compound column, as columns ------------------
@@ -4789,8 +4832,12 @@ def _continues_a_number(character: str) -> bool:
     )
 
 
-def _scanned(text: str, shown: str) -> None:
+def _scanned(text: str, shown: str, answers: bool = False) -> None:
     """Check the two parser bounds, before anything parses (10.3).
+
+    ``answers``: the text is an answers file (`load_answers`), whose two
+    refusals are its own (lane EZ-a, plan P4-D479); the description's words
+    stand for every other caller.
 
     Guarantees:
 
@@ -4831,6 +4878,10 @@ def _scanned(text: str, shown: str) -> None:
             depth = depth + 1
             deepest = max(deepest, depth)
             if deepest > MAXIMUM_DEPTH:
+                if answers:
+                    raise errors.ProfileError(
+                        errors.answers_nested_too_deeply(shown, MAXIMUM_DEPTH)
+                    )
                 raise errors.ProfileError(
                     errors.profile_nested_too_deeply(shown, MAXIMUM_DEPTH)
                 )
@@ -4843,6 +4894,12 @@ def _scanned(text: str, shown: str) -> None:
         if token:
             if _continues_a_number(character):
                 token = token + 1
+                if token > MAXIMUM_NUMBER_CHARACTERS and answers:
+                    raise errors.ProfileError(
+                        errors.answers_number_too_long(
+                            shown, MAXIMUM_NUMBER_CHARACTERS
+                        )
+                    )
                 if token > MAXIMUM_NUMBER_CHARACTERS:
                     raise errors.ProfileError(
                         errors.profile_number_too_long(
@@ -8729,6 +8786,19 @@ def _column(
     absorbed_value: object = None
     places_value: object = None
     pool_value: object = None
+    # VALUES TYPED BY A KEY (lane KV, plan P4-D487, contract 6.3k): a key
+    # column's `keyed` and a value column's `by_key`, read apart, each
+    # checked where the block is built (`_keyed_name`, `_by_key`).
+    keyed_value: object = None
+    if "keyed" in mapping:
+        if role not in KEYED_KEY_ROLES:
+            raise _unknown("keyed", where)
+        keyed_value = mapping["keyed"]
+        mapping = {key: mapping[key] for key in mapping if key != "keyed"}
+    by_key_value: object = None
+    if "by_key" in mapping:
+        by_key_value = mapping["by_key"]
+        mapping = {key: mapping[key] for key in mapping if key != "by_key"}
     pool_in_people = "pool_in_people" in mapping
     if pool_in_people:
         if role not in POOL_IN_PEOPLE_ROLES:
@@ -8993,6 +9063,7 @@ def _column(
         pooled_in_people=pool_in_people,
         made_up=made_up_value,
     )
+    keyed_by, key_blocks, key_pool = _by_key(by_key_value, where, frame, name)
     return ColumnBlock(
         name=name,
         position=position,
@@ -9026,7 +9097,9 @@ def _column(
         shape_forms_absorbed=_absorbed_form(absorbed_value, mapping, where),
         shape_form_places=_form_places(places_value, mapping, where),
         top_coded_year=top_coded_year,
-        pool_in_people=_pool_in_people(pool_value, pool_in_people, facts, where),
+        pool_in_people=_pool_in_people(
+            pool_value, pool_in_people, facts, where, keyed_value is not None
+        ),
         present_count_withheld=counted_absent,
         withheld_words_from=words_from,
         top_category_pooled=top_category_pooled,
@@ -9034,6 +9107,10 @@ def _column(
         top_coded_words=top_coded_words,
         top_coded_ends=top_coded_ends,
         top_coded_bands=top_coded_bands,
+        keyed=_keyed_name(keyed_value, where),
+        keyed_by=keyed_by,
+        key_blocks=key_blocks,
+        key_pool=key_pool,
     )
 
 
@@ -9121,7 +9198,7 @@ ABSORBING_ROLES = (ROLE_CONSTANT, ROLE_BINARY, ROLE_CATEGORICAL, ROLE_LONG_TAIL)
 
 
 def _pool_in_people(
-    value: object, carried: bool, facts: object, where: str
+    value: object, carried: bool, facts: object, where: str, keyed: bool = False
 ) -> "tuple[str, str] | None":
     """A block's `pool_in_people`, checked (contract 5.1, B4e, plan P4-D453).
 
@@ -9155,25 +9232,279 @@ def _pool_in_people(
             "a pool counted in people holds no level",
             "the key stands beside a level held back",
         )
-    _a_pool_in_people_names_none(facts, where)
+    _a_pool_in_people_names_none(facts, where, keyed)
     return number_from, word_from
 
 
-def _a_pool_in_people_names_none(facts: "LabelFacts", where: str) -> None:
-    """B4g: a pool counted in people names none of its levels (lane CODES-2's repair 2, Codex's item 4).
+def _a_pool_in_people_names_none(facts: "LabelFacts", where: str, keyed: bool = False) -> None:
+    """B4g: only a pool the floor made by rows, or the pool in people of a keyed key column, names its levels (lane CODES-2's repair 2, Codex's item 4; lane KV, plan P4-D487).
 
-    Only a pool the floor made by rows is named (P4-D471), and the block's
-    reader holds `pool_in_people` and the block's names together only here:
-    it takes the key off the mapping before the label facts are read, so
-    the check `_held_back_names` once made never saw it, and a hand-made
-    pool counted in people kept twenty named spellings. Raises ProfileError
-    for B4g. No I/O.
+    A pool the floor made by rows is named (P4-D471), and, under the owner's
+    answer of 2026-11-10, the pool counted in people of a column that says
+    which measurement each row is (``keyed``: its block carries `keyed`),
+    after its Safe Harbor `no`, never counted. The block's reader holds
+    `pool_in_people` and the block's names together only here: it takes the
+    key off the mapping before the label facts are read, so the check
+    `_held_back_names` once made never saw it, and a hand-made pool counted
+    in people kept twenty named spellings. Raises ProfileError for B4g. No
+    I/O.
     """
-    if facts.held_back_names:
+    if facts.held_back_names and not keyed:
         raise _broken(
             "B4g", where, "a pool counted in people names its levels",
-            "only a pool the floor made by rows is named",
+            "only a pool the floor made by rows, or the pool in people of a keyed key column, is named",
         )
+
+
+# VALUES TYPED BY A KEY (lane KV, plan P4-D487, contract 6.3k): the roles a
+# key column is read in, the keys of `by_key` and of one of its blocks.
+KEYED_KEY_ROLES = (ROLE_CATEGORICAL, ROLE_LONG_TAIL, ROLE_BINARY)
+BY_KEY_KEYS = ("key", "key_blocks", "pool")
+BY_KEY_REQUIRED = ("key", "key_blocks")
+KEY_BLOCK_KEYS = ("block", "key")
+
+
+def _keyed_name(value: object, where: str) -> str:
+    """A key column's `keyed`: the name of the value column its keys type, or "" where the block carries none (contract 6.3k)."""
+    if value is None:
+        return ""
+    return _filled_text(value, "keyed", where)
+
+
+def keyed_frame_lists(
+    own: str,
+    inner: str,
+    inner_role: str,
+    declared_codes: "tuple[str, ...]",
+    declared_commas: "tuple[str, ...]",
+    declared_dates: "tuple[str, ...]",
+    declared_measurements: "tuple[str, ...]" = (),
+) -> "dict[str, tuple[str, ...]]":
+    """The declarations a key block is read under (contract 6.3k): the value column's, carried to the block's own name.
+
+    A held block (role `identifier`) is a declared identifier and carries
+    none of the others, as a held column is recorded (S8d). The describe
+    reads each key block under the same (`profile._key_block`). Guarantees:
+    a fixed function of its arguments. Raises nothing. No I/O.
+    """
+    if inner_role == ROLE_IDENTIFIER:
+        return {"identifiers": (inner,), "codes": (), "commas": (), "dates": (), "measurements": ()}
+    return {
+        "identifiers": (),
+        "codes": (inner,) if own in declared_codes else (),
+        "commas": (inner,) if own in declared_commas else (),
+        "dates": (inner,) if own in declared_dates else (),
+        "measurements": (inner,) if own in declared_measurements else (),
+    }
+
+
+def keyed_profile(profile: "Profile", owner: ColumnBlock, block: ColumnBlock) -> "Profile":
+    """One key block as the description of a table of its own: what the generator writes the block from (method G8.3f; contract 6.3k; plan P4-D487).
+
+    As many rows as the block holds, its one column, the table's settings
+    with the value column's declarations carried to the block's name
+    (`keyed_frame_lists`, the clocks, centuries and dates likewise) and no
+    other column named, the table's ceiling of categories as its floor (as
+    `_key_block_column` reads it), an ordinary written form of one column
+    (`dialect.ordinary`; the twin's own form is the whole table's) and no
+    relationship. Guarantees: a fixed function of the three. Raises
+    nothing. No I/O.
+    """
+    settings = profile.settings
+    lists = keyed_frame_lists(
+        owner.name, block.name, block.role, settings.forced_codes,
+        settings.forced_decimal_commas, settings.forced_date_columns,
+        settings.forced_measurements,
+    )
+    held = block.role == ROLE_IDENTIFIER
+    rows = block.n_present + block.n_missing
+    ceiling = _category_ceiling(
+        _Frame(
+            floor=settings.small_cell_floor,
+            n_rows=profile.n_rows,
+            n_columns=profile.n_columns,
+            declared=(),
+            declared_codes=(),
+            declared_commas=(),
+            parse_rate=settings.minimum_parse_rate,
+            category_share=settings.categorical_share,
+            category_ceiling=settings.categorical_ceiling,
+            category_floor=settings.categorical_floor,
+        )
+    )
+    return Profile(
+        profile_version=profile.profile_version,
+        created_with=profile.created_with,
+        n_rows=rows,
+        n_columns=1,
+        source=dataclasses.replace(
+            profile.source, dialect=dialect.ordinary(1, rows, True), workbook=None
+        ),
+        settings=dataclasses.replace(
+            settings,
+            categorical_floor=ceiling,
+            person_columns=(),
+            forced_identifiers=lists["identifiers"],
+            forced_codes=lists["codes"],
+            forced_measurements=lists["measurements"],
+            forced_decimal_commas=lists["commas"],
+            forced_twelve_hour_clocks=(
+                (block.name,) if owner.name in settings.forced_twelve_hour_clocks and not held else ()
+            ),
+            century_windows=tuple(
+                (block.name, year) for name, year in settings.century_windows if name == owner.name and not held
+            ),
+            forced_date_columns=lists["dates"],
+            forced_date_counts=tuple(
+                (block.name, member) for name, member in settings.forced_date_counts if name == owner.name and not held
+            ),
+        ),
+        relationships=dataclasses.replace(
+            profile.relationships,
+            ladder=(), families=0, chain=(), moments=None, rules=(), words=(), switched=False,
+        ),
+        publication_notes=(),
+        columns=(block,),
+    )
+
+
+def _key_block_rows(value: object, where: str) -> int:
+    """The rows a key block's column holds: its present and absent cells (contract 6.3k)."""
+    found = _mapping(value, "block", where)
+    for key in ("n_present", "n_missing"):
+        if key not in found:
+            raise _missing(key, where, "every key block")
+    return _whole(found["n_present"], "n_present", where, 0) + _whole(
+        found["n_missing"], "n_missing", where, 0
+    )
+
+
+def _key_block_column(value: object, where: str, frame: _Frame, own: str) -> ColumnBlock:
+    """One key block, checked in full as a column of its own rows (contract 6.3k).
+
+    The frame is the table's with the block's rows, one column, the value
+    column's declarations carried to the block's name (`keyed_frame_lists`)
+    and THE WHOLE TABLE'S CEILING OF CATEGORIES as its floor
+    (`profile.keyed_settings`, which describes it so). A key block carries
+    no `by_key` or `keyed` of its own.
+    """
+    found = _mapping(value, "block", where)
+    if "by_key" in found or "keyed" in found:
+        raise _unknown("by_key", where)
+    role = found["role"] if "role" in found else ""
+    inner = found["name"] if "name" in found else ""
+    lists = keyed_frame_lists(
+        own, f"{inner}", f"{role}", frame.declared_codes, frame.declared_commas, frame.declared_dates,
+    )
+    rows = _key_block_rows(found, where)
+    if rows < 1:
+        raise _out_of_range("n_present", where, "a key block of no row", "a block of the key's own rows")
+    sub = dataclasses.replace(
+        frame,
+        n_rows=rows,
+        n_columns=1,
+        declared=lists["identifiers"],
+        declared_codes=lists["codes"],
+        declared_commas=lists["commas"],
+        declared_dates=lists["dates"],
+        category_floor=_category_ceiling(frame),
+        in_patients=(),
+        person="",
+        patients=0,
+        emptied=(),
+        maps_withheld=False,
+    )
+    return _column(found, 0, sub)
+
+
+def _by_key(
+    value: object, where: str, frame: _Frame, own: str
+) -> "tuple[str, tuple[tuple[str, ColumnBlock], ...], ColumnBlock | None]":
+    """A value column's `by_key`, checked: its key column, its key blocks by label, its pooled block (contract 6.3k; plan P4-D487).
+
+    None (no key) reads as nothing. Otherwise an object of `key` (a column
+    name), `key_blocks` (a list, each entry an object of a published label,
+    `key`, and a column block, `block`, the labels each once in rising
+    order) and, where any key is rare, `pool` (a column block). Every
+    block is checked in full by `_key_block_column`; what the blocks owe
+    the key column -- that its block carries `keyed`, that each label is
+    one of its published levels with exactly the block's rows, that the
+    pool holds exactly its pooled rows -- is checked once every column is
+    read (`_keyed_pairs_hold`). Raises ProfileError otherwise.
+    """
+    if value is None:
+        return "", (), None
+    found = _mapping(value, "by_key", where)
+    inside = f"{where}, in by_key"
+    for key in sorted(found):
+        if key not in BY_KEY_KEYS:
+            raise _unknown(key, inside)
+    for key in BY_KEY_REQUIRED:
+        if key not in found:
+            raise _missing(key, inside, "values typed by a key")
+    key_name = _filled_text(found["key"], "key", inside)
+    if key_name == own:
+        raise _out_of_range("key", inside, "the column's own name", "the name of its key column")
+    listed = found["key_blocks"]
+    if not isinstance(listed, list):
+        raise _out_of_range("key_blocks", inside, "another value", "a list of key blocks")
+    blocks: "list[tuple[str, ColumnBlock]]" = []
+    labels: "list[str]" = []
+    for place, entry in enumerate(listed):
+        seat = f"{inside}, in key block number {place + 1}"
+        pair = _mapping(entry, "key_blocks", seat)
+        _keys(pair, seat, KEY_BLOCK_KEYS, "every key block")
+        label = _filled_text(pair["key"], "key", seat)
+        if labels and label <= labels[len(labels) - 1]:
+            raise _out_of_range("key", seat, "a label out of order or twice", "the labels once each in rising order")
+        labels += [label]
+        blocks += [(label, _key_block_column(pair["block"], seat, frame, own))]
+    pool: "ColumnBlock | None" = None
+    if "pool" in found:
+        pool = _key_block_column(found["pool"], f"{inside}, in its pool", frame, own)
+    return key_name, tuple(blocks), pool
+
+
+def _keyed_pairs_hold(columns: "tuple[ColumnBlock, ...]") -> None:
+    """What a value column's key blocks owe its key column (contract 6.3k, KV1 to KV4; plan P4-D487).
+
+    KV1: the key column is a column of the table whose block carries `keyed`
+    naming the value column, and a key column's `keyed` names a value
+    column whose `by_key` names it. KV2: each block's label is a published
+    level of the key column, and the block's rows are exactly that
+    level's count, so the twin's key, written at its published counts,
+    holds as many rows of each key as the block writes. KV3: the pool's
+    rows are exactly the key column's pooled rows, and it stands where and
+    only where the key column holds a level back. KV4: the value column's
+    own block holds no present cell on a row of a key: its present and
+    absent counts leave the key column's present cells to the key blocks.
+    Raises ProfileError naming the column. No I/O.
+    """
+    by_name = {column.name: column for column in columns}
+    for column in columns:
+        where = f"in the block for the column named '{column.name}'"
+        if column.keyed:
+            value = by_name[column.keyed] if column.keyed in by_name else None
+            if value is None or value.keyed_by != column.name:
+                raise _broken("KV1", where, "a key column names no value column it types", "the value column names it in by_key")
+        if not column.keyed_by:
+            continue
+        key = by_name[column.keyed_by] if column.keyed_by in by_name else None
+        if key is None or key.keyed != column.name or not isinstance(key.facts, (LabelFacts,)):
+            raise _broken("KV1", where, "a value column names no key column of labels that types it", "its key column's block names it in keyed")
+        counts = {f"{level.label}": level.count for level in key.facts.levels}
+        for label, block in column.key_blocks:
+            if label not in counts:
+                raise _broken("KV2", where, "a key block stands under a label the key column does not publish", "one block a published level")
+            if block.n_present + block.n_missing != counts[label]:
+                raise _broken("KV2", where, "a key block's rows differ from its key's count", "as many rows as the key holds")
+        pooled = key.facts.suppressed_rows
+        if (column.key_pool is None) != (pooled == 0):
+            raise _broken("KV3", where, "a pool of rare keys stands where no key is held back, or none where one is", "the pool where the key column holds a level back")
+        if column.key_pool is not None and column.key_pool.n_present + column.key_pool.n_missing != pooled:
+            raise _broken("KV3", where, "the pool of rare keys holds another number of rows than the key column pools", "exactly the pooled rows")
+        if column.n_present > key.n_missing:
+            raise _broken("KV4", where, "the value column's own block holds more cells than the rows that hold no key", "its present cells on rows of no key alone")
 
 
 def _form_places(
@@ -10455,6 +10786,7 @@ def _label_facts(
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
         figure_openings=_figure_openings(mapping, where),
+        figure_noughts=_figure_noughts(mapping, where),
         held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
     )
 
@@ -10498,6 +10830,7 @@ def _compound_label_facts(
         shape_forms=_shape_forms(mapping, where, floor, False, False),
         suppressed_numbers=_pooled_numbers(mapping, where, floor, True),
         figure_openings=_figure_openings(mapping, where),
+        figure_noughts=_figure_noughts(mapping, where),
         held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
     )
 
@@ -10572,6 +10905,7 @@ def _long_tail_facts(
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
         figure_openings=_figure_openings(mapping, where),
+        figure_noughts=_figure_noughts(mapping, where),
         held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
     )
 
@@ -10606,6 +10940,7 @@ def _categorical_facts(
         shape_forms=_shape_forms(mapping, where, floor),
         suppressed_numbers=_pooled_numbers(mapping, where, floor),
         figure_openings=_figure_openings(mapping, where),
+        figure_noughts=_figure_noughts(mapping, where),
         held_back_names=_held_back_names(mapping, where, entries, suppressed, rows),
         level_ceiling=ceiling,
     )
@@ -22371,6 +22706,7 @@ def _text_facts(
         _pattern_closes(pairs, where, "F2", n_distinct, n_present)
     return TextFacts(
         figure_openings=_figure_openings(mapping, where),
+        figure_noughts=_figure_noughts(mapping, where),
         shape_forms=_shape_forms(mapping, where, floor, True),
         length=LengthStats(
             minimum=shortest, maximum=longest, mean=mean_length, p50=middle
@@ -22498,6 +22834,34 @@ def _figure_openings(mapping: "dict[str, object]", where: str) -> "dict[int, str
             )
         openings[int(width)] = opening
     return openings
+
+
+def _figure_noughts(mapping: "dict[str, object]", where: str) -> "list[int]":
+    """The widths at which a held key of noughts alone exists, checked (6.9; lane HB3-a, plan P4-D482).
+
+    Absent, or written empty, there is none. Otherwise a list of whole
+    numbers of three or more, each once, smallest first. NO REFUSAL QUOTES
+    AN ENTRY. Raises ProfileError for anything else.
+    """
+    if "figure_noughts" not in mapping:
+        return []
+    found = mapping["figure_noughts"]
+    widths: "list[int]" = []
+    if isinstance(found, list):
+        for width in found:
+            if isinstance(width, bool) or not isinstance(width, int) or width < 3 or (widths and width <= widths[-1]):
+                widths = []
+                found = None
+                break
+            widths += [width]
+    if not isinstance(found, list):
+        raise _out_of_range(
+            "figure_noughts",
+            where,
+            "an entry that is not a width of three figures or more",
+            "a list of whole numbers of three or more, each once, smallest first",
+        )
+    return widths
 
 
 def _between(
@@ -24244,6 +24608,22 @@ def _nothing_is_held_back(document: "dict[str, object]", floor: int) -> None:
         )
 
 
+def checked_description(text: str) -> Profile:
+    """A description's canonical text, held in memory, read as `load_profile` reads one from a file.
+
+    Lane ID-ROOM4, plan P4-D489: `synthtwin profile` hands the text it is
+    about to write (`canonical.serialize`) so that its dry run of the
+    made-up spellings (`generation.made_up_spellings`) reads exactly the
+    typed description `synthtwin generate` will load. Every step of
+    `load_profile` that reads text runs (the scan, the parse, the version,
+    every rule); none that reads a file. Raises ProfileError where the
+    text is not a valid description. No I/O.
+    """
+    shown = "the description in memory"
+    _scanned(text, shown)
+    return _validated(_versioned(_parsed(text, shown), shown), False)
+
+
 def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     """Step 7 and step 8: every rule, then the typed objects (10.1).
 
@@ -24311,6 +24691,9 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
         computed,
     )
     _cross_checks(columns, settings, notes)
+    # VALUES TYPED BY A KEY (lane KV, plan P4-D487): what each value
+    # column's key blocks owe its key column, once every column is read.
+    _keyed_pairs_hold(columns)
     _dialect_rules(
         source, columns, n_rows, settings.small_cell_floor,
         settings.forced_identifiers, settings.forced_metadata_rows,
@@ -24497,7 +24880,7 @@ def _no_duplicate_keys(text: str, shown: str) -> None:
         have_pending = False
 
 
-def load_answers(raw_path: str) -> "dict[str, object]":
+def load_answers(raw_path: str, questions_beside: "str | None" = None) -> "dict[str, object]":
     """Read one questions file, or refuse it (amendment A-P4-58).
 
     Guarantees:
@@ -24530,42 +24913,425 @@ def load_answers(raw_path: str) -> "dict[str, object]":
     nesting depth and the numeric token length of `_scanned` -- because
     those bound what a hostile file can cost, and the file arriving
     from a person is exactly the file that might be one.
+
+    THE ANSWERS FILE'S OWN MESSAGES, AND A SECOND ROUTE (lane EZ-a, plan
+    P4-D479). Every refusal here names the answers file and asks for the
+    same command again; none says "the description" or "make it again"
+    (the walkthrough's item 5: a curly quotation mark a text editor put
+    in the questions file was told to make the description again). A
+    file whose text is not a JSON object is read as lines `column =
+    answer` (`_answers_written_as_lines`), matched against the questions
+    file the last run wrote, ``questions_beside``, filled into that file's
+    document and handed back as the document: the text route IS the JSON
+    route (the walkthrough's item 4). And an answer is taken whatever its
+    capitals or the quotation marks around it (`_answers_folded`, item
+    16), here, before `asking.answers_in` reads it.
     """
     validated = validate_local_path(raw_path, purpose="questions file")
     place = pathlib.Path(validated)
     shown = f"{place}"
+    text = _answers_text(place, shown)
+    try:
+        if questions_beside is not None and not _a_json_document(text):
+            return _answers_written_as_lines(text, shown, questions_beside)
+        return _answers_document(text, shown)
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.answers_out_of_memory(shown)
+        ) from error
+
+
+def _answers_text(where: pathlib.Path, shown: str) -> str:
+    """An answers file's text, a byte-order mark taken off, or its own refusal (lane EZ-a).
+
+    The path is rebuilt here, as `_read_text` rebuilds it, so every call
+    on it is on a value an allowlisted API built (plan D6.2).
+    """
+    place = pathlib.Path(where)
     if not place.exists():
-        raise errors.ProfileError(errors.profile_file_missing(shown))
+        raise errors.ProfileError(errors.answers_file_missing(shown))
     if place.is_dir():
-        raise errors.ProfileError(errors.profile_path_is_a_folder(shown))
+        raise errors.ProfileError(errors.answers_path_is_a_folder(shown))
     try:
         text = _read_text(place)
     except UnicodeDecodeError as error:
-        raise errors.ProfileError(errors.profile_not_text(shown)) from error
+        raise errors.ProfileError(errors.answers_not_text(shown)) from error
     except MemoryError as error:
         raise errors.ProfileError(
-            errors.profile_out_of_memory(shown)
+            errors.answers_out_of_memory(shown)
         ) from error
     except PermissionError as error:
         raise errors.ProfileError(
-            errors.profile_file_unreadable(shown, f"{error}")
+            errors.answers_file_unreadable(shown, f"{error}")
         ) from error
     except OSError as error:
         raise errors.ProfileError(
-            errors.profile_file_unreadable(shown, f"{error}")
+            errors.answers_file_unreadable(shown, f"{error}")
         ) from error
+    # A text editor on Windows may open a file it saves as UTF-8 with a
+    # byte-order mark, which no reading of the answers needs.
+    if text[:1] == "﻿":
+        return text[1:]
+    return text
+
+
+def _a_json_document(text: str) -> bool:
+    """Whether an answers file's text opens as a JSON document does: a brace or a bracket first."""
+    for character in text:
+        if character in " \t\r\n":
+            continue
+        return character == "{" or character == "["
+    return True
+
+
+def _answers_document(text: str, shown: str) -> "dict[str, object]":
+    """A questions file's text read as the JSON route reads it, each refusal the answers file's own."""
+    _scanned(text, shown, answers=True)
     try:
-        _scanned(text, shown)
-        document = _answers_mapping(_parsed(text, shown), shown)
-        # AFTER the parse, so the key literals are known to be
-        # well-formed and can be read with the same parser (review item
-        # L17b-R1-2).
-        _no_duplicate_keys(text, shown)
-        return document
-    except MemoryError as error:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as error:
+        curly = False
+        for character in text:
+            if character in errors.CURLY_DOUBLE_QUOTES:
+                curly = True
+                break
         raise errors.ProfileError(
-            errors.profile_out_of_memory(shown)
+            errors.answers_not_json(shown, error.lineno, error.colno, curly)
         ) from error
+    document = _answers_mapping(parsed, shown)
+    # AFTER the parse, so the key literals are known to be well-formed and
+    # can be read with the same parser (review item L17b-R1-2).
+    _no_duplicate_keys(text, shown)
+    _answers_folded(document)
+    return document
+
+
+# The quotation marks an answer may be wrapped in, straight or curly,
+# single or double: none is part of any answer a question offers.
+_ANSWER_QUOTES = "\"'“”„‟‘’‚‛"
+
+
+def _answer_word(text: str) -> str:
+    """One written answer or name, its spaces and the quotation marks around it taken off."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: an answer was not text")
+    word = text.strip()
+    while len(word) >= 2 and word[0] in _ANSWER_QUOTES and word[len(word) - 1] in _ANSWER_QUOTES:
+        word = word[1 : len(word) - 1].strip()
+    return word
+
+
+def _offered_words(entry: "dict[object, object]") -> "list[str]":
+    """The answers an entry offers, read by index (plan D6.2); none where it is not shaped so."""
+    found: "list[str]" = []
+    choices = entry["answers_you_can_give"] if "answers_you_can_give" in entry else None
+    if not isinstance(choices, list):
+        return found
+    for choice in choices:
+        if isinstance(choice, dict) and "answer" in choice and isinstance(choice["answer"], str):
+            found += [choice["answer"]]
+    return found
+
+
+def _answer_offered(written: str, offered: "list[str]") -> str:
+    """The offered answer a written one is, whatever its capitals; empty where it is none."""
+    word = _answer_word(written)
+    if word in offered:
+        return word
+    folded = parsing.folded(word)
+    found = [one for one in offered if parsing.folded(one) == folded]
+    return found[0] if len(found) == 1 else ""
+
+
+def answer_entries(document: "dict[str, object]") -> "list[tuple[str, dict[object, object]]]":
+    """Every entry of a questions file that takes an answer, each with its section, in the file's order."""
+    found: "list[tuple[str, dict[object, object]]]" = []
+    for section in ("about_your_file", "asked"):
+        entries = document[section] if section in document else None
+        if isinstance(entries, list):
+            for entry in entries:
+                if isinstance(entry, dict) and "answers_you_can_give" in entry:
+                    found += [(section, entry)]
+    checklist = document["checklist"] if "checklist" in document else None
+    listed = checklist["columns"] if isinstance(checklist, dict) and "columns" in checklist else None
+    if isinstance(listed, list):
+        for entry in listed:
+            if isinstance(entry, dict) and "answers_you_can_give" in entry:
+                found += [("checklist", entry)]
+    before = document["answered_before"] if "answered_before" in document else None
+    if isinstance(before, list):
+        for entry in before:
+            if isinstance(entry, dict) and "answers_you_can_give" in entry:
+                found += [("answered_before", entry)]
+    return found
+
+
+def _answers_folded(document: "dict[str, object]") -> None:
+    """Each written answer that is an offered one but for its capitals, spaces or quotation marks, written as offered.
+
+    Lane EZ-a, plan P4-D479 (the walkthrough's item 16: `Yes` was refused).
+    An answer offered by no entry is left as written, for
+    `asking.answers_in` to refuse in its own words. Changes the document in
+    place. Raises nothing.
+    """
+    for _section, entry in answer_entries(document):
+        written = entry["your_answer"] if "your_answer" in entry else None
+        if not isinstance(written, str) or not parsing.trimmed(written):
+            continue
+        offered = _offered_words(entry)
+        found = _answer_offered(written, offered)
+        if found and found != written:
+            entry["your_answer"] = found
+
+
+def open_questions(document: "dict[str, object]") -> "list[tuple[str, dict[object, object]]]":
+    """The questions a questions file holds open, each with its section, numbered by their order here (lane EZ-a).
+
+    Every entry of `about_your_file`, `asked` and the checklist that offers
+    answers and holds none, in the file's order. ITS ORDER IS THE ONE
+    NUMBERING: the later rounds at the keyboard and the closing lines print
+    that place beside each question (`question_number`), and a plain-text
+    answers file reads it back only for a question about the file. Raises
+    nothing.
+    """
+    found: "list[tuple[str, dict[object, object]]]" = []
+    for section, entry in answer_entries(document):
+        if section == "answered_before":
+            continue
+        written = entry["your_answer"] if "your_answer" in entry else ""
+        if isinstance(written, str) and parsing.trimmed(written):
+            continue
+        found += [(section, entry)]
+    return found
+
+
+def question_number(document: "dict[str, object]", entry: "dict[object, object]") -> int:
+    """The number a question goes by on the screen and in a plain-text answers file; 0 where it is not open.
+
+    Lane EZ-a's repair (the orchestrator's LANE EZ RULINGS 4 (2) (a)): the
+    entry's place, from 1, among every question the file holds open at
+    this moment (`open_questions`), the entry found by itself. The later
+    rounds print it beside each question, so the number a person reads on
+    the screen names the question the screen showed. Measured before this
+    on a table of 20,000 rows: the round printed its own count, 'Question 1
+    of 2', for the first open checklist entry, the text line `1 = code`
+    landed on the patient number's open question, and 1,000 of 1,000 real
+    patient numbers were published and written to the twin. SINCE LANE
+    EZ-a'S SECOND REPAIR (Codex's items 2 and 3) a text answers file reads
+    the number back for a question about the file alone; a question about
+    a column is answered by the column's exact name (`_line_targets`).
+    Raises nothing.
+    """
+    found = open_questions(document)
+    for place in range(len(found)):
+        if found[place][1] is entry:
+            return place + 1
+    return 0
+
+
+def _named_by(entry: "dict[object, object]") -> str:
+    """What an entry names: its column, or what a question about the file asks about."""
+    name = entry["column"] if "column" in entry else ""
+    return name if isinstance(name, str) else ""
+
+
+def _numbered(name: str) -> "tuple[int, str]":
+    """A text line's name read as a question's number and the column after it: (7, 'dx') for '7 dx', (7, '') for '7'.
+
+    (0, '') where the name does not open with figures followed by a space
+    or nothing more.
+    """
+    cut = 0
+    while cut < len(name) and name[cut] in "0123456789":
+        cut = cut + 1
+    if cut == 0 or len(name[:cut]) > 6:
+        return (0, "")
+    if cut == len(name):
+        return (int(name), "")
+    if name[cut] not in " \t":
+        return (0, "")
+    return (int(name[:cut]), _answer_word(name[cut:]))
+
+
+# The words the question about values that read as dates says it saw
+# (`asking.SAFE_HARBOR_DATES_SEEN`, mirrored here because this module
+# imports nothing that reaches the reader; the suite compares the two):
+# its answers are the age or ZIP question's own, `no` and `yes`, so these
+# words are what tells the two questions about one column apart.
+_SAFE_HARBOR_DATES_SEEN = "beside its other values, read as dates"
+
+
+def _question_key(entry: "dict[object, object]") -> "tuple[tuple[str, ...], bool]":
+    """What tells one question about a column from another in the file: the answers it offers, and whether it asks about values that read as dates."""
+    saw = entry["what_synthtwin_saw"] if "what_synthtwin_saw" in entry else ""
+    return (tuple(sorted(_offered_words(entry))), isinstance(saw, str) and _SAFE_HARBOR_DATES_SEEN in saw)
+
+
+def _kept_answer(entry: "dict[object, object]") -> str:
+    """The answer a kept entry holds: its `your_answer`, else the reading it names, in the form its question offers it; empty for none."""
+    written = entry["your_answer"] if "your_answer" in entry else ""
+    if not isinstance(written, str) or not parsing.trimmed(written):
+        written = entry["read_as_now"] if "read_as_now" in entry else ""
+    if not isinstance(written, str) or not parsing.trimmed(written):
+        return ""
+    return _answer_offered(written, _offered_words(entry))
+
+
+def _line_targets(
+    pool: "list[dict[object, object]]",
+    opened: int,
+    held_as: "list[str]",
+    asked: "list[tuple[str, dict[object, object]]]",
+    name: str,
+    word: str,
+    shown: str,
+    line_number: int,
+) -> "tuple[list[int], bool]":
+    """The entries one text line answers, by their place in ``pool``, and whether it changes the answer of the first; or a refusal.
+
+    ``pool`` holds the questions the file holds open, numbered as
+    `open_questions` numbers them (its first ``opened`` places), then the
+    answers it keeps under `answered_before`, whose answers as the file
+    wrote them are ``held_as``. THE LINE BINDS TO THE QUESTION IT WAS
+    WRITTEN FOR AND TO NO OTHER (lane EZ-a's second repair; the
+    orchestrator's LANE EZ RULINGS 7, Codex's items 2, 3 and 7):
+
+    - THE COLUMN IS NAMED EXACTLY: `ID` and `id` are two columns, and a
+      name the file writes only with other capitals is refused, naming
+      the column the file writes, never matched to it.
+    - A line that says again an answer the file keeps about that column
+      answers that kept answer and no other question: a question opened
+      since about the same column (the age or ZIP question answered `no`,
+      then the question about values that read as dates) stays open.
+    - Otherwise the one question about the column that takes the answer;
+      where two take it, the line is refused as ambiguous, and never
+      settled by which comes first. An open question and the kept answer
+      of the same question (one column, the same answers offered) are one.
+    - THE NUMBERS THE SCREEN PRINTS ARE NOT READ BACK for a question about
+      a column (Codex's items 2 and 3; the numbered form failed two
+      reviews): a line opening with a number and a column is refused. A
+      number alone answers only a question about the file, and only the
+      open question of that number, which must offer the answer.
+    """
+    named = [place for place in range(len(pool)) if _named_by(pool[place]) == name]
+    number, column = _numbered(name)
+    if not named and number and column:
+        raise errors.ProfileError(errors.answers_line_numbered(shown, line_number, number, column))
+    if not named and number:
+        if number > opened:
+            raise errors.ProfileError(errors.answers_line_number_not_there(shown, line_number, number))
+        if asked[number - 1][0] != "about_your_file":
+            raise errors.ProfileError(
+                errors.answers_line_number_alone(shown, line_number, number, _named_by(pool[number - 1]))
+            )
+        subject = _named_by(pool[number - 1])
+        named = [number - 1] + [
+            place for place in range(opened, len(pool)) if _named_by(pool[place]) == subject
+        ]
+    if not named:
+        folded = parsing.folded(name)
+        written: "list[str]" = []
+        for entry in pool:
+            if parsing.folded(_named_by(entry)) == folded and _named_by(entry) not in written:
+                written += [_named_by(entry)]
+        if written:
+            raise errors.ProfileError(errors.answers_line_capitals(shown, line_number, name, written))
+        raise errors.ProfileError(errors.answers_line_names_nothing(shown, line_number, name))
+    offered_as: "list[str]" = [_answer_offered(word, _offered_words(pool[place])) for place in named]
+    replayed = [
+        named[at] for at in range(len(named))
+        if named[at] >= opened and offered_as[at] and offered_as[at] == held_as[named[at] - opened]
+    ]
+    if replayed:
+        return replayed, False
+    taking = [named[at] for at in range(len(named)) if offered_as[at]]
+    if not taking:
+        offered: "list[str]" = []
+        for place in named:
+            for one in _offered_words(pool[place]):
+                if one not in offered:
+                    offered += [one]
+        raise errors.ProfileError(errors.answers_line_not_offered(shown, line_number, name, offered))
+    still_open = [place for place in taking if place < opened]
+    if len(still_open) == 1 and [
+        place for place in taking
+        if place >= opened and _question_key(pool[place]) != _question_key(pool[still_open[0]])
+    ] == []:
+        return still_open, True
+    if len(taking) == 1:
+        return taking, True
+    which: "list[str]" = []
+    for place in taking:
+        if place < opened:
+            which += [f"question {place + 1}"]
+        elif "the answer the file keeps for it" not in which:
+            which += ["the answer the file keeps for it"]
+    raise errors.ProfileError(errors.answers_line_asks_twice(shown, line_number, name, which))
+
+
+def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "dict[str, object]":
+    """A plain-text answers file, `column = answer` a line, filled into the questions file beside the table.
+
+    Lane EZ-a, plan P4-D479 (the walkthrough's item 4). Lines opening with
+    `#` and blank lines are skipped; spaces and straight or curly quotation
+    marks around a name or an answer are not read, nor the capitals of an
+    answer. A line names a column exactly as the questions file writes it,
+    or the subject of a question about the file; a number alone names an
+    open question about the file. A line naming no open question is
+    matched against the answers the file keeps (`answered_before`), so the
+    same text file handed back a second time answers the same questions
+    (`_line_targets` says how a line binds). Every refusal names the line
+    and the column it named, and quotes no answer written there. Returns
+    the questions file's document with the answers written in, for
+    `asking.answers_in` to read as it reads any other.
+
+    ONE QUESTION, ONE LINE (lane EZ-a's second repair; Codex's item 7): two
+    lines that answer one question are refused, naming both lines, whether
+    the question is open or an answer the file keeps: `id = identifier`
+    then `id = code` about a kept `identifier` took the last before this.
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: an answers file's text was not text")
+    beside = pathlib.Path(validate_local_path(questions_beside, purpose="questions file"))
+    beside_shown = f"{beside}"
+    if not beside.is_file():
+        raise errors.ProfileError(errors.answers_text_without_questions(shown, beside_shown))
+    document = _answers_document(_answers_text(beside, beside_shown), beside_shown)
+    asked = open_questions(document)
+    kept = [entry for section, entry in answer_entries(document) if section == "answered_before"]
+    pool: "list[dict[object, object]]" = [entry for _section, entry in asked] + kept
+    held_as = [_kept_answer(entry) for entry in kept]
+    bound: "dict[int, int]" = {}
+    line_number = 0
+    for raw in text.split("\n"):
+        line_number = line_number + 1
+        line = parsing.trimmed(raw)
+        if not line or line[0] == "#":
+            continue
+        cut = len(line) - 1
+        while cut >= 0 and line[cut] != "=":
+            cut = cut - 1
+        name = _answer_word(line[:cut]) if cut > 0 else ""
+        word = _answer_word(line[cut + 1 :]) if cut > 0 else ""
+        if not name or not word:
+            raise errors.ProfileError(errors.answers_line_not_understood(shown, line_number))
+        targets, changes = _line_targets(pool, len(asked), held_as, asked, name, word, shown, line_number)
+        # ...and an open question and the kept answer of the same question
+        # (one column, the same answers offered) are one question here too:
+        # a line saying a kept answer again, then a line answering its open
+        # question otherwise, is two lines for one question.
+        about = _named_by(pool[targets[0]])
+        keys = [_question_key(pool[place]) for place in targets]
+        marks = [place for place in range(len(pool)) if _named_by(pool[place]) == about and _question_key(pool[place]) in keys]
+        for place in marks:
+            if place in bound:
+                raise errors.ProfileError(errors.answers_line_answers_again(shown, line_number, name, bound[place]))
+        for place in marks:
+            bound[place] = line_number
+        if changes:
+            entry = pool[targets[0]]
+            entry["your_answer"] = _answer_offered(word, _offered_words(entry))
+    return document
 
 
 def _answers_mapping(
