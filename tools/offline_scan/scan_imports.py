@@ -977,6 +977,14 @@ _PATIENT_MODULES = (
     "synthtwin.chain_check",
     "synthtwin.patient_layer",
     "synthtwin.patient_rules",
+    # ...and the patient layer's generator (lane GRb, plan P4-D465): the
+    # top band's excess split and the derived columns' close read edges and
+    # sums exactly, as the producer read them.
+    "synthtwin.patient_walk",
+    # ...and the counting process (lane GRb2-b, plan P4-D491 part b): its
+    # rules read the start and stop readings exactly, its published edges are
+    # rungs read exactly, and its person-time is an exact sum rounded.
+    "synthtwin.patient_intervals",
 )
 
 # `zlib` belongs to the module that holds the twin's finished columns

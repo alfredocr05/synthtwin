@@ -143,8 +143,13 @@ def test_the_implementation_and_the_oracle_choose_the_same_grid(
             table = fixtures.write(
                 tmp_path, f"{stem}.csv", fixtures.single_column_table("v", cells)
             )
-            assert _exit_of(["profile", str(table), "--out-dir", str(tmp_path),
-                             "--smallest-group", floor]) == 0
+            # One column described at two floors under two names: each as on
+            # a computer of its own (plan P4-D464; `fixtures.another_installation`).
+            # (Its data folder outside the table's folder and the output's,
+            # which the command refuses to hold the key: lane CHON's repair 1.)
+            with fixtures.another_installation(tmp_path.parent / f"{tmp_path.name}-{stem}-installation"):
+                assert _exit_of(["profile", str(table), "--out-dir", str(tmp_path),
+                                 "--smallest-group", floor]) == 0
             path = tmp_path / f"{stem}-profile.json"
             document = json.loads(path.read_text(encoding="utf-8"))
             block = document["columns"][0]

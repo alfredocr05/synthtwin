@@ -37,6 +37,7 @@ import importlib.util
 import io
 import json
 import pathlib
+import random
 
 import pytest
 
@@ -85,13 +86,16 @@ class Described:
     inference: "chain_order.Inference | None"
 
 
-def _describe(tmp_path: pathlib.Path, header: "tuple[str, ...]", rows: "list[list[str]]", name: str, person: "list[str] | None" = None, patch: "dict[str, dict[str, object]] | None" = None) -> Described:
-    """Profile an invented table and describe it with the chain's switch, keeping the inference."""
+def _describe(tmp_path: pathlib.Path, header: "tuple[str, ...]", rows: "list[list[str]]", name: str, person: "list[str] | None" = None, patch: "dict[str, dict[str, object]] | None" = None, harbor_no: "tuple[str, ...]" = ()) -> Described:
+    """Profile an invented table and describe it with the chain's switch, keeping the inference.
+
+    ``harbor_no`` names the columns answered `no` to their Safe Harbor question, as the command passes them.
+    """
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     tmp_path.mkdir(parents=True, exist_ok=True)
     path = fixtures.write(tmp_path, f"{name}.csv", events.as_text(header, rows))
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
-    document = profile.build_document(table, settings, [], [], [])
+    document = profile.build_document(table, settings, [], [], [], safe_harbor_no=list(harbor_no))
     if person:
         written = json.loads(json.dumps(document))
         written["settings"]["person_columns"] = person
@@ -1012,6 +1016,42 @@ def test_a_stamp_in_another_zone_or_to_fewer_figures_than_its_input_is_not_compu
     _loaded, text, _path = _twin(tmp_path / "coarser", coarser)
     acked = [cell for cell in _column(text, "acked_at") if cell]
     assert acked and all(len(cell.split(".")[-1]) == 3 for cell in acked)
+
+
+def _listed_total_rows(rows: int) -> "list[list[str]]":
+    """Two scores of 1 to 5 and their total, the total written 999 (a code) on about one row in seventeen.
+
+    Invented: the zoo's survey export's shape (`tests/health_zoo.py`'s `surveys`), the first score left out so
+    that nothing but the second can carry the total.
+    """
+    draw = random.Random(17)
+    out: "list[list[str]]" = []
+    for _row in range(rows):
+        first = draw.randint(1, 5)
+        second = draw.randint(1, 5)
+        out += [[f"{second}", f"{first + second}" if draw.random() > 0.06 else "999"]]
+    return out
+
+
+def test_a_column_whose_own_numbers_are_listed_is_not_computed(tmp_path):
+    """MR.7's item ADDED 2026-11-16 (batch 4u's checks, the orchestrator's ruling on the zoo's survey export).
+    A column whose own numbers its block lists (lane GG's `few_values`, plan P4-D440: few numbers with a wide
+    gap among them, here a total of two scores, 2 to 10, beside its code 999, answered `no` to its Safe Harbor
+    question) is written by the twin at exactly those numbers; computed from one score it was written
+    `A + D` at sums off its list, and on the zoo's survey export at 20,000 rows on 421 different values
+    against its ten, no cell holding the code. It is NOT WORTH computing, and its twin writes its own numbers,
+    the code among them (MUTANT: the item removed, red: carried, the twin writes sums off the list)."""
+    listed = {f"{total}" for total in range(2, 11)} | {"999"}
+    described = _describe(tmp_path, ("score", "total"), _listed_total_rows(3000), "listed", harbor_no=("score", "total"))
+    blocks = {f"{block['name']}": block for block in described.document["columns"]}  # type: ignore[union-attr]
+    assert set(blocks["total"]["few_values"]) == listed  # type: ignore[arg-type]
+    _loaded, text, _path = _twin(tmp_path, described)
+    written = {cell for cell in _column(text, "total") if cell}
+    assert "999" in written and written <= listed, (len(written), sorted(written - listed)[:5])
+    assert not [one for one in _carried(described) if one["computed"] == "total"]
+    rule = _rule(described, "total", "score")
+    reason = "B's own numbers are listed: computing it would write sums off its list"
+    assert rule is not None and rule.why == reason, rule.why if rule is not None else None
 
 
 def test_the_inferences_held_bytes_count_what_is_held():

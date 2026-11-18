@@ -1871,6 +1871,22 @@ class ChainRule:
 
 
 @dataclasses.dataclass(frozen=True)
+class PatientLine:
+    """One V12.7 line of the patient layer that is neither a column's totals nor a family (lane GRb, plan P4-D465).
+
+    ``kind`` is `trend`, `positions` or `fixed rows`; ``subject`` names the
+    published object in the description's own words; ``verdict`` HELD or
+    MISSED, WITHHELD where V12.3 lets no verdict stand (``reason`` its fixed
+    words). No measured number is held here.
+    """
+
+    kind: str
+    subject: str
+    verdict: str
+    reason: str = ""
+
+
+@dataclasses.dataclass(frozen=True)
 class ChainLines:
     """Every V12 line of one switched run (`chain_validation.lines_of`), and their census."""
 
@@ -1887,6 +1903,8 @@ class ChainLines:
     not_judged: int = 0
     # The carried rules' lines (V12.2's two rows; lane RO, plan P4-D459).
     rules: "tuple[ChainRule, ...]" = ()
+    # The patient layer's own lines (V12.7; lane GRb, plan P4-D465).
+    patient: "tuple[PatientLine, ...]" = ()
 
 
 # -- V2.2: the settings the file is re-described under ----------------
@@ -5634,6 +5652,10 @@ def measure(
         raise errors.ProfileError(
             errors.checked_clocks_described_as_numbers(shown, clocked)
         )
+    # The blocks counted in patients and the file's patient view (batch 4u's
+    # merge of lane GRb): empty and None unless `grain` stands, below.
+    in_patients: "tuple[str, ...]" = ()
+    patients_view: "tuple[reading.Table, dict[str, object], dict[str, object]] | None" = None
     try:
         declared = _declared_here(description, table)
         declared_codes = _declared_codes_here(description, table)
@@ -5720,48 +5742,52 @@ def measure(
         # obligations unevaluated. Nothing about the file may decide
         # which of its own checks run, so nothing about the file decides
         # which of these is built.
-        redescribed = profile.build_document(
-            table,
-            settings_for(description),
-            declared,
-            declared_codes,
-            declared_measured,
-            declared_commas,
-            True,
-            described_pairs,
-            kept_placeholder_days=kept_days,
-            judged_candidates=judged_here,
-            # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
-            # 3b.1): `_weekday_checks` counts the file's body against the
-            # PUBLISHED groups, so producing one would be paid for a
-            # census nothing reads.
-            calendar_censuses=False,
-            # -- 3b.R4 (P4-D384): a column of counted dates read at the
-            # precision its description published.
-            counted_units=counted_units(description),
-            described_affixed=described_affixed,
-            described_labels=described_labels,
-            # -- P4-D417: a column of dates or times described at the grain
-            # its description published, the tails pooled into its ends.
-            time_grains=time_grains,
-            rules_published=rules,
-            dated_held=dated_held,
-            absent_read=absent_read,
-            top_coded_only=top_coded,
-            top_pooled_only=top_pooled,
-            top_words_only=top_words,
-            top_ends_only=top_ends,
-            year_top_coded_only=years_coded,
-            top_banded_only=top_banded,
-            # -- P4-D453: a column with its pool counted in people is read by
-            # its published levels, every other label pooled; a column counted
-            # absent is read blank, the real file as the twin.
-            levels_kept_only=kept_levels,
-            counted_absent_only=absent_columns,
-            names_checked_only=names_checked,
-            described_text=described_text,
-            keyed_described=keyed_described,
-        )
+        def described_as_the_file(one: reading.Table) -> "dict[str, object]":
+            """The file's OWN description of ``one``, as `synthtwin profile` would write it (V2.1)."""
+            return profile.build_document(
+                one,
+                settings_for(description),
+                declared,
+                declared_codes,
+                declared_measured,
+                declared_commas,
+                True,
+                described_pairs,
+                kept_placeholder_days=kept_days,
+                judged_candidates=judged_here,
+                # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
+                # 3b.1): `_weekday_checks` counts the file's body against the
+                # PUBLISHED groups, so producing one would be paid for a
+                # census nothing reads.
+                calendar_censuses=False,
+                # -- 3b.R4 (P4-D384): a column of counted dates read at the
+                # precision its description published.
+                counted_units=counted_units(description),
+                described_affixed=described_affixed,
+                described_labels=described_labels,
+                # -- P4-D417: a column of dates or times described at the grain
+                # its description published, the tails pooled into its ends.
+                time_grains=time_grains,
+                rules_published=rules,
+                dated_held=dated_held,
+                absent_read=absent_read,
+                top_coded_only=top_coded,
+                top_pooled_only=top_pooled,
+                top_words_only=top_words,
+                top_ends_only=top_ends,
+                year_top_coded_only=years_coded,
+                top_banded_only=top_banded,
+                # -- P4-D453: a column with its pool counted in people is read by
+                # its published levels, every other label pooled; a column counted
+                # absent is read blank, the real file as the twin.
+                levels_kept_only=kept_levels,
+                counted_absent_only=absent_columns,
+                names_checked_only=names_checked,
+                described_text=described_text,
+                keyed_described=keyed_described,
+            )
+
+        redescribed = described_as_the_file(table)
         # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
         # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
         # W1 with the file's own-fact groups, and a periodic census (days
@@ -5800,43 +5826,91 @@ def measure(
                     described_text=described_text,
                     keyed_described=keyed_described,
                 )
+
+        def described_over_the_split(one: reading.Table) -> "dict[str, object]":
+            """The same producer over ``one``'s cells with absence pinned to blankness (V2.4)."""
+            return profile.build_document(
+                one,
+                settings_over_the_split(description),
+                declared,
+                declared_codes,
+                declared_measured,
+                declared_commas,
+                True,
+                described_pairs,
+                kept_placeholder_days=kept_days,
+                judged_candidates=judged_here,
+                # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
+                # 3b.1): `_weekday_checks` counts the file's body against the
+                # PUBLISHED groups, so producing one would be paid for a
+                # census nothing reads.
+                calendar_censuses=False,
+                # -- 3b.R4 (P4-D384): a column of counted dates read at the
+                # precision its description published.
+                counted_units=counted_units(description),
+                described_affixed=described_affixed,
+                described_labels=described_labels,
+                time_grains=time_grains,
+                rules_published=rules,
+                dated_held=dated_held,
+                top_coded_only=top_coded,
+                top_pooled_only=top_pooled,
+                top_words_only=top_words,
+                top_ends_only=top_ends,
+                year_top_coded_only=years_coded,
+                top_banded_only=top_banded,
+                levels_kept_only=kept_levels,
+                counted_absent_only=absent_columns,
+                names_checked_only=names_checked,
+                described_text=described_text,
+                keyed_described=keyed_described,
+            )
+
+        rows_table = table
         table = _at_their_grains(table, time_grains, description, absent_read)
-        over_the_split = profile.build_document(
-            table,
-            settings_over_the_split(description),
-            declared,
-            declared_codes,
-            declared_measured,
-            declared_commas,
-            True,
-            described_pairs,
-            kept_placeholder_days=kept_days,
-            judged_candidates=judged_here,
-            # THE FILE'S WEEKDAY CENSUS IS NEVER PRODUCED HERE (landing
-            # 3b.1): `_weekday_checks` counts the file's body against the
-            # PUBLISHED groups, so producing one would be paid for a
-            # census nothing reads.
-            calendar_censuses=False,
-            # -- 3b.R4 (P4-D384): a column of counted dates read at the
-            # precision its description published.
-            counted_units=counted_units(description),
-            described_affixed=described_affixed,
-            described_labels=described_labels,
-            time_grains=time_grains,
-            rules_published=rules,
-            dated_held=dated_held,
-            top_coded_only=top_coded,
-            top_pooled_only=top_pooled,
-            top_words_only=top_words,
-            top_ends_only=top_ends,
-            year_top_coded_only=years_coded,
-            top_banded_only=top_banded,
-            levels_kept_only=kept_levels,
-            counted_absent_only=absent_columns,
-            names_checked_only=names_checked,
-            described_text=described_text,
-            keyed_described=keyed_described,
-        )
+        over_the_split = described_over_the_split(table)
+        # THE BLOCKS COUNTED IN PATIENTS, CHECKED OVER THE FILE'S PATIENTS
+        # (batch 4u's merge of lane GRb, plan P4-D465; contract 4.6c.3 (b)):
+        # where `grain` stands the loader reads the person column and each
+        # patient-fixed column as the patient table's block, one row a
+        # patient (`contract.patient_counted`), so those blocks are checked
+        # on the file's patients: each patient's first position
+        # (`chain_validation.patients_first_rows`: its rows in the published
+        # position column's order, ties and absent readings by row order,
+        # as the producer and V12.7's lines read them; batch 4u's outside
+        # review, item 3), every column kept at its place and described by
+        # the same two descriptions as the file. Read on the file's rows
+        # instead, the shipped command's twin of every table of several
+        # rows a person missed the person column's presence, forms and
+        # repetition, and each patient-fixed column's counts, against
+        # blocks that count patients; read on each patient's first stored
+        # row, a table whose visits stand newest first missed its own
+        # patient-fixed counts.
+        in_patients = contract.patient_counted(description.relationships.grain)
+        if in_patients:
+            from synthtwin import chain_validation
+
+            positions: "list[object] | None" = None
+            if chain_document is not None:
+                positions = chain_validation.position_readings(
+                    chain_document,
+                    table,
+                    redescribed,
+                    settings_for(description),
+                    declared_codes,
+                    declared_measured,
+                    declared_commas,
+                    profile.stored_as_of(table, settings_for(description)),
+                )
+            first = chain_validation.patients_first_rows(rows_table, redescribed, in_patients[0], positions)
+            if first is not None:
+                patients_table = _rows_only(rows_table, first)
+                patients_grained = _at_their_grains(patients_table, time_grains, description, absent_read)
+                patients_view = (
+                    patients_grained,
+                    described_as_the_file(patients_table),
+                    described_over_the_split(patients_grained),
+                )
     except MemoryError as error:
         raise errors.ProfileError(
             errors.out_of_memory_while_describing(shown)
@@ -5897,6 +5971,11 @@ def measure(
         # sentence saying why, as one decision, the description unchanged.
         elif held_written_blank(column):
             why = _NOT_CHECKABLE_HELD_WRITTEN_BLANK
+        if not why and patients_view is not None and column.name in in_patients:
+            checks = checks + _column_checks(
+                description, column, patients_view[0], patients_view[1], patients_view[2], headed
+            )
+            continue
         if not why:
             checks = checks + _column_checks(
                 description, column, table, redescribed, over_the_split, headed
@@ -5929,6 +6008,31 @@ def measure(
     if lines is None:
         return outcome
     return chain_validation.with_lines(outcome, lines)
+
+
+def _rows_only(table: reading.Table, rows: "list[int]") -> reading.Table:
+    """The table on the rows named, in that order, every column kept at its place (batch 4u's merge of lane GRb).
+
+    Each column is asked of the table once (`reading.column_values`), so a
+    table read in groups hands its columns over one at a time; the rows come
+    back as a table read whole, with the reading's encoding and header and
+    no form, workbook or source of its own, as the profile's patient table is
+    built (`patient_layer`). A function of the two. Raises nothing. No I/O
+    beyond the reading `reading.column_values` does.
+    """
+    columns: "list[list[str]]" = []
+    for place in range(len(table.column_names)):
+        values = reading.column_values(table, place)
+        columns += [[values[row] for row in rows]]
+    return reading.Table(
+        column_names=list(table.column_names),
+        columns=columns,
+        n_rows=len(rows),
+        encoding=table.encoding,
+        used_fallback_encoding=table.used_fallback_encoding,
+        header_source=table.header_source,
+        header_evidence=table.header_evidence,
+    )
 
 
 def _at_their_grains(

@@ -867,6 +867,7 @@ def test_every_program_file_must_be_signed_by_an_allowed_signer() -> None:
         {"Path": "C:\\x\\python314.dll", "Status": "Valid", "Signer": psf},
         {"Path": "C:\\x\\vcruntime140.dll", "Status": "Valid", "Signer": microsoft},
         {"Path": "C:\\x\\python-3.14.9-amd64.exe", "Status": "Valid", "Signer": psf},
+        {"Path": "C:\\x\\vcruntime140_1.dll", "Status": "Valid", "Signer": "CN=Microsoft Windows Software Compatibility Publisher, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"},
     ]
     expected = ["python.exe", "python314.dll", "python-3.14.9-amd64.exe"]
     assert PYTHON.signature_problems(records, expected) == []

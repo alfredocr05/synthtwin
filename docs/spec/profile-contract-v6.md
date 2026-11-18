@@ -3825,6 +3825,19 @@ which all eight are null. No cross-column fact enters this version: not
 a correlation, not a formula between two columns, not a shared pattern
 of empty cells, not the order of two event dates.
 
+*Amended Monday 2026-11-09 (the landing that ships stage 6, plan P4-D464; lane
+CHON):* S12's third sentence is replaced by "every value but
+`statistical` and `grain` is exactly `null`; each of those two is
+`null` or the object its section specifies" (4.6b, 4.6c, and 4.6d for
+`statistical.moments`). The loader refuses any non-null content in the
+six other keys, naming the key, in the words above. Version 6 is
+extended in place (A-P4-41): `profile_version` stays 6, and a
+description whose `statistical` and `grain` are `null` loads and
+generates exactly as before. This paragraph's "this version preserves
+no cross-column structure" holds of such a description alone; until
+lane GRb's generator reads the patient layer, no shipped description
+publishes `grain` (4.6c's amendment of this date).
+
 ### 4.6b `relationships.statistical` — the chain of floored family tables (specified for stage 6, plan P4-D407; NOT IN FORCE)
 
 **THIS SECTION DESCRIBES A SLOT NO BUILT SYNTHTWIN FILLS.** It is the
@@ -3841,6 +3854,24 @@ section specifies", amends section 9.1's `relationships` row to point
 here (4.6b.12), and extends version 6 in place (A-P4-41): a description
 whose `statistical` is `null` loads and generates exactly as before.
 Nothing in this section is a claim about what any twin carries today.
+
+*Amended Monday 2026-11-09 (plan P4-D464; lane CHON): THE LANDING HAS SHIPPED.* The
+sentence above is passed: S12's third sentence is replaced as it says,
+section 9.1's `relationships` row points here (4.6b.12), and version 6
+is extended in place (A-P4-41). Every `synthtwin profile` run is
+switched -- the installation's key, record and lock of 4.6b.4, the rule
+steps of 4.6b.7 on, the holds of 4.6c.12 and of the subject question
+shipped as built -- `synthtwin generate` loads the chain and
+`synthtwin validate` checks it (validation method `V12`). Only an
+internal setting that no option or environment variable reaches runs a
+command without the switch, for the tests that pin that path. A table
+whose chain no hold keeps back publishes it; a SIZE GUARD sized by the
+WHOLE RUN (4.6b.13, stated limit 4, amended Tuesday 2026-11-10) draws
+the chain over fewer columns, those whose pairs carry the most
+dependence, where the whole chain would take the projected run past
+its time or memory, and draws none only where not even two columns fit;
+and while the generator reads no patient layer, `grain` stays `null` on
+every shipped description (4.6c's amendment of this date).
 
 **What it replaces.** The held page of plan P4-D394 (a section 4.6a
 publishing every pair's table, a forest and a latent matrix; held at
@@ -3910,6 +3941,15 @@ published facts (4.6b.9 (b), inventory row 34):
   plan P4-D487): each row's value is a measurement of its key's kind,
   written from its key's block, so the column is no one distribution;
   its key column stays a candidate.
+
+*Amended Tuesday 2026-11-10 (plan P4-D464; lane CHON, LANE CHON
+RULINGS 2):* one reason more, `size`: an eligible column the size
+guard's DEGRADED CHAIN is not drawn over (4.6b.13, stated limit 4). It
+is carried on its own, named in `ineligible` like the others and named
+by the twin's shared report (4.6b.8). Unlike the reasons above it is not
+a function of the column's own facts alone: it is the guard's choice,
+read off the screen codes of the self-test's sample by the rule stated
+there, as the triple screen's seeds are; it publishes no count.
 
 A DERIVED column (4.6b.7) is made by the profiler, not read from the
 table: it is not a candidate, has no `ladder` entry, stands in no family
@@ -4497,6 +4537,28 @@ shared report or the private report; the private report names only the
 key file's path. The tests use a fixed test key, and no fixture's
 expected output depends on any other.
 
+*Amended Monday 2026-11-09 (plan P4-D464; LANE CHON RULINGS 1 (3) and (4)): WHEN THE
+KEY IS MADE.* "Made by the first `synthtwin profile` on the
+installation" reads: made by the first `synthtwin profile` run on the
+installation THAT REACHES THE CHAIN, after the table floor, the paths
+and the reader. The installation is read, and locked where its folder
+stands, before the table is read, so every refusal below that is
+"before anything is read" still is; but no folder, key or lock file is
+made before the run reaches the chain, so a run refused before it
+leaves no new key, folder or ledger entry. Each refusal and warning of
+this section is printed in its words on the screen alone, never in a
+file; a refused run writes nothing and exits with status 1. THE WALK
+OF THE QUESTIONS (LANE CHON RULINGS 1 (2), option (a): this section's
+refusals as written): a round a hold keeps at `null` (the subject
+question of 4.6c.12 open, or the person question before it) says on the
+screen, before anything is shared, which question waits and in which
+file, and that the answered run, where it publishes between columns,
+will be refused unless this description was never shared and
+`--replace-description` is given; that run is told, before the refusal
+above, that it is the one after a round a question held. A table whose
+chain stays off in every round, or is published in its first, meets no
+change.
+
 **The key's FINGERPRINT** is keyed BLAKE2b of the bytes `b"key
 fingerprint"` under the key, `digest_size=8`,
 `person=b"synthtwin.kfp.1"`: a domain no draw word uses, so a
@@ -5045,7 +5107,10 @@ role sections to allow `null`, `{}` and `[]` there on a column
 `ineligible` as `computed`, and nowhere else, and waives on it every
 invariant that reads a withheld key, among them P1 and P3
 (`numeric_styles`), D13 (`datetime_separators`), SF3 (`shape_forms`),
-and LF3 and LF4 (`layout_forms`). `synthtwin validate` prints none of
+and LF3 and LF4 (`layout_forms`). *Amended Monday 2026-11-09 (plan
+P4-D464): that landing leaves section 5.1's text to lane RD (computed
+columns); the loader reads such a column under this waiver
+(`contract.computed_columns`) on every shipped load.* `synthtwin validate` prints none of
 its counts (validation method `V12.3`). Its absent cells are withheld
 with the rest: with `A`'s absent cells and `D`'s present rows
 published, the count of `B`'s absent cells would fix the rows where `A`
@@ -5937,6 +6002,16 @@ lane RO builds the list as written, nothing more):
   column sets would be lost (MEASURED on lane RO's build: the battery's
   survival table's event date, present exactly where the status is not
   `censored`, came back present on 57.4 per cent of censored rows);
+- `B`'s own numbers are listed: its block carries `few_values` (lane GG,
+  plan P4-D440: few numbers with a wide gap among them, a scale beside
+  its code, answered `no` to its Safe Harbor question), which the twin
+  writes exactly, and computed it would be written `A + D` at sums off
+  that list, its code among the lost (ADDED 2026-11-16, batch 4u's
+  checks, the orchestrator's ruling). MEASURED on the zoo's survey
+  export at 20,000 rows through the shipped command: a total of two
+  scores, 2 to 10 beside its code 999, computed from the second score,
+  was written on 421 different values against its ten, no cell holding
+  999; not computed, it keeps its ten;
 - it holds both ways, and computes the earlier column;
 - a formula rule computes the same column: **AMENDS the step order: ties by
   kind take `formula` first, then `order`**, since `units <= total` would
@@ -7218,6 +7293,30 @@ of 3, 1 of 4 and 0 of 3 of their estimates showing a relationship inside.
 The rule costs a count over a family's estimates, no second pass over the
 sample.
 
+*Amended Monday 2026-11-09 (the landing that ships stage 6, plan
+P4-D464; LANE ST RULINGS 2 (5), LANE CHON RULINGS 1 (8)): THE SHARED
+REPORT ON SHIPPED TWINS.* Once every description is made with the
+switch, one whose `statistical` and `grain` are `null` cannot be told
+from one an earlier version wrote, and 4.6b's opening promises that it
+generates exactly as before: the shipped `synthtwin generate` reads it
+as such (`contract.load_profile`'s shipped reading), so its twin's
+report keeps the independence paragraph and its heading word for word.
+The block "on a twin of a description made with the switch that
+publishes no chain" (amended 2026-11-05 above) stays the reading of a
+caller that names the switch (`load_profile(..., chain=True)`: the
+analyst battery, `K-BC-11` and the tests), and of a description where
+`grain` stands without a ladder. On a twin of a description that carries a chain, the section
+heading over the block reads "BETWEEN COLUMNS, AND TWO THINGS TRUE OF
+EVERY TWIN", and the block's own item 1 says what can be analysed (the
+words this lane's; lane CHc may refine them with the claim text). The private report's file is no file of the
+six a full run leaves beside the twin, and is never counted among them.
+*Amended Tuesday 2026-11-10 (plan P4-D464; LANE CHON RULINGS 2 (2)):*
+under the size guard's degraded chain (4.6b.13, stated limit 4) the
+block names, after the pairs, each column `ineligible` lists as `size`,
+as carried on its own (every relationship between it and any other
+column reads `N`); the screen and the private report say the same with
+the guard's projections. No count and no reason drawn from a cell.
+
 #### 4.6b.9 Why no small count can be worked out: the proofs
 
 Each argument below states what it proves, the reader it proves it for,
@@ -7952,6 +8051,9 @@ twin cell); no other key is added.
 
 #### 4.6b.12 Dispositions (in force with the landing that ships stage 6; until then section 9.1's `relationships` row stands)
 
+*In force since Monday 2026-11-09 (the landing that ships stage 6, plan P4-D464):*
+section 9.1's `relationships` row points here.
+
 | field | disposition | why |
 |---|---|---|
 | `procedure`, `ladder`, `chain[].parents`, `chain[].level`, `chain[].anchor`, `words`, `not_carried`, `ineligible`, `withheld`, `rules[].kind`, `rules[].computed`, `rules[].inputs`, `rules[].carrier` | LOADER-ONLY | they choose and name what is measured; checked on input (S23 to S28), owed by no twin |
@@ -7966,7 +8068,22 @@ twin cell); no other key is added.
 **Its size.** The ladder under 30 KB at 50 eligible columns; the chain 0.1
 to 2 MB of text at 200,000 rows and up to about 10 MB at 2,000,000
 (JUDGEMENT; the owner's delegated answer accepts a description of up to
-about 10 MB).
+about 10 MB). *(Amended Thursday 2026-11-12, plan P4-D464, LANE CHON
+RULINGS 6 (3), on the statistics check of the landing: the judgement
+above is passed by what the switched command writes. MEASURED on
+invented tables: the ladder of a 17-column table held 23,722 bytes, about
+1,400 bytes a column (about 70 KB at 50 eligible columns); the whole
+description of a 50-column numeric table 1.68 MB with each moment
+column's 24 partners and 2.33 MB with every partner at 20,000 rows, 2.54
+MB and 3.20 MB at 200,000 rows; the 302-column export of the health data
+zoo 10.3 MB at 20,000 rows with the 24 partners; a 50-column table of
+codes (47 columns taking part) 3.2 MB at 20,000 rows with every partner
+and 10.3 MB at 200,000 rows with the 24. PROJECTED: every partner
+adds about 523 bytes a moment entry, so the 302-column export with every
+partner would write about 54 MB, past the owner's "about 10 MB". Whether the
+partner rule of stated limit 4 is bounded by the description's size is
+the owner's call, stated in plan P4-D464 beside his question on every
+partner.)*
 
 #### 4.6b.13 What this section promises, and its stated limits
 
@@ -8004,6 +8121,51 @@ family), on one table and one seed, greedily and without the draw;
 with the screen's seeds of 4.6b.3 lane `A0c` measured 202 of 287, 3.8
 points. The 21.5 points at 100,000 rows above
 is the design probe's figure, measured without the second code.
+*Amended Thursday 2026-11-12 (plan P4-D464, LANE CHON RULINGS 6 (1)(B),
+on the statistics check of the landing that ships stage 6; invented
+tables at 20,000 rows through the shipped command):* where the chain
+draws, the shipped twin keeps far more than the twin built column by
+column (the battery's pooled share of estimates inside the yardstick
+0.610 against 0.419, a fresh sample 0.772, a shuffled twin 0.396), AND
+THE TWIN CAN SHOW A RELATIONSHIP THE TABLE DOES NOT HAVE: on a table whose
+columns are unrelated about one pair in seven tests as related on the
+twin (12.4 to 21.9 per cent of 105 pairs over four readings, median
+14.75) against one in twenty on the table itself (2.9 to 5.7) and on a
+fresh sample (1.9 to 4.8); on the battery's structured tables about 17 in
+100 of the table's non-significant effects come out significant on the
+twin (17.4 per cent of 413) against 9 on a fresh sample of the same
+patients (9.4) and 5 on the twin built column by column (5.3). The twin is
+for developing code and for effects that are really there: an effect it
+shows is checked on the table, and a negative finding is never read from
+it. `K-BC-03` stays OPEN with these numbers; the cause is the chain's
+generator (the polish), owned by lane CHG, whose measured words replace
+these once its fix lands.
+*Amended Wednesday 2026-11-11 (plan P4-D492, lane CHG): THE TWIN'S
+INVENTED ASSOCIATIONS.* With the chain switched on, the polish aimed at
+every published grouping moment, the table's chance pattern included, so
+on a table whose columns are unrelated the twin called about one pair in
+seven associated (a fresh sample of the same rows one in twenty). G16.3's
+grouping gate aims at a grouping moment only where the published facts
+show it beyond chance at the 0.001 level. Measured at 20,000 rows through
+the commands a person types (table seed 1, the lane's build): on that null
+table 6.7 and 9.5 per cent of pairs called associated (the head's twin
+22.9 and 13.3, fresh samples 1.9 and 4.8); on lane `E0b`'s ST1 and ST6,
+pooled, 0.628 of the joint estimates inside the half-split yardstick (the
+head 0.659, the gate's midpoint 0.582) and 19.9 per cent of the table's
+non-significant estimates significant on the twin (the head 22.3, a fresh
+sample 10.8). Restated Friday 2026-11-13 from the lane's repair 1, whose
+`K-BC-03` stamps read the tables at table seeds 1 to 3 by twin seeds 0 to
+2 through lane MU's current harness: the null table's share of pairs called associated 9.5, 9.5 and 5.7, then 5.7, 7.6 and 8.6, then 5.7, 3.8 and 9.5 per cent, a median of 7.6 and a largest of 9.5 (fresh samples' median 2.9); on the four structured cohorts of `K-BC-01`'s gain (ST1, ST3, ST4 and ST6) 0.585, 0.617 and 0.586 of the joint estimates inside the half-split yardstick at table seeds 1 to 3, against the gate's midpoints 0.569, 0.592 and 0.590; on ST1, ST4 and ST6 15.0, 14.0 and 16.1 per cent of the table's non-significant estimates significant on the twin, against 10.0, 9.9 and 10.6 on a fresh sample. Stated in plain
+words: on a table whose columns are unrelated, about one pair in thirteen tests as related on the twin, one in ten at the most (`K-BC-03`'s nine readings at table seeds 1 to 3 by twin seeds 0 to 2: a median of 7.6 per cent of the 105 pairs, the largest 9.5), against about one in thirty-five on a fresh sample of your patients (2.9) and about one in seven before the gate (13.3); on the battery's cohorts about 14 to 16 in 100 of your table's non-significant effects come out significant on the twin, against about 10 on a fresh sample (`K-BC-03`'s invented clause on ST1, ST4 and ST6: 15.0, 14.0 and 16.1 per cent at table seeds 1 to 3 against 10.0, 9.9 and 10.6, its bar of 2 points over a fresh sample not met), mostly interaction and curve terms of regression models (stated limit, owner part b of lane CHG); and about 60 in 100 of the battery's estimates on its four structured cohorts fall within a fresh sample's range (`K-BC-01`'s gain on ST1, ST3, ST4 and ST6: 0.600 over every table seed against 0.764 for a fresh sample and the gate's midpoint 0.585; by table seed 0.585, 0.617 and 0.586 against 0.569, 0.592 and 0.590, so the gain is kept at table seeds 1 and 2 and missed by half a point at table seed 3); a difference between groups in how widely a
+measurement spreads, with no difference in its average, is not
+reproduced; check such a difference on your table; and where the twin has
+to create the effect of a yes/no column that its chain does not carry,
+the effect's size after adjusting for other columns can come out a fifth
+to a third smaller on the twin (an exposure's effect on blood pressure 3.4
+against 4.0, on death 0.21 against 0.28): check such an effect on your
+table (both owner part b of lane CHG). Use the twin to develop your code
+and to see effects that are really there, check on your table any effect
+the twin shows, and never read a negative result from the twin.
 
 **Hours** (the ratification's hours line, re-priced by the statistics
 review of this page; JUDGEMENT): 2,000,000 x 50 described, generated
@@ -8073,6 +8235,98 @@ or C. R1, as the orchestrator read it on 2026-10-19, counts that as the
 group's own count; RULE W1 keeps every published band of every other
 column from being fixed for the group.
 
+**Stated limit 4 (THE SIZE GUARD, sized by the whole run; amended
+Tuesday 2026-11-10, plan P4-D464, LANE CHON RULINGS 2, the owner's
+priority order of 2026-11-10 and its amendment; it replaces the size
+guard of Monday 2026-11-09, which drew no chain past a fixed work).**
+The chain is drawn within the time and the memory a whole run is
+allowed, and a table whose whole chain does not fit keeps the strongest
+part of it, never nothing while two columns fit. Before the chain is
+drawn the command PROJECTS the run's CPU seconds, profile, generate and
+validate with the chain on, as
+
+`s(d) = ceil((r (c 325,812 + p(d) q) + 10^6 (c 522 + p(d) k)) / 10^9)`,
+`p(d) = d (d - 1) / 2`,
+
+where `r` is the table's rows, `c` its columns, `d` the columns the
+chain is drawn over, and `q` and `k` 14,377 and 640 with each moment
+column's 24 largest partners or 19,378 and 691 with every partner
+(nanoseconds a row, and milliseconds, a column of the table and a pair
+of the columns drawn): each a line `a + b r` FITTED through the whole
+run, profile, generate and validate, at 20,000 and 200,000 rows of lane
+CHs's shapes of 50 columns (MEASURED on the build machine, one process a
+step, plan P4-D464: the command without the chain 351.9 and 3,284.2 CPU
+seconds on the numeric shape, 156.1 and 1,462.9 on the code-heavy one,
+271.4 and 2,547.0 on the mixed one, where no column takes part;
+with the 24 partners 1,487.1 and 7,589.5 over the numeric shape's 1,225
+pairs, 571.9 and 3,353.2 over the code-heavy shape's 1,081; with every
+partner 1,672.8 and 8,877.8 on the numeric shape, 609.0 and 3,552.5 on
+the code-heavy one), each slope the
+largest of the shapes' and each intercept kept as a term, the largest,
+never below nought, so every measured run is projected from above.
+*(Amended Thursday 2026-11-12, plan P4-D464, LANE CHON RULINGS 6 (2), on
+the statistics check of the landing: until then each cost was one ratio
+through the origin, `s(d) = ceil(r (c 328,420 + p(d) q) / 10^9)` with `q`
+19,330 or 26,910, two of its three points taken at 20,000 rows where the
+fixed costs weigh most, so it projected 2,000,000 x 50 at 22.3 CPU hours
+with the 24 partners and 27.4 with every partner, where the fit projects
+19.1 and 22.5, and kept the 24 there.)* And the switched
+describe's peak as `m(d) = 157,286,400 + 25 r e + 65,536 p(d)` bytes,
+`e` below (each column that could take part is read and its codes held
+before the chain's columns are chosen; lane CHs's 2,610 MB at 2,000,000
+x 50, PROJECTED; the 302-column export of the health data zoo past
+2,561 MB at 20,000 rows, the chain's tables and the self-test's). The run is allowed
+`S` = 86,400 seconds (about 24 CPU hours: the owner's amended order of
+2026-11-10, an interim figure until he names the longest run he
+accepts) and `M` = 8,589,934,592 bytes (8 GB a process). With `e` the
+columns that could take part (4.6b.1's reasons read off the description,
+an upper bound of the eligible columns): the whole chain with every
+partner where `s(e)` with every partner is at most `S` and `m(e)` at
+most `M`; else the whole chain with the 24 partners where those fit;
+else THE DEGRADED CHAIN over the largest `d` from `e - 1` down to 2 that
+fits with the 24 partners; and where none does (the run without the
+chain takes the time already), no chain: the description is the plain
+one, the screen gives the projections, and the run past the allowance is
+the owner's call.
+
+THE DEGRADED CHAIN, where the eligible columns pass `d`: each pair of
+eligible columns is scored by Cramer's V squared over the two columns'
+screen codes (4.6b.3) on the self-test's sample (4.6b.14,
+`selftest_sample`): `(sum O^2 / (R C) - 1) / (k - 1)` over the cells of
+the pair's table holding rows, `O` a cell's rows, `R` and `C` the rows of
+its row and of its column, `k` the fewer of the two columns' codes holding rows
+(0 where `k` is below 2); the later column of the pair (in schema order)
+reads the rows of the table, the earlier its columns, the cells taken in
+code order (the later column's code times the earlier's code count, plus
+the earlier's code), each operation a correctly rounded binary64 one.
+The pairs are taken from the highest score down, ties to the pair whose
+later column stands first in the schema and then to the one whose
+earlier column does, each bringing in its columns not yet kept wherever
+the columns kept stay at most `d`; the input of every carried rule and
+every source carrier it names (4.6b.7) are kept before any pair, every
+one of them even where they alone pass `d` (a carried rule is never
+dropped silently: the private notes then give the run as drawn against
+the allowance). *(Amended Thursday 2026-11-12, plan P4-D464, LANE CHON
+RULINGS 5 (1): until then only the first input of a carried rule's
+derived family was kept first, so a rule carried by a source column, or
+whose input paired weakly, lost a column it reads, and the loader refused
+the description the command had written (S28).)* Every other
+eligible column is ineligible as `size` (4.6b.1), carried on its own, and
+the moments take the 24 partners. The choice publishes no count, cell or
+score, only which columns were kept: each column set aside is described
+by its own published facts alone, as an ineligible column always is, and
+every family the chain then publishes stands under every rule of this
+section. The private notes name the columns
+kept and set aside and give the run relating every column beside the run
+as drawn; the screen says how many columns the chain relates and how
+many are carried on their own, with both projections; the twin's shared
+report names the columns set aside (4.6b.8). WHAT IT KEEPS, MEASURED:
+plan P4-D464 holds the degraded chain against the whole one at 200,000
+rows. Every figure of `s` and `m` is a projection, stated as such; lane
+SX's nights measure them, and the validate step's own memory at
+2,000,000 rows (above 8 GB without the chain) is the validator's to
+bound, not this guard's.
+
 #### 4.6b.14 The settings, and what moves them
 
 The profile's constants, recorded in `procedure` (4.6b.5). Each was set
@@ -8118,6 +8372,16 @@ of its clauses holds as written, and this section adds to it. Until the
 landing that ships stage 6, `grain` is `null` on every description, a
 loader refuses anything else, and nothing here is a claim about what any
 twin carries today.
+
+*Amended Monday 2026-11-09 (plan P4-D464; LANE CHON RULINGS 1 (6)):* the landing
+that ships stage 6 has landed and the loader reads `grain` by this
+section's rules (S29 to S33), but the shipped command publishes no
+patient layer yet: one sub-switch keeps `grain` `null` on every shipped
+description, and the chain off where it would stand (one person on
+several rows, the person named), until lane GRb's generator reads the
+layer and flips it in one line. The holds of 4.6c.12 ship as built:
+the person question with its `record` answer, the subject question,
+and a held column that repeats.
 
 **What is written first.** The owner's answer of 2026-10-18 (ruling R7
 of the December plan) brought change over visits into December, and
@@ -10762,6 +11026,284 @@ them for a second person column; the floored split passes 89.9 per cent
 of 1,791 tries with no bound hit, and the class witness refuses 2. Plan
 P4-D449 gives the numbers.
 
+**AMENDED Monday 2026-11-09 (lane GRb, plan P4-D465; Codex's review of
+lane GRa, item 10, carried by the orchestrator's rulings 3 on lane GRa
+and 6 (2) on batch 4p): NO SOURCE COLUMN WEARS A NAME OF THE LAYER'S
+OWN.** `r`'s name
+`(rows per patient)` and a derived column's label (`(own mean of ...)`,
+`(first date of ...)`) are the patient chain's own columns, keyed by name
+beside the source columns; a source column so named crashed the switched
+describe (`IndexError` in `patient_rules.top_blocks`) or silently dropped a
+derived column. In its smallest form: the layer stays OFF on such a table,
+its reason in the private notes only (`patient_layer.OFF_NAMES`), and the
+loader refuses a description whose `grain` stands beside such a column
+(S29, `patient_rules.internal_name`). The price on the health data zoo's
+exports and the batteries: no column of theirs wears such a name (their
+makers' sources hold none), so the price is nought there; a reserved
+non-string identity was not needed. The ranged census of `r` (item 5 of
+GRa's statistics skeptic) and the first-date certificates' level (Codex's
+item 8) are NOT built here: 4.6c.4, 4.6c.9 and 4.6c.12's limits stand as
+written, owner lane GRb's next step.
+
+**AMENDED Tuesday 2026-11-10 (lane GRb's repair 2, plan P4-D465; LANE GRb
+RULINGS 5 (5), on its outside review, Codex's item 6): A POSITION-LIKE
+BLOCK KEEPS THE MARKS ITS LIST WAS READ THROUGH.** 4.6c.6 (c)'s list is read
+on the column's cells as the row description read them (the age top-code
+and its pooled top category, the year cut, dates in disguise held, a column
+counted absent), so the emptied block of a position-like column keeps,
+beside its name, place and role, the keys that reading reads where the row
+block carries them: `top_coded`, `top_category_pooled`,
+`top_category_people`, `top_coded_year`, `present_count_withheld` and a
+`remarks` list holding the dated remark alone
+(`patient_rules.POSITION_MARKS`). Each is a rule's setting, never a count,
+and the plain description publishes each already. S30 reads a
+position-like block so (`patient_rules.position_emptied`); a held column's
+block stays emptied as before. Without them, 2,000 patients of eleven
+visits whose age reads 92 at the first and 80 to 89 after published the
+list `90, 80, ..., 89`, and the validation method's `V12.7` read the source
+itself MISSED against it.
+
+#### 4.6c.14 The counting process: start-stop rows, a treatment that starts during follow-up, an end on the last row (lane GRb2-b, plan P4-D491 part b; NOT IN FORCE)
+
+*Added Wednesday 2026-11-11.* A long table often holds one row an
+interval of a patient's follow-up: a start and a stop counted from the
+patient's origin, a treatment that starts during follow-up and stays,
+and the end of follow-up (an event, a competing event, or none) on the
+last row. The patient layer as 4.6c.1 to 4.6c.12 publish it knows no
+relation between two columns of one row, no order of a number column of
+time, no switch that happens once and no event on the last row, so its
+twin breaks each of them on most patients and a Cox model with a
+time-varying treatment reads the shuffled table's answer. Built in
+`src/synthtwin/patient_intervals.py` (one call site in
+`patient_layer.describe`, behind the switch; the loader reads it through
+`contract.counting_process`, its invariants S34 through
+`patient_rules.counting_checked`).
+
+(a) **The interval rule.** Two repeated number columns `A` and `B`
+(class `repeated` of 4.6c.5, a number role) such that every tabled row
+holds a plain decimal reading of each, written to one fixed number of
+places (at most 6) in the form `-?digits[.digits]`; `A` below `B` on
+every row; and inside every patient, its rows sorted by `A`, the first
+`A` at 0 and each next `A` equal to the previous `B`. The first such pair
+in schema order (`A` first, then `B`) is the rule. Published as
+`grain.intervals: [{"start": A, "stop": B, "origin": "zero", "places":
+d}]` ONLY WHERE EVERY PATIENT KEEPS IT; a rule one patient breaks is not
+published, and no count of the patients who break any rule of this
+section is written anywhere (ruling D8).
+
+(b) **The switch rule.** Read only where (a) stands, in `A` order: a
+repeated column, other than `A` and `B`, of exactly two spellings, held
+on every row, that changes at most once a patient, every change from the
+same first spelling to the same second, at least `f` patients changing
+and each spelling held by at least `f` patients. A patient's SWITCH TIME
+`S` is the `A` of its first row at the second spelling (0 where its
+first row holds it), "never" where it holds none. OFFERED ALSO (repair
+1, item 4) to a column the layer leaves ineligible for 4.6b.1's
+`one_band` alone (a flag set on few rows; a column of a number or label
+role, never a date or time role: no identifier, held, free-text or
+sequence column is offered), read on its cells as its description read
+them; it keeps its class and is written by the process. THE ROLES ARE
+ASSIGNED JOINTLY (repair 2, Codex's item 1), never by column order:
+every offered column is read by both (b) and (c); of the assignments of
+two different columns (either may be none), one with an end and a
+switch wins, then one with an end alone (a two-value column then stands
+as the END: a table with no treatment column keeps its process), then a
+switch alone; among those, the end with more end values; a tie is broken
+by the end column's name, then the switch column's, in code-point order,
+so the choice is a fixed function of the names and cells whatever their
+order (CORRECTED by the micro-step, item 7: no note of the description
+names the assignments that tied; plan P4-D491 states the rule and a
+machine-free case of two binary end candidates of equal rank pins it).
+
+(c) **The end-event rule.** Read only where (a) stands, in `A` order: a
+repeated column, other than `A`, `B` and the switch column, held on
+every row, whose rows but each patient's last hold one spelling, the
+NONE spelling, held by at least `f` patients; a patient's END VALUE is
+its last row's spelling; at least two end values, each held by at least
+`f` patients. Published as `grain.end_events: [{"column": Z, "none":
+z, "values": [...]}]`, the values in sorted order. Offered also, as (b)
+says, to a column the layer leaves ineligible for `one_band` alone: a
+PERSON-PERIOD file's end column holds a value other than its none on
+fewer than about one row in ten, so its row ladder merges to one band
+(repair 1, item 4). Chosen with (b) jointly, as (b) says.
+
+(d) **The switch time's bands in patients** (`grain.switches`, B3).
+`S` banded in patients at the lower edges of `A`'s own `L0` bands above
+0, each edge a rung `A`'s block already publishes (no edge of its own),
+merged from the first upward until every band holds 0 or at least `f`
+patients, the patients who never switch a band of their own (`never`, 0
+or at least `f`, else no switch is published); the top band's mean
+switch time a rule-B moment over its patients, written to one place more
+than `A`'s. Published as `{"column", "from", "to", "edges", "patients",
+"never", "top_mean"}`, or the list empty where (b) does not stand or its
+floor stops it. TREATED FROM THE ORIGIN (repair 2, Codex's item 2): a
+patient whose first row is at the second spelling switches at 0 (a
+patient of one row can switch no other way); `origin: [o1, om]`, the
+patients treated from the origin of one row and of two rows or more
+(both inside the first band's count), is added where some patient is
+and every count the two imply directly is 0 or at least `f`: the two,
+the one-row patients who never switch (the census publishes the one-row
+patients), the other patients who never switch, the first band's
+switches after the origin and every switch after it; else the key is
+left out and those patients stand in the first band as before (a stated
+limit).
+
+(e) **The hazard moments** (`grain.hazard`, B5; the owner's rule B).
+For each end value `k` of (c), the censoring none spelling included:
+`events[k][j]`, the patients whose follow-up ends with `k` in band `j`
+of time from the origin; `person_time[j]`, the time all patients spend
+in band `j`. The bands of time are cut at the lower edges of `B`'s own
+`L0` bands above 0 (rungs `B` publishes) and merged from the first
+upward until every count of every end value is 0 or at least `f` and
+every band ends at least `f` patients. Beside them, the same counts in
+each state of the switch (`switch`: the patients whose last interval is
+before or from the switch time, and the time before and from it; null
+where (b) is not published or a count would be 1 to `f - 1`) and in
+each band of each patient-fixed column of the patient chain (`columns`:
+the finest of `L0`, `L1`, `L2` at which every count is 0 or at least `f`
+and every band holds 0 or at least `f` patients; a column no level
+passes is left out). Where (d)'s bands stand, each such column also
+publishes `switches`: the patients whose switch time stands in each of
+its bands, at its level, only where every count it implies directly is
+0 or at least `f` (repair 1, the statistics check's item 1: a treatment
+given by indication); else the key is left out. THE CLASS OF A PUBLISHED
+ZERO (repair 2; the verify's item 1, ruled direct by LANE GRb2 RULINGS
+11 (1)): a zero that makes one published count a part of another makes
+their difference a count of patients, so the counts checked are each
+band's switches and its patients who never switch (the complement);
+where the switch margin publishes zeros in a state, each band's ends of
+the values that state's margin holds less that state's patients there
+(the band's patients of the other state ending with them: where every
+patient who switches ends with one value, a band's ends of that value
+less its switches are the patients who end so and never switch); and
+every cell of the switched and never-switched patients by band and end
+value that the published counts and their zeros fix (bounds narrowed
+until none moves: `patient_rules.fixed_cells`). ACROSS THE OBJECTS (the
+micro-step, item 1 and its siblings; LANE GRb2 RULINGS 15 (1)): each
+row lasts a unit of `A`'s grid at least, so (1) the patients switching
+at or after a switch edge are among those ending at or after every time
+edge at or below it or one unit above it, and, where the switch margin
+publishes ends after the switch of one value alone, among those ending
+with it; (2) the census's patients of `R` rows or more (for every `R` up
+to its top edge) are among those ending at or after every time edge at
+or below `R` units; (3) a switch after the origin needs a row before
+it, so the patients switching at or after a switch edge are among the
+census's patients of two rows or more. Each difference of the two
+published totals is a count of patients and must be 0 or at least `f`:
+the bands of time are cut first and a time edge giving a (2) of 1 to `f
+- 1` is dropped (its band joins the one below); then a switch edge
+giving a (1) or (3) of 1 to `f - 1` is dropped the same way, the totals,
+the top mean and `origin`'s counts read again (each edge's differences
+read that edge alone). MAIN EFFECTS ONLY: no cell of two patient-level
+columns, so no joint count is published.
+
+(f) **Their arithmetic.** Counts are whole numbers of patients; every
+person-time is the exact sum of interval lengths in `A`'s unit, rounded
+to three significant figures (half to even) and written as a decimal
+text; every edge is the rung's published value. The end of follow-up `T`
+(B2) and the end value (B4) are published BY THESE MARGINS in patients:
+the ends in each band of time are `T`'s bands, the ends of each value
+are the end value's levels, and their link to each patient-fixed column
+is that column's margin. They are not columns of the patient chain: the
+generator draws each twin patient's end from the hazards (method
+`G16.19`), so a chain column it would override would publish a fact the
+twin does not meet cell for cell (the planner's design placed them in
+the chain; this departure is stated in plan P4-D491).
+
+(g) **The invariants a loader checks (S34).** The four keys stand
+together beside 4.6c.9's twelve, or none of them. `intervals` one
+entry naming two repeated number columns, origin `zero`, places 0 to 6;
+`switches` at most one entry, its column another repeated column (or
+one the layer leaves ineligible), two
+different spellings, its edges rungs of `A` above 0 and rising, one
+count a band, every count 0 or at least `f`, the bands and `never`
+holding every patient once, the top band at least `f`, the top mean a
+decimal inside its band; `end_events` one entry, another repeated
+column (or one the layer leaves ineligible), at least two different
+values; `hazard` its five keys, its
+edges rungs of `B` above 0 and rising, one line of counts an end value,
+one count a band, every count 0 or at least `f`, every patient ending
+once, its switch margin only beside a switch rule, each column a
+patient-fixed column of the patient chain once, its bands the column's
+ladder's bands at its level (checked against the patient chain's
+ladder), each column's and the switch's counts adding to each end
+value's ends, every person-time a decimal text from 0 to `2 ** 53` (the
+last whole number binary64 holds exactly; the top band's mean at most
+`2 ** 53` of `A`'s units: repair 2, Codex's item 8), each column's
+`switches` (where it stands) only beside a switch rule, one count a
+band, at most the band's patients, adding to the switched patients, and
+every count (e) names in its class 0 or at least `f`; `origin` (where it
+stands) two whole counts, some patient among them, inside the first
+band, every count (d) names 0 or at least `f`; and no column of the
+process is a row family's child. THE IDENTITIES BETWEEN THE OBJECTS
+(repair 2, Codex's item 7): each hazard column's bands hold the patients
+the patient chain publishes in them at its level; the switch margin's
+ends after the switch are the switched patients and those before it the
+patients who never switch (every switched patient ends after its switch
+time, the start of a row below that row's stop); ends stand only beside
+person-time (the first band of time, each state holding ends, each
+column band holding patients); each bounded band of time holds between
+its later patients' and all its patients' time through it; and the
+switch margin's and every column's person-time add up to the bands of
+time's, each within the published rounding (half a unit of each entry's
+third figure); and (the micro-step) every difference (e) names across
+the objects, read from the switch's bands, the bands of time, the switch
+margin and the census, is 0 or at least `f` and never below 0. A
+description that breaks one is refused with the ordinary explanatory
+profile error, before generation.
+
+(h) **What the rest of the layer does beside it.** The process's columns
+take no row family (each is written by the rules); each still takes its
+one-cell family's certificate of 4.6c.8, NOT WAIVED (LANE GRb2 RULINGS 11
+(3): that certificate guards counts in rows under a constant census),
+and where one is drawn HELD the layer is described again without the
+process, every column offered its row family as before. Its measured
+reach (plan P4-D491): an invented constant-census file of 1,000 patients
+of 20 rows stands under none of nine dataset names and keeps the base's
+bytes; the same table with 10 to 30 rows a patient stands. A table where
+no interval rule stands, where (c) does not stand, or where the floor
+stops the hazard moments, is described exactly as before this section:
+no byte of its description moves.
+
+(i) **HIPAA, by the owner's rule B and ruling D8.** A rule publishes two
+or three column names and the spellings of a column each held by at
+least `f` patients, and no count; the counts of (d) and (e) are
+patients, each 0 or at least `f`; the person-times are sums over at
+least `f` patients, rounded; the edges are rungs already published; no
+date, no reading of a row and no patient's own interval is published.
+No proof is required against a small count worked out by combining
+several published facts (the residual risk the owner accepted).
+
+(j) **What it promises, and its stated limits** (each with plan
+P4-D491's numbers and owner). Promised, on a table where it stands: the
+three rules hold on every twin patient; each twin patient's switch and
+end are drawn forward from the origin at rates calibrated so that the
+switches in each band and each margin's rate of ends on the twin are the
+published ones (method `G16.19`), main effects only; the patients
+treated from the origin, where `origin` stands, are treated so on the
+twin, of one row and of more. Limits: start and stop written as DATES
+are not read (the rule reads number columns; a table of dates is
+described as before); one interval rule, one switch rule and one
+end-event rule a table; the patients' rows (`r`) keep the census and its
+families but not their link to the length of follow-up (the other cuts
+are a uniform sample of each patient's free grid points); the switch
+reads each patient's column bands (repair 1, the statistics check's item
+1): the share treated in each band of each column is carried, its timing
+inside the switch's bands is not (LANE GRb2 RULINGS 9 (3)); the
+patients treated from the origin are carried by their rows, not by
+their column bands, and where `origin` is withheld its one-row patients
+are not treated on the twin (the micro-step, item 6, verify 2's
+measure: on lane MU's `ST8` at 20,000 rows with stage III all switching
+but five, 906 one-row patients and one of more treated from the origin,
+the twin treats 5,105 patients against the 5,470 published switched, 6.7
+per cent fewer; 0.3 to 2.4 per cent fewer on every other measured
+shape); a constant census whose process columns fail their
+one-cell certificate keeps the base's description ((h)); a repeated
+column's path inside a patient other than the switch (a laboratory band
+between its updates) and its link to the hazard are not carried; effects
+are main effects of each column's bands (no interaction, no curve inside
+a band); Fine-Gray and sampled Bayesian models are lane MU2's.
+
 ### 4.6d `relationships.statistical.moments` — the moment layer: numbers read finer than the bands (specified for stage 6, plan P4-D413; NOT IN FORCE)
 
 **AMENDED Monday 2026-11-02 by the owner's rule B (plan P4-D455; lane
@@ -10792,7 +11334,10 @@ a slope is published only inside a publishing region (4.6d.5 (d));
 every other rule of 4.6b holds here as written, and where this section
 adds a condition it says so. Until the landing that ships stage
 6, invariant S12 stands word for word, `statistical` is `null`, and no
-description carries any number of this section. Nothing here is a claim
+description carries any number of this section. *Amended Monday 2026-11-09
+(plan P4-D464): that landing has shipped; a description's `moments` is
+`null` or this section's object, and the shipped generate polishes
+towards it (generation method G17).* Nothing here is a claim
 about what any twin carries today. Lane MG's page, written beside this
 one, numbers its patient layer 4.6c; this section takes 4.6d and its
 invariants start at S34, so that the two pages share no number.
@@ -10852,7 +11397,11 @@ NE, WE and the floor) on its families; D7.
 
 **(1) What is published.** `relationships.statistical.moments` is `null`
 or the object `{columns, correlations, partners, rule, scales, within}`,
-`rule` `"B"`, `partners` 24 and `scales` `{column_sd: 1000,
+`rule` `"B"`, `partners` 24 (*amended Tuesday 2026-11-10, plan
+P4-D464, LANE CHON RULINGS 2 (4):* or, where the size guard allows every
+partner, 4.6b.13 stated limit 4, the eligible columns less one wherever
+that passes 24, so a table of at most 25 eligible columns writes 24
+either way) and `scales` `{column_sd: 1000,
 correlation: 1000000000000, fisher_z: 10000, mean: 10, sd: 10, share:
 10000}`, this version's
 constants: a published whole number `k` reads `k / u`, where `u` is the
@@ -11096,7 +11645,7 @@ takes a correlation. A moment column takes `within` in at most
 between their bands (the correlation ratio, exact, ties by schema
 order), among the ones whose every band passes (2). THE CAP'S COST,
 MEASURED on lane `A0b`'s table at 20,000 rows (key `k0`, twin seed 0,
-the reference script's moved twin): with 24 partners the moved twin met 177 of 273 estimates (the walk 135, a fresh sample 227; the build's run in thousandths of r read 181 at the same seed, the reference script's own spread a few estimates), with 1,056 `within` entries and 439 kB of moments in a 1.31 MB description; with 48, every other eligible column, it met 193, with 2,068 entries and 751 kB in 1.76 MB, the chain with its moments 123 s against 86 s. The cap binds on every moment column of that table (44 times 24 is 1,056) and of the wide copies; raising it is one constant, the orchestrator's to choose. ONE PASS, NO LIST
+the reference script's moved twin): with 24 partners the moved twin met 177 of 273 estimates (the walk 135, a fresh sample 227; the build's run in thousandths of r read 181 at the same seed, the reference script's own spread a few estimates), with 1,056 `within` entries and 439 kB of moments in a 1.31 MB description; with 48, every other eligible column, it met 193, with 2,068 entries and 751 kB in 1.76 MB, the chain with its moments 123 s against 86 s. The cap binds on every moment column of that table (44 times 24 is 1,056) and of the wide copies; raising it is one constant, the orchestrator's to choose. *Amended Tuesday 2026-11-10 (plan P4-D464, LANE CHON RULINGS 2 (4)):* the orchestrator chose EVERY PARTNER wherever the size guard allows it (4.6b.13, stated limit 4: where the whole run with every partner fits its time and memory), the 24 elsewhere; `partners` writes which, and the cost is measured in that plan. ONE PASS, NO LIST
 OF ROWS (repair 1): a column's band sums are read in one pass over the
 grouping's band codes, grouping by grouping, and the partners are ranked
 afterwards, so the layer holds no list of row numbers; MEASURED with the
@@ -11122,7 +11671,9 @@ of a wide table's time.
 
 **(6) The loader's invariants, S39 to S43 (for rule B's object, in place of 4.6d.8's S34 to S38).**
 `chain_check.check_moments` refuses, naming the column or pair:
-**S39** a `moments` object of other keys, rule, scales or partners;
+**S39** a `moments` object of other keys, rule, scales or partners
+(the partners 24, or the eligible columns less one past 24: amended
+2026-11-10);
 **S40** a moment of a column that is not eligible, a number that is not
 a FINE column of a number role, a binary whose `L0` is not two
 one-level bands, or columns out of schema order; **S41** a count under
@@ -11230,7 +11781,13 @@ the moved twin 144 (kept inside each `L0` band, 130), a fresh sample 213
 and the shuffled twin 102: the moved twin closes about half the walk's
 gap to a fresh sample (50 % and 45 %). The missing-data family loses
 (the ninth): the script ignores how one column's blanks sit beside another's
-values, which the polish must keep.
+values, which the polish must keep. *Amended Wednesday 2026-11-11 (plan
+P4-D492, lane CHG, LANE CHG RULINGS 1 (2)):* the generator aims only at
+the moments G16.3's grouping gate keeps: every published correlation, and
+a `within` entry (a number's band means, a binary's band shares, a
+binary's split of a number) only where its group chi-square on the
+published facts lies above the 0.001 point; the rest is left to the walk.
+Nothing published changes.
 
 **(8) How it is checked.** `K-S6-08`'s moment fixtures (4.6d.7) are
 restated under rule B: by exhaustive enumeration through the product's
@@ -12450,6 +13007,8 @@ repeated column; no `correlation` pairs a patient-fixed column with a
 repeated one.
 
 #### 4.6d.9 Dispositions (in force with the landing that ships stage 6)
+
+*In force since Monday 2026-11-09 (plan P4-D464).*
 
 | field | disposition | why |
 |---|---|---|
@@ -23834,6 +24393,11 @@ find one".
 inferred: it is a function of the command line alone, it carries no
 cell, no column and no count of the table, and it is LOADER-ONLY on
 exactly the terms `built_in_numbers` and `built_in_texts` are.
+
+*Amended Monday 2026-11-09 (the landing that ships stage 6, plan P4-D464):* the
+`relationships` row reads: LOADER-ONLY for the six reserved names that
+stay `null` (S12 as amended); `statistical` as 4.6b.12 and 4.6d.9
+dispose it, and `grain` as 4.6c disposes it.
 
 ### 9.2 Universal per-column fields
 

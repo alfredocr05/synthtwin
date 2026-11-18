@@ -10477,8 +10477,9 @@ def with_the_record_answer(asked: "list[Question]") -> "list[Question]":
     """The person questions of a switched run, their `identifier` answer split in two; every other question as it stands.
 
     Guarantees: a fixed function of the list; the same questions in the
-    same order; no value of the table. Only a switched run calls it, so
-    no shipped file offers `record`.
+    same order; no value of the table. Only a switched run calls it: every
+    shipped run since plan P4-D464, so every shipped file offers `record`
+    where the person question is put.
     """
     out: "list[Question]" = []
     for question in asked:
@@ -10904,11 +10905,11 @@ def questions_document_of(
     # theirs already; no cell of the column is.
     if held_entries:
         written["held"] = held_entries
-    # ...AND, BEHIND THE CHAIN'S SWITCH ALONE (lane CHa, plan P4-D418;
-    # contract 4.6b, NOT IN FORCE), ONE ENTRY ON THE CHAIN: the pairs it
-    # carries exactly, and room to name a pair to add or drop. Nothing
-    # waits for it. Absent on every shipped run (`chain_pairs` None), so
-    # the file is written as before, byte for byte.
+    # ...AND, BEHIND THE CHAIN'S SWITCH (lane CHa, plan P4-D418; contract
+    # 4.6b, on for every shipped run since plan P4-D464), ONE ENTRY ON THE
+    # CHAIN: the pairs it carries exactly, and room to name a pair to add or
+    # drop. Nothing waits for it. Absent on a run of the internal unswitched
+    # setting (`chain_pairs` None), whose file is written as before.
     if chain_pairs is not None:
         # The requests the handed-back file made are written back as they
         # were read, never emptied (repair 2, Codex's item 6).

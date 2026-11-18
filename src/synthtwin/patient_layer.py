@@ -1,9 +1,11 @@
 """The patient layer's profile side: several rows per patient (contract 4.6c; lane GRa, plan P4-D449).
 
-NOT IN FORCE. Invariant S12 stands until the landing that ships stage 6
-whole: this module runs only where `chain.describe` is handed the chain's
-switch on a table whose settings name a person column, which no shipped
-command does. It has ONE call site, in `chain.describe`.
+NOT IN FORCE ON A SHIPPED RUN YET: the landing that ships stage 6 (plan
+P4-D464, lane CHON) keeps the patient layer's sub-switch off until lane
+GRb's generator reads it (`cli._PATIENT_LAYER_SHIPPED`), so this module
+runs only where a caller hands `chain.describe` the switch with the
+layer on, on a table whose settings name a person column. It has ONE
+call site, in `chain.describe`.
 
 WHAT IT DOES, in contract 4.6c's order:
 
@@ -54,12 +56,13 @@ from synthtwin import chain
 from synthtwin import chain_moments
 from synthtwin import chain_rules
 from synthtwin import parsing, profile, reading, taxonomy
-from synthtwin import patient_rules
+from synthtwin import patient_intervals, patient_rules
 
 # The modules under the short names this module reads them by.
 moments = chain_moments
 rules = chain_rules
 pr = patient_rules
+pi = patient_intervals
 
 # The reasons the layer is off although the switch is on, each told in the
 # private notes only (4.6c.3 (e); inventory row 15a).
@@ -71,6 +74,10 @@ OFF_EXTRA = "the extra rows number 1 to f - 1"
 OFF_CENSUS = "no candidate census of rows per patient is eligible"
 OFF_DRAWN = "the census draw took off"
 OFF_RECOUNT = "a column's recount disagreed with its published counts"
+# A source column named as the layer names its own columns (lane GRb, plan
+# P4-D465; Codex's review of lane GRa, item 10): the layer stays off, its
+# note private, and the loader refuses such a description (S29).
+OFF_NAMES = "a column is named as the patient layer names its own columns"
 
 # The rule of 4.6c.6 (b): a number column's witness readings at most this many.
 POSITION_READINGS = 20
@@ -894,6 +901,32 @@ def _emptied(block: "dict[str, object]") -> "dict[str, object]":
     return out
 
 
+def _position_block(block: "dict[str, object]") -> "dict[str, object]":
+    """A position-like column's block: no key but its name, place and role (S30), and the marks its list was read through.
+
+    The list is read on the column's cells AS ITS DESCRIPTION READ THEM
+    (`chain.read_as_described`: the age top-code and its pooled top
+    category, the year cut, dates in disguise held, a column counted
+    absent), so the block keeps the marks that reading reads
+    (`patient_rules.POSITION_MARKS`, and the dated remark), and V12.7 reads
+    a checked file's cells through the same marks (repair 2 of lane GRb,
+    Codex's item 6: 2,000 patients of eleven visits, age 92 first, then 80
+    to 89, published the list `90, 80, ..., 89`, and the source itself read
+    MISSED against it, its block emptied of `top_coded`). No mark is a
+    count.
+    """
+    out = _emptied(block)
+    for key in pr.POSITION_MARKS:
+        value = _get(block, key)
+        if value not in (None, False, [], {}):
+            out[key] = value
+    remarks = _get(block, "remarks")
+    dated = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
+    if isinstance(remarks, list) and dated in remarks:
+        out["remarks"] = [dated]
+    return out
+
+
 # The person column's keys that stay its own in rows (4.6c.3 (b)): its
 # presence and absence. Every other key reads the patients, its forms, their
 # prefixes and exclusions and its lengths alike (the first skeptic's item 6).
@@ -1009,7 +1042,10 @@ def _blocks_as_published(
                     moved[key] = _get(block, key)
             out += [moved]
             continue
-        if kind in (pr.CLASS_POSITION, pr.CLASS_HELD):
+        if kind == pr.CLASS_POSITION:
+            out += [_position_block(block)]
+            continue
+        if kind == pr.CLASS_HELD:
             out += [_emptied(block)]
             continue
         found = _get(block, "n_distinct_by_occurrences")
@@ -1218,6 +1254,17 @@ COUNTERS = (
 )
 
 
+def offered_to_counting(reason: "str | None", role: object) -> bool:
+    """Whether a column the layer leaves ineligible is offered to the counting process's end-event and switch rules (contract 4.6c.14 (b), (c); repair 1, item 4).
+
+    Only a column ineligible for `one_band` alone, of a number or label
+    role: a date or time role never stands as an end or a switch column
+    (repair 2, the verify's item 5), and no identifier, held, free-text or
+    sequence column reaches the layer's ladder at all.
+    """
+    return reason == "one_band" and role in rules.NUMBER_ROLES + rules.LABEL_ROLES
+
+
 def describe(
     table: reading.Table,
     document: "dict[str, object]",
@@ -1230,6 +1277,8 @@ def describe(
     forced_measurements: "list[str]",
     forced_decimal_commas: "list[str]",
     stored_as: "tuple[str, ...]",
+    *,
+    counting: bool = True,
 ) -> Layer:
     """The patient layer of a table whose settings name a person column (contract 4.6c), or why it is off.
 
@@ -1254,6 +1303,8 @@ def describe(
             if isinstance(block, dict):
                 blocks += [block]
     names = [f"{_get(block, 'name')}" for block in blocks]
+    if any(pr.internal_name(name) for name in names):
+        return _off(OFF_NAMES, notes, counts)
     # -- (a) the gate, items 1 to 3 (4.6c.3 (a)) --
     if len(persons) != 1 or persons[0] not in names:
         return _off(OFF_PERSONS, notes, counts)
@@ -1329,6 +1380,9 @@ def describe(
     position_like: "list[str]" = []
     fine_runs: "list[str]" = []
     position_texts: "dict[str, list[str]]" = {}
+    # The cells, as described, of each column offered to the counting
+    # process although the layer leaves it ineligible (repair 1, item 4).
+    offered: "dict[str, list[str]]" = {}
     for place in range(len(blocks)):
         block = blocks[place]
         name = names[place]
@@ -1370,6 +1424,15 @@ def describe(
                 continue
         if ladder is None or _eligible_ladder(ladder, _get(block, "role")) is not None:
             classes[name] = pr.CLASS_INELIGIBLE
+            # OFFERED TO THE COUNTING PROCESS (contract 4.6c.14 (b) and (c);
+            # repair 1, item 4): a column the layer leaves ineligible for
+            # `one_band` alone -- an end column at its none value on nearly
+            # every row of a person-period file, a flag set on few rows --
+            # of a number or label role (no identifier, held, free-text or
+            # sequence column reaches here) keeps its cells as described,
+            # for the end-event and switch rules alone; its class stays.
+            if offered_to_counting(_eligible_ladder(ladder, _get(block, "role")), role):
+                offered[name] = texts
             continue
         if _two_cells(texts, first_patients) <= threshold:
             classes[name] = pr.CLASS_FIXED
@@ -1554,6 +1617,35 @@ def describe(
         notes += step_notes
     if not placed:
         placed = _rules_only(search)
+    # -- (g') THE COUNTING PROCESS (contract 4.6c.14; lane GRb2-b, plan P4-D491
+    # part b): the interval, switch and end-event rules, read on every
+    # patient and published only where every patient keeps them, and the
+    # hazard moments in patients; its columns are written by the rules, so
+    # none of them is a row family's child or the source of a derived
+    # column. READ BEFORE (f') (repair 1, item 1): it needs only the row
+    # columns, the classes, the patients' rows and each patient-fixed
+    # column's ladder from (e), and (f') must know the process's columns,
+    # since a derived column of one of them would stand beside no row
+    # family and the loader refuses that (S31).
+    counted: "dict[str, object] | None" = None
+    interval_columns: "set[str]" = set()
+    found_intervals = pi.found_on(
+        [pi.RowColumn(name, classes[name], f"{_get(row_columns[name].block, 'role')}", row_columns[name].texts, row_columns[name].readings)
+         if name in row_columns else pi.RowColumn(name, pr.CLASS_INELIGIBLE, f"{_get(blocks[pr.place_in(names, name)], 'role')}", offered[name], [None for _cell in offered[name]])
+         for name in names if (classes[name] == pr.CLASS_REPEATED and name in row_columns) or name in offered],
+        patients.rows, floor,
+    ) if counting else None
+    if found_intervals is not None:
+        counted = pi.published(
+            found_intervals,
+            {names[place]: blocks[place] for place in range(len(blocks))},
+            {name: row_columns[name].ladder for name in (found_intervals.start, found_intervals.stop)},
+            [(name, scales[name], codes_of[name]) for name in pt_eligible if name != pr.R_NAME and name in scales],
+            floor,
+            census.lo,
+        )
+    if counted is not None:
+        interval_columns = pi.columns_of(counted)
     # -- (f') the derived columns (4.6c.2), drawn after the rest of the chain
     # (departure (3) of P4-D449): a level is eligible where its bands hold
     # the floor and a keyed family can hold the column (r, and every member
@@ -1591,6 +1683,14 @@ def describe(
             for level in range(3):
                 if whole.counts[level] >= 2:
                     candidates_of += [(level, _at_level(whole, level, rules.totals_at(whole, level), label), [whole.maps[level][band] for band in bands_of], _edges_at(whole, starting_edges, level))]
+        if name in interval_columns:
+            # A COLUMN OF THE COUNTING PROCESS IS NO SOURCE OF A DERIVED
+            # COLUMN (repair 1, item 1): it is written by the rules, never
+            # by a row family. It still takes its step of the draw, so
+            # every other column's draw is the one it was (and a table
+            # where no process stands, the set empty, moves by nothing).
+            step += 1
+            continue
         eligible_levels: "list[tuple[int, rules.Ladder, list[int], list[fractions.Fraction], list[chain.Option], chain._Search]]" = []
         for level, ladder, first_of, edges in candidates_of:
             trial_columns = dict(patient_columns)
@@ -1640,7 +1740,7 @@ def describe(
     parents_of: "dict[str, tuple[tuple[str, int], ...]]" = {}
     index = 0
     for name in names:
-        if classes[name] not in (pr.CLASS_REPEATED, pr.CLASS_DEALT):
+        if classes[name] not in (pr.CLASS_REPEATED, pr.CLASS_DEALT) or name in interval_columns:
             continue
         row = row_columns[name]
         one = derived[name] if name in derived else None
@@ -1671,6 +1771,17 @@ def describe(
             counts["one_cell_families"] += 1
             continue
         classes[name] = pr.CLASS_HELD
+    # A column of the counting process drawn HELD publishes no rule (its
+    # cells stand only as a held column's stand-ins), and the layer is then
+    # described as it is without the counting process, every column offered
+    # its row family as before: no move where the process does not stand.
+    # (A derived column of a process column cannot stand since (f') skips
+    # them; the test reads it too, so such a description is never written.)
+    if counted is not None and (any(classes[name] not in (pr.CLASS_REPEATED, pr.CLASS_INELIGIBLE) for name in interval_columns) or any(name in derived for name in interval_columns)):
+        return describe(
+            table, document, settings, switch, filled, persons, identifiers, forced_codes, forced_measurements,
+            forced_decimal_commas, stored_as, counting=False,
+        )
     for name in names:
         key = {
             pr.CLASS_FIXED: "patient_fixed", pr.CLASS_POSITION: "position_like", pr.CLASS_DEALT: "dealt_date",
@@ -1736,6 +1847,10 @@ def describe(
         "rows": rows_written,
         "trend": trend,
     }
+    if counted is not None:
+        for written_key in counted:
+            grain_written[written_key] = counted[written_key]
+        notes += [f"the counting process stands: the intervals of {found_intervals.start if found_intervals else ''} to {found_intervals.stop if found_intervals else ''}"]
     notes += [
         f"the patient layer stands: {patient_count} patients, census top edge {census.lo}, "
         f"{counts['patient_fixed']} patient-fixed, {counts['position_like']} position-like, "

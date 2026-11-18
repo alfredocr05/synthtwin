@@ -545,17 +545,25 @@ def _loaded(folder: pathlib.Path) -> contract.Profile:
 def _described_again(
     folder: pathlib.Path, cells: "list[str]"
 ) -> contract.Profile:
-    """A second description of the same cells, written by the product."""
+    """A second description of the same cells, written by the product.
+
+    Described on another computer (plan P4-D464; `fixtures.another_installation`):
+    this computer's record refuses the same rows described again under
+    another name (contract 4.6b.4).
+    """
     folder.mkdir(parents=True, exist_ok=True)
     table = fixtures.write(
         folder,
         "own.csv",
         fixtures.rows_to_csv(["value"], [[cell] for cell in cells]),
     )
-    assert _exit_of(
-        ["profile", str(table), "--out-dir", str(folder), "--replace"]
-        + list(FLOOR)
-    ) == 0
+    # Its data folder outside the table's folder and the output's, which
+    # the command refuses to hold the key (lane CHON's repair 1).
+    with fixtures.another_installation(folder.parent / f"{folder.name}-elsewhere"):
+        assert _exit_of(
+            ["profile", str(table), "--out-dir", str(folder), "--replace"]
+            + list(FLOOR)
+        ) == 0
     return contract.load_profile(str(folder / "own-profile.json"))
 
 

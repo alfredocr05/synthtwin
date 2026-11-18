@@ -413,12 +413,16 @@ _PROFILE_DECLARATIONS = (
     "--keep-value",
     "--missing-value",
 )
+# THE INSTALLATION'S FOUR (contract 4.6b.4; lane CHON, plan P4-D464): read
+# by `profile` and handed on by `twin`, named on their pages in one sentence
+# (`_RECORD_SENTENCE`), each said in full on the whole-tool page.
+_RECORD_OPTIONS = ("--name", "--replace-description", "--new-key", "--private-folder")
 _READ_BY = {
-    _PROFILE: ("--out-dir", "--replace") + _PROFILE_DECLARATIONS,
+    _PROFILE: ("--out-dir", "--replace") + _PROFILE_DECLARATIONS + _RECORD_OPTIONS,
     _GENERATE: ("--seed", "--out-dir", "--replace"),
     _VALIDATE: ("--twin", "--out-dir", "--sheet", "--replace"),
     _DOCTOR: ("--out-dir",),
-    _TWIN: ("--out-dir", "--replace", "--seed") + _PROFILE_DECLARATIONS,
+    _TWIN: ("--out-dir", "--replace", "--seed") + _PROFILE_DECLARATIONS + _RECORD_OPTIONS,
 }
 
 # Each option's line: what is typed after it, and what it does, short.
@@ -445,7 +449,14 @@ _SHORT_HELP = {
     "--smallest-group": ("ROWS", "raise the smallest group from 11, never lower"),
     "--keep-value": ("VALUE", ""),
     "--missing-value": ("VALUE", ""),
+    "--name": ("NAME", ""),
+    "--replace-description": ("", ""),
+    "--new-key": ("", ""),
+    "--private-folder": ("FOLDER", ""),
 }
+# ...and the one sentence that names them on the pages of `profile` and
+# `twin` (kept within `K-S8-05`'s 60 lines a page).
+_RECORD_SENTENCE = "--name, --replace-description, --new-key, --private-folder: see --help"
 _LONG_HELP = {"--keep-value": _KEEP_VALUE_HELP, "--missing-value": _MISSING_VALUE_HELP}
 
 _PAGE_WIDTH = 79
@@ -455,8 +466,10 @@ _OPTION_COLUMN = 30
 _PAGE_HEADS = {
     _PROFILE: (
         "usage: synthtwin profile TABLE [options]",
-        "Describe TABLE, a CSV file or a workbook, and write TABLE-profile.json, "
-        "its summary TABLE-profile.txt and TABLE-questions.json beside it.",
+        # One line since batch 4u's merge of lane CHON, so that lane EZ-a's
+        # --person line and the lane's line of the installation's four
+        # options fit `K-S8-05`'s 60 lines a page together.
+        "Describe TABLE (CSV or workbook): a description, its summary, a questions file.",
     ),
     _GENERATE: (
         "usage: synthtwin generate DESCRIPTION [options]",
@@ -655,9 +668,11 @@ def command_page(command: str) -> str:
     page = f"{usage}\n\n" + _wrapped(said, "") + "\noptions:\n"
     prose = _PAGE_PROSE[command] if command in _PAGE_PROSE else ""
     for option in _READ_BY[command]:
-        if option in _LONG_HELP or (prose and option in _PROSE_NAMES):
+        if option in _LONG_HELP or (prose and option in _PROSE_NAMES) or option in _RECORD_OPTIONS:
             continue
         page = page + _option_line(option)
+    if any(option in _RECORD_OPTIONS for option in _READ_BY[command]):
+        page = page + _wrapped(_RECORD_SENTENCE, "  ")
     if prose:
         page = page + "\n" + _wrapped(prose, "")
     for option in _READ_BY[command]:
@@ -997,6 +1012,14 @@ class _Session:
     typed_replaced: "list[tuple[str, str]]" = dataclasses.field(default_factory=list)
     persons_kept: "list[str]" = dataclasses.field(default_factory=list)
     rows_said: str = ""
+    # THE RECORD REFUSED A LATER ROUND'S CHANGED DESCRIPTION (Codex's review
+    # of batch 4u, item 7): its words ask for --replace-description, so the
+    # answers given at the keyboard stay in the questions file and the
+    # command taught applies them with that option (`_profile_rounds`).
+    round_refused_by_record: bool = False
+    # ...and whether this run put the subject question of the questions
+    # file's `between_columns` entry at the keyboard (item 6).
+    subject_entry_put: bool = False
 
 
 @dataclasses.dataclass
@@ -1202,10 +1225,10 @@ def _described_carried(written: pathlib.Path, chain: bool) -> None:
     if session is None:
         return
     try:
-        described = contract.load_profile(f"{written}", chain)
+        described = contract.load_profile(f"{written}", None if chain else False)
     except errors.ProfileError:
         return
-    session.carried = tuple(_not_carried(described) + [_NOT_MODELED])
+    session.carried = tuple(_not_carried(described) + _table_not_modeled(described))
 
 
 def _left_behind(left: "list[str]", note: str) -> None:
@@ -1235,12 +1258,28 @@ _MADE_UP_REASONS = {
     "uncarried": results.REASON_UNCARRIED,
 }
 
-# The table's one entry while nothing between columns is carried: every
-# description this version loads, whose statistical block is null (the
-# loader refuses a filled one, contract S12; plan P4-D395 part 1).
+# The table's one entry while nothing between columns is carried: a
+# description whose statistical block is null (plan P4-D395 part 1); one
+# that carries a chain holds none (`_table_not_modeled`, plan P4-D464).
 _NOT_MODELED = results.Carried(
     (), "", results.CLASS_NOT_CARRIED, results.REASON_NOT_MODELED
 )
+
+
+def _table_not_modeled(described: object) -> "list[results.Carried]":
+    """The table's `not-modeled` entry where its description carries nothing between columns; none where it carries a chain.
+
+    `results.REASON_NOT_MODELED` names the table "between whose columns
+    nothing is carried while its statistical block is null": since the
+    switch is on (plan P4-D464) a description may carry a chain, and its
+    result then holds no such entry. Read off the loaded description
+    (`RelationshipManifest.switched`: it publishes `statistical` or `grain`).
+    """
+    from synthtwin import contract
+
+    if isinstance(described, contract.Profile) and described.relationships.switched:
+        return []
+    return [_NOT_MODELED]
 
 
 def _not_carried(described: object) -> "list[results.Carried]":
@@ -1397,7 +1436,7 @@ def _generated(described: object, made: object) -> None:
             )
         ]
     session.misses = _in_rank_order(found)
-    session.carried = tuple(carried + [_NOT_MODELED])
+    session.carried = tuple(carried + _table_not_modeled(described))
     session.tally = (
         ("deviations", len(made.deviations)),
         ("approximations", len(made.approximations)),
@@ -1506,7 +1545,7 @@ def _validated(described: object, measured: object) -> None:
     census = measured.census
     session.misses = _in_rank_order(found)
     session.unjudged = tuple(unjudged)
-    session.carried = tuple(carried + [_NOT_MODELED])
+    session.carried = tuple(carried + _table_not_modeled(described))
     session.tally = (
         ("held", census.held),
         ("within-bound", census.within_bound),
@@ -1850,6 +1889,13 @@ class _Options:
     first_row_typed: bool = False
     # -- lane EZ-a (P4-D479): the columns named with `--person`.
     persons: "list[str]" = dataclasses.field(default_factory=list)
+    # THE INSTALLATION'S FOUR (contract 4.6b.4; LANE ST RULINGS 1 (4); lane
+    # CHON, plan P4-D464): the table's name, the two confirmations, and the
+    # private report's folder, read by `profile` and handed on by `twin`.
+    name: "str | None" = None
+    replace_description: bool = False
+    new_key: bool = False
+    private_folder: "str | None" = None
 
 
 def _typed_floor(typed: str) -> int:
@@ -1939,7 +1985,21 @@ _LONG_OPTIONS = (
     "--day-first",
     "--sheet",
     "--first-row",
+    "--name",
+    "--replace-description",
+    "--new-key",
+    "--private-folder",
 )
+# THE ABBREVIATIONS THE BASE READ AS `--replace` KEEP THAT MEANING (lane
+# CHON, plan P4-D464). argparse takes a word that begins one long option
+# alone as that option, and refuses one that begins several; `--replace`
+# was the only option starting `--r`, so `--r` to `--replac` read as it.
+# `--replace-description` begins with all of them, so each is put back to
+# `--replace` before argparse reads the line (`_kept_abbreviations`), an
+# `=` and its value kept; `--replace-` and longer begin the new option
+# alone. Every other abbreviation reads as before: no long option of the
+# base begins `--n` or `--p`.
+_KEPT_ABBREVIATIONS = {"--r": "--replace", "--re": "--replace", "--rep": "--replace", "--repl": "--replace", "--repla": "--replace", "--replac": "--replace"}
 # The words argparse reads as its help option: `-h`, and every prefix of
 # `--help` it takes (no other long option starts with `--h`).
 _HELP_WORDS = ("-h", "--h", "--he", "--hel", "--help")
@@ -1951,6 +2011,31 @@ _HELP_WORDS = ("-h", "--h", "--he", "--hel", "--help")
 # takes it as the help option there is asked of argparse itself
 # (`_parse_arguments`).
 _HELP_PREFIX = "-h"
+
+
+def _kept_abbreviations(words: "list[str]") -> "list[str]":
+    """The words as argparse is to read them: each abbreviation of `--replace` the base took, written whole (`_KEPT_ABBREVIATIONS`).
+
+    Up to `--`, after which every word is a value. A word's part before an
+    `=` decides, and the rest is kept. A fixed function of the list.
+    """
+    read: "list[str]" = []
+    ended = False
+    for word in words:
+        if ended or word == "--":
+            ended = True
+            read += [word]
+            continue
+        # The part before an `=`, read a character at a time (the offline
+        # audit's reason: no method of the value is called).
+        head = ""
+        for character in f"{word}":
+            if character == "=":
+                break
+            head = head + character
+        tail = f"{word}"[len(head) :]
+        read += [_KEPT_ABBREVIATIONS[head] + tail if head in _KEPT_ABBREVIATIONS else word]
+    return read
 
 
 def _could_ask_for_help(word: str) -> bool:
@@ -2523,6 +2608,60 @@ def _parse_arguments(
             "synthtwin stops and asks instead of choosing"
         ),
     )
+    # -- THE INSTALLATION'S FOUR (contract 4.6b.4; lane CHON, plan P4-D464):
+    # read by `profile`, handed on by `twin`.
+    parser.add_argument(
+        "--name",
+        default=None,
+        metavar="NAME",
+        help=(
+            "the name this table goes by on this computer, so that a table "
+            "described again is known as the same table (the default is the "
+            "file's name without its ending). This computer keeps a private "
+            "record of each table it describes, beside its private key: describe "
+            "a table again under the name it was first described under. A name "
+            "holds no folder: a slash, a backslash, '..' or a control character "
+            "is refused. Used by 'profile' and 'twin'"
+        ),
+    )
+    parser.add_argument(
+        "--replace-description",
+        action="store_true",
+        help=(
+            "say that the earlier description of this table, made on this "
+            "computer, was never shared with anyone, so this run may publish a "
+            "different one. Without it, a run that would publish a different "
+            "description of a table described before stops, where either of "
+            "the two publishes relationships between columns: someone holding "
+            "both could narrow a small group of patients. So 'synthtwin profile "
+            "TABLE --answers QUESTIONS', run with the questions file answered "
+            "after a first run that waited for the subject question, stops with "
+            "exit status 1 where it would publish them. Used by 'profile' and "
+            "'twin'"
+        ),
+    )
+    parser.add_argument(
+        "--new-key",
+        action="store_true",
+        help=(
+            "make a new private key where this computer's key file is lost "
+            "but its record of earlier descriptions stands. Each table "
+            "described before is then refused until --replace-description says "
+            "its earlier descriptions were never shared. Used by 'profile' and "
+            "'twin'"
+        ),
+    )
+    parser.add_argument(
+        "--private-folder",
+        default=None,
+        metavar="FOLDER",
+        help=(
+            "the folder the private report is written in: for you alone, never "
+            "shared (the default is a folder beside this computer's private "
+            "key). Never the folder that holds the description or a twin. Used "
+            "by 'profile' and 'twin'"
+        ),
+    )
     # parse_known_args rather than parse_args: argparse's own report of
     # words it did not recognize copies them to the error stream exactly
     # as typed, so a word carrying an escape sequence would instruct the
@@ -2547,7 +2686,7 @@ def _parse_arguments(
     # refusal, as any other, where it reaches the word, the help word before
     # it is taken first, and an option of two values takes it as a value,
     # as that Python's argparse did before results existed.
-    words = sys.argv[1:] if argv is None else [f"{word}" for word in argv]
+    words = _kept_abbreviations(sys.argv[1:] if argv is None else [f"{word}" for word in argv])
     help_page = parser.format_help()
     _place, ambiguous = _ambiguous_at(words)
     if ambiguous and _AMBIGUITY_SORTED_FIRST:
@@ -2693,6 +2832,10 @@ def _parse_arguments(
         centuries=list(century_named),
         date_columns=list(date_named),
         persons=list(person_named),
+        name=None if args.name is None else f"{args.name}",
+        replace_description=bool(args.replace_description),
+        new_key=bool(args.new_key),
+        private_folder=None if args.private_folder is None else f"{args.private_folder}",
     )
 
 
@@ -4814,14 +4957,29 @@ def _persons_repeated() -> "list[str]":
     return [] if session is None else list(session.persons_typed) + list(session.persons_counted)
 
 
+def _says_the_person(means: str) -> bool:
+    """Whether an `identifier` answer's words say the column names the person (lane EZ-a, plan P4-D479).
+
+    The unswitched person question's words (`_PERSON_MEANS_OPENING`) and,
+    since every shipped run is switched (lane CHON, plan P4-D464; batch
+    4u's merge), the switched one's (`asking.PERSON_ANSWER_MEANS`, lane
+    GRa, RULINGS 1 (1)); `record`'s words say a record of the person and
+    are neither. Raises nothing.
+    """
+    return (
+        means[: len(_PERSON_MEANS_OPENING)] == _PERSON_MEANS_OPENING
+        or means[: len(asking.PERSON_ANSWER_MEANS)] == asking.PERSON_ANSWER_MEANS
+    )
+
+
 def _persons_in_the_answers(document: "dict[str, object]") -> "list[str]":
     """The columns a questions file says name the person (lane EZ-a, plan P4-D479).
 
     An entry answered `identifier` -- or, kept under `answered_before`,
-    standing on it -- whose `identifier` answer's words open with
-    `_PERSON_MEANS_OPENING`: the person question's answer, or an earlier
-    run's kept one. Read by index, never by `.get` (plan D6.2). Raises
-    nothing.
+    standing on it -- whose `identifier` answer's words say the person
+    (`_says_the_person`: the unswitched question's opening or the switched
+    one's): the person question's answer, or an earlier run's kept one.
+    Read by index, never by `.get` (plan D6.2). Raises nothing.
     """
     from synthtwin import contract
 
@@ -4843,7 +5001,7 @@ def _persons_in_the_answers(document: "dict[str, object]") -> "list[str]":
                 and choice["answer"] == asking.ANSWER_IDENTIFIER
                 and "means" in choice
                 and isinstance(choice["means"], str)
-                and choice["means"][: len(_PERSON_MEANS_OPENING)] == _PERSON_MEANS_OPENING
+                and _says_the_person(choice["means"])
                 and name not in found
             ):
                 found += [name]
@@ -5578,11 +5736,15 @@ def _small_population_notice(spoken: str, person_columns: str) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class ChainRun:
-    """The chain's switch for one `synthtwin profile` run (lane CHa, plan P4-D418; NOT IN FORCE).
+    """The chain's switch for one `synthtwin profile` run (lane CHa, plan P4-D418; IN FORCE since plan P4-D464).
 
-    No command-line option sets it: `main` never passes one, so every
-    shipped run describes, summarizes and writes exactly as before
-    (invariant S12). The tools and the tests hand it to `_run_profile`.
+    THE SWITCH IS ON (lane CHON, plan P4-D464, the landing that ships
+    stage 6): `main` and `run`, given none, make one for every `profile`
+    run from the command line's own options (`_shipped_chain`: `--name`,
+    `--replace-description`, `--new-key`, `--private-folder`, the rule
+    steps on); the tools and the tests may hand one in. Only the internal
+    keyword `unswitched`, which no option or environment variable sets,
+    runs a command without it, as every run was before that landing.
     `name` is the table's name (4.6b.4's `--name`; None reads the input
     file's name without its extension); `folder` the installation's data
     folder (None: the platform's own, `installation.data_folder`);
@@ -5604,9 +5766,22 @@ class ChainRun:
     # stands over this one); empty, the question is put and holds the
     # chain until it is answered.
     rows_per_person: str = ""
-    # The rule steps (contract 4.6b.7; lane RO, plan P4-D459), off unless asked.
+    # The rule steps (contract 4.6b.7; lane RO, plan P4-D459), off unless
+    # asked; the shipped run asks (`_shipped_chain`, LANE RO RULINGS 2 (4)).
     rules: bool = False
     private_folder: "str | None" = None
+    # THE PATIENT LAYER'S SUB-SWITCH (LANE CHON RULINGS 1 (6)): a run that
+    # leaves it True may publish `grain`, the patient layer (lane GRa, plan
+    # P4-D449); the shipped run reads `_PATIENT_LAYER_SHIPPED`, False until
+    # the generator reads the layer (lane GRb flips it in one line), so a
+    # table of several rows a person publishes no chain until then.
+    patient_layer: bool = True
+
+
+# THE ONE LINE LANE GRb FLIPS (LANE CHON RULINGS 1 (6)): whether the shipped
+# command publishes the patient layer (`grain`). False: no shipped
+# description carries what the shipped generator does not yet read.
+_PATIENT_LAYER_SHIPPED = False
 
 
 @dataclasses.dataclass
@@ -5616,7 +5791,8 @@ class _ChainState:
     run: ChainRun
     # `installation.Opened` and `installation.Entry`: the installation (its
     # key comes from `secrets`) is imported only behind the chain's switch,
-    # never by a shipped run (Codex's item 10 on repair 1).
+    # never by a run of the internal unswitched setting (Codex's item 10 on
+    # repair 1); every shipped run is switched since plan P4-D464.
     opened: "typing.Any"
     entry: "typing.Any" = None
     statistical: "dict[str, object] | None" = None
@@ -5654,6 +5830,22 @@ class _ChainState:
     # (`taxonomy.KeptSpellings`; lane CHs, plan P4-D462): filled by the
     # description and emptied by the chain.
     kept: "dict[int, typing.Any]" = dataclasses.field(default_factory=dict)
+    # THE QUESTION A HOLD WAITS FOR (lane CHON, plan P4-D464): `subject`
+    # where the subject question holds the chain, `person` where the open
+    # person question holds a repeating column first, '' where no hold
+    # keeps the chain back; the screen's one paragraph names it
+    # (`_hold_paragraph`).
+    waiting: str = ""
+    # WHAT THE RUN LEFT IN THE DATA FOLDER (lane CHON's repair 1, LANE CHON
+    # RULINGS 5 (2)): whether its ledger entry was written, and whether its
+    # description was. A run that reached the chain and wrote no
+    # description takes its entry and the key it made back
+    # (`installation.withdraw`), and the folder it made.
+    recorded: bool = False
+    described: bool = False
+    # The columns the open person question holds, which the hold's paragraph
+    # names (lane CHON's repair 1, F2).
+    person_held: "tuple[str, ...]" = ()
 
 
 def _subject_named(chain_state: "_ChainState | None") -> "list[str]":
@@ -5775,6 +5967,23 @@ def _population_settled(
         chain_state.rows_per_person = chain.ROWS_PERSON if governing else chain.ROWS_ONE
         return counted
     persons = _persons_settled(chain_state, found[0])
+    if persons == found[0] and len(found[0]) >= 2 and chain_state.rows_per_person == chain.ROWS_OPEN:
+        # NOTHING SAYS WHICH OF SEVERAL REPEATING KEYS NAMES THE PERSON, AND NO
+        # NAME DOES EITHER (lane GRa's rule left the hold open): lane EZ-a's
+        # explicit route, as on the unswitched path (LANE EZ RULINGS 1 (2) and
+        # 8 (2)) -- the subject question at the keyboard, and where nobody is
+        # there and the keys together read the table below the people floor
+        # while one alone would not, the refusal that names the cause and
+        # `--person`. Batch 4u's checks: since every shipped run is switched,
+        # two repeating record numbers whose names say no person were refused
+        # in the floor's own words, naming neither, and no question was put.
+        settled = _people_said_settled(found, table, settings, codes, measurements, decimal_commas, stored_as, declared)
+        chosen = [name for name in _persons_said_now() if name in found[0]]
+        if settled is not found and chosen:
+            chain_state.persons_said = tuple(sorted(set(chain_state.persons_said) | set(chosen)))
+            _persons_settled(chain_state, found[0])
+            return settled
+        return found
     if persons == found[0]:
         return found
     return _population_of(table, settings, declared, codes, measurements, decimal_commas, stored_as, list(persons))
@@ -6144,41 +6353,88 @@ def _chained_description(
 
     run = chain_state.run
     name = run.name if run.name is not None else table.stem
+    chain_state.person_held = tuple(held_by_person)
+    # THE KEY, MADE AS THE RUN REACHES THE CHAIN (4.6b.4 amended 2026-11-09;
+    # LANE CHON RULINGS 1 (4)): the data folder, its lock and its key, where
+    # the installation read before the table holds none yet. A refusal here
+    # is 4.6b.4's, in its words, and nothing is written.
+    reached = installation.with_key(chain_state.opened, run.new_key)
+    if reached is not chain_state.opened:
+        chain_state.opened = reached
+        if reached.refusal:
+            _warn(reached.refusal, step=results.STEP_ENVIRONMENT)
+            return published
+        for line in reached.lines:
+            _say(line)
     # Lane BT3a's repair 2 (LANE BT3 RULINGS 6 (2)): the reader reads a
     # column's dates in disguise in the unit its age was answered in.
     answered: "list[tuple[str, int]]" = []
     if ages_counted_in is not None:
         for column in sorted(ages_counted_in):
             answered += [(column, ages_counted_in[column])]
-    # THE SUBJECT QUESTION'S HOLD (lane GRa, plan P4-D449; `_persons_settled`
-    # read it as the people were counted): while it is open, or answered with
-    # no column naming the person, no chain and no patient layer is drawn.
-    chained = chain.describe(
-        read,
-        published,
-        settings,
-        chain.ChainSwitch(
-            name,
-            chain_state.opened.key,
-            held,
-            chain_state.add,
-            chain_state.drop,
-            chain_state.rows_per_person,
-            held_by_person,
-            safe_harbor_no,
-            unanswered,
-            rare_values_released,
-            harbor_year,
-            kept_identities,
-            rules=run.rules,
-            ages_counted_in=tuple(answered),
-        ),
-        list(forced_codes),
-        list(forced_measurements),
-        list(forced_decimal_commas),
-        storage,
-        chain_state.kept,
+    # THE SIZE GUARD (CHAIN-NEXT 2.2; LANE CHON RULINGS 1 (9) and 2; contract
+    # 4.6b.13 amended 2026-11-10), read after the table and before the chain:
+    # the whole run, the chain on, projected against its time and memory
+    # (`chain.size_decision`). Where it fits, the whole chain, with every
+    # partner if that fits too; else THE DEGRADED CHAIN over the columns
+    # whose pairs carry the most dependence, the others named; and where not
+    # even two columns fit, no chain: one line on the screen with the
+    # projections (never a count of the table's), one private note, and no
+    # shared byte saying why.
+    written = published["columns"] if "columns" in published else None
+    sized = chain.size_decision(
+        read.n_rows, len(written) if isinstance(written, list) else 0, chain.candidates_at_most(published, held)
     )
+    too_large = sized.degraded and sized.drawn == 0
+    if too_large:
+        chained = chain.guarded(read, chain.size_note(sized))
+    else:
+        # THE SUBJECT QUESTION'S HOLD (lane GRa, plan P4-D449; `_persons_settled`
+        # read it as the people were counted): while it is open, or answered with
+        # no column naming the person, no chain and no patient layer is drawn.
+        chained = chain.describe(
+            read,
+            published,
+            settings,
+            chain.ChainSwitch(
+                name,
+                chain_state.opened.key,
+                held,
+                chain_state.add,
+                chain_state.drop,
+                chain_state.rows_per_person,
+                held_by_person,
+                safe_harbor_no,
+                unanswered,
+                rare_values_released,
+                harbor_year,
+                kept_identities,
+                rules=run.rules,
+                ages_counted_in=tuple(answered),
+                patient_layer=run.patient_layer,
+                columns_at_most=sized.drawn if sized.degraded else 0,
+                every_partner=sized.every_partner,
+            ),
+            list(forced_codes),
+            list(forced_measurements),
+            list(forced_decimal_commas),
+            storage,
+            chain_state.kept,
+        )
+        # The size guard's projections, in the private report's notes.
+        if chained.statistical is not None:
+            aside = len(_set_aside_for_size(chained.statistical))
+            guard_said = list(chain.guard_notes(sized, aside))
+            # ...and where the columns the carried rules read took the
+            # degraded chain past the guard's bound (LANE CHON RULINGS 5 (1)).
+            held_ladder = chained.statistical["ladder"]
+            drawn_now = len(held_ladder) if isinstance(held_ladder, list) else 0
+            if sized.degraded and drawn_now > sized.drawn:
+                seconds_now = chain.projected_seconds(
+                    read.n_rows, len(written) if isinstance(written, list) else 0, drawn_now, False
+                )
+                guard_said += [chain.rules_past_the_guard_note(sized, drawn_now, seconds_now)]
+            chained = dataclasses.replace(chained, notes=chained.notes + tuple(guard_said))
     chain_state.kept = {}
     # A table of fewer than two eligible columns draws no chain whatever the
     # answer, and a table with no repeating key decides nothing then; nor
@@ -6192,6 +6448,11 @@ def _chained_description(
         and (chain.too_few_columns(chained) or chain.person_question_holds(chained))
     ):
         chain_state.subject_put = False
+    # THE HOLD THE SCREEN NAMES (plan P4-D464; LANE CHON RULINGS 1 (2), LANE
+    # BT3 RULINGS 1 (6)): only the subject question stands between this table
+    # and a chain, or the person question before it.
+    if chained.statistical is None and chain.off_reason(chained) == chain.OFF_SUBJECT:
+        chain_state.waiting = _WAITS_FOR_PERSON if chain.person_question_holds(chained) else _WAITS_FOR_SUBJECT
     relationships = published["relationships"]
     if not isinstance(relationships, dict):
         return published
@@ -6208,20 +6469,28 @@ def _chained_description(
         with_chain["columns"] = chained.columns
     with_chain["relationships"] = block
     statistical = chained.statistical
-    # THE MOMENTS' FAIL-SAFE (lane MPp, plan P4-D455; LANE MPp RULINGS 6
-    # (1)): the command never writes a description its own loader refuses.
-    # Where the chain's check refuses the description with rule B's
-    # moments and passes it without them, the moments are left out and
-    # the caution says why; no test table needs this.
-    if isinstance(statistical, dict) and statistical["moments"] is not None:
-        refused = _chain_refusal(with_chain)
-        if refused:
+    selftest = chained.selftest
+    notes_kept = list(chained.notes)
+    # THE COMMAND NEVER WRITES A DESCRIPTION ITS OWN LOADER REFUSES (lane
+    # MPp, plan P4-D455, LANE MPp RULINGS 6 (1); lane CHON's repair 1, LANE
+    # CHON RULINGS 5 (1)(c) and 6 (3)): the chain's check runs on every
+    # description whose `statistical` stands. THE MOMENTS' FAIL-SAFE: where
+    # it refuses the description with rule B's moments and passes it
+    # without them, the moments are left out and the caution says why.
+    # THE CHAIN'S FAIL-SAFE: where it refuses the chain even without them,
+    # the description written is the PLAIN one the chain was handed -- its
+    # columns as described, every computed column's block and the patient
+    # layer's left out with the chain -- and one private note names the
+    # refusal; never the refused chain.
+    if isinstance(statistical, dict):
+        refused = _loader_refusal(with_chain)
+        if refused and statistical["moments"] is not None:
             bare: "dict[str, object]" = {}
             for key in statistical:
                 bare[key] = statistical[key]
             bare["moments"] = None
             block["statistical"] = bare
-            if _chain_refusal(with_chain):
+            if _loader_refusal(with_chain):
                 block["statistical"] = statistical
             else:
                 statistical = bare
@@ -6230,6 +6499,14 @@ def _chained_description(
                     f"description, because the loader that reads it refused them: {refused} The family tables stand."
                 )
                 _warn(chain_state.moments_left_out, caution=results.CAUTION_CHAIN)
+                refused = ""
+        if refused:
+            with_chain = published
+            relationships_plain = published["relationships"]
+            block = relationships_plain if isinstance(relationships_plain, dict) else {}
+            statistical = None
+            selftest = None
+            notes_kept += [chain.chain_refused_note(refused)]
     digest = installation.description_digest(with_chain)
     between = installation.publishes_between(with_chain)
     decision = installation.decide(
@@ -6240,10 +6517,10 @@ def _chained_description(
         between,
         run.replace_description,
     )
-    chain_state.notes = chained.notes
+    chain_state.notes = tuple(notes_kept)
     chain_state.statistical = statistical
     chain_state.name = name
-    chain_state.selftest = chained.selftest
+    chain_state.selftest = selftest
     chain_state.counts = chained.counts
     # The patient layer as the description WRITES it (`block`: contract
     # 4.6b.8's patient words read from `grain` as 4.6c.9 writes it), never
@@ -6251,7 +6528,18 @@ def _chained_description(
     # (batch 4q's merge of lane ST beside lane GRa's layer).
     chain_state.grain = block["grain"] if "grain" in block else None
     if decision.verdict == installation.REFUSE:
+        # WHICH ROUND THIS IS (LANE CHON RULINGS 1 (2)): the run after one a
+        # hold kept at null, the first to publish between columns, is told so
+        # before the contract's own words, which give the remedy and why.
+        if between and _after_a_held_round(chain_state.opened, name, chained.content):
+            _warn(_AFTER_A_HELD_ROUND, step=results.STEP_CONTENT)
         _warn(decision.words, step=results.STEP_CONTENT)
+        # ...and a later round at the keyboard keeps the answers given since
+        # where these words ask for --replace-description (Codex's review of
+        # batch 4u, item 7); the record itself is changed by neither.
+        session = _current()
+        if session is not None and decision.words == installation.words_changed(name):
+            session.round_refused_by_record = True
         return with_chain
     if decision.verdict == installation.WARN:
         _warn(decision.words, caution=results.CAUTION_CHAIN)
@@ -6262,10 +6550,136 @@ def _chained_description(
         digest,
         between,
     )
-    _say(_chain_line(statistical))
+    # Under a hold the screen's one paragraph names the question at the end
+    # of the run (`_hold_paragraph`), in place of this line; above the size
+    # guard its own line takes this one's place, and below the degraded
+    # chain's line follows it.
+    if too_large:
+        _say(_guard_line(sized))
+    elif not chain_state.waiting:
+        _say(_chain_line(statistical))
+        if isinstance(statistical, dict) and _set_aside_for_size(statistical):
+            _say(_degraded_line(sized, statistical))
     if chain_state.add or chain_state.drop or chain_state.unread:
         _say(_requests_line(chain_state.add, chain_state.drop, chain_state.unread, statistical))
     return with_chain
+
+
+# THE QUESTIONS A HOLD WAITS FOR (`_ChainState.waiting`).
+_WAITS_FOR_SUBJECT = "subject"
+_WAITS_FOR_PERSON = "person"
+
+# THE SCREEN'S ONE PARAGRAPH WHILE A HOLD STANDS (plan P4-D464; contract
+# 4.6b.4 as written, LANE CHON RULINGS 1 (2)): the question to answer and the
+# file it is in, and, before anything is shared, that the answered run will
+# be refused unless this description was never shared and
+# `--replace-description` is given. No count, and no reason a pair or a
+# column is out (RULE W3).
+_HOLD_SUBJECT = (
+    "Between columns: nothing is published for this table yet. One question "
+    "decides it, whether one person may stand on more than one row of this "
+    "table, and it is in ",
+    " under between_columns.",
+)
+_HOLD_PERSON = (
+    "Between columns: nothing is published for this table yet. A question about "
+    "a column of record numbers that repeat comes first, whether it identifies "
+    "the person or a record of the person, then the question under "
+    "between_columns, whether one person may stand on more than one row; both "
+    "are in ",
+    ".",
+)
+_HOLD_LEDGER = (
+    "Answer there and run the command again with that file handed back "
+    "(--answers). Where that run publishes relationships between columns, this "
+    "computer's record of earlier descriptions refuses it unless this "
+    "description was never shared and you add --replace-description, so keep "
+    "this description to yourself until then."
+)
+# ...NAMING THE COLUMNS THE OPEN PERSON QUESTION HOLDS and the answers that
+# turn the chain on (lane CHON's repair 1, LANE CHON RULINGS 3 (1), F2): the
+# questions file's own answers, `keep`, `identifier` and `record`.
+_HOLD_PERSON_NAMED = (
+    "Between columns: nothing is published for this table yet, and none can "
+    "be until a question about a column of record numbers that repeat is "
+    "answered: ",
+    ". Answer keep where its values are codes or a measurement, identifier "
+    "where rows sharing a value are one person, or record where they are one "
+    "record of a person (an encounter, an order, an account); then answer the "
+    "question under between_columns, whether one person may stand on more "
+    "than one row. Both are in ",
+    ".",
+)
+# ...AND THE ROUND AFTER ONE (LANE CHON RULINGS 1 (2)), told before 4.6b.4's
+# own refusal, which gives the remedy and why.
+_AFTER_A_HELD_ROUND = (
+    "This run is the one after a question held the relationships between "
+    "columns back: the earlier description of this table published none, and "
+    "this one would be the first to publish them."
+)
+
+
+def _guard_line(sized: "typing.Any") -> str:
+    """The screen's one line above even the degraded chain's budget (plan P4-D464): the projections in words, never a count of the table's."""
+    from synthtwin import chain
+
+    return (
+        "\nBetween columns: no relationship between columns is published for this table. The run without "
+        f"them is projected at about {chain.hours_of(sized.seconds_plain)} hours of computing already, and "
+        f"relating even two columns would take it past the {chain.hours_of(chain.RUN_SECONDS_AT_MOST)} hours "
+        "this version allows a whole run (relating them all, about "
+        f"{chain.hours_of(sized.seconds_whole)}), so every column of the twin is carried on its own."
+    )
+
+
+def _set_aside_for_size(statistical: "dict[str, object]") -> "tuple[str, ...]":
+    """The columns a switched description's `statistical` sets aside for size (`ineligible` as `size`), in order (plan P4-D464)."""
+    from synthtwin import contract
+
+    return contract.size_set_aside({"relationships": {"statistical": statistical}})
+
+
+def _degraded_line(sized: "typing.Any", statistical: "dict[str, object]") -> str:
+    """The screen's line under THE DEGRADED CHAIN (plan P4-D464): how many columns it relates and the projections; no count of the table's."""
+    from synthtwin import chain
+
+    ladder = statistical["ladder"]
+    drawn = len(ladder) if isinstance(ladder, list) else 0
+    aside = len(_set_aside_for_size(statistical))
+    return (
+        f"Between columns, for this table's size: the relationships are kept among the {drawn} columns whose "
+        "pairs carry the most dependence, so that the whole run stays within the "
+        f"{chain.hours_of(chain.RUN_SECONDS_AT_MOST)} hours of computing this version allows (about "
+        f"{chain.hours_of(sized.seconds)} projected; relating every column, about "
+        f"{chain.hours_of(sized.seconds_whole)}). The other {aside} columns are carried on their own; the "
+        "description lists them as set aside for size, and the private report names them."
+    )
+
+
+def _after_a_held_round(opened: "typing.Any", name: str, content: str) -> bool:
+    """Whether the ledger's entry of this table, under this name, published nothing between columns (`installation.Entry.between`)."""
+    for entry in opened.entries:
+        if entry.content == content and entry.name == name:
+            return not entry.between
+    return False
+
+
+def _hold_paragraph(waiting: str, questions: str, columns: "tuple[str, ...]" = ()) -> str:
+    """The screen's one paragraph while a hold stands: the question, its file, and the record's refusal to come.
+
+    Where the open person question holds `columns` (lane CHON's repair 1,
+    LANE CHON RULINGS 3 (1), F2: the chain cannot be drawn at all until it
+    is answered), the paragraph names them and the answers that turn the
+    chain on, in the questions file's own words: no count, and no reason a
+    pair or a column is out (RULE W3).
+    """
+    if waiting == _WAITS_FOR_PERSON and columns:
+        named = ""
+        for column in columns:
+            named += (", " if named else "") + _shown(column)
+        return "\n" + _HOLD_PERSON_NAMED[0] + named + _HOLD_PERSON_NAMED[1] + questions + _HOLD_PERSON_NAMED[2] + " " + _HOLD_LEDGER
+    head, tail = _HOLD_PERSON if waiting == _WAITS_FOR_PERSON else _HOLD_SUBJECT
+    return "\n" + head + questions + tail + " " + _HOLD_LEDGER
 
 
 def _private_folder_refusal(folder: pathlib.Path, profile_path: pathlib.Path, os_name: str) -> str:
@@ -6374,7 +6788,7 @@ def _private_report(
     places: "tuple[tuple[pathlib.Path, str], ...]" = (),
     not_dates: "tuple[str, ...]" = (),
 ) -> None:
-    """Write the PRIVATE report of a switched profile run (lane ST, plan P4-D458; contract 4.6b.8, NOT IN FORCE).
+    """Write the PRIVATE report of a switched profile run (lane ST, plan P4-D458; contract 4.6b.8, in force since plan P4-D464).
 
     THE ONE SITE that imports the zone P self-test (the offline scanner's
     `_PRIVATE_IMPORT_SITES`): it runs after the ledger recorded the run and
@@ -6510,19 +6924,21 @@ def _private_report(
     _say(f"The private report, for you alone (keep it out of anything you share): {_shown(str(target))}")
 
 
-def _chain_refusal(document: "dict[str, object]") -> str:
-    """The words of the chain check's refusal of a description as it will be written ('' where it passes).
+def _loader_refusal(document: "dict[str, object]") -> str:
+    """The words of the loader's refusal of a description as it will be written ('' where it loads).
 
-    The same check `contract.load_profile(..., chain=True)` runs on the
-    parsed file (S23 to S28, S39 to S43), here on the description's own
-    serialized bytes parsed back, before anything is written.
+    The whole shipped reading (`contract.load_profile_text`: every check
+    `synthtwin generate` and `validate` run on the file, the column blocks
+    as well as the chain's S23 to S43) on the description's own serialized
+    bytes, before anything is written (lane CHON's repair 1: a carried
+    rule's computed block the chain check passed was refused by the
+    loader's column rules, so the command wrote a description its own
+    loader refused).
     """
-    import json
-
-    from synthtwin import chain_check, profile
+    from synthtwin import contract, profile
 
     try:
-        chain_check.check(json.loads(profile.serialize(document)))
+        contract.load_profile_text(profile.serialize(document), "the description this run would write")
     except errors.ProfileError as refusal:
         return f"{refusal}"
     return ""
@@ -6608,6 +7024,107 @@ def _chain_pairs(chain_state: "_ChainState | None") -> "list[list[str]] | None":
     return exact
 
 
+def _outputs_refused_before_the_chain(table: str, out_dir: "str | None") -> bool:
+    """Whether the outputs step's own checks refuse this switched run, read BEFORE it reaches the chain.
+
+    Lane CHON's repair 1 (LANE CHON RULINGS 5 (2); 4.6b.4 amended
+    2026-11-09: a run refused before its description is written leaves no
+    new key, folder or entry). The same calls the outputs step makes, in
+    the same words and at the same step: `profile.default_output_paths`
+    (the out-dir's locality gate, the out-dir standing as a folder, each
+    name's gate, a folder standing at a name) RAISES what it raised there;
+    a name that is the table itself is refused here with the outputs
+    step's words (True). A twin's own folder, made once the questions are
+    answered (`_make_the_twins_folder`), is settled by the twin's preflight
+    before any step runs, so it is not read here. Writes nothing.
+    """
+    from synthtwin import profile
+
+    session = _current()
+    if session is not None and session.folder_to_make:
+        return False
+    phase = session.phase if session is not None else ""
+    _at(results.STEP_OUTPUTS)
+    profile_path, summary_path = profile.default_output_paths(pathlib.Path(table), out_dir)
+    source = validate_local_path(table, purpose="input")
+    if (
+        profile_path == source
+        or summary_path == source
+        or profile.is_the_same_file(profile_path, source)
+        or profile.is_the_same_file(summary_path, source)
+    ):
+        _warn(
+            errors.output_would_replace_the_table(_shown(source)),
+            step=results.STEP_OUTPUTS,
+        )
+        return True
+    if session is not None:
+        session.phase = phase
+    return False
+
+
+def _data_folder_refusal(folder: pathlib.Path, table: str, out_dir: "str | None") -> str:
+    """Why the installation's data folder may not be used for this run ('' where it may), read before anything is made.
+
+    Lane CHON's repair 1 (LANE CHON RULINGS 5 (2), skeptic 1's item 3;
+    contract 4.6b.4: the ledger is never beside a run's output): the data
+    folder holds the private key and the record of earlier descriptions,
+    so it is refused where it IS the folder the description is written to
+    or the table's own folder, where it stands directly in either, or
+    where it lies deeper inside either -- the resolved-path test of the
+    private report's folder (`_private_folder_refusal`) -- SAVE that the
+    account's own home folder, or a folder above it, holds the platform's
+    place for an account's private data deep inside it by design
+    (~/Library/Application Support, ~/.local/share, AppData\\Local): a
+    table or an output folder there is no reason to refuse the run (the
+    rule as first built refused every table kept in the home folder).
+    Screen only; the caller writes nothing.
+
+    THE LOCALITY GATE COMES FIRST (batch 4u's outside review, item 2):
+    every path is checked as it was typed, by `validate_local_path`'s
+    lexical rules, before anything resolves it, so a shared network
+    location (`\\\\server\\share\\table.csv`, a URL) is never looked up.
+    A data folder that is no plain local folder refuses the run, in
+    words that say so; a table or an output folder the gate refuses is
+    left to the run's own step, which refuses it before the table is
+    read, as it always did.
+    """
+    from synthtwin import installation
+
+    variable = "LOCALAPPDATA" if installation.system_name() == "nt" else "XDG_DATA_HOME"
+    try:
+        here = validate_local_path(f"{folder}", purpose="synthtwin data folder")
+    except (PathValidationError, OSError, RuntimeError) as refused:
+        return (
+            f"This computer's data folder for synthtwin, {_shown(str(folder))}, is not a plain folder on this "
+            f"computer. {refused} It would hold the private key and the record of earlier descriptions, so "
+            f"nothing was read or written. Point {variable} at a private folder of your own on this computer, "
+            "and run the command again."
+        )
+    try:
+        table_folder = pathlib.Path(os.path.dirname(f"{validate_local_path(table, purpose='input')}"))
+        out_folder = (
+            validate_local_path(out_dir, purpose="output folder") if out_dir is not None else table_folder
+        )
+    except (PathValidationError, OSError, RuntimeError):
+        return ""
+    try:
+        home = pathlib.Path(f"{pathlib.Path(os.path.expanduser('~')).resolve()}")
+    except (OSError, ValueError, RuntimeError):
+        return ""
+    for place in (out_folder, table_folder):
+        above_home = place == home or place in home.parents
+        if here == place or here.parent == place or (place in here.parents and not above_home):
+            return (
+                f"This computer's data folder for synthtwin, {_shown(str(folder))}, is the folder this run writes "
+                "its description to, or the folder that holds the table, or lies inside one of them. It holds the "
+                "private key and the record of earlier descriptions, which never travel beside the files that are "
+                f"shared, so nothing was read or written. Point {variable} at a private folder of your own, outside "
+                "both, and run the command again."
+            )
+    return ""
+
+
 def _profile_outputs_taken(
     table: str, out_dir: "str | None"
 ) -> "tuple[list[str], list[str]]":
@@ -6690,10 +7207,16 @@ def _run_profile(
 ) -> str:
     """Do the work of `synthtwin profile`; return the exit code (`_run_profile_body`).
 
-    With the chain's switch (`chain`, which no command-line option sets),
-    the installation's data folder is opened and locked BEFORE the table
-    is read (contract 4.6b.4: a ledger without its key is refused before
-    anything is read), and the lock is released however the run ends.
+    With the chain's switch (`chain`: every shipped run since plan
+    P4-D464), the installation's data folder is read, and locked where it
+    stands, BEFORE the table is read (contract 4.6b.4: a ledger without
+    its key is refused before anything is read), and the lock is released
+    however the run ends. NOTHING IS MADE THERE YET (4.6b.4 amended
+    2026-11-09, LANE CHON RULINGS 1 (4)): a folder that does not stand, a
+    key and the lock in a new folder wait until the run reaches the chain
+    (`_chained_description`, `installation.with_key`), so a run refused
+    before that -- the table floor, a path, the reader -- leaves no new
+    key, folder or entry behind.
 
     LANE EZ-a (plan P4-D479): `--person` (``persons_given``) declares its
     columns held, as `--identifier` does, and says they name the person
@@ -6714,7 +7237,10 @@ def _run_profile(
         session.persons_typed = list(persons)
         session.floor_refuses = small_tables_refused
         session.questions_beside = (table, out_dir)
-        session.rounds_follow = chain is None and _there_is_somebody_to_ask()
+        # ...on a switched run too since lane CHON's merge (batch 4u, step 2):
+        # every shipped run is switched, and each round's description is
+        # `_described_once`'s.
+        session.rounds_follow = _there_is_somebody_to_ask()
     if _progress_at_a_terminal():
         _say(_first_line("Reading", table))
     _counting_switched_on("describing")
@@ -6756,9 +7282,101 @@ def _run_profile_switched(
     small_tables_refused: bool,
     replace: bool,
 ) -> str:
-    """`_run_profile`'s two roads: the shipped one with its rounds of questions, and the chain's switch's."""
+    """`_run_profile`'s one road since lane CHON's merge (batch 4u, step 2): the rounds of questions of lane EZ-a.
+
+    Every shipped run is switched since plan P4-D464, so the rounds -- every
+    question at the keyboard after the files are written, lane EZ-a's plan
+    P4-D479 -- are the switched run's too: each description of a round, the
+    first and every later one, is made by `_described_once`, which opens,
+    reads and locks the installation for that description alone and
+    releases it after, so the record judges each round against the ledger
+    as it then stands (contract 4.6b.4 as written; LANE CHON RULINGS 1 (2)).
+    Without the switch (the internal unswitched setting) each round is
+    `_run_profile_body` as before.
+    """
+    return _profile_rounds(
+        table=table,
+        out_dir=out_dir,
+        smallest_group=smallest_group,
+        floor_chosen=floor_chosen,
+        forced_identifiers=forced_identifiers,
+        forced_codes=forced_codes,
+        forced_measurements=forced_measurements,
+        forced_decimal_commas=forced_decimal_commas,
+        answers_path=answers_path,
+        kept_values=kept_values,
+        missing_values=missing_values,
+        first_row=first_row,
+        day_first=day_first,
+        sheet=sheet,
+        metadata_rows_given=metadata_rows_given,
+        delimiter_given=delimiter_given,
+        date_counts_given=date_counts_given,
+        forced_twelve_hours=forced_twelve_hours,
+        centuries_given=centuries_given,
+        date_columns_given=date_columns_given,
+        first_row_typed=first_row_typed,
+        small_tables_refused=small_tables_refused,
+        replace=replace,
+        chain=chain,
+    )
+
+
+def _switch_of_a_later_round(chain: "ChainRun | None") -> "ChainRun | None":
+    """The switch a later round of the same run describes under (batch 4u's merge of lane CHON).
+
+    --new-key is the run's: where an earlier round made the key, the
+    installation opened again for this round would refuse a new one (a
+    key stands), so `new_key` is off once the key file stands; until then
+    it stays as typed. Every other setting is the run's. Reads whether
+    the key file stands; writes nothing.
+    """
+    if chain is None or not chain.new_key:
+        return chain
+    from synthtwin import installation
+
+    folder = pathlib.Path(chain.folder) if chain.folder is not None else installation.data_folder()
+    if installation.key_path(folder).is_file():
+        return dataclasses.replace(chain, new_key=False)
+    return chain
+
+
+def _described_once(
+    table: str,
+    out_dir: "str | None",
+    smallest_group: int,
+    floor_chosen: bool,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
+    answers_path: "str | None",
+    kept_values: list[str],
+    missing_values: list[str],
+    first_row: str,
+    day_first: bool,
+    sheet: str,
+    metadata_rows_given: str,
+    delimiter_given: str,
+    date_counts_given: "list[list[str]] | None",
+    forced_twelve_hours: "list[str] | None",
+    centuries_given: "list[str] | None",
+    date_columns_given: "list[str] | None",
+    first_row_typed: bool,
+    chain: "ChainRun | None",
+    small_tables_refused: bool,
+    replace: bool,
+) -> str:
+    """One description of the table: unswitched, `_run_profile_body`; switched, the lane's road (plan P4-D464).
+
+    Lane CHON's switched road as it stands: the data folder never beside
+    the output, the installation opened before the table is read and
+    released however the description ends, and a description that was not
+    written leaving no new key, folder or entry. `_profile_rounds` calls it
+    for the first description and for each later round (batch 4u's merge).
+    """
     if chain is None:
-        return _profile_rounds(
+        return _run_profile_body(
             table=table,
             out_dir=out_dir,
             smallest_group=smallest_group,
@@ -6790,11 +7408,22 @@ def _run_profile_switched(
         if chain.folder is not None
         else installation.data_folder()
     )
-    opened = installation.open_installation(folder, new_key=chain.new_key)
+    # THE DATA FOLDER NEVER BESIDE THE OUTPUT (lane CHON's repair 1; 4.6b.4):
+    # refused before anything is opened or made. The folder the platform
+    # names (XDG_DATA_HOME, LOCALAPPDATA or the account's own) is read;
+    # `ChainRun.folder`, an internal setting no option reaches, is a test's.
+    beside = _data_folder_refusal(folder, table, out_dir) if chain.folder is None else ""
+    if beside:
+        _warn(beside, step=results.STEP_ENVIRONMENT)
+        return results.REFUSED
+    opened = installation.open_installation(folder, new_key=chain.new_key, key_now=False)
+    state = _ChainState(chain, opened)
     try:
         if opened.refusal:
-            _warn(opened.refusal)
-            return results.UNUSABLE
+            # 4.6b.4's refusals, in its words, on the screen alone: nothing
+            # is read or written, exit status 1 (plan P4-D464).
+            _warn(opened.refusal, step=results.STEP_ENVIRONMENT)
+            return results.REFUSED
         for line in opened.lines:
             _say(line)
         return _run_profile_body(
@@ -6819,12 +7448,22 @@ def _run_profile_switched(
             centuries_given=centuries_given,
             date_columns_given=date_columns_given,
             first_row_typed=first_row_typed,
-            chain_state=_ChainState(chain, opened),
+            chain_state=state,
             small_tables_refused=small_tables_refused,
             replace=replace,
         )
     finally:
-        installation.release(opened)
+        # A run that wrote no description leaves no new key, folder or
+        # entry (4.6b.4 amended 2026-11-12; lane CHON's repair 1): what it
+        # recorded and made is taken back under its lock, the folder it made
+        # once the lock is gone.
+        if not state.described:
+            installation.withdraw(state.opened, state.recorded)
+        # The installation as the run left it: the lock it holds, taken
+        # before the table was read or as the run reached the chain.
+        installation.release(state.opened)
+        if not state.described:
+            installation.remove_made_folder(state.opened)
 
 
 # -- every question at the keyboard (lane EZ-a, plan P4-D479) ----------------
@@ -6925,6 +7564,14 @@ def _entry_keys(record: "results.Asked") -> "tuple[tuple[str, str], ...]":
 def _enter_said(record: "results.Asked") -> str:
     """What Enter does at one entry, from the reading it stands on unanswered (its `read_as_now`)."""
     now = record.read_as_now
+    if record.section == asking.BETWEEN_COLUMNS:
+        # The subject question (Codex's review of batch 4u, item 6): what
+        # stands is its own sentence; a column is named in the file or typed.
+        return (
+            f"Press Enter to leave it open. {_one_stop(now)} A column that identifies "
+            "the person is named in the questions file, or with --person when you run "
+            "the command again."
+        )
     if now == asking.ANSWER_IDENTIFIER:
         return (
             "Press Enter to leave it open: the column stays held as record "
@@ -7048,6 +7695,11 @@ def _put_the_entries(
 
 def _entry_of(document: "dict[str, object]", record: "results.Asked") -> "dict[object, object] | None":
     """The entry of a questions file's document a record stands for, by its section and order; None where it is not there."""
+    if record.section == asking.BETWEEN_COLUMNS:
+        # The subject question, under the chain's one entry (item 6).
+        chained = document[asking.BETWEEN_COLUMNS] if asking.BETWEEN_COLUMNS in document else None
+        found = chained[asking.ROWS_PER_PERSON] if isinstance(chained, dict) and asking.ROWS_PER_PERSON in chained else None
+        return found if isinstance(found, dict) else None
     if record.section == results.SECTION_CHECKLIST:
         section = document["checklist"] if "checklist" in document else None
         entries = section["columns"] if isinstance(section, dict) and "columns" in section else None
@@ -7059,6 +7711,61 @@ def _entry_of(document: "dict[str, object]", record: "results.Asked") -> "dict[o
     if not isinstance(entry, dict) or "column" not in entry or entry["column"] != record.subject:
         return None
     return entry
+
+
+def _subject_entry_now(questions: pathlib.Path) -> "list[results.Asked]":
+    """The questions file's subject question as the one entry of a round at the keyboard, where it stands open; else none.
+
+    Codex's review of batch 4u, item 6: the subject question (lane GRa,
+    plan P4-D449: may one person stand on several rows?) is written under
+    the chain's one entry, `between_columns`, and no record of the result
+    stands for it, so where it was the only question no round put it and
+    the twin carried no relationship until the person edited the file by
+    hand. Put once a run, in a round of its own after the file's other
+    entries (`_profile_rounds`), so ending input there loses no answer given
+    to them. It offers the two answers that name no column; a column is
+    named in the file or with --person (`_enter_said`). Reads the file; no
+    value of the table is in it.
+    """
+    from synthtwin import contract
+
+    session = _current()
+    if session is None or session.subject_entry_put:
+        return []
+    try:
+        document = contract.load_answers(f"{questions}")
+    except (PathValidationError, errors.ProfileError):
+        return []
+    probe = results.Asked(asking.BETWEEN_COLUMNS, 1, "", "", asking.ROWS_PER_PERSON, "", "")
+    entry = _entry_of(document, probe)
+    if entry is None:
+        return []
+    written = entry["your_answer"] if "your_answer" in entry else ""
+    if not isinstance(written, str) or parsing.trimmed(written):
+        return []
+    offers: "list[results.Offer]" = []
+    choices = entry["answers_you_can_give"] if "answers_you_can_give" in entry else []
+    for choice in choices if isinstance(choices, list) else []:
+        if (
+            isinstance(choice, dict)
+            and "answer" in choice
+            and "means" in choice
+            and "publishes" in choice
+            and choice["answer"] in (asking.ANSWER_ONE_ROW_EACH, asking.ANSWER_NO_PERSON_COLUMN)
+        ):
+            offers += [results.Offer(f"{choice['answer']}", f"{choice['means']}", f"{choice['publishes']}")]
+    seen = entry["seen"] if "seen" in entry else ""
+    asked = entry["question"] if "question" in entry else ""
+    now = entry["read_as_now"] if "read_as_now" in entry else ""
+    if not offers or not isinstance(seen, str) or not isinstance(asked, str) or not isinstance(now, str):
+        return []
+    session.subject_entry_put = True
+    return [
+        results.Asked(
+            asking.BETWEEN_COLUMNS, 1, "", "", asking.ROWS_PER_PERSON,
+            f"{_one_stop(seen)} {asked}", now, tuple(offers), False, asking.ROWS_PER_PERSON,
+        )
+    ]
 
 
 def _answers_written_into(
@@ -7186,7 +7893,7 @@ def _still_open_said() -> None:
     )
 
 
-def _profile_again(questions: str) -> str:
+def _profile_again(questions: str, replacing: bool = False) -> str:
     """The person's own `profile` command line with `--answers` naming ``questions``, typed as a shell reads it; empty where none is known.
 
     Lane EZ-a's repair (the orchestrator's LANE EZ RULINGS 4 (4)): the
@@ -7198,6 +7905,13 @@ def _profile_again(questions: str) -> str:
     the person typed is kept, as the twin's commands keep them
     (`_twin_again`); the seed and `--replace` are no options of this
     command's round.
+
+    ``replacing`` (Codex's review of batch 4u, item 7): the record of
+    earlier descriptions refused the description a later round made with
+    the answers given since, in words that ask for --replace-description;
+    the line then also types the record's own options the person typed
+    (`--name`, `--private-folder`) and `--replace-description`, so it is
+    the run those words describe.
     """
     session = _current()
     typed = session.typed if session is not None else None
@@ -7209,6 +7923,12 @@ def _profile_again(questions: str) -> str:
     typed = _options_left(typed, session.typed_replaced)
     words = _twin_again(f"{typed.given}", dataclasses.replace(typed, answers=questions, seed="0", replace=False))
     words[1] = _PROFILE
+    if replacing:
+        if typed.name is not None:
+            words += _option_words("--name", typed.name)
+        if typed.private_folder is not None:
+            words += _option_words("--private-folder", typed.private_folder)
+        words += ["--replace-description"]
     return _typed_words(words)
 
 
@@ -7292,6 +8012,7 @@ def _described_again(
     verdict: str,
     shown_before: "list[str]",
     questions: "pathlib.Path | None" = None,
+    kept: bool = False,
 ) -> None:
     """Show what a run described again with the keyboard's answers said that the person needs: its closing lines.
 
@@ -7301,7 +8022,11 @@ def _described_again(
     is shown whole, in words that match the files on disk (`_after_the_files`),
     and then that the files written before it stand, the questions file
     without the answers given since (``questions``, written back as it was:
-    `_profile_rounds`), and the command that answers again.
+    `_profile_rounds`), and the command that answers again. ``kept``: the
+    record of earlier descriptions refused the round's description in words
+    that ask for --replace-description, so the answers given since stay in
+    the questions file and the command shown applies them with that option
+    (Codex's review of batch 4u, item 7).
     """
     start = len(captured)
     if verdict == results.NO_MISS:
@@ -7319,11 +8044,23 @@ def _described_again(
         elif stream == _ERR and text not in shown_before:
             _show(stream, text)
     if verdict != results.NO_MISS and questions is not None:
-        stands = _files_stand_said(questions)
+        stands = _answers_kept_said(questions) if kept else _files_stand_said(questions)
         session = _current()
         if session is not None:
             session.on_disk = parsing.visible_lines(stands)
-        line = _profile_again(f"{questions}")
+        line = _profile_again(f"{questions}", replacing=kept)
+        if kept:
+            _say(
+                f"\n{stands}"
+                + (
+                    " If the earlier description was never shared with anyone, run this to describe the "
+                    f"table with them:\n  {line}{_quoting_said(line)}"
+                    if line
+                    else " If the earlier description was never shared with anyone, run your command again "
+                    "with --answers, the questions file and --replace-description."
+                )
+            )
+            return
         _say(
             f"\n{stands}"
             + (f" To answer again, run this at the keyboard:\n  {line}{_quoting_said(line)}" if line else "")
@@ -7469,6 +8206,20 @@ def _files_stand_said(questions: pathlib.Path) -> str:
     )
 
 
+def _answers_kept_said(questions: pathlib.Path) -> str:
+    """What is on disk after the record refused a later round's description: the files before it, the answers given since kept.
+
+    Codex's review of batch 4u, item 7: the description and its summary
+    are the ones written before these answers; the questions file holds
+    the answers given since, beside 'your_answer', so the command that
+    follows applies them (`_profile_again`, ``replacing``).
+    """
+    return (
+        f"The description and its summary written before these answers stand as they were. "
+        f"The answers given since are kept in {_shown(questions)}."
+    )
+
+
 def _profile_rounds(
     table: str,
     out_dir: "str | None",
@@ -7493,8 +8244,9 @@ def _profile_rounds(
     first_row_typed: bool = False,
     small_tables_refused: bool = True,
     replace: bool = False,
+    chain: "ChainRun | None" = None,
 ) -> str:
-    """`_run_profile_body`, then, where somebody is at the keyboard, every question left open (lane EZ-a, plan P4-D479).
+    """One description, then, where somebody is at the keyboard, every question left open (lane EZ-a, plan P4-D479).
 
     ROUNDS AFTER THE FILES. Once the first description and its questions
     file are written, each entry of the file -- about the file, asked, the
@@ -7510,11 +8262,14 @@ def _profile_rounds(
     list of lines) keeps the files the rounds before it wrote and says how
     many questions stay open (the orchestrator's LANE EZ RULINGS 1 (6));
     in the first round it still writes nothing. Nobody at the keyboard,
-    the one description is the whole run, as before.
+    the one description is the whole run, as before. EACH DESCRIPTION IS
+    `_described_once`'s (batch 4u's merge of lane CHON): on a switched run
+    each round opens and releases the installation, and the record judges
+    it against the ledger as it then stands.
     """
     from synthtwin import profile
 
-    verdict = _run_profile_body(
+    verdict = _described_once(
         table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
         forced_identifiers=forced_identifiers, forced_codes=forced_codes,
         forced_measurements=forced_measurements, forced_decimal_commas=forced_decimal_commas,
@@ -7523,7 +8278,7 @@ def _profile_rounds(
         delimiter_given=delimiter_given, date_counts_given=date_counts_given,
         forced_twelve_hours=forced_twelve_hours, centuries_given=centuries_given,
         date_columns_given=date_columns_given, first_row_typed=first_row_typed,
-        small_tables_refused=small_tables_refused, replace=replace,
+        small_tables_refused=small_tables_refused, replace=replace, chain=chain,
     )
     session = _current()
     if session is None or not session.rounds_follow:
@@ -7546,6 +8301,11 @@ def _profile_rounds(
             for one in session.questions
             if one.section != results.SECTION_HELD and one.offers and _entry_key(one) not in put
         ]
+        # THE SUBJECT QUESTION, IN A ROUND OF ITS OWN once the file's other
+        # entries are put (Codex's review of batch 4u, item 6), the only
+        # question or not: no record of the result stands for it.
+        if questions is not None and not entries:
+            entries = _subject_entry_now(questions)
         if questions is None or not entries:
             break
         given, ended = _put_the_entries(entries)
@@ -7555,6 +8315,10 @@ def _profile_rounds(
             _ended_said()
             break
         if not answered:
+            # ...and every entry of the round left open does not keep the
+            # subject question from its own round (item 6).
+            if not session.subject_entry_put:
+                continue
             break
         source = pathlib.Path(validate_local_path(table, purpose="input"))
         described, summary = profile.default_output_paths(pathlib.Path(table), out_dir)
@@ -7581,6 +8345,7 @@ def _profile_rounds(
         session.ended_at_subject = False
         session.files, session.warnings, session.left_behind = [], [], []
         session.on_disk = ""
+        session.round_refused_by_record = False
         refused: "BaseException | None" = None
         verdict = results.REFUSED
         first_row_word = (
@@ -7593,7 +8358,7 @@ def _profile_rounds(
             _DELIMITER_SPELLINGS[delimiter_given] if delimiter_given in _DELIMITER_SPELLINGS else ""
         )
         try:
-            verdict = _run_profile_body(
+            verdict = _described_once(
                 table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
                 forced_identifiers=_typed_left(forced_identifiers, asking.ANSWER_IDENTIFIER, replaced),
                 forced_codes=_typed_left(forced_codes, asking.ANSWER_CODE, replaced),
@@ -7613,6 +8378,7 @@ def _profile_rounds(
                 date_columns_given=_typed_left(date_columns_given, asking.ANSWER_DATES, replaced),
                 first_row_typed=first_row_typed and first_row_left,
                 small_tables_refused=small_tables_refused, replace=replace,
+                chain=_switch_of_a_later_round(chain),
             )
         except (errors.ProfileError, PathValidationError) as error:
             # A refusal raised from below, said as the command says one, and
@@ -7624,9 +8390,19 @@ def _profile_rounds(
             session.subject_reader = None
             # A write the description began and could not finish names what
             # is on disk itself (`_stopped_writing`); any other stop wrote
-            # nothing, and the questions file goes back to what it held.
+            # nothing, and the questions file goes back to what it held --
+            # BUT WHERE THE RECORD OF EARLIER DESCRIPTIONS REFUSED THE ROUND'S
+            # DESCRIPTION in words that ask for --replace-description, the
+            # answers given since stay in it, for the command that applies
+            # them (Codex's review of batch 4u, item 7: they were erased).
             stopped_writing = bool(session.on_disk)
-            if verdict != results.NO_MISS and not stopped_writing:
+            kept_answers = (
+                verdict != results.NO_MISS
+                and refused is None
+                and not stopped_writing
+                and session.round_refused_by_record
+            )
+            if verdict != results.NO_MISS and not stopped_writing and not kept_answers:
                 _questions_written_back(questions, kept_text, guards)
                 session.typed_replaced = _typed_replaced_in(questions, typed)
         if session.ended_at_subject:
@@ -7653,7 +8429,7 @@ def _profile_rounds(
         else:
             for record, _answer in answered:
                 _answer_stands(_answer, (record.column, record.role, record.reason))
-        _described_again(captured, verdict, seen, None if stopped_writing else questions)
+        _described_again(captured, verdict, seen, None if stopped_writing else questions, kept_answers)
         rounds = rounds + 1
     if verdict != results.NO_MISS:
         return verdict
@@ -10122,8 +10898,16 @@ def _run_profile_body(
         )
 
     # THE CHAIN BETWEEN COLUMNS, behind its switch (lane CHa, plan
-    # P4-D418; contract 4.6b, NOT IN FORCE): no shipped run reaches this.
+    # P4-D418; contract 4.6b, in force since plan P4-D464): every shipped
+    # run reaches this; the internal unswitched setting alone does not.
     if chain_state is not None:
+        # THE OUTPUT'S NAMES ARE SETTLED BEFORE THE KEY (lane CHON's repair
+        # 1, LANE CHON RULINGS 5 (2)): every refusal of the outputs step --
+        # a network or missing out-dir, a name that is a folder or the table
+        # itself -- comes before the run reaches the chain, where a new key
+        # would be made.
+        if _outputs_refused_before_the_chain(table, out_dir):
+            return results.REFUSED
         published = _chained_description(
             chain_state,
             pathlib.Path(table),
@@ -10391,6 +11175,7 @@ def _run_profile_body(
         from synthtwin import installation
 
         installation.record(chain_state.opened, chain_state.entry)
+        chain_state.recorded = True
     state = profile.DiskState()
     try:
         left_behind = profile.write_both_files(
@@ -10404,6 +11189,8 @@ def _run_profile_body(
         if state.sentence:
             _stopped_writing(_shown(state.sentence))
         elif state.both_files_written:
+            if chain_state is not None:
+                chain_state.described = True
             _wrote(
                 (results.FILE_DESCRIPTION, profile_path),
                 (results.FILE_SUMMARY, summary_path),
@@ -10424,6 +11211,8 @@ def _run_profile_body(
             if state.left_behind:
                 _left_behind([state.left_behind], _left_behind_note([state.left_behind]))
         raise
+    if chain_state is not None:
+        chain_state.described = True
     _wrote(
         (results.FILE_DESCRIPTION, profile_path),
         (results.FILE_SUMMARY, summary_path),
@@ -10937,6 +11726,13 @@ def _run_profile_body(
     if written_questions:
         _wrote((results.FILE_QUESTIONS, questions_path))
         _say(f"  {shown_questions_path}")
+        # THE HOLD, NAMED WITH THE FILE IT IS IN (plan P4-D464), once that
+        # file is written: a caution, which moves no exit status.
+        if chain_state is not None and chain_state.waiting:
+            _warn(
+                _hold_paragraph(chain_state.waiting, shown_questions_path, chain_state.person_held),
+                caution=results.CAUTION_CHAIN,
+            )
         if left_questions:
             # The same caution the pair above prints, for the same
             # reason: a working file this run could not clear away is a
@@ -11110,6 +11906,7 @@ def _run_generate(
     seed_given: str,
     replace: bool,
     least_floor: int,
+    chain: bool = False,
 ) -> str:
     """Do the work of `synthtwin generate`; return the exit code.
 
@@ -11138,6 +11935,13 @@ def _run_generate(
     to sit at that name -- reading either one to find out would break the
     rule that this command opens the description and nothing else -- so
     it refuses, names both files, and teaches `--replace`.
+
+    THE DESCRIPTION IS LOADED WITH ITS CHAIN (``chain``, every shipped run
+    since plan P4-D464; contract 4.6b's S12 amended): layer L0, G16 and the
+    polish run from what it publishes between columns, and one whose
+    `statistical` and `grain` are null loads and generates exactly as
+    before. False is the internal unswitched setting's: the loader of S12
+    word for word.
     """
     from synthtwin import (
         contract,
@@ -11151,7 +11955,7 @@ def _run_generate(
     if seed is None:
         _warn(refusal)
         return results.UNUSABLE
-    loaded = contract.load_profile(description)
+    loaded = contract.load_profile(description, chain=None if chain else False)
     _record_floor(loaded.settings.small_cell_floor, True)
     # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT BUILT FROM (plan
     # P4-D426, HIPAA first): the twin would hold every group it names,
@@ -11551,8 +12355,8 @@ def _run_validate(
     to sit at that name, so it refuses, names the file, and teaches
     `--replace`.
 
-    THE CHAIN'S SWITCH (`chain`, lane CHv, plan P4-D430; NOT IN FORCE):
-    no command-line option sets it. With it, the description is loaded
+    THE CHAIN'S SWITCH (`chain`, lane CHv, plan P4-D430; on for every
+    shipped run since plan P4-D464). With it, the description is loaded
     with its chain (`contract.load_profile_document`: S23 to S28), and
     where it carries one the quality report gains V12's section and the
     screen ONE line in its place; a description carrying no chain is
@@ -11564,7 +12368,8 @@ def _run_validate(
     if chain:
         loaded, document = contract.load_profile_document(description)
     else:
-        loaded = contract.load_profile(description)
+        # The internal unswitched setting: S12 as written before plan P4-D464.
+        loaded = contract.load_profile(description, chain=False)
     _record_floor(loaded.settings.small_cell_floor, True)
     # A DESCRIPTION WRITTEN UNDER A LOWERED FLOOR IS NOT CHECKED AGAINST
     # (plan P4-D426, HIPAA first): the report would quote its small
@@ -11624,8 +12429,11 @@ def _run_validate(
     # it always took, so a caller that wraps `measure` with that signature
     # (the health zoo's battery) still runs; only the switched run hands it
     # the parsed document.
+    # ...AND ON A DESCRIPTION THAT PUBLISHES NOTHING BETWEEN COLUMNS (plan
+    # P4-D464: every shipped run is switched), the call it always was: it
+    # measures, reports and exits exactly as before.
     try:
-        if document is None:
+        if document is None or not loaded.relationships.switched:
             outcome = validation.measure(loaded, measured, sheet)
         else:
             outcome = validation.measure(loaded, measured, sheet, document)
@@ -12578,6 +13386,15 @@ def _twin_words(
             words += [f"--smallest-group={options.smallest_group}"]
         if options.answers is not None:
             words += [f"--answers={options.answers}"]
+        # ...and the installation's four (contract 4.6b.4; plan P4-D464).
+        if options.name is not None:
+            words += [f"--name={options.name}"]
+        if options.replace_description:
+            words += ["--replace-description"]
+        if options.new_key:
+            words += ["--new-key"]
+        if options.private_folder is not None:
+            words += [f"--private-folder={options.private_folder}"]
     if options.replace:
         words += ["--replace"]
     return words
@@ -12592,6 +13409,7 @@ def _twin_step(
     small_tables_refused: bool,
     internal_smallest_group: "int | None",
     bound_to: "tuple[int, int, str] | None" = None,
+    unswitched: bool = False,
 ) -> results.Result:
     """Run one step of the twin as its own command, in a session of its own; return its result.
 
@@ -12611,7 +13429,7 @@ def _twin_step(
     step.bound_to = bound_to
     _OPEN.sessions += [step]
     try:
-        verdict = _dispatch(words, chain, small_tables_refused, internal_smallest_group)
+        verdict = _dispatch(words, chain, small_tables_refused, internal_smallest_group, unswitched)
     except (_Unusable, _HelpShown):
         verdict = results.UNUSABLE
     finally:
@@ -12629,6 +13447,7 @@ def _run_twin(
     chain: "ChainRun | None",
     small_tables_refused: bool,
     internal_smallest_group: "int | None",
+    unswitched: bool = False,
 ) -> str:
     """Do the work of `synthtwin twin`; return the run's verdict (lane TT, plan P4-D460).
 
@@ -12747,6 +13566,7 @@ def _run_twin(
             small_tables_refused,
             internal_smallest_group,
             bound_to,
+            unswitched,
         )
     ]
     reached = session.steps[0].verdict
@@ -12763,6 +13583,8 @@ def _run_twin(
                 chain,
                 small_tables_refused,
                 internal_smallest_group,
+                None,
+                unswitched,
             )
         ]
         reached = _more_severe(reached, session.steps[len(session.steps) - 1].verdict)
@@ -12939,8 +13761,11 @@ def _twin_ended(
     # item 10): a questions file the profile step would not write -- its
     # name leading onto the description, a caution -- left five, and the
     # line said six.
+    # ...THE PRIVATE REPORT AMONG THEM NEVER (LANE ST RULINGS 2 (5), plan
+    # P4-D464): it is written outside the folder, for the person alone.
+    in_the_folder = [one for one in session.files if one.kind != results.FILE_PRIVATE_REPORT]
     _say(
-        f"\nThe twin's {_files_counted(len(session.files))} are in:\n"
+        f"\nThe twin's {_files_counted(len(in_the_folder))} are in:\n"
         f"  {_shown(folder)}"
     )
     open_now = [
@@ -13028,14 +13853,25 @@ def main(
     *,
     small_tables_refused: bool = True,
     internal_smallest_group: "int | None" = None,
+    unswitched: bool = False,
 ) -> int:
     """Run the `synthtwin` command.
 
-    `chain` is the chain's switch (lane CHa, plan P4-D418; contract 4.6b,
-    NOT IN FORCE): the console entry point never passes it, so a person
-    typing `synthtwin` cannot turn it on; the tools and the tests hand it
-    in. It reaches the `profile` command, and the `validate` command as
-    V12's lines (lane CHv, plan P4-D430); `generate` never reads it.
+    THE CHAIN'S SWITCH IS ON (lane CHON, plan P4-D464, the landing that
+    ships stage 6; contract 4.6b, S12 amended). `chain`, None from the
+    console entry point, is made for every `profile` run from the command
+    line's own options (`_shipped_chain`), and the tools and the tests may
+    hand one in: `profile` describes between columns behind the
+    installation's key, record and lock (4.6b.4), `generate` loads the
+    description with its chain and `validate` measures it with V12's lines
+    (lane CHv, plan P4-D430). A description whose `statistical` and
+    `grain` are null is generated and measured exactly as before.
+    - `unswitched`, keyword only and INTERNAL (plan P4-D464): False, the
+      default and the only value a typed command ever runs with. True runs
+      every command as it ran before that landing -- no installation, no
+      chain, the loader of S12 word for word -- for the tests that pin that
+      path and the before-and-after proof alone. No command-line option
+      and no environment variable sets it.
 
     Guarantees:
 
@@ -13195,6 +14031,7 @@ def main(
         chain,
         small_tables_refused,
         internal_smallest_group,
+        unswitched,
     )
     return results.exit_code(result)
 
@@ -13207,6 +14044,7 @@ def run(
     chain: "ChainRun | None" = None,
     small_tables_refused: bool = True,
     internal_smallest_group: "int | None" = None,
+    unswitched: bool = False,
 ) -> results.Result:
     """Run one command line and return what it did, printing nothing (plan P4-D395 part 3).
 
@@ -13227,9 +14065,9 @@ def run(
       type again reach the person through ``screen``. Without ``ask`` no
       question is put and nothing is read. Both are data and never a
       function: the offline audit admits no call of a function a caller
-      hands in (plan D6.2; plan P4-D437). ``chain``, ``small_tables_refused`` and
-      ``internal_smallest_group`` are `main`'s, with the same meanings,
-      and INTERNAL: no option or environment variable sets them.
+      hands in (plan D6.2; plan P4-D437). ``chain``, ``small_tables_refused``,
+      ``internal_smallest_group`` and ``unswitched`` are `main`'s, with the
+      same meanings, and INTERNAL: no option or environment variable sets them.
     - Given neither ``screen`` nor ``ask``, nothing reaches standard
       output or the error stream by any route of this package -- a
       message, argparse's help or usage text -- nothing is read from
@@ -13252,7 +14090,7 @@ def run(
       after another, or in separate processes.
     """
     return _run(
-        argv, screen, ask, chain, small_tables_refused, internal_smallest_group
+        argv, screen, ask, chain, small_tables_refused, internal_smallest_group, unswitched
     )
 
 
@@ -13263,13 +14101,14 @@ def _run(
     chain: "ChainRun | None",
     small_tables_refused: bool,
     internal_smallest_group: "int | None",
+    unswitched: bool = False,
 ) -> results.Result:
     """The run `main` and `run` share: one session opened and closed, one result."""
     session = _Session(screen, ask)
     _OPEN.sessions += [session]
     try:
         verdict = _dispatch(
-            argv, chain, small_tables_refused, internal_smallest_group
+            argv, chain, small_tables_refused, internal_smallest_group, unswitched
         )
     except _Unusable:
         verdict = results.UNUSABLE
@@ -13324,12 +14163,16 @@ def _dispatch(
     chain: "ChainRun | None",
     small_tables_refused: bool,
     internal_smallest_group: "int | None",
+    unswitched: bool = False,
 ) -> str:
     """Read the command line and run its command; return the run's verdict.
 
     The body `main` had before results (plan P4-D395): every refusal it
     catches is shown as before and answered `refused`, and the step a
-    stop was at is read off the session.
+    stop was at is read off the session. THE SWITCH (plan P4-D464): a
+    `profile` run handed no `chain` is given the shipped one
+    (`_shipped_chain`), `generate` and `validate` read the description
+    with its chain, unless ``unswitched``.
     """
     session = _current()
     assert session is not None
@@ -13337,6 +14180,18 @@ def _dispatch(
     options = _parse_arguments(argv, internal_smallest_group)
     if _no_floor_at_all(internal_smallest_group):
         return results.UNUSABLE
+    # A NAME THAT WOULD LEAVE ITS FOLDER IS REFUSED BEFORE ANY WORK (plan
+    # P4-D464): the private report's file and the record's entry are named
+    # by it.
+    if options.name is not None:
+        refused_name = _name_refusal(options.name)
+        if refused_name:
+            _refuse_the_command_line(refused_name)
+    switched = not unswitched
+    if unswitched:
+        chain = None
+    elif chain is None and options.command == _PROFILE:
+        chain = _shipped_chain(options)
     # The least smallest group size a description `generate` or
     # `validate` reads may record (plan P4-D426).
     least_read = (
@@ -13362,7 +14217,7 @@ def _dispatch(
     # THE WHOLE JOURNEY IN ONE COMMAND (lane TT, plan P4-D460).
     if options.command == _TWIN and options.given is not None:
         session.command = results.TWIN
-        return _run_twin(options, chain, small_tables_refused, internal_smallest_group)
+        return _run_twin(options, chain, small_tables_refused, internal_smallest_group, unswitched)
 
     named = options.given
     if named is None or options.command is None:
@@ -13380,6 +14235,7 @@ def _dispatch(
                 options.seed,
                 options.replace,
                 least_read,
+                chain=switched,
             )
         if validating:
             return _run_validate(
@@ -13389,7 +14245,7 @@ def _dispatch(
                 options.replace,
                 options.sheet,
                 least_read,
-                chain=chain is not None,
+                chain=switched,
             )
         session.typed = options
         return _run_profile(
@@ -13472,6 +14328,37 @@ def _dispatch(
         _warn(errors.stopped_nested_too_deep(_shown(named)))
         session.step = results.STEP_NESTING
         return results.REFUSED
+
+
+def _shipped_chain(options: _Options) -> ChainRun:
+    """The switch of a typed `profile` run (lane CHON, plan P4-D464): its four options, the rule steps on, the layer's sub-switch."""
+    return ChainRun(
+        name=options.name,
+        replace_description=options.replace_description,
+        new_key=options.new_key,
+        private_folder=options.private_folder,
+        rules=True,
+        patient_layer=_PATIENT_LAYER_SHIPPED,
+    )
+
+
+def _name_refusal(name: str) -> str:
+    """Why `--name NAME` cannot be used ('' where it can): empty, a folder's part, or a control character (plan P4-D464)."""
+    shown = _shown(name)
+    if not name or name in (".", ".."):
+        return (
+            f"The name given after --name, '{shown}', names no table. Give the table a name of "
+            "letters, figures and spaces, for example --name clinic-visits, or leave --name out to use "
+            "the file's own name."
+        )
+    for character in name:
+        if character in ("/", "\\") or ord(character) < 32 or ord(character) == 127:
+            return (
+                f"The name given after --name, '{shown}', holds a slash, a backslash or a control "
+                "character, so it would name a place outside synthtwin's own folder. Give the table a name "
+                "of letters, figures and spaces, for example --name clinic-visits."
+            )
+    return ""
 
 
 def _run_help(topic: "str | None") -> str:

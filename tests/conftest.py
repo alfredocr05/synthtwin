@@ -60,8 +60,88 @@ socket.create_connection = _blocked  # type: ignore[assignment]
 # and a run in a fresh interpreter -- the installed command -- has the
 # floor on, which that file checks too. The measurement drivers run
 # outside pytest and pass the keyword themselves.
+import os  # noqa: E402
+import pathlib  # noqa: E402
+
 import pytest  # noqa: E402
 from collections.abc import Iterator  # noqa: E402
+
+# THE INSTALLATION'S DATA FOLDER, ONE FOR EACH TEST (lane CHON, plan
+# P4-D464; contract 4.6b.4). Every shipped `synthtwin profile` run opens the
+# installation's data folder -- its private key, its record of earlier
+# descriptions, its lock and its private reports -- which the platform
+# places from XDG_DATA_HOME (POSIX) or LOCALAPPDATA (Windows). A test must
+# never read or write the account's own folder, and no test's lock may meet
+# another's, so each test gets a folder of its own holding the fixed test
+# key (`bytes(range(32))`, the oracle's) and an empty record: a run's chain
+# is then the same on every machine, and the screen says nothing about a
+# key made or a record started. Written with the standard library alone:
+# CI's static jobs run without the package installed. A test that names
+# its own folder (`monkeypatch.setenv`) keeps it; a test that asks for
+# `installation_folder` by name is handed its own data folder.
+#
+# AND ONE FOR EACH MODULE AND FOR THE SESSION (lane CHON's repair 1, from
+# the whole suite of its build head): pytest makes a fixture of a wider
+# scope BEFORE a test's own autouse fixtures, so a fixture of a module (a
+# table described once for many cases) ran its shipped command with the
+# account's own data folder in the environment -- on macOS the account's
+# Library/Application Support/synthtwin -- and a later run of the same
+# table met that folder's record. The same folder is made at the session's
+# start and at each module's (autouse fixtures come first within their
+# scope), so no fixture of any scope reaches the account's folder.
+TEST_KEY = bytes(range(32))
+_DATA_FOLDER = "synthtwin"
+_KEY_FILE = "chain-key"
+_LEDGER_FILE = "chain-ledger"
+_EMPTY_LEDGER = '{\n  "tables": [],\n  "version": 1\n}\n'
+
+
+def _fresh_installation(place: pathlib.Path) -> pathlib.Path:
+    """A data folder under `place` holding the fixed test key and an empty record; its path."""
+    data = place / _DATA_FOLDER
+    data.mkdir(mode=0o700)
+    key = data / _KEY_FILE
+    key.touch(mode=0o600)
+    if os.name != "nt":
+        data.chmod(0o700)
+        key.chmod(0o600)
+    key.write_bytes(TEST_KEY)
+    ledger = data / _LEDGER_FILE
+    ledger.touch(mode=0o600)
+    if os.name != "nt":
+        ledger.chmod(0o600)
+    ledger.write_text(_EMPTY_LEDGER, encoding="utf-8", newline="\n")
+    return data
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _installation_folder_of_the_session(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[pathlib.Path]":
+    place = tmp_path_factory.mktemp("installation-session")
+    data = _fresh_installation(place)
+    with pytest.MonkeyPatch.context() as own:
+        own.setenv("XDG_DATA_HOME", str(place))
+        own.setenv("LOCALAPPDATA", str(place))
+        yield data
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _installation_folder_of_the_module(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[pathlib.Path]":
+    place = tmp_path_factory.mktemp("installation-module")
+    data = _fresh_installation(place)
+    with pytest.MonkeyPatch.context() as own:
+        own.setenv("XDG_DATA_HOME", str(place))
+        own.setenv("LOCALAPPDATA", str(place))
+        yield data
+
+
+@pytest.fixture(autouse=True)
+def installation_folder(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[pathlib.Path]":
+    place = tmp_path_factory.mktemp("installation")
+    data = _fresh_installation(place)
+    with pytest.MonkeyPatch.context() as own:
+        own.setenv("XDG_DATA_HOME", str(place))
+        own.setenv("LOCALAPPDATA", str(place))
+        yield data
 
 
 @pytest.fixture(autouse=True)

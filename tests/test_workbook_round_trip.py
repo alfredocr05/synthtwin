@@ -39,6 +39,7 @@ import pytest
 import keyboard
 
 import crosscheck
+import fixtures
 import workbooks
 from synthtwin import errors, reading, workbook
 
@@ -792,18 +793,24 @@ def test_a_workbook_whose_other_sheet_holds_a_table_is_refused(
     # ...AND THE ANSWER IT ASKS FOR WORKS: a copy holding the named table's
     # sheet alone, named with --sheet, is described. (`--first-row names`
     # answers a separate question this builder's header raises: its value
-    # `site` stands again further down its own column.)
+    # `site` stands again further down its own column.) The builder's two
+    # sheets hold the SAME table, so each copy is described as on a
+    # computer of its own: this computer's record refuses the same rows
+    # described again under another name (plan P4-D464; contract 4.6b.4).
     for named in ("Data", "Codebook"):
         copy = _written(
             tmp_path, f"copy-{named}.xlsx", workbooks.two_table_book(keep=named)
         )
         (tmp_path / named).mkdir()
-        assert _quiet(
-            [
-                "profile", str(copy), "--out-dir", str(tmp_path / named),
-                "--sheet", named, "--first-row", "names",
-            ]
-        ) == 0, named
+        # Its data folder outside the table's folder and the output's, which
+        # the command refuses to hold the key (lane CHON's repair 1).
+        with fixtures.another_installation(tmp_path.parent / f"{tmp_path.name}-{named}-installation"):
+            assert _quiet(
+                [
+                    "profile", str(copy), "--out-dir", str(tmp_path / named),
+                    "--sheet", named, "--first-row", "names",
+                ]
+            ) == 0, named
 
 
 def test_a_workbook_with_three_tables_is_not_called_two(

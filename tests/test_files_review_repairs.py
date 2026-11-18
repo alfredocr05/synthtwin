@@ -261,9 +261,14 @@ def _trip(
         + list(checked)
     )
     if by_command:
-        code, said = _exit_of(
-            ["profile", str(twin), "--out-dir", str(again)] + list(flags)
-        )
+        # The twin's rows are the table's own here, so it is described again
+        # as on another computer (plan P4-D464; `fixtures.another_installation`),
+        # whose data folder stands outside the twin's folder, which the
+        # command refuses (lane CHON's repair 1; contract 4.6b.4).
+        with fixtures.another_installation(folder.parent / f"{folder.name}-elsewhere"):
+            code, said = _exit_of(
+                ["profile", str(twin), "--out-dir", str(again)] + list(flags)
+            )
         assert code == 0, said[-600:]
     else:
         describe_with_the_producer(
@@ -962,7 +967,9 @@ def test_a_split_pane_is_not_a_frozen_row_count(tmp_path: pathlib.Path) -> None:
     _held(result)
     assert result["document"]["source"]["workbook"]["frozen_rows"] == 0
     frozen = pane.replace('state="split"', 'state="frozen"').replace("3000", "2")
-    other = _trip(tmp_path / "frozen", "frozen", _book([("Data", _table_rows())], ["a", "b"], pane=frozen))
+    # The same rows under another name: as on another computer (plan P4-D464).
+    with fixtures.another_installation(tmp_path / "elsewhere"):
+        other = _trip(tmp_path / "frozen", "frozen", _book([("Data", _table_rows())], ["a", "b"], pane=frozen))
     assert other["document"]["source"]["workbook"]["frozen_rows"] == 2
 
 

@@ -34,7 +34,7 @@ import sys
 
 import pytest
 
-from synthtwin import cli, contract, dialect, errors, generation, grains, offset_rules, parsing, profile, reading, taxonomy
+from synthtwin import chain, cli, contract, dialect, errors, generation, grains, offset_rules, parsing, profile, reading, taxonomy
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY / "tests"))
@@ -316,6 +316,34 @@ def test_the_zoos_tables_at_600_rows_keep_every_offset_in_force(tmp_path: pathli
         assert result["steps"]["validate"]["exit"] == 0, (name, result["misses"])
         failing = [check for _kind, check, _why in result["analyst"]]
         assert not [check for check in failing if "offset in force" in check], (name, failing)
+
+
+def test_a_stamp_read_at_utc_is_cut_at_its_rungs_on_the_clock_they_are_published_on() -> None:
+    """Contract 4.6b.2 cuts a `datetime` column at the rungs of its `date_percentiles`, which a column read at UTC
+    publishes at UTC: the chain's reader (`chain.reading_of`, describing and validating) and the generator's
+    (`generation.reader_reading`) read its cells there too (`parsing.moment_on_its_clock`); a column read on its
+    own clock keeps its text. Batch 4u's checks: on aa11cdd0 both readers took the local wall clock, so the zoo's
+    `zoned_stamps`, every shipped run switched, published band totals on one clock that its twin, laid on the
+    rungs, missed on the other (validate exit 3 at 600 and at 20,000 rows; the case above), and the distinct
+    count it fell short of was bought with ten European stamps wearing a `T` the column never wrote. MUTANT: the
+    local text returned for every column (both readers): this case and the zoo case above are red."""
+    stamp = "2023-12-10 03:54:30+01:00"
+    summer = "2023-07-03 07:28:54+02:00"
+    parsed = parsing.parse_datetime(stamp, "iso-datetime")
+    assert parsed is not None
+    assert parsing.moment_on_its_clock(parsed, "utc", "datetime") == "2023-12-10 02:54:30"
+    assert parsing.moment_on_its_clock(parsed, "local", "datetime") == "2023-12-10 03:54:30"
+    day = parsing.parse_datetime("2023-12-10", "iso-date")
+    assert day is not None and parsing.moment_on_its_clock(day, "utc", "date") == "2023-12-10"
+    block = {"name": "eu_ts", "role": "datetime", "format": "iso-datetime", "datetimes_read_at": "utc",
+             "resolution": "datetime"}
+    declared = {"code": False, "measurement": False, "decimal_comma": False}
+    meaning = chain.reading_of(block, [stamp, summer], taxonomy.Settings(small_cell_floor=11), declared, "")
+    assert meaning[stamp] == ("value", "2023-12-10 02:54:30")
+    assert meaning[summer] == ("value", "2023-07-03 05:28:54")
+    local = chain.reading_of(dict(block, datetimes_read_at="local"), [stamp], taxonomy.Settings(small_cell_floor=11),
+                             declared, "")
+    assert local[stamp] == ("value", "2023-12-10 03:54:30")
 
 
 def test_a_twin_spending_the_census_by_counts_is_named_by_validate(

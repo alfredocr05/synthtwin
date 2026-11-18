@@ -28,16 +28,25 @@ import re
 import pytest
 
 import keyboard_answers_measures as measures
-from synthtwin import cli, errors, parsing, reading, results, taxonomy
+from synthtwin import asking, cli, errors, parsing, reading, results, taxonomy
 
 # A bare '1 people', never a count of 11 or 101 people.
 ONE_PEOPLE = re.compile(r"(?<![\d,])1 people")
 
 
 def _table(
-    folder: pathlib.Path, rows: int, people: int, clinicians: int = 40, seed: int = 5
+    folder: pathlib.Path, rows: int, people: int, clinicians: int = 40, seed: int = 5, patient: str = "subject_id"
 ) -> "tuple[pathlib.Path, set[str], set[str]]":
-    """A long table of visits: patient, clinician, a reading, a ward; and the real keys of both."""
+    """A long table of visits: patient, clinician, a reading, a ward; and the real keys of both.
+
+    ``patient`` names the patient key. EVERY SHIPPED RUN IS SWITCHED since
+    lane CHON (plan P4-D464), and there a key whose name says the person
+    (`subject_id`) is the person by lane GRa's rule (`asking.names_a_person`;
+    LANE EZ RULINGS 1 (2): the switched path's vocabulary), so the cases of
+    a table where NOTHING says which key names the patients name it
+    `record_no`, a record number whose name says no person (batch 4u's
+    checks).
+    """
     draw = random.Random(seed)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "visits.csv"
@@ -45,7 +54,7 @@ def _table(
     staff = [f"D{4000 + place:05d}" for place in range(clinicians)]
     with open(path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["subject_id", "clinician_id", "reading", "ward"])
+        writer.writerow([patient, "clinician_id", "reading", "ward"])
         for place in range(rows):
             writer.writerow([
                 patients[place % people],
@@ -80,8 +89,10 @@ def test_the_said_person_counts_the_people_at_the_table_floor(tmp_path: pathlib.
     `--person subject_id --identifier clinician_id` is described in 1,000
     people, the clinician number held and joining nobody: no real value of
     either key in the description, its summary, its questions file or the
-    twin. The same two keys both named `--identifier` are refused in words
-    that name the cause and `--person`, never as '1 people'.
+    twin. Two such keys both named `--identifier`, the patient key's name
+    saying no person, are refused in words that name the cause and
+    `--person`, never as '1 people' (a name that says the person counts the
+    people by it on the shipped road: lane GRa's rule).
     """
     table, patients, staff = _table(tmp_path / "said", 20000, 1000)
     result, screen = _run(["profile", f"{table}", "--person", "subject_id", "--identifier", "clinician_id"])
@@ -105,11 +116,14 @@ def test_the_said_person_counts_the_people_at_the_table_floor(tmp_path: pathlib.
     assert cells & (patients | staff) == set()
     checked, _validate_screen = _run(["validate", f"{table.parent / 'visits-profile.json'}"])
     assert checked.verdict == results.NO_MISS, checked.misses
-    together, words = _run(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--identifier", "subject_id",
-                            "--identifier", "clinician_id"])
+    # ...and the same two keys both named `--identifier`, where the patient
+    # key's name says no person (`_table`'s ``patient``): refused in the words
+    # that name the cause and `--person` on the shipped (switched) road too.
+    named, _patients, _staff = _table(tmp_path / "named", 20000, 1000, patient="record_no")
+    together, words = _run(["profile", f"{named}", "--identifier", "record_no", "--identifier", "clinician_id"])
     assert together.verdict == results.REFUSED
     assert together.refusal is not None
-    assert "ANY of clinician_id, subject_id" in together.refusal.words
+    assert "ANY of clinician_id, record_no" in together.refusal.words
     assert "--person" in together.refusal.words
     assert ONE_PEOPLE.search(words) is None
 
@@ -118,13 +132,13 @@ def test_two_keys_said_nothing_at_the_keyboard_put_the_subject_question(
     tmp_path: pathlib.Path, small_floors: None
 ) -> None:
     """Nothing says which key is the person: the subject question; its number counts by that key, Enter keeps the union."""
-    table, _patients, _staff = _table(tmp_path / "keys", 600, 120, clinicians=8)
-    said, screen = _run(["profile", f"{table}", "--identifier", "subject_id", "--identifier", "clinician_id"],
+    table, _patients, _staff = _table(tmp_path / "keys", 600, 120, clinicians=8, patient="record_no")
+    said, screen = _run(["profile", f"{table}", "--identifier", "record_no", "--identifier", "clinician_id"],
                         ask=["2"])
     assert "WHO ARE THE ROWS ABOUT?" in screen
     assert said.verdict == results.NO_MISS, said.refusal
-    assert _settings(table.parent)["person_columns"] == ["subject_id"]
-    kept, kept_screen = _run(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--identifier", "subject_id",
+    assert _settings(table.parent)["person_columns"] == ["record_no"]
+    kept, kept_screen = _run(["profile", f"{table}", "--out-dir", f"{tmp_path}", "--identifier", "record_no",
                               "--identifier", "clinician_id"], ask=[""])
     assert kept.verdict == results.REFUSED
     assert kept.refusal is not None and "--person" in kept.refusal.words
@@ -139,13 +153,13 @@ def test_the_keyboard_helper_s_empty_answer_keeps_the_union(
     import keyboard
 
     keyboard.every_reading_kept(monkeypatch)
-    table, _patients, _staff = _table(tmp_path / "helper", 600, 120, clinicians=8)
-    code = cli.main(["profile", f"{table}", "--identifier", "subject_id", "--identifier", "clinician_id"],
+    table, _patients, _staff = _table(tmp_path / "helper", 600, 120, clinicians=8, patient="record_no")
+    code = cli.main(["profile", f"{table}", "--identifier", "record_no", "--identifier", "clinician_id"],
                     small_tables_refused=True)
     assert code == 1
     said = capsys.readouterr()
     assert "WHO ARE THE ROWS ABOUT?" in said.out
-    assert "ANY of clinician_id, subject_id" in said.err
+    assert "ANY of clinician_id, record_no" in said.err
 
 
 def test_one_said_person_keeps_the_description_s_bytes(tmp_path: pathlib.Path) -> None:
@@ -161,14 +175,23 @@ def test_one_said_person_keeps_the_description_s_bytes(tmp_path: pathlib.Path) -
 def test_the_person_question_s_answer_says_the_person_across_rounds(
     tmp_path: pathlib.Path, small_floors: None
 ) -> None:
-    """The person question answered `identifier` in the file counts by that column; the next file keeps saying so."""
+    """The person question answered `identifier` in the file counts by that column; the next file keeps saying so.
+
+    On the shipped (switched) road the question's `identifier` answer says the
+    person in lane GRa's words (`asking.PERSON_ANSWER_MEANS`, beside its
+    `record` answer; LANE EZ RULINGS 1 (2)), where the unswitched path says
+    'the people the rows are about' (batch 4u's checks).
+    """
     table, _patients, _staff = _table(tmp_path / "rounds", 600, 120, clinicians=8)
     first, _screen = _run(["profile", f"{table}"])
     assert first.verdict == results.NO_MISS, first.refusal
     questions = table.parent / "visits-questions.json"
     document = json.loads(questions.read_text(encoding="utf-8"))
     person = [entry for entry in document["asked"] if entry["column"] == "subject_id"]
-    assert person and any("the people the rows are about" in choice["means"] for choice in person[0]["answers_you_can_give"])
+    assert person and any(
+        choice["answer"] == "identifier" and choice["means"] == asking.PERSON_ANSWER_MEANS
+        for choice in person[0]["answers_you_can_give"]
+    )
     person[0]["your_answer"] = "identifier"
     questions.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
     second, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"])
@@ -215,17 +238,22 @@ def test_a_person_said_before_a_second_key_is_declared_still_counts(
 
 def test_the_repeat_line_says_person(tmp_path: pathlib.Path, small_floors: None) -> None:
     """A column said to name the person is repeated as `--person`."""
-    table, _patients, _staff = _table(tmp_path / "repeat", 600, 120, clinicians=8)
-    said, screen = _run(["profile", f"{table}", "--identifier", "subject_id", "--identifier", "clinician_id"],
+    table, _patients, _staff = _table(tmp_path / "repeat", 600, 120, clinicians=8, patient="record_no")
+    said, screen = _run(["profile", f"{table}", "--identifier", "record_no", "--identifier", "clinician_id"],
                         ask=["2"])
     assert said.verdict == results.NO_MISS, said.refusal
-    assert _settings(table.parent)["person_columns"] == ["subject_id"]
-    assert "--person subject_id" in screen
+    assert _settings(table.parent)["person_columns"] == ["record_no"]
+    assert "--person record_no" in screen
     assert "--identifier clinician_id" in screen
 
 
-def _stays_with_staff(folder: pathlib.Path, rows: int, people: int, seed: int = 41) -> "tuple[pathlib.Path, set[str]]":
-    """Hospital stays: a seven-figure patient number, a staff number many patients share, a date, a ward, a pulse, sodium, a code."""
+def _stays_with_staff(
+    folder: pathlib.Path, rows: int, people: int, seed: int = 41, patient: str = "patient_no"
+) -> "tuple[pathlib.Path, set[str]]":
+    """Hospital stays: a seven-figure patient number, a staff number many patients share, a date, a ward, a pulse, sodium, a code.
+
+    ``patient`` names the patient number (`_table`'s ``patient``: `record_no` where nothing may say the person).
+    """
     draw = random.Random(seed)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "stays.csv"
@@ -235,7 +263,7 @@ def _stays_with_staff(folder: pathlib.Path, rows: int, people: int, seed: int = 
     staff: "set[str]" = set()
     with open(path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["patient_no", "staff_no", "seen_on", "ward", "pulse", "sodium", "dx"])
+        writer.writerow([patient, "staff_no", "seen_on", "ward", "pulse", "sodium", "dx"])
         for person in order:
             one = f"ST-{draw.randint(100, 159)}"
             staff.add(one)
@@ -264,34 +292,38 @@ def test_a_staff_number_declared_in_a_later_round_puts_the_subject_question(
     staff number held and published nowhere. Enter there refuses in the
     words that name the cause and `--person`, the questions file is the
     first round's byte for byte, and the screen says what stands on disk;
-    the end of input there keeps the first round's files (R7).
+    the end of input there keeps the first round's files (R7). The patient
+    number is named `record_no` here: on the shipped (switched) road a name
+    that says the patient (`patient_no`) counts the people by it with no
+    question (lane GRa's rule, LANE EZ RULINGS 1 (2)), and the question is
+    put where nothing says (batch 4u's checks).
     """
     plan: "dict[str, object]" = {
-        "patient_no": ("means:record numbers",), "staff_no": ("means:not a person", "means:record numbers"),
+        "record_no": ("means:record numbers",), "staff_no": ("means:not a person", "means:record numbers"),
         "pulse": ("measurement", "no"), "sodium": ("measurement",), "dx": ("code",),
     }
-    table, staff = _stays_with_staff(tmp_path / "said", 2000, 100)
-    said, screen, typist = measures.typed_run(["profile", f"{table}"], plan, person="patient_no")
+    table, staff = _stays_with_staff(tmp_path / "said", 2000, 100, patient="record_no")
+    said, screen, typist = measures.typed_run(["profile", f"{table}"], plan, person="record_no")
     assert typist.subject_put == 1 and (typist.refused, typist.mismatched) == (0, 0)
     assert said.verdict == results.NO_MISS, said.refusal
     settings = _settings(table.parent, "stays")
-    assert settings["person_columns"] == ["patient_no"] and "staff_no" in settings["forced_identifiers"]
+    assert settings["person_columns"] == ["record_no"] and "staff_no" in settings["forced_identifiers"]
     written = screen + "".join(
         (table.parent / name).read_text(encoding="utf-8")
         for name in ("stays-profile.json", "stays-profile.txt", "stays-questions.json")
     )
     assert [one for one in sorted(staff) if one in written] == []
-    table, _staff = _stays_with_staff(tmp_path / "enter", 2000, 100)
+    table, _staff = _stays_with_staff(tmp_path / "enter", 2000, 100, patient="record_no")
     kept, kept_screen, kept_typist = measures.typed_run(["profile", f"{table}"], plan, person="")
     assert kept_typist.subject_put == 1
     assert kept.verdict == results.REFUSED
-    assert kept.refusal is not None and "ANY of patient_no, staff_no" in kept.refusal.words
+    assert kept.refusal is not None and "ANY of record_no, staff_no" in kept.refusal.words
     assert "--person" in kept.refusal.words and "Nothing was written" not in kept.refusal.words
     assert kept_typist.snapshot is not None
     assert (table.parent / "stays-questions.json").read_bytes() == kept_typist.snapshot
     assert "Nothing was written" not in kept_screen and "stand as they were" in kept_screen
     assert ONE_PEOPLE.search(kept_screen) is None
-    table, _staff = _stays_with_staff(tmp_path / "ended", 2000, 100)
+    table, _staff = _stays_with_staff(tmp_path / "ended", 2000, 100, patient="record_no")
     ended, ended_screen, ended_typist = measures.typed_run(["profile", f"{table}"], plan, person=None)
     assert ended.verdict == results.NO_MISS and ended_typist.subject_put == 1
     assert "You ended the questions here. The files written above stand as they are." in ended_screen
@@ -327,10 +359,14 @@ def test_a_said_person_one_row_each_counts_the_table_in_rows(tmp_path: pathlib.P
     assert "No column that names PEOPLE" not in screen
     # ...and `--person` alone, the clinician number put the person question:
     # no notice that no column names people, no `--identifier` taught on it.
-    alone, alone_screen = _run(["profile", f"{table}", "--replace", "--person", "subject_id"])
+    # Each run after the first describes the table again in the same data
+    # folder, so on the shipped (switched) road it names the earlier
+    # description as replaced (`--replace-description`, the record's own
+    # remedy, contract 4.6b.4; batch 4u's checks).
+    alone, alone_screen = _run(["profile", f"{table}", "--replace", "--replace-description", "--person", "subject_id"])
     assert alone.verdict == results.NO_MISS, alone.refusal
     assert "MIGHT NAME THE PEOPLE" not in alone_screen and "No column that names PEOPLE" not in alone_screen
-    together, words = _run(["profile", f"{table}", "--replace", "--identifier", "subject_id",
+    together, words = _run(["profile", f"{table}", "--replace", "--replace-description", "--identifier", "subject_id",
                             "--identifier", "clinician_id"])
     assert together.verdict == results.REFUSED
     assert "20 people, counted by 'clinician_id'" in words
@@ -496,13 +532,13 @@ def test_the_refusal_offers_each_column_and_no_example(tmp_path: pathlib.Path, s
     on this table is the clinician number; followed, it counted the
     clinicians as the people.
     """
-    table, _patients, _staff = _table(tmp_path / "crossing", 600, 120, clinicians=8)
-    refused, screen = _run(["profile", f"{table}", "--identifier", "subject_id", "--identifier", "clinician_id"])
+    table, _patients, _staff = _table(tmp_path / "crossing", 600, 120, clinicians=8, patient="record_no")
+    refused, screen = _run(["profile", f"{table}", "--identifier", "record_no", "--identifier", "clinician_id"])
     assert refused.verdict == results.REFUSED and refused.refusal is not None
     words = refused.refusal.words
     assert "for example" not in words and "example" not in words
     assert "Which of these columns names the patients the rows are about?" in words
-    assert "--person clinician_id, --person subject_id" in words
+    assert "--person clinician_id, --person record_no" in words
     assert ONE_PEOPLE.search(screen) is None
 
 

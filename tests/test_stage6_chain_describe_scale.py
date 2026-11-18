@@ -70,6 +70,21 @@ SAMPLE = 500
 # moves (`7292b926...` before). The private notes' sha256 and the families
 # are unchanged. The same table at 20,000 rows moves the same field the
 # same way (measured on `a391424c` and on the lane's head at both sizes).
+#
+# THE HELD TABLE MOVED ONCE, NAMED (lane CHON's repair 1, LANE CHON RULINGS 3
+# (1), F2; plan P4-D464): its record number, 900 different values the open
+# person question holds, could name no person of a table the command
+# describes (under the owner's floor of 1,000 people), so under `one row
+# each` it is left out and the chain drawn over the rest; on the base its
+# open question kept the chain off (0 families, description `7292b926...`,
+# private notes `41062874...`). Re-recorded on the repair's head.
+#
+# AT BATCH 4u'S MERGE OF LANE CHON (step 2) both moves stand together,
+# measured on the merged tree beside both heads: the description is the
+# line's (`e3e0d3d4...`) with the lane's chain under
+# `relationships.statistical` and nothing else, and the lane's
+# (`8dca0459...`) with lane CZ-A2's opening `Z9%%%%%%` and nothing else; the
+# private notes and the families are the lane's.
 FROZEN = {
     "paths": (
         "93f7599d15c30d6afab698b6c202906491545140c73d3854865a4c2a4609a6a5",
@@ -77,9 +92,9 @@ FROZEN = {
         8,
     ),
     "held_repeats": (
-        "e3e0d3d42128649e4088c8483989bdb5f56d842404c125a53f3df9307a19d04c",
-        "41062874cbb1e9d50e99dd11c9f469df7b8d94c56aca8069c0b03acc72084f11",
-        0,
+        "c2aa33f2bf15bc0ff4aaa90d05224cf7f9f6cd964bc68b6088bb07066fb791d7",
+        "91aa099ad637301c78e03e0b30f1e7ea3a1e30cb48a95fa69aef34c14a548eb5",
+        8,
     ),
 }
 
@@ -183,13 +198,34 @@ def _held_rows(rows: int, seed: int) -> "tuple[list[str], list[list[str]]]":
     return ["record_no"] + header, [[f"V{1000000 + at % 900:07d}"] + body[at] for at in range(len(body))]
 
 
-def test_a_held_column_that_repeats_keeps_the_chain_off_with_the_base_s_bytes(tmp_path, monkeypatch, capsys):
+def test_a_held_column_that_repeats_is_left_out_under_one_row_each_and_the_chain_drawn(tmp_path, monkeypatch, capsys):
+    """F2 (lane CHON's repair 1): the open person question's record number, 900 values, is left out; the rest are chained.
+
+    MUTANT: the left-out rule removed (the base's 0 families).
+    """
     header, rows = _held_rows(ROWS, 8)
     table = _write(tmp_path / "held.csv", header, rows, 0)
     found = _switched(tmp_path, table, monkeypatch)
     capsys.readouterr()
-    assert found[2] == 0
-    assert found == FROZEN["held_repeats"]
+    assert found[2] > 0, found
+    assert found == FROZEN["held_repeats"], found
+
+
+def test_a_held_column_that_could_name_the_people_keeps_the_chain_off(tmp_path, monkeypatch, capsys):
+    """F2's bound (lane CHON's repair 1): a record number of 1,200 values, at least the owner's 1,000 people, keeps the chain off.
+
+    Under `one row each` the column might still name the people of a table
+    the command describes (the chain counts rows, a person on several),
+    so its open person question keeps the chain off as on the base.
+    MUTANT: the bound removed (`_could_name_the_people` always False: the
+    column left out and a chain drawn).
+    """
+    header, body = _paths_rows(ROWS, 8)
+    rows = [[f"V{1000000 + at % 1200:07d}"] + body[at] for at in range(len(body))]
+    table = _write(tmp_path / "held.csv", ["record_no"] + header, rows, 0)
+    found = _switched(tmp_path, table, monkeypatch)
+    capsys.readouterr()
+    assert found[2] == 0, found
 
 
 def _full_sort(hashes: "list[bytes]", tabled: "list[int]", size: int) -> "list[int]":

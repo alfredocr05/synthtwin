@@ -94,7 +94,9 @@ def _describe(tmp_path: pathlib.Path, text: str, name: str = "clinic", key: byte
 
 def _profile(folder: pathlib.Path, table: str, run: "cli.ChainRun | None", capsys, *more: str) -> "tuple[int, str]":
     capsys.readouterr()
-    code = cli.main(["profile", table, *more], chain=run)
+    # No switch handed in: the run as it was before the landing that ships
+    # stage 6 (the internal `unswitched` setting, plan P4-D464).
+    code = cli.main(["profile", table, *more], chain=run, unswitched=run is None)
     captured = capsys.readouterr()
     return code, captured.out + captured.err
 
@@ -135,10 +137,13 @@ def test_switch_off_writes_todays_bytes_and_switch_on_adds_only_the_chain(tmp_pa
     assert questions_on == questions_off
     # The unswitched run made no key, no record and no lock anywhere.
     assert not (off_folder / "data").exists()
-    # And generate and validate keep S12 word for word: the switched description is refused.
+    # The loader as it read before the landing (S12 word for word, the
+    # unswitched setting's) refuses the switched description; the shipped
+    # loader reads its chain (plan P4-D464).
     with pytest.raises(errors.ProfileError) as refused:
-        contract.load_profile(str(on_folder / "clinic-profile.json"))
+        contract.load_profile(str(on_folder / "clinic-profile.json"), chain=False)
     assert "statistical" in str(refused.value)
+    assert contract.load_profile(str(on_folder / "clinic-profile.json")).relationships.switched
 
 
 def test_a_re_profile_reproduces_the_description_byte_for_byte(tmp_path, monkeypatch, capsys):
@@ -617,10 +622,8 @@ def test_the_score_is_pearsons_chi_square_less_its_degrees_of_freedom():
 def _switched_document(tmp_path: pathlib.Path) -> "dict[str, object]":
     _table, document, _settings, chained = _describe(tmp_path, _clinic())
     assert chained.statistical is not None
-    written = dict(document)
-    relationships = dict(written["relationships"])
-    relationships["statistical"] = chained.statistical
-    written["relationships"] = relationships
+    # Every writer of a switched description goes through `chain.with_rules` (LANE RO RULINGS 2 (4), plan P4-D464).
+    written = chain.with_rules(document, chained)
     return written
 
 
@@ -662,8 +665,11 @@ def test_the_loader_reads_the_chain_only_behind_its_switch(tmp_path, monkeypatch
     assert _profile(tmp_path, "clinic.csv", cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH, folder=str(tmp_path / "data")), capsys)[0] == 0
     described = str(tmp_path / "clinic-profile.json")
     assert contract.load_profile(described, chain=True).n_columns == 7
+    # The shipped loader reads it (plan P4-D464); the loader as it read
+    # before that landing (the unswitched setting's) refuses it.
+    assert contract.load_profile(described).n_columns == 7
     with pytest.raises(errors.ProfileError):
-        contract.load_profile(described)
+        contract.load_profile(described, chain=False)
 
 
 # -- WHAT A SWITCHED DESCRIPTION PUBLISHES ---------------------------------
@@ -1403,9 +1409,8 @@ def _zeros_document(tmp_path: pathlib.Path) -> "dict[str, object]":
     rows = [[f"{0 if at < 5 else draw.randint(1, 100)}", draw.choice("ab")] for at in range(600)]
     _table, document, _settings, chained = _describe(tmp_path, _csv(["x", "y"], rows), name="zeros")
     assert chained.statistical is not None
-    written = json.loads(json.dumps(document))
-    written["relationships"]["statistical"] = json.loads(json.dumps(chained.statistical))
-    return written
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    return json.loads(json.dumps(chain.with_rules(document, chained)))
 
 
 def test_the_loader_refuses_a_family_redrawn_to_confine_a_marked_band(tmp_path):

@@ -41,8 +41,13 @@ THE THREE RECORDS OF A CASE.
   `SystemExit` it ended in (before lane S5a, `--help` and the parser's
   refusals ended that way).
 The case's folder, as made and as resolved, is replaced by `<FOLDER>`,
-and the installed version by `<VERSION>`, in every file and in the
-transcript. The environment is fixed for every case: `COLUMNS=80`,
+the installation's data folder by `<DATA>`, and the installed version
+by `<VERSION>`, in every file and in the transcript. THE INSTALLATION
+OF EACH CASE (lane CHON, plan P4-D464): every profile run is switched,
+so each case's folder has an installation of its own beside it,
+`.<case>-installation`, holding the oracle's fixed test key and an
+empty record, which XDG_DATA_HOME and LOCALAPPDATA name while it runs:
+no case reads the account's own data folder or another case's record. The environment is fixed for every case: `COLUMNS=80`,
 `NO_COLOR=1`, `PYTHON_COLORS=0`, `FORCE_COLOR` unset (argparse wraps its
 help at the terminal's width and later Pythons may colour it), and
 `os.isatty` answers false, so nobody is asked whatever terminal runs it.
@@ -76,7 +81,13 @@ import typing
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TARGET = ROOT / "tests" / "stage5_goldens.py"
 FOLDER_WORD = "<FOLDER>"
+DATA_WORD = "<DATA>"
 VERSION_WORD = "<VERSION>"
+# The installation of each case (lane CHON, plan P4-D464): the oracle's
+# fixed test key, an empty record, and the two names that place it.
+TEST_KEY = bytes(range(32))
+_EMPTY_RECORD = '{\n  "tables": [],\n  "version": 1\n}\n'
+INSTALLATION_ENVIRONMENT = ("XDG_DATA_HOME", "LOCALAPPDATA")
 FIXED_ENVIRONMENT = (("COLUMNS", "80"), ("NO_COLOR", "1"), ("PYTHON_COLORS", "0"))
 UNSET_ENVIRONMENT = ("FORCE_COLOR",)
 OUT = "out"
@@ -206,11 +217,13 @@ def capture(
     saved_folder = os.getcwd()
     saved_environment = {
         name: os.environ.get(name)
-        for name in [name for name, _value in FIXED_ENVIRONMENT] + list(UNSET_ENVIRONMENT)
+        for name in [name for name, _value in FIXED_ENVIRONMENT] + list(UNSET_ENVIRONMENT) + list(INSTALLATION_ENVIRONMENT)
     }
     try:
         for name, value in FIXED_ENVIRONMENT:
             os.environ[name] = value
+        for name in INSTALLATION_ENVIRONMENT:
+            os.environ[name] = f"{installation_of(folder)}"
         for name in UNSET_ENVIRONMENT:
             os.environ.pop(name, None)
         os.isatty = _never_a_terminal
@@ -243,14 +256,40 @@ def _never_a_terminal(_descriptor: int) -> bool:
     return False
 
 
+def installation_of(folder: pathlib.Path) -> pathlib.Path:
+    """The case's installation beside its folder: made, with the fixed test key and an empty record, where it is not there yet."""
+    place = folder.parent / f".{folder.name}-installation"
+    data = place / "synthtwin"
+    if not data.is_dir():
+        data.mkdir(mode=0o700, parents=True)
+        key = data / "chain-key"
+        key.touch(mode=0o600)
+        record = data / "chain-ledger"
+        record.touch(mode=0o600)
+        if os.name != "nt":
+            data.chmod(0o700)
+            key.chmod(0o600)
+            record.chmod(0o600)
+        key.write_bytes(TEST_KEY)
+        record.write_text(_EMPTY_RECORD, encoding="utf-8", newline="\n")
+    return place
+
+
 def _folder_forms(folder: pathlib.Path) -> "list[str]":
     """The case's folder as made and as resolved, the longer first."""
     forms = sorted({f"{folder}", os.path.realpath(folder)}, key=len, reverse=True)
     return [form for form in forms if form]
 
 
+def _data_forms(folder: pathlib.Path) -> "list[str]":
+    """The case's installation as made and as resolved, the longer first."""
+    return _folder_forms(installation_of(folder))
+
+
 def normalised(text: str, folder: pathlib.Path, version: str) -> str:
-    """The text with the folder and the version replaced by their words."""
+    """The text with the installation, the folder and the version replaced by their words."""
+    for form in _data_forms(folder):
+        text = text.replace(form, DATA_WORD)
     for form in _folder_forms(folder):
         text = text.replace(form, FOLDER_WORD)
     if version:
@@ -259,6 +298,8 @@ def normalised(text: str, folder: pathlib.Path, version: str) -> str:
 
 
 def _normalised_bytes(data: bytes, folder: pathlib.Path, version: str) -> bytes:
+    for form in _data_forms(folder):
+        data = data.replace(form.encode("utf-8"), DATA_WORD.encode("utf-8"))
     for form in _folder_forms(folder):
         data = data.replace(form.encode("utf-8"), FOLDER_WORD.encode("utf-8"))
     if version:

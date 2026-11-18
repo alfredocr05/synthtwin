@@ -857,6 +857,15 @@ rows). They are drawn where the stream is made, in G3.2's one draw form,
 and `plan_generation` counts them, so the plan still states every word
 the twin draws. No description a shipped command loads draws one.
 
+*Amended Monday 2026-11-09 (the landing that ships stage 6, plan P4-D464):* the
+sentence above is passed: a shipped description that publishes a chain
+draws the walk's words. AND THEN THE POLISH (G17): where the
+description's `moments` stands, after G16.8's words, for each pass, for
+each polished column in schema order, for each block of 65,536
+proposals, one call of one word a proposal, `P e' n'` words in all, a
+function of published facts (G17.5). A description whose `statistical`
+is `null` draws neither, and every word it drew before.
+
 ### G4.2a The reservation of records holding nothing (layer L0, plan P4-D404; BUILT behind the chain's switch, plan P4-D429)
 
 **Lane BT built this section (plan P4-D429): `generation._reservation`
@@ -3585,6 +3594,17 @@ make it today. G4.2b says so to G16, which then meets that column's
 families by G16.6, and the twin's report names the column and the
 precondition that failed (rule B3, G5.7h).
 
+**AMENDED 2026-11-13 (lane BT3b, plan P4-D467): A SIXTH PRECONDITION.**
+**(P6)** on a column G6.9 writes as its listed values (`few_values`, and no
+`number_spellings`), every band with cells holds a listed value and at least
+as many cells as listed values, and a band with no cell holds none: the
+listed census writes each band's cells at the listed values inside it (G6.9
+step 0). Every description a producer writes passes (P6), because each listed
+value is held by two real cells or more and a band's count is a count of
+the real column's own cells; a hand-written list that leaves a band no value
+fails it, and the column is made WITHOUT L0 under rule B3, named, never
+refused.
+
 #### G5.7b Cuts and pieces
 
 A CUT is a value with a rank: exactly `R` of the `K` cells lie below the
@@ -3775,6 +3795,20 @@ in four steps.
    its own piece, and the cells short of it come from that neighbour and
    then the other, each keeping one; the twin's report reads the mode
    again on what the move left.
+
+   **AMENDED 2026-11-13 (lane BT3b, plan P4-D467): A PROVEN HEAP KEEPS
+   ITS RANKS.** A cell handed across the boundary between two values moves
+   that boundary by one rank, so the value whose ranks shrink gives none
+   that its own proven heap (step 1) holds: the mode hands its nearer
+   neighbour at most the ranks between its first rank and its heap's first
+   (or its heap's last and its own last), the rest going to the other
+   neighbour, and a neighbour gives the mode none of its heap's ranks; what
+   no side can take stays on the mode. On Codex's invented count of 74
+   whole numbers (1,000 numbers of 10 to 83 repeated) step 1 put the mode
+   `56` on its heap's 402 ranks at 20,000 rows and this step handed 41 of
+   them back to `55` at every seed (401 of 4,002 at 200,000 rows); the heap
+   now stands whole and the mode keeps its published count, the 41 going to
+   `57`.
 
 The strata then stand in today's order, each at its new size: one left
 with no cell is dropped, and one the move adds stands before the first
@@ -6779,6 +6813,21 @@ which wrote 61, held by 175 real cells, on 2), 46 glucoses beside `999`
 at 0.0527 (0.0619; 0.0760), and a potassium to one decimal whose tail
 holds 5.5 and 5.6 on one cell each, listed but for them, at 0.0252
 (0.3703, 601 cells of `-99.0`).
+
+**AMENDED 2026-11-13 (lane BT3b, plan P4-D467; LANE CHON RULINGS 8 (1)):
+STEP 0, LAYER L0'S CUT RANKS FIRST.** On an ELIGIBLE column (G5.7a: the
+description is read behind the chain's switch and `relationships.statistical`
+gives the column an L0 block), each edge's cut rank `R_j` is a count of the
+real column's own cells, so before step 1's bounds are made consistent
+`F_i` is FIXED at `R_j` for each edge `e_j`, with `i` the number of listed
+values below `e_j`; every step above then reads those bounds as it reads its
+own, and each band of the twin holds exactly its published count. The
+listed census solved its counts without them: on a chained survey score of
+`-99` and 1 to 5 at 20,000 rows it wrote 3,649 cells in a band published with
+3,651, and `generate` refused its own description (G5.7g's internal check at
+G4.2b). G5.7a's (P6) makes the column without its band totals (rule B3)
+where a band holds cells and no listed value, or fewer cells than its listed
+values, so the fixed ranks always leave every value at least one cell.
 
 ## G6A. Affixed-number columns (`affixed_number`)
 
@@ -21388,6 +21437,22 @@ strata than the product's WITHOUT layer L0, and on case 14 another
 spelling after the move, which predates layer L0 (plan P4-D448): these
 are frozen on the least move itself, from the strata the product's
 pipeline hands it, and the gate asserts those strata.
+**AMENDED 2026-11-14 (lane BT3b's repair round, plan P4-D467): CASE 3 IS
+THE ORACLE'S OWN.** Its strata parted only because the oracle's layout of
+G5.2a lacked G5.3e's run that reaches across a listed tail's edge (the
+oracle joined the 49 one-rank runs between `1500` and `2000` into `2000`,
+250 and 249 cells where the product writes 299 and 200); the oracle reads
+that run now, with G5.3e's qualifications, and case 3 is frozen on the
+oracle's own number pipeline with layer L0, its counts unchanged. Cases 4,
+14 and 15 stay frozen on the least move, each parted by a rule the oracle
+does not state, measured by turning the product's pass off: G6.7 on case
+4 (one stratum of 450 cells at `67`, inside the published empty stretch
+(65, 70), which the product moves to `70`), plan P4-D179's exchange of
+values between neighbouring strata (G5.2a) on case 15, and on case 14,
+whose strata agree, P4-D179's choice of which cell takes which of
+several published widths (G5.2a, THE WIDTH A CELL IS WRITTEN AT; the
+product spells `0.2` as `0.20` on 101 cells). Case 5's inputs carry no
+words for the oracle's own pipeline to read.
 
 1. **A count of few values with one rare high value** (G5.7i: the
    product's own twin of this shape put 30,000 of 100,000 rows on the
@@ -21539,6 +21604,14 @@ ships stage 6, `relationships.statistical` is `null` on every
 description a shipped command loads, G2.1 and G4.2 place every cell
 exactly as written above, and the twin carries no structure between
 columns.
+
+*Amended Monday 2026-11-09 (the landing that ships stage 6, plan P4-D464):* that
+landing has shipped: every `synthtwin generate` run loads the
+description with its chain (`contract.load_profile`, its `chain`
+argument True), and this section, layer `L0` (G4.2a, G4.2b) and the
+polish (G17) run from what it publishes. A description whose
+`statistical` and `grain` are `null` is generated exactly as before:
+G2.1 and G4.2 place every cell as written above.
 
 **Built for layer L1, behind the chain's switch (2026-10-25, lane CHb,
 plan P4-D435).** A description loaded with
@@ -22114,7 +22187,7 @@ design's record; under rule B the polish is this:
 **AMENDED Wednesday 2026-11-04: THE POLISH, REPAIR 2 (lane MPg, plan P4-D456; LANE MPg RULINGS 7 to 10, on Codex's one review and the lane's verify).** The paragraphs above stand except where this one says otherwise; it is read on lane MPp's finer grid of z (LANE MPp RULINGS 7), whose published r the polish reads as printed.
 
 - **The goals (Codex's item 2; replaces repair 1's first sentence of "The goals").** Each published correlation is taken on its own pair's rows, so the published matrix need not be positive semidefinite and an unpublished pair is unknown, never an observed nought. Two numbers stand on a COMMON ROW SET where their published pair's count equals both columns' own counts (they hold their readings on the same rows; the relation is an equivalence). Inside a common row set whose every pair is published, the matrix is one sample's: where its Cholesky factor (binary64, each sum in index order) has every pivot over 0 every goal is its published r; where it does not, the goals are the nearest correlation matrix of repair 1 (eigenvalues under `1e-4` set to it, the diagonal rescaled), and every goal it moves past half a step of the pair's grid read on r (`(1 - r**2) / (2 u)`, `u` the pair's count's unit of z, `chain_moments.unit`) is DISCLOSED in the twin's report as a deviation, its published r beside the goal. A common row set holding an unpublished pair keeps every goal (rule B publishes every pair of one row set or none: the same rows give the same counts, the same rows holding neither and the same spreads), a pair across two row sets is never projected, and an unpublished pair is no goal.
-- **A number's partners (the verify's item 2).** A number aims at no more than `chain_moments.PARTNERS` (24) published correlations, the largest in size, ties in the moments' order, held in the moments' order; the rest is left to the walk. A column's step reads `rows x k` features and builds a `k x k` matrix on 2,048 sampled rows, so a number aimed at every other one cost `rows x k^2` a round; capped, a round of `K` numbers costs at most `rows x 24 x K`. The plan is made once a run (`plan_generation`), its projection a Cholesky test and a Jacobi only where a row set fails it.
+- **A number's partners (the verify's item 2).** A number aims at no more than `chain_moments.PARTNERS` (24) published correlations, the largest in size, ties in the moments' order, held in the moments' order; the rest is left to the walk. A column's step reads `rows x k` features and builds a `k x k` matrix on 2,048 sampled rows, so a number aimed at every other one cost `rows x k^2` a round; capped, a round of `K` numbers costs at most `rows x 24 x K`. The plan is made once a run (`plan_generation`), its projection a Cholesky test and a Jacobi only where a row set fails it. *Amended Tuesday 2026-11-10 (plan P4-D464; lane CHON, LANE CHON RULINGS 2 (4)):* the cap is the description's own `partners` (`RuleBMoments.partners`): 24, or every other number where the size guard allowed every partner (contract 4.6d.0 (1) and 4.6b.13, stated limit 4), whose time the guard's projection counts; the oracle's `chosen_partners` takes the same `partners`.
 - **The aim's bound follows the published r (LANE MPg RULINGS 8 (2)).** A pair's aim stays inside plus or minus the larger of 0.999 and half way from its goal to 1 (`(1 + |goal|) / 2`); every other aim but a `within`'s inside plus or minus 0.999.
 - **An incomplete pair's own spreads (Codex's item 3).** The loader keeps `[r, n, [sd, sd]]`'s two spreads (`RuleBMoments.spreads`, each in a column spread's unit at the pair's count, divided once). Where the pair holds fewer rows than the column's readings, the column's pair target holds the column's published spread over the pair's rows and a FACTOR, 1 at first: after the scores are built (before the `within` spreads), the scores of the rows whose partner holds a reading are moved from their mean by the factor; each round that moves the aims sets the factor to itself times that published spread over the spread the column's codes hold on those rows, kept inside `[1/64, 4]`. The frame fixes the bands those rows stand in, so the pair's spread is met only as far as the column's chain-level bands let it be (limit (e)).
 - **A binary's frame key (Codex's item 1).** The joint key `group * count + band` is formed as an exact whole number and renumbered in order of first meeting BEFORE it is stored in four bytes a row, so two keys `2 ** 32` apart stay two groups (they had become one, and a binary could exchange its levels between two family cells).
@@ -22126,6 +22199,18 @@ design's record; under rule B the polish is this:
 
 - **Limits, one more (repair 4; plan P4-D456 holds the figures).** (g) A pair whose columns stand on different row sets can stay far from its kept goal, 0.57 against 0.90, with no line in the twin's report. On Codex's two probes the goals keep the published r, and the twin, twin seeds 0 to 2, reads on the rows holding both: X on the first 10,000 rows, Z on the second and Y throughout, r(x, y) 0.569 to 0.572 against a published 0.8991; three disjoint cohorts of 10,000 rows, r(x, y) 0.642 to 0.649 against 0.9008 and r(x, z) -0.753 to -0.757 against -0.8984; `K-S6-12`'s allowance is about 0.0054 at 10,000 rows. The frame holds the pair there, not the pair's spreads (dropped, the halves' pair reads 0.570). Owner lane MPg2, whose second item is the report's line: a published correlation the twin misses beyond the allowance is named in the twin's report, one line a pair (the goal and the r reached at the polish's end), its CPU cost measured with lane ARR-b's helper (the orchestrator's design call, LANE MPg RULINGS 14 (1)).
 - **The sort, held (LANE MPg RULINGS 14 (3)).** `tests/test_moment_polish_sort.py` asks the shipped twin of a 20,000-row table to be, byte for byte, the twin of the same polish whose frame groups are sorted as plain `(score, row)` tuples, the row last (`tests/moment_polish_reference.py`, which never calls `_score_key`), and two equal scores to go to the lower row on a step of their own; it is the net for lane ARR-b, which rewrites the polish's sorts and sums.
+
+**AMENDED Wednesday 2026-11-11: THE GROUPING GATE (lane CHG, plan P4-D492; LANE CHG RULINGS 1).** The paragraphs above stand except where this one says otherwise; it is read with the chain switched on (plan P4-D464).
+
+- **Why.** On a table whose columns are drawn independently, the switched twin called about one pair of columns in seven associated where a fresh sample of the same rows calls one in twenty (lane CHON's statistics check, LANE CHON RULINGS 6 (1)). The cause is this section's polish, not the walk: it aimed at EVERY published moment, those the table holds by chance included, and kept the walk's fresh noise beside them. Five mechanisms were measured (lane CHG's notes, 20,000 rows): (M1) the walk deals each band table as published and its rows on fresh scores, about a fresh draw's level; (M2) a `within` or `share` target is ONE covariance with the encoding of its published group means, so the twin meets them along that one direction and keeps fresh noise in the other `k - 2` (a 12-level label against eleven columns: its group means copied 0.89 of the way, group chi-square 15.7 against 10.2 on the table and 11 expected; the walk 0.18 and 13.4); (M3) the polish copied 79 per cent of the table's chance pairs and still made about eleven new ones a reading; (M4) a goal on value codes met by re-sorting ranks moves a skewed column several times further than the goal; (M5) a measure aimed at by two controllers.
+- **The gate.** In `_polish_layout`, after the targets are built and before a round's order is set, `_gate_keeps` reads each target: a `pair` is kept whole (a correlation is one direction: met, it holds the published value with no fresh remainder beside it); a number's `within` target, a binary's `share` target and a binary's `by` target are kept only where their entry's GROUP CHI-SQUARE, `N goal`, lies above the chi-square's upper 0.001 point on `k - 1` degrees of freedom: `N` the published count (the sum of the entry's group counts), `goal` the target's (the weighted variance of the standardized published group means or shares), `k` the groups holding a published count (with fewer than two the entry shows nothing). THE POINT is Wilson and Hilferty's cube: `a = 2 / (9 df)`, `c = (1 - a) + 3.0902 sqrt(a)`, the point `df ((c c) c)`, binary64 `+ - * /` and `sqrt`, each rounded once in the order written (G16.8). It lies at or above the exact 0.001 point on every count of degrees of freedom from 1 to 5,000 (3.0 per cent above it at one, 0.5 at eleven, under 0.1 from fifty; the gate file holds every one of those counts against scipy's exact point), so the gate is never looser than the exact test there; comparing a statistic with the cube is comparing the statistic's cube root, the normal reading, with `c`, because the cube is increasing and `c` lies above 1 on every count, so no root is taken, by Newton's method or any other, and no iteration count or starting value enters a decision (LANE CHG RULINGS 2 (4)). The level is the constant 0.001, not scaled by the number of targets (scaled by 200 to 1,200 targets it would drop real effects of `|z|` 3.3 to 4.3 on wide tables).
+- **A dropped target** leaves the plan and its moment to the walk; it is never kept with a goal of nought, which would re-sort the column against the walk's own chance pattern. A column left with no target is not polished: the walk places it and the polish draws no word for it (G16.8's `3 n' P e'`, `e'` the gated plan's columns, a function of the description).
+- **A kind the gate has no test for** is refused by an internal check, with the gate on or off, wherever the plan made it, so a later moment kind (lane GRb2's trajectories over visits) is never aimed at by default.
+- **What it reads and publishes.** The description alone (the moments' counts and goals). Nothing is published and no field is added; no family table, `L0` total, within-column fact or held, identifier, sequence or free-text column moves; the twin is a function of the description and the seed. A test may set the gate off (`_POLISH_GATE`), the polish above byte for byte (the 1,500-row chained fixture of `K-S6-16`), or its point to the 0.05 level (the mutant); no option, environment variable or settings file reaches either.
+- **Its oracle.** `gate_point`, `beyond_chance` and `gated_plan` in `tools/reference/chain_oracle.py` mirror it in emulated binary64; frozen in the chain oracle's vectors: the 0.001 point on eleven counts of degrees of freedom from 1 to 1,000 (and the 0.05 point), nine published-fact inputs on both sides of the level (repair 1 added two whose bands hold no reading in places, as a measurement taken in some bands only: a 12-band entry with two empty bands, tested on the ten holding a count, and an entry with one band holding readings, dropped with no test), and the plan of three numbers, a binary and a 12-level grouping column beside its four mutants (the gate off, the level 0.05, a dropped target kept with a goal of nought, the correlations gated too). `tests/test_polish_grouping_gate.py` holds the product to them.
+- **Measured** (lane CHG's build, 20,000 rows, described and generated by the commands a person types, lane MU's route S; plan P4-D492 holds the figures; `K-BC-03`'s nine readings are its repair's). The null table ST5 at table seed 1 (twin seeds 0 and 1): the polish aims at its 42 correlations and at none of its 160 grouping moments (the head at all 160); 6.7 and 9.5 per cent of its 105 pairs called associated, against 22.9 and 13.3 on the head's twin, 6.7 and 4.8 for the walk alone, 5.7 on the table and 1.9 and 4.8 on fresh samples; the label's group means copied -0.05 and 0.02 of the way (the head 0.83 and 0.73). The structured tables at table seed 1, twin seed 0 (the joint estimates of lane E0b's battery inside the half-split yardstick; the significant estimates the twin makes of the table's non-significant ones, over a fresh sample's): ST1 0.596 inside against the head's 0.634 and the gate's midpoint 0.575, 12.6 points of invention against the head's 17.0; ST6 0.678 against 0.698 and 0.593, 5.2 points on both; pooled 0.628 against 0.659 and 0.582, invention 19.9 per cent against 22.3 (a fresh sample 10.8). Generate on ST5 30 CPU seconds against 58.
+- **Repair 1's stamps** (Friday 2026-11-13; plan P4-D492 holds the figures; the ledger's `K-BC-03`, `K-BC-01`, `K-S6-12` and `K-S6-13`; lane MU's route S at its head `e18f288b`, each column's questions answered with what the person knows of it): the null table ST5 at table seeds 1 to 3 by twin seeds 0 to 2 reads 9.5, 9.5 and 5.7; 5.7, 7.6 and 8.6; 5.7, 3.8 and 9.5 per cent of its 105 pairs called associated, a median of 7.6 and a largest of 9.5 (`K-BC-03`'s bar: a median at most 8 and every reading at most 15, met, the median one pair under it; fresh samples 2.9); at 200,000 rows one reading (table seed 1, twin seed 0) reads 6.7 per cent (a fresh sample 3.8); the reference pool of the gain (ST1, ST3, ST4 and ST6) holds 0.585, 0.617 and 0.586 of its joint estimates inside the half-split yardstick at table seeds 1 to 3 against the gate's midpoints 0.569, 0.592 and 0.590, so the gain is kept at the first two and missed by 0.5 points at the third (0.600 against 0.585 over all three); invention on ST1, ST4 and ST6 stands 4.2 to 5.6 points over a fresh sample (limit (a)). The polish's time (`K-S6-13`, its 50-column table, the machine loaded, so not judged): its own seconds 448.8 and 2,993.1 at 20,000 and 200,000 rows against 500.4 and 3,672.9 before the gate, and the shipped generate's peak projected at 2,000,000 rows at 2,084.3 MB against the entry's 1,900 (2,031.0 before the gate).
+- **Limits, stated** (plan P4-D492; owner part b of lane CHG, CHG-b). (a) Invention on structured tables stays above a fresh sample's (ST1 +12.6 points, ST6 +5.2): it is structure the chain and the polish distort on REAL effects, mostly interaction and curve terms of regression models (measured at planning on the library's chain twin of ST1: a hinge of diabetes at age 30, 0.954 against the table's 0.141; ventilation over 75, 0.478 against -0.011), not a chance pattern copied. (b) The kept targets keep M2, M4 and M5 on strong real moments. (c) A real grouping effect weaker than the level (`|z|` under about 3.3 at the table's count) is left to the walk and met with about a fresh sample's error (`K-S6-12`'s allowance; its restamp at repair 1 reads each kind apart for the moments the gate keeps, drops and never aims at: the moments the gate drops are met at a fresh sample's rate, band means 737 to 747 of 769 inside against 734 to 744 on three fresh samples, band shares and band spreads likewise; the kept ones stand a little under the fresh samples and those no plan aims at where they stood; over every class the band spread newly falls under the fresh samples beside the band mean, and the twins' least share inside, 0.9013, falls under the entry's floor of 0.924, set on the ungated polish, which copied what the gate drops (0.9253): stated, RED, the floor the orchestrator's). (d) THE SPREAD OF A NUMBER BY GROUP (repair 1, skeptic 1's item 1; LANE CHG RULINGS 2 (2)): the gate tests a `within` target's band MEANS alone, while the target also carries the band spreads it aims at, so a grouping that moves a number's spread and not its mean is dropped whole and its band spreads are left to the walk. Measured on an invented table at 20,000 rows through the commands a person types: a temperature spread 0.25 in six wards and 0.9 in six, its means flat; the published band spreads 170 to 180 against 583 to 604 code units; the means' statistic 15.5 against the point 29.8 (a spread statistic of 9,577); the ratio of the wide wards' spread to the narrow ones' 3.52 on the table, 2.29 and 2.30 with the gate off, 0.98 and 1.02 on the gated twin, the ratio of unrelated columns. Analyses that read a group's own variance lose it: a regression with a variance function, a model with a residual variance by group, a test of equal variances, the contrast of robust and model standard errors. Owner CHG-b: a spread test that keeps a target on its spreads alone, priced first on the invented null (no chance target kept) and on these tables; not the normal-theory spread chi-square, which fires on 9 of ST5's 56 chance `within` targets and on 7 of the 33 dropped ones of the table above (the skewed codes of two measurements). (e) A YES/NO COLUMN'S EFFECT AFTER ADJUSTING (repair 1, the statistics check's item 1; LANE CHG RULINGS 3 (1)): where the chain does not link a yes/no column to the column it affects, the polish alone creates the effect, re-assigning the yes/no column toward that column's high values inside its frame; the gated plan keeps that target (beyond chance) but drops the column's own chance-level targets (its shares in the bands of the other columns and its splits of the other numbers), which on the ungated twin held those columns flat across it, so the yes/no column takes on the affected column's other causes and its adjusted effect shrinks. Measured on lane E0b's ST1 at table seed 1, twin seed 0 (`urban`, drawn by the chain from ventilation, death and the event): the twin meets the published split of blood pressure by `urban` (3.95 against 3.91), but blood pressure on age, glucose, `urban` and diabetes reads 3.40 against the table's 4.00 (with the gate off 3.95), the splined model 3.28 against 4.02, the logistic 0.268 against 0.342, Cox 0.212 against 0.284; over twin seeds 0 to 2 `urban`'s terms keep a median 0.78 of the table's value on ST1 and 0.69 on ST6 (with the gate off 0.94, a fresh sample 0.96), outside the half-split yardstick on 27 of 30 readings (with the gate off none, a fresh sample 3); at table seed 2, where the chain draws `urban` from age and blood pressure, 0.96 is kept; lane MU's ST10, a count over a time at risk, reads diabetes's coefficient 0.27 to 0.29 against the table's 0.34 (with the gate off 0.31 to 0.33). Keeping `urban`'s own dropped targets brings the effect back (3.97); keeping every target of a polished yes/no column (measured) also lifts the null table's median over its bar, so the design is part b's first item (owner CHG-b): the dropped `by` and `share` targets of a yes/no column the polish still moves kept as HELD features, aimed at the covariance the column holds with them when its first round starts, never at the published goal and never at nought, with its acceptance (`urban` inside the yardstick on ST1 and ST6 at table seeds 1 and 2, ST10's rate ratio inside it, ST5's nine readings at a median of at most 8 per cent, the oracle's mirror with a mutant red).
 
 ### G16.4 Cells into rows
 
@@ -22440,6 +22525,13 @@ row), and the ledger's whole-description digest and lock (mutants: a
 digest of `statistical` alone; two runs without the lock).
 
 ### G16.13 Several rows per patient: what runs, and in what order (lane MG, plan P4-D412; specified, NOT BUILT)
+
+**AMENDED Monday 2026-11-09 (lane GRb, plan P4-D465): BUILT behind the
+chain's switch**, in `synthtwin.patient_walk`, reached from ONE branch of
+`generation.generate_held` where `relationships.grain` stands (contract
+`PatientGrain`, read by the loader behind the switch alone); the readings
+the build takes where the text below leaves one open are G16.17's dated
+amendment, after its cases.
 
 **These clauses fill G16.7's reservation; G16.7's sentence stands as
 written.** They fix how lane GR (with lanes CHb and CHo) makes a twin of
@@ -22819,6 +22911,350 @@ mutant that must move it:
    DEVIATIONS (mutant: step 6 skipped, which leaves the patient chain's
    own-mean family unmet and unnamed).
 
+**AMENDED Monday 2026-11-09 (lane GRb, plan P4-D465): G16.13 to G16.17 AS
+BUILT, behind the chain's switch.** The readings this build takes:
+(a) THE TWO RUNS AND THE STREAM. Step 1 is `generate_held` run on the
+patient table's own description (`patient_walk.patient_table`: the person
+column's patient view, the patient-fixed blocks counted in patients, then
+`r` and each derived column as a label column holding each published band
+on its count, the patient chain as its chain), so its columns are made by
+G4 and arranged by this section's own `_walk_plan` and `_chain_family`,
+never a copy; step 3 is `generate_held` run on the row columns
+(`patient_walk.row_table`: the person and patient-fixed columns held empty
+and drawing no word, as a computed column is; `grain.ladder` as the ladder,
+so G4 meets every `L0` total counted in rows; no chain, no record holding
+nothing placed, no sort). The stream of the description's seed gives, in
+this order: the row columns' run's seed, the patient table's run's seed
+(one word each), then for each row family in `grain.rows` order its rows'
+hidden sums (G16.8's three words a row, a call a block of 65,536 rows) and,
+where its child has an own-mean parent, the patients' four words; then,
+for each trend column in `grain.grid` order, two words a proposal for the
+patients of its published cells, counted on the published `F_S` table (a
+moved patient table reads them round). Every count is a function of the
+description (`patient_walk.draw_plan`); the twin's bytes are a function of
+the description and the seed. G16.17's "after G16.8's words" reads so.
+(b) THE TOP BAND, grain cell by grain cell: the finest placed row family's
+parent row totals are met by `excess_split` (the least `sum |q_C - q m_C /
+m|`, the lexicographically least among its minimisers, by the convex
+ordering of the units, held to the oracle's enumeration); every other
+family's parent totals are measured, and a family they miss is named in
+DEVIATIONS (`grain.rows`). No solver is called.
+(c) THE ARITHMETIC: `omega` reads the shared module's normal quantile and
+logarithm (lane MPg's `chain_walk.normal_score` and `natural_log`, G16.2
+step 2) and its new `chain_walk.normal_cdf` (Marsaglia's series) and
+`exponential` (Cody and Waite's reduction, Horner's rule), each operation
+rounded once in order; the frozen PHI and LN tables are not built (one
+arithmetic in the shared module). The oracle holds both functions and
+`omega` bit for bit (`chain_oracle.normal_cdf`, `exponential`, `omega_of`).
+(d) THE PATIENT SCORES are dealt by the own-mean band at the derived
+column's own published level (its `L0`); `omega` is fitted on the row
+family's table at the family's level of the own-mean column.
+(e) THE DERIVED COLUMNS' CLOSE: own means are read EXACTLY (whole numbers
+of the column's finest decimal step) against the published edges; a
+patient outside proposes its rows against the other patients' rows of its
+parent cell, taking the exchange of the nearest reading that brings it
+into its band, else the one moving it farthest, only where the other
+patient stays in its band or moves toward it, at most 256 partner rows
+read a proposal (a run of equal readings may hold thousands); at most
+four passes. First
+dates as the text says, across bands. A source the layer holds is not
+closed (its derived family stands as published; contract 4.6c.12,
+departure 6).
+(f) THE TREND'S CLOSE: the exact steps read a table of each patient's
+steps (positions at most 40 apart), one exchange, else two on different
+patients, else the largest that fits, each pass bounded by `4 |P| + 8`.
+(g) A WITHHELD MULTIPLICITY MAP (step 8) is G4's made with the even map
+(`patient_walk.with_even_map`): the first build of the row walk raised
+`IndexError` on it (LANE I4p RULINGS 7 (2)(b)).
+(h) COMPUTED DATES (G16.16): no description this version loads classes a
+column computed in the patient layer (contract 4.6c.12, departure 12), so
+nothing of G16.16 runs; its generator part and oracle case 7 are owed with
+the first carried rule the layer classes (owner lane RO2, lane RD).
+(i) THE ORACLE'S CASES live in `tools/reference/oracle_cases.py` and
+`chain_oracle.py`, written by `make_chain_oracle_vectors.py` into
+`tests/reference/chain-oracle-vectors.json` (the sentence above naming
+`make_generation_reference_vectors.py` reads so): cases 1, 6, 14 and 15
+are built, each beside its mutant (case 15's weight on a reduced grid of
+six steps and three points a band, the same arithmetic); cases 2 to 5, 8
+to 13 and 16 are held by the generator's gate
+(`tests/test_stage6_patient_generate.py`) on invented tables, not yet by
+the oracle (owed), and case 7 waits for G16.16 (h).
+(j) THE POLISH while `grain` stands: the patient chain publishes no moment
+(`moments` is `null`), so G16.3 runs nowhere; no row column and no person
+column is polished (S38). G16.15's last paragraph's polish of a repeated
+column is read under S38: none runs.
+
+**AMENDED Tuesday 2026-11-10 (lane GRb's repair 1, plan P4-D465), on its
+reviews' items.** (k) THE CLOSES READ A CELL AS THE PROFILER READS IT: the
+own-mean close and the trend close read each spelling of a column ONCE by
+the profile's reader, the deal's (`generation.reader_reading`, contract
+4.6b.2; `patient_walk.exact_meaning`), its number written in its shortest
+decimal, as the producer and V12.7 read a cell (`patient_rules.reading_of`);
+a unit word or letter, a declared decimal comma beside a thousands mark and
+a leading plus read as the profiler reads them, and the finest step is the
+least common multiple of the readings' denominators. The build read a cell
+through a character filter, so on `ST2` with a unit word on every reading
+(19,914 rows) its closes read no number: all seven published `Q_P` and the
+own mean's patient totals MISSED on V12.7 (the first skeptic's item 1).
+(l) (e)'s NEAREST READING HOLDS BOTH WAYS: a patient whose sum must fall
+searches downward from `v - need`, the mirror of a rising one's upward
+search from `v + need`, so it lands at its band's near edge; the build
+searched upward from `v - room` and took the farthest reading (the
+statistics check's item 1). (m) A DERIVED MISS NAMES ITS FAMILY: a patient
+left outside its band of a derived column is named in DEVIATIONS on the
+derived column (`grain.derived`) and on the child of each row family the
+derived column is a parent of (`grain.rows`), as G16.15 says ("with the
+family it misses"). (n) THE EXPONENTIAL'S `2 ** k` is written as exact
+multiplications and divisions by powers of two made from whole numbers
+(`chain_walk.times_two_to`; the shared module reaches `math` for `frexp`
+and `sqrt` alone), one rounding where the result is subnormal, as `ldexp`
+rounds: the same bits on 422,015 generated cases. (o) ORACLE CASE 6 is a
+case the largest step that fits cannot meet alone: codes `(0, 0, 1)` and
+`(0, 0, 2)`, `S_P` 6, window 0; two exchanges on different patients (-2
+and -4) meet it, and its mutant, the two-exchange step removed, stalls at 2,
+in the oracle and in the product (the first skeptic's item 3: the build's
+case was met by the largest-fit step alone). (p) THE ARITHMETIC'S
+MEASUREMENT (c): `omega` equals the design's run-3 value on 10 of its 12
+route-runs and stands one grid step off it on the two complete-follow-up
+runs (measured by the lane's statistics check; `omega` reads the published
+table alone, so the repair moves none); run 3's other route-runs were not
+re-measured.
+
+**AMENDED Tuesday 2026-11-10 (lane GRb's repair 2, plan P4-D465), on its
+outside review (LANE GRb RULINGS 5).** (q) THE ARITHMETIC OF (c), WRITTEN
+OUT (Codex's item 9: (c) named the algorithms, and two groupings of its
+last line fit the names). Every operation below is one binary64 operation
+rounded to nearest, ties to even, in the order and grouping written; each
+constant is the binary64 value written beside it. THE EXPONENTIAL
+`exponential(x)`: 0 where `x < -745`; else `near = x / LN2 + 0.5` with
+`LN2 = 0x1.62e42fefa39efp-1`; `k` the greatest whole number at or below
+`near`; `y = (x - k H) - k L` (each product, then each difference) with
+`H = 0x1.62e42fee00000p-1` and `L = 0x1.a39ef35793c76p-33`; `s = T_17`,
+then for `j` from 16 down to 0, `s = s y + T_j` (the product, then the
+sum), `T_j` the binary64 nearest `1 / j!`: degree 17 always, no stopping
+test; the result `s 2 ** k`, made by exact multiplications and divisions
+by powers of two, one rounding where it is subnormal
+(`chain_walk.times_two_to`). THE NORMAL DISTRIBUTION FUNCTION
+`normal_cdf(z)`: 0 where `z <= -8`, 1 where `z >= 8`; else `q = z z`,
+`t = z`, `S = z`, and for `k` = 1, 2, ...: `t = (t q) / (2 k + 1)` (the
+product, then the quotient by the whole number), `S' = S + t`; it stops at
+the first `k` where `S' = S` (that term left out), else `S = S'`; the
+result `0.5 + ((exponential(-0.5 q) / R) S)` (the quotient, then the
+product, then the sum) with `R = 0x1.40d931ff62705p+1`. THE FROZEN POINTS,
+each the oracle's and the product's result:
+`normal_cdf(-7.9) = 0x1.0000000000000p-50`,
+`normal_cdf(-5) = 0x1.33ca2f2000000p-22`,
+`normal_cdf(-3) = 0x1.61de1f985b700p-10`,
+`normal_cdf(-1.5) = 0x1.11a46d89647ecp-4`,
+`normal_cdf(-0.3) = 0x1.87423a677e90fp-2`,
+`normal_cdf(0) = 0x1.0000000000000p-1`,
+`normal_cdf(0.7) = 0x1.841d5715c32a8p-1`,
+`normal_cdf(2.2) = 0x1.f8e1a5b741786p-1`,
+`normal_cdf(4) = 0x1.fffbd94a1aad3p-1`,
+`normal_cdf(7.5) = 0x1.ffffffffffee2p-1`;
+`exponential(-744) = 0x0.0000000000002p-1022`,
+`exponential(-30.5) = 0x1.ff3864232b407p-45`,
+`exponential(-1) = 0x1.78b56362cef38p-2`,
+`exponential(-0.125) = 0x1.c3d6a24ed8222p-1`,
+`exponential(0) = 0x1.0000000000000p+0`,
+`exponential(0.5) = 0x1.a61298e1e069cp+0`,
+`exponential(1) = 0x1.5bf0a8b14576ap+1`,
+`exponential(3.75) = 0x1.542b2d0a266e7p+5`,
+`exponential(40) = 0x1.a220d397972ebp+57`,
+`exponential(700) = 0x1.d945df4f8ec8ep+1009`. The other grouping of the
+last line, `0.5 + ((exponential(-0.5 q) S) / R)`, gives
+`0x1.87423a677e90ep-2` at `z = -0.3`, so it is not this text's result.
+The oracle (`chain_oracle.exponential` and `normal_cdf`) and the product
+are held to these constants and points as read off this page
+(`tests/test_chain_oracle.py`).
+
+(r) THE OWN-MEAN CLOSE'S BANDS, ITS WORK AND ITS NOTE, AND THE TREND
+CLOSE'S HOLDERS (Codex's items 2, 3, 4 and 8). An open end of the lowest or
+the highest band is held past every sum the readings can make (one more
+than the sum of the readings' magnitudes, in the finest step), never at a
+finite stand-in: the build's `2 ** 62` left a band from the edge empty once
+the finest step reached `10 ** -19`, so two patients one exchange closes
+stayed outside at every finer step. THE TOTAL-WORK BOUND: in one pass a
+patient visits at most `CLOSE_VISITS` = 16 of its own rows for each row it
+holds, each visit reading at most 256 partner rows in each of its two
+searches, and a close reads at most `CLOSE_WORK` = 1,024 rows for each row
+of its column in all (its patients' own rows and the partner rows their
+searches read); a patient whose search reaches its own bound stops for
+that pass, and a close that reaches `CLOSE_WORK` ends there; the patients
+a close leaves outside are named in DEVIATIONS on the derived column and
+on each row family it parents, the note saying the search stopped at its
+total-work bound wherever either bound stopped one. Each patient's rows
+are kept in their proposal order
+as they change (an exchange removes one row and inserts it by a halving
+search), never sorted again a proposal. On two patients of `n` rows holding
+`j 10 n` and `j 10 n + 1` (`j < n`), both dealt `[M + 0.5, M + 0.501)` with
+`M = 10 n (n - 1) / 2`, which need `n / 2` exchanges of one step: the
+close visits 4,918, 19,852, 51,200, 102,400 and 204,800 of its patients'
+own rows at `n` = 100, 200, 400, 800 and 1,600 (the build: 5,000 to
+1,280,000); it closes the first two within the bound, stops the last three
+at it (both patients named outside) and grows by 2.00 at each of their
+doublings. THE TREND CLOSE keeps each step's patients ascending, a patient
+inserted and removed by a halving search, and a round reads each distinct
+step once and the least two patients of a step, never a holder set whole;
+at most `4 |P| + 8` rounds a cell as before, so at most `4 N + 8 C` rounds
+over a column's `C` published cells of `N` patients, two exchanges a round
+at most. On `N` three-row patients holding codes `(0, 0, 1)`, `S_P = 2 N`,
+window `[0, 0]`: the close reads 503, 1,003 and 2,003 holder entries at
+`N` = 1,000, 2,000 and 4,000 (the build: 375,753, 1,501,503 and
+6,003,003), beside its sorted lists' upkeep of 33,948, 75,856 and 167,668
+comparisons (`N log N`). THE NOTE on a patient left outside its band says
+the bounded search did not find a repair, never that no exchange could: a
+patient holding `0` dealt the band from 0.5, 256 patients holding `1` in
+it and a last one holding `1, 0, 0` below it leave the first outside (the
+256 partner rows read are those that cannot give), though the last
+patient's `1` would close both. THE PUBLISHED TEXTS ARE READ AS WRITTEN:
+an edge, a grid's step or its low end with no finite decimal is published
+as `p/q` (`patient_rules.decimal_text`), and the trend close reads it as
+that fraction (`patient_rules.decimal_fraction`), as V12.7 does; the
+build read it as nothing, so every grid code read 0 on such a grid (`ST2`
+written at full binary64 precision, 19,914 rows). (s) THE RECORDS HOLDING NOTHING IN THE
+ASSEMBLY (Codex's item 1): a workbook twin's records holding nothing stand
+on its first rows, reserved as G4.2a reserves them, and the twin carries
+their count (`reserved_rows`), so the writer deals each column's classes
+to them first (absent while the absent cells last) and moves no cell; the
+arrangement gives no record a cell of another row, for a text file too,
+and its sort moves whole rows. The build placed a workbook's records by the
+text file's arithmetic, which gave them cells of other rows, and its writer
+then moved each column's cells holding nothing on its own: on 1,200
+subjects with eleven empty records at row 100, eleven records held cells
+but no person and ten patients' readings moved, with no deviation. (t) THE
+TWIN'S REPORT (Codex's item 5) counts each column's finished cells, and a
+column the description counts in patients (the person column and the
+patient-fixed ones) carries beside them a remark of the twin's patients
+holding a value, as a position-like column says it was written from its
+list; the build reported the runs' counts, made before the patients' rows
+and the position lists were written (`sid` and `arm` 1,200 present and
+`visit` none on 7,898 filled rows).
+
+### G16.19 The counting process: each patient's intervals, switch time and end (lane GRb2-b, plan P4-D491 part b; contract 4.6c.14; NOT IN FORCE)
+
+*Added Wednesday 2026-11-11.* Where `grain.intervals` stands (contract
+4.6c.14), G16.13 gains a step 4' after the row families and before the
+positions: `patient_intervals.write` writes the interval, switch and end
+columns of every twin patient, none of which is a row family's child;
+every other column is made as G16.13 says.
+
+**The words.** After the trend's (G16.17), one `integers` call of `4 N +
+(rows - N)` words, `N` the census's patients: four a patient in patient
+order (its first event's time and choice, its end's time and value after
+a switch), then one an extra row, patient `p`'s at offset `4 N + start_p
+- p`, `start_p` its first row. A word is read as a share by its top 53
+bits and a half over `2 ** 53`. No word is drawn where no interval rule
+stands, so no other description's stream moves.
+
+**1. Each patient's history, forward from the origin.** TREATED FROM
+THE ORIGIN (repair 2, Codex's item 2): where `origin` stands, a patient
+of one row is treated from time 0 with chance `o1` over the twin's
+patients of one row, one of more with `om` over theirs (each at most 1):
+where `u_1` falls below that chance the patient switches at 0 and its
+end is drawn from 0 in the second state with `u_3`, its value with
+`u_4`; else `u_1` is scaled back to `(u_1 - chance) / (1 - chance)` (at
+least `2 ** -54`) and the history below is drawn with it (no word moves
+where `origin` does not stand). A patient of two rows or more may
+switch after the origin (a switch inside the follow-up cuts it, so a
+patient of one row cannot): in the first state its ends compete with its
+switch, the switch's rate constant in each published band of the switch
+time and 0 from twice the top band's mean less its start on, times the
+patient's multiplier `delta_c,b_c` for its band of each column that
+publishes its switches (contract 4.6c.14 (e); repair 1). Each end
+value `k`, the none spelling included, has a rate constant in each piece
+of time cut at the hazard's band edges and the switch's:
+`lambda_k,j * theta_k,s * prod_c gamma_k,c,b_c`, band `j`, state `s` (1
+after the switch), `b_c` the patient's band of column `c` at its
+published level. The first event solves `H(t) = -ln(u_1)` over the
+pieces (`H` the integral of the total rate, the switch's included; exact
+inside its piece), and is chosen in proportion to the rates there with
+`u_2`; a switch at `S` is followed by the end drawn from `S` in the second
+state with `u_3`, its value with `u_4`.
+
+**2. The calibration.** The rates are fitted on the twin's own patients
+(all of them up to 20,000, else every `N / 20,000`-th, the published
+counts scaled to them), starting from each band's published ends over its
+person-time and each switch band's published switches over the eligible
+patients and its width; the patients expected to be treated from the
+origin (each patient's chance, summed) are taken off the first band's
+published switches and off each column band's (repair 2), so the
+switch's rates are fitted to the switches after the origin: each of six
+rounds draws the patients' histories
+with the round's rates (the same words every round) and adds up each
+piece's time at risk, for the ends by band, state and column bands and
+for the switch by band of the switch and column bands (the first
+state's time of the patients who can switch); the switch's rate in each
+band is then its published switches over that time, or, where columns
+publish their switches in each band, the band rates and the multipliers
+`delta` are fitted by eight passes of iterative proportional fitting to
+the scaled published switches of every margin (each `delta` set rescaled
+after each column so its largest is 1, the scale moved into the band
+rates); and the ends' rates are fitted by
+eight passes of iterative proportional fitting on their exposures (the
+bands of time, the two states, each column in turn; after each pass the
+multipliers of each set rescaled so the largest is 1, the scale moved
+into the rates) to each margin cell's PUBLISHED RATE on the twin's own
+time at risk there: its published ends times that time over its
+published person-time. Every patient ends once, so a margin's ends alone
+fix only its end values' shares, never its level (all switched patients
+end in the second state, every patient of a column band in that band,
+every patient reaching the open last band in it); the rates make each
+margin's rate on the twin the published one.
+
+**3. Each patient's end on the grid.** `T` is written on the grid, the
+nearest point (a half up), at least one unit, and at least the patient's
+rows and its switch time and one unit; a patient so lengthened is
+counted in DEVIATIONS. The switch time is written on the grid too: a
+switch drawn after the origin at the nearest point (a half up) and one
+unit at least, a switch drawn AT the origin (where `origin` stands) at
+0, which cuts nothing (CORRECTED by the micro-step, item 8: a switch
+drawn below half a unit was written at 0 and its patient treated from
+its first row, so the twin treated from the origin more patients of two
+rows or more than `origin` publishes: on lane MU's `ST8` at 200,000 rows
+48 against the published 13, and V12.11's census line read MISSED on
+the product's own twin).
+
+**4. The cuts and the rows.** A patient's `r - 1` cuts are its switch
+time where it is above 0, then FLOYD'S SAMPLE of the `k` remaining cuts
+among the `n` grid points 1 to `T - 1` left free by it (repair 2, Codex's
+item 6: the first head moved a cut meeting a taken point to the nearest
+free one, one step at a time, and a dense history cost about three times
+the steps for twice the rows, 4,184,352 steps for one patient of 32,000
+rows): for `j` from `n - k + 1` to `n`, the next word's share `w` picks
+`t = 1 + min(j - 1, floor(w j))` and `j` is taken where `t` already is;
+the `c`-th free point is `c` below the switch's cut and `c + 1` from it
+on. One word a cut and no search, so a patient costs its rows whatever
+its follow-up; its rows are the consecutive intervals `[0, c1), [c1,
+c2), ..., [ck, T)` in its rows' order, the switch column at its second
+spelling from the switch time on and at its first before it, the end
+column at its none spelling but on the last row, which holds the end
+value. The values are written with the rule's places (a point, no
+thousands mark). So the three rules hold on every twin patient by
+construction.
+
+**Arithmetic.** Binary64 in the order written; the logarithm and the
+exponential the shared module's (`chain_walk.natural_log`,
+`chain_walk.exponential`); band edges and the top mean read exactly
+from their published texts, each a decimal from 0 to `2 ** 53` (a text
+outside that range is the ordinary profile error, `time_of`; S34 refuses
+it at load: repair 2, Codex's item 8). **Memory and time:** the
+calibration holds at most 20,000 patients' pieces; the writer one pass
+over the patients and their rows, linear in both (plan P4-D491 states the
+measured seconds at 20,000 and 200,000 rows and the dense histories').
+
+**Stated limits** (contract 4.6c.14 (j)): the rows' link to the length
+of follow-up (a patient's rows come from the census and its other cuts
+are a uniform sample of its free grid points); the patients treated from
+the origin by column band (their chance is their rows' kind's alone,
+the column bands' switches fitted on the rest); the switch's timing by
+patient-fixed column inside the switch's bands (its rate is a band's
+times each column band's multiplier: main effects, so a treatment begun
+within a year in one grade and over three years in another keeps each
+grade's share but not its timing); a repeated
+column's path between its updates and its link to the hazard; effects
+beyond main effects of the published bands.
+
 ## G17. Between columns: the polish (stage 6, plan P4-D413; specified, NOT BUILT)
 
 **AMENDED Tuesday 2026-11-03 (lane MPg, plan P4-D456).** Under the
@@ -22838,7 +23274,9 @@ edits none of its clauses: G16.3's own words (exchanges inside one `L0`
 band, which move no family table and no fact of one column, drawing
 their words after G16.2's) are its frame. Until the landing that ships
 stage 6, `moments` is `null` on every description and nothing here
-runs.
+runs. *Amended Monday 2026-11-09 (plan P4-D464): that landing has shipped;
+a shipped description's `moments` is `null` or contract 4.6d's object,
+and where it stands this section runs in every `synthtwin generate`.*
 
 ### G17.0 When it runs, and which columns it moves
 
@@ -23060,7 +23498,8 @@ one `integers` call (G3.3) of one word a proposal. The polish draws `P e'
 n'` words, `e'` the polished columns, a function of published facts
 (`n'` and `regions`). Each call is a stage in G3.3's sense, added to
 G4's list of stages by the landing that ships it. Nothing is drawn
-after.
+after. *Amended Monday 2026-11-09 (plan P4-D464): that landing adds it to
+G4.2's list (its paragraph of this date).*
 
 ### G17.6 Memory
 

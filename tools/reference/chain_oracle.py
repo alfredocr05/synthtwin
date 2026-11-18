@@ -1716,12 +1716,13 @@ def target_correlations(own, values, counts):
     return goals, moves
 
 
-def chosen_partners(values_row, mine, goals_row):
-    """A number's partners (lane MPg's repair 2): the `PARTNERS` published correlations largest in size, ties in
-    the moments' order, each with a goal; returned in the moments' order."""
+def chosen_partners(values_row, mine, goals_row, partners=PARTNERS):
+    """A number's partners (lane MPg's repair 2): the description's `partners` published correlations largest in
+    size (24, or every other column where the size guard allowed every partner: contract 4.6d.0 amended
+    2026-11-10, lane CHON), ties in the moments' order, each with a goal; returned in the moments' order."""
     ranked = sorted((-abs(v), at) for at, v in enumerate(values_row)
                     if at != mine and v is not None and goals_row[at] is not None)
-    chosen = {at for _size, at in ranked[:PARTNERS]}
+    chosen = {at for _size, at in ranked[:partners]}
     return [at for at in range(len(values_row)) if at in chosen]
 
 
@@ -1786,6 +1787,63 @@ def normal_density(share):
     low = b64_sub(share, step) if b64_sub(share, step) > 0 else b64_div(share, 2)
     high = b64_add(share, step) if b64_add(share, step) < 1 else b64_div(b64_add(share, 1), 2)
     return b64_div(b64_sub(high, low), b64_sub(normal_score(high), normal_score(low)))
+
+
+# G16.3's GROUPING GATE (lane CHG, plan P4-D492): the 0.001 point's normal deviate as the method page states it,
+# the target kinds kept whole and those tested.
+POLISH_GATE_Z_TEXT = "3.0902"
+POLISH_GATE_WHOLE = ("pair",)
+POLISH_GATE_TESTED = ("within", "share", "by")
+
+
+def gate_point(df, z=None):
+    """The chi-square's upper 0.001 point on `df` degrees of freedom as G16.3's grouping gate writes it: Wilson and
+    Hilferty's cube, `a = 2 / (9 df)`, `c = (1 - a) + z sqrt(a)`, the point `df ((c c) c)`, every operation
+    emulated in the order written; `z` the binary64 nearest 3.0902 (a mutant may hand another)."""
+    z = b64(F(POLISH_GATE_Z_TEXT)) if z is None else z
+    a = b64_div(2, b64_mul(9, df))
+    c = b64_add(b64_sub(1, a), b64_mul(z, b64_sqrt(a)))
+    return b64_mul(df, b64_mul(b64_mul(c, c), c))
+
+
+def beyond_chance(counts, goal, z=None):
+    """Whether a grouping target's goal shows its grouping beyond chance (G16.3's gate): the group chi-square
+    `N goal`, `N` the sum of the entry's counts above nought, against `gate_point(k - 1)`, `k` the number of those
+    counts; fewer than two, nothing shown."""
+    live = [n for n in counts if n > 0]
+    if len(live) < 2:
+        return False
+    return b64_mul(sum(live), goal) > gate_point(len(live) - 1, z)
+
+
+def gated_plan(plan, counts_of, mutant=None):
+    """G16.3's grouping gate over a plan (lane CHG): `plan` a list of `(column, targets)`, each target a dict with
+    `kind`, `name`, `level` and `goal` (a pair also its count `n`); `counts_of` maps `(column, by, level)` to the
+    `within` entry's group counts (a `by` target's entry is `(its name, the column, its level)`). Every pair is
+    kept; a `within`, `share` or `by` target where `beyond_chance`; a column left with none leaves the plan; a
+    target of any other kind raises. MUTANTS: "off" keeps every target; "level_005" tests at the 0.05 point
+    (`z` the binary64 nearest 1.6449); "nought" keeps a dropped grouping target with its goal and aim nought;
+    "pairs" tests a correlation too, `n r r` on one degree of freedom against the 0.001 point."""
+    z = b64(F("1.6449")) if mutant == "level_005" else None
+    out = []
+    for column, targets in plan:
+        kept = []
+        for target in targets:
+            kind = target["kind"]
+            if kind in POLISH_GATE_WHOLE:
+                if mutant != "pairs" or b64_mul(b64_mul(target["n"], target["goal"]), target["goal"]) > gate_point(1):
+                    kept += [target]
+                continue
+            if kind not in POLISH_GATE_TESTED:
+                raise ValueError("a target of kind " + kind + " the gate has no test for")
+            key = (target["name"], column, target["level"]) if kind == "by" else (column, target["name"], target["level"])
+            if mutant == "off" or beyond_chance(counts_of[key], target["goal"], z):
+                kept += [target]
+            elif mutant == "nought":
+                kept += [dict(target, goal=F(0), aim=F(0))]
+        if kept:
+            out += [(column, kept)]
+    return out
 
 
 def rank_codes(values):
@@ -3099,3 +3157,331 @@ def held_clock(a_seconds, d_seconds, step):
     total = a_seconds + d_seconds
     total = -((-total) // step) * step if d_seconds >= 0 else (total // step) * step
     return max(0, min(total, 86400 - step))
+
+
+# --- the size guard and the degraded chain (contract 4.6b.13, stated limit 4, AMENDED 2026-11-10; lane CHON,
+# LANE CHON RULINGS 2): the whole run projected, and the columns the chain is drawn over, from the page alone.
+
+GUARD = {
+    "run_seconds": 86400,
+    "process_bytes": 8 * 1024 * 1024 * 1024,
+    "plain_ns_cell": 325812,
+    "plain_ms_column": 522,
+    "chain_ns_pair": 14377,
+    "chain_ms_pair": 640,
+    "every_ns_pair": 19378,
+    "every_ms_pair": 691,
+    "describe_fixed": 150 * 1024 * 1024,
+    "describe_cell": 25,
+    "describe_pair": 65536,
+}
+
+
+def guard_seconds(rows, columns, drawn, every, guard=GUARD):
+    """`s(d)`: the whole run's CPU seconds, rounded up, the chain drawn over `drawn` columns: a line `a + b r` a column
+    and a pair drawn (AMENDED 2026-11-12, lane CHON's repair 1: each intercept a term, each slope the largest fitted)."""
+    pairs = drawn * (drawn - 1) // 2 if drawn >= 2 else 0
+    per_pair = guard["every_ns_pair"] if every else guard["chain_ns_pair"]
+    fixed_pair = guard["every_ms_pair"] if every else guard["chain_ms_pair"]
+    nanoseconds = (rows * (columns * guard["plain_ns_cell"] + pairs * per_pair)
+                   + 1000000 * (columns * guard["plain_ms_column"] + pairs * fixed_pair))
+    return -((-nanoseconds) // 1000000000)
+
+
+def guard_bytes(rows, candidates, drawn, guard=GUARD):
+    """`m(d)`: the switched describe's projected peak in bytes, every candidate's codes held, the tables over `drawn`."""
+    pairs = drawn * (drawn - 1) // 2 if drawn >= 2 else 0
+    return guard["describe_fixed"] + rows * candidates * guard["describe_cell"] + pairs * guard["describe_pair"]
+
+
+def guard_decision(rows, columns, candidates, guard=GUARD):
+    """The page's order: every partner where the whole chain fits with it; else the 24 partners; else the largest
+    `d` from `e - 1` down to 2 that fits with the 24; else none. Returns (drawn, every partner)."""
+    def fits(drawn, every):
+        return (guard_seconds(rows, columns, drawn, every, guard) <= guard["run_seconds"]
+                and guard_bytes(rows, candidates, drawn, guard) <= guard["process_bytes"])
+    if candidates < 2 or fits(candidates, True):
+        return candidates, True
+    if fits(candidates, False):
+        return candidates, False
+    for drawn in range(candidates - 1, 1, -1):
+        if fits(drawn, False):
+            return drawn, False
+    return 0, False
+
+
+def pair_dependence(first, first_levels, second, second_levels):
+    """Cramer's V squared over two screen-code columns on the sample: `(sum O^2 / (R C) - 1) / (k - 1)`, the cells
+    with O > 0 in code order, every operation a correctly rounded binary64 one (emulated); 0 where `k` < 2."""
+    cells = first_levels * second_levels
+    joint = [0] * cells
+    for x, y in zip(first, second):
+        joint[x * second_levels + y] += 1
+    left = [sum(joint[x * second_levels:(x + 1) * second_levels]) for x in range(first_levels)]
+    right = [sum(joint[x * second_levels + y] for x in range(first_levels)) for y in range(second_levels)]
+    fewer = min(len([c for c in left if c]), len([c for c in right if c]))
+    if not first or fewer < 2:
+        return F(0)
+    total = F(0)
+    for cell in range(cells):
+        observed = joint[cell]
+        if observed:
+            total = b64_add(total, b64_div(F(observed * observed), F(left[cell // second_levels] * right[cell % second_levels])))
+    return b64_div(b64_sub(total, F(1)), F(fewer - 1))
+
+
+def rule_places(names, rules_written):
+    """The places among the eligible `names` of every column a carried rule reads (contract 4.6b.13, stated limit 4,
+    AMENDED 2026-11-12; S28): each rule's input, and the source column that carries it (`carrier` not `derived`).
+    `rules_written` are the description's `rules` entries (their `inputs` and `carrier`). Places, sorted."""
+    read = set()
+    for entry in rules_written:
+        read |= set(entry["inputs"])
+        if entry["carrier"] != "derived":
+            read |= {entry["carrier"]}
+    return sorted(at for at in range(len(names)) if names[at] in read)
+
+
+def strongest(screens, at_most, forced=()):
+    """The degraded chain's columns: every pair scored, taken from the strongest down (ties: the later column's
+    schema place, then the earlier's), each bringing in its columns not yet kept wherever the count stays at
+    most `at_most`, the forced places (`rule_places`) kept first, every one even where they alone pass `at_most`.
+    `screens` [(codes, levels)] in schema order. Places kept, sorted."""
+    scored = []
+    for later in range(len(screens)):
+        for earlier in range(later):
+            value = pair_dependence(screens[later][0], screens[later][1], screens[earlier][0], screens[earlier][1])
+            scored += [(-value, later, earlier)]
+    kept = set(forced)
+    for _value, later, earlier in sorted(scored):
+        if len(kept) >= at_most:
+            break
+        brought = {later, earlier} - kept
+        if len(kept) + len(brought) <= at_most:
+            kept |= brought
+    return sorted(kept)
+
+
+# --- the patient layer (method G16.14 and G16.15; lane GRb, plan P4-D465) ---------
+#
+# Read from the pages alone: G16.14's excess line and its split grain cell by
+# grain cell, G16.15's patient scores and weight, and the shared module's
+# exponential and normal distribution function the weight reads, each binary64
+# operation emulated (`b64_*`), so the product is held to these bit for bit.
+
+_LN2_HIGH_TEXT = "6.93147180369123816490e-01"
+_LN2_LOW_TEXT = "1.90821492927058770002e-10"
+_EXP_TERMS = [b64(F(1, _factorial)) for _factorial in [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800,
+                                                        39916800, 479001600, 6227020800, 87178291200,
+                                                        1307674368000, 20922789888000, 355687428096000]]
+_ROOT_TWO_PI_TEXT = "2.5066282746310002"
+_OMEGA_STEP_TEXT = "0.005"
+
+
+def exponential(x):
+    """`e ** x` as G16.13 to G16.17's amendment (q) writes it out (lane GRb's repair 2): `near = x / LN2 + 1/2`, `k` its floor,
+    `y = (x - k H) - k L`, Horner's rule from `T_17` down to `T_0` (degree 17, no stopping test), times `2 ** k` rounded once;
+    each operation one binary64 rounding in that order; the constants are the page's (`tests/test_chain_oracle.py` reads them)."""
+    x = F(x)
+    if x < -745:
+        return F(0)
+    k = b64_floor(b64_add(b64_div(x, b64(F(_LN2_TEXT))), F(1, 2)))
+    y = b64_sub(b64_sub(x, b64_mul(k, b64(F(_LN2_HIGH_TEXT)))), b64_mul(k, b64(F(_LN2_LOW_TEXT))))
+    total = _EXP_TERMS[17]
+    for place in range(16, -1, -1):
+        total = b64_add(b64_mul(total, y), _EXP_TERMS[place])
+    return b64_ldexp(total, k)
+
+
+def normal_cdf(z):
+    """The standard normal distribution function as amendment (q) writes it out: 0 at or below -8 and 1 at or above 8; else
+    `t = (t q) / (2 k + 1)` summed from `S = z` until a term no longer moves the sum, then `1/2 + ((exponential(-q / 2) / R) S)`,
+    the quotient first, then the product, then the sum (the other grouping is not the page's result)."""
+    z = F(z)
+    if z <= -8:
+        return F(0)
+    if z >= 8:
+        return F(1)
+    square = b64_mul(z, z)
+    term = z
+    total = z
+    k = 1
+    while True:
+        term = b64_div(b64_mul(term, square), 2 * k + 1)
+        moved = b64_add(total, term)
+        if moved == total:
+            break
+        total = moved
+        k += 1
+    return b64_add(F(1, 2), b64_mul(b64_div(exponential(b64_mul(F(-1, 2), square)), b64(F(_ROOT_TWO_PI_TEXT))), total))
+
+
+def straight_line(q, m):
+    """G16.14's excess line: the `i`-th of `m` patients `floor(q (2 m - 2 i - 1) / m**2)`, then one unit in turn from the largest."""
+    if m <= 0:
+        return []
+    values = [(q * (2 * m - 2 * i - 1)) // (m * m) for i in range(m)]
+    at = 0
+    while sum(values) < q:
+        values[at % m] += 1
+        at += 1
+    at = 0
+    while sum(values) > q:
+        if values[at % m] > 0:
+            values[at % m] -= 1
+        at += 1
+    return values
+
+
+def excess_split(targets, total):
+    """G16.14's split: whole `q_C >= 0` summing to `total`, least `sum |q_C - t_C|`, and the least such vector in order.
+
+    By enumeration over every vector of the given total (the page's
+    definition, no shortcut), for the small cases the oracle freezes.
+    """
+    best = None
+    count = len(targets)
+
+    def vectors(left, places):
+        if places == 1:
+            yield (left,)
+            return
+        for first in range(left + 1):
+            for rest in vectors(left - first, places - 1):
+                yield (first,) + rest
+
+    for vector in vectors(total, count):
+        cost = sum(abs(F(vector[at]) - F(targets[at])) for at in range(count))
+        if best is None or (cost, vector) < best:
+            best = (cost, vector)
+    return list(best[1]) if best is not None else []
+
+
+def patient_scores(sums, places, bands):
+    """G16.15's patient scores: the hidden scores sorted (stable on patient order) dealt to the patients by band, word 4, patient."""
+    count = len(sums)
+    ordered = sorted(range(count), key=lambda p: (sums[p], p))
+    takers = sorted(range(count), key=lambda p: (bands[p], places[p], p))
+    out = [F(0)] * count
+    for rank in range(count):
+        out[takers[rank]] = F(sums[ordered[rank]] - 393210, 65536)
+    return out
+
+
+def omega_of(table, shares, steps, points):
+    """G16.15's weight on its grid, each binary64 operation emulated (the product's `omega_of`, from the page)."""
+    patients = sum(shares)
+    bands = len(table[0]) if table else 0
+    rows = sum(sum(line) for line in table)
+    if patients <= 0 or rows <= 0 or bands < 2 or len(table) < 2:
+        return F(0)
+    column = [sum(table[a][b] for a in range(len(table))) for b in range(bands)]
+    edges = []
+    running = 0
+    for b in range(bands - 1):
+        running += column[b]
+        edges += [normal_score(b64(F(running, rows))) if 0 < running < rows else (F(-8) if running <= 0 else F(8))]
+    centre = []
+    below = 0
+    for a in range(len(table)):
+        share = shares[a]
+        here = []
+        for k in range(points):
+            p = b64_div(b64_add(below, b64(F(share * (2 * k + 1), 2 * points))), patients)
+            here += [normal_score(p) if 0 < p < 1 else F(0)]
+        centre += [here]
+        below += share
+    best = F(0)
+    best_value = None
+    for step in range(steps):
+        omega = b64_mul(step, b64(F(_OMEGA_STEP_TEXT)))
+        noise = b64_sqrt(b64_sub(1, b64_mul(omega, omega)))
+        value = F(0)
+        broken = False
+        for a in range(len(table)):
+            if sum(table[a]) <= 0:
+                continue
+            chance = [F(0)] * bands
+            for z in centre[a]:
+                last = F(0)
+                for b in range(bands - 1):
+                    cut = normal_cdf(b64_div(b64_sub(edges[b], b64_mul(omega, z)), noise))
+                    chance[b] = b64_add(chance[b], b64_sub(cut, last))
+                    last = cut
+                chance[bands - 1] = b64_add(chance[bands - 1], b64_sub(1, last))
+            for b in range(bands):
+                if table[a][b] <= 0:
+                    continue
+                p = b64_div(chance[b], points)
+                if p <= 0:
+                    broken = True
+                    break
+                value = b64_add(value, b64_mul(table[a][b], natural_log(p)))
+            if broken:
+                break
+        if broken:
+            continue
+        if best_value is None or value > best_value:
+            best_value = value
+            best = omega
+    return best
+
+
+def trend_close(codes, starts, rho, total, low, high, rounds_most=None, pairs=True):
+    """G16.15's exact close on one cell, from the page: while `S_P` is outside `[low, high]`, one exchange of two
+    positions at most 40 apart of one patient whose step equals the gap, else TWO on different patients summing to
+    it, else the largest that fits; the lowest patient, then the lowest positions first. A step of exchanging
+    positions `a < b` is `2 (c_a - c_b) (b - a)`. Returns the codes and `S_P` (mutant: `pairs` false, the two-exchange
+    step removed; `rounds_most` bounds the rounds)."""
+    codes = list(codes)
+
+    def steps(p):
+        begin = starts[p]
+        out = {}
+        for reach in range(1, min(40, rho - 1) + 1):
+            for a in range(rho - reach):
+                b = a + reach
+                step = 2 * (codes[begin + a] - codes[begin + b]) * (b - a)
+                if step != 0 and step not in out:
+                    out[step] = (p, a, b)
+        return out
+
+    def gap(value):
+        return low - value if value < low else (value - high if value > high else 0)
+
+    rounds = 0
+    limit = 4 * len(starts) + 8 if rounds_most is None else rounds_most
+    while gap(total) > 0 and rounds < limit:
+        rounds += 1
+        want = (low - total) if total < low else (high - total)
+        table = [steps(p) for p in range(len(starts))]
+        chosen = []
+        for p in range(len(starts)):
+            if want in table[p]:
+                chosen = [table[p][want]]
+                break
+        if not chosen and pairs:
+            for p in range(len(starts)):
+                for step in table[p]:
+                    for other in range(len(starts)):
+                        if other != p and (want - step) in table[other]:
+                            chosen = [table[p][step], table[other][want - step]]
+                            break
+                    if chosen:
+                        break
+                if chosen:
+                    break
+        if not chosen:
+            size = 0
+            for p in range(len(starts)):
+                for step in table[p]:
+                    if ((want > 0 and 0 < step < want) or (want < 0 and want < step < 0)) and abs(step) > size:
+                        size = abs(step)
+                        chosen = [table[p][step]]
+        if not chosen:
+            break
+        for p, a, b in chosen:
+            begin = starts[p]
+            total += 2 * (codes[begin + a] - codes[begin + b]) * (b - a)
+            codes[begin + a], codes[begin + b] = codes[begin + b], codes[begin + a]
+    return codes, total

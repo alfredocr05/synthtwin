@@ -1,9 +1,10 @@
 """The invariants a loader checks on the chain, S23 to S28 (contract 4.6b.11; lane CHa, plan P4-D418).
 
-NOT IN FORCE. `contract.load_profile` reads `relationships.statistical`
-only when it is asked to with `chain=True`, which no shipped command
-does: `synthtwin generate` and `synthtwin validate` keep invariant S12
-word for word and refuse any description that fills the slot.
+IN FORCE SINCE PLAN P4-D464 (lane CHON): `contract.load_profile` reads
+`relationships.statistical` on every shipped load (S12's third sentence
+replaced, contract amended 2026-11-09), so `synthtwin generate` and
+`synthtwin validate` run these checks on every description that fills
+the slot.
 
 Each check reads the description alone. A description failing one is
 refused, naming the family or the column and the invariant, in words a
@@ -846,7 +847,13 @@ def check_moments(
         "sd": chain_moments.SCALE_SPREAD,
         "share": chain_moments.SCALE_SHARE,
     }
-    if moments["rule"] != chain_moments.RULE_B or moments["scales"] != scales_written or moments["partners"] != chain_moments.PARTNERS:
+    # The partners: `PARTNERS`, or every other eligible column where the
+    # size guard allows every partner (contract 4.6d.0 amended 2026-11-10;
+    # lane CHON, plan P4-D464): a whole number, one of those two.
+    written = moments["partners"]
+    partners = written if isinstance(written, int) and not isinstance(written, bool) else -1
+    allowed = (chain_moments.partners_for(len(eligible), False), chain_moments.partners_for(len(eligible), True))
+    if moments["rule"] != chain_moments.RULE_B or moments["scales"] != scales_written or partners not in allowed:
         raise _broken("S39", "moments", "the rule, the scales and the partners are this version's (contract 4.6d.0)")
     entries = moments["columns"]
     if not isinstance(entries, list) or not entries:
@@ -956,7 +963,7 @@ def check_moments(
     if seen != sorted(set(seen)):
         raise _broken("S43", "moments.within", "each pair once, by the column's place and then the grouping column's")
     for name in per_column:
-        if per_column[name] > chain_moments.PARTNERS:
+        if per_column[name] > partners:
             raise _broken("S43", name, "at most the stated partners a column")
 # -- THE PATIENT LAYER (contract 4.6c.10; lane GRa, plan P4-D449) ---------
 
@@ -1004,6 +1011,10 @@ def _check_patients(document: "dict[str, object]", statistical: object, grain: o
     if statistical["moments"] is not None or statistical["rules"] != [] or statistical["withheld"] != []:
         raise _broken("S28", "rules", "this version carries no rule, no moment and no withheld class")
     scales, eligible, derived, groups = _patient_scales(statistical, grain, blocks, schema, classes, census, floor, patients)
+    if "intervals" in grain:
+        # S34 against the patient chain (contract 4.6c.14; lane GRb2-b): each
+        # hazard column's bands are its ladder's at its level.
+        patient_rules.hazard_bands_checked(grain, scales)
     _derived_edges(derived, scales, blocks)
     families = _patient_families(statistical, scales, eligible, floor, patients, derived, groups)
     cells = _cells_of(grain, families, scales, census, _latest_keyed(families, set(derived)))

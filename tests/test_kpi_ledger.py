@@ -1289,7 +1289,8 @@ def test_k_s6_01(record_property, tmp_path: pathlib.Path) -> None:
     chained = chain.describe(table, document, settings, chain.ChainSwitch("association", bytes(range(32)), rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
     written = dict(document)
-    written["relationships"] = dict(written["relationships"], statistical=chained.statistical)
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    written = chain.with_rules(written, chain.Chained(chained.statistical, (), {}, (), (), ""))
     switched = fixtures.write_profile(tmp_path, "association-switched.json", written)
     loaded = contract.load_profile(str(switched), chain=True)
     twin = generation.generate_held(loaded, 4)
@@ -2251,6 +2252,27 @@ def test_k_s4_18(record_property) -> None:
 
 
 # -- the terminal: install and first run (lane TI, plan P4-D397) ----------------
+
+
+def test_k_s6_16(record_property, tmp_path: pathlib.Path) -> None:
+    """`K-S6-16` (lane CHON, plan P4-D464): the chained fixture's golden description and twin, and its words its formula.
+
+    Its first fixture, chain only, through the shipped command under the
+    fixed test key (`tests/test_stage6_switch_on.py`); lanes MPg and GRb add
+    theirs. The 20,000-row walk is its driver's (`kpi_chain_shipped.py`).
+    """
+    import test_stage6_switch_on as switch_on
+
+    described, twin, drawn, planned = switch_on.golden_record(tmp_path / "golden")
+    _kpi(
+        record_property,
+        "K-S6-16",
+        {
+            "chain_only_golden": int((described, twin) == (switch_on.GOLDEN_DESCRIPTION, switch_on.GOLDEN_TWIN)),
+            "chain_only_words_formula": int(drawn == planned),
+        },
+        partial=True,
+    )
 
 
 def test_k_s8_05(record_property) -> None:

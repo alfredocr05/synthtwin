@@ -33,7 +33,6 @@ import json
 import pathlib
 import random
 import re
-import shlex
 import shutil
 
 import pytest
@@ -671,10 +670,10 @@ def test_a_question_answered_at_the_first_prompt_is_not_said_open(
     words = screen[screen.rindex("TO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:"):].split("\n")[1]
     assert "--answers" in words
     described = (table.parent / "stays-profile.json").read_bytes()
-    repeated, _out, err = _run(["profile", f"{table}"] + shlex.split(words), refused=True)
+    repeated, _out, err = _run(["profile", f"{table}"] + measures.shell_words(words), refused=True)
     assert repeated.verdict == results.NO_MISS, err
     assert (table.parent / "stays-profile.json").read_bytes() == described
-    again, _out, err = _run(shlex.split(taught.group(1))[1:], ask=[""] * 40, refused=True)
+    again, _out, err = _run(measures.shell_words(taught.group(1))[1:], ask=[""] * 40, refused=True)
     assert again.verdict == results.NO_MISS, err
 
 
@@ -734,7 +733,7 @@ def test_the_repeat_line_repeats_every_answer(
     words = out[out.index("TO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:"):].split("\n")[1]
     assert "--answers" in words
     described = (table.parent / "clinic-profile.json").read_bytes()
-    again, _out, _err = _run(["profile", f"{table}"] + shlex.split(words))
+    again, _out, _err = _run(["profile", f"{table}"] + measures.shell_words(words))
     assert again.verdict == results.NO_MISS, again.refusal
     assert (table.parent / "clinic-profile.json").read_bytes() == described
     # K-HZ-31'S REPEAT STEP (Codex's item 8 of lane EZ-a): the line owed and
@@ -858,7 +857,7 @@ def test_a_later_round_keeps_the_newest_answer_over_the_command_line(tmp_path: p
     assert "take these out of the command you typed" in last and f"{typed} patient_no" in last
     words = last.split("\n")[1]
     described = (table.parent / "visits-profile.json").read_bytes()
-    again, _out, _err = _run(["profile", f"{table}"] + shlex.split(words))
+    again, _out, _err = _run(["profile", f"{table}"] + measures.shell_words(words))
     assert again.verdict == results.NO_MISS and (table.parent / "visits-profile.json").read_bytes() == described
 
 
@@ -1141,7 +1140,7 @@ def test_profile_teaches_no_typed_option_a_newer_answer_replaced(tmp_path: pathl
     taught = re.search(r"run this at the keyboard:\n  ([^\n]+)\n", shown)
     assert taught is not None, shown[-1500:]
     assert "--answers" in taught.group(1) and "--decimal-comma" not in taught.group(1)
-    again, out, err = _run(shlex.split(taught.group(1))[1:], ask=[""] * 40)
+    again, out, err = _run(measures.shell_words(taught.group(1))[1:], ask=[""] * 40)
     assert again.verdict == results.NO_MISS, err
     settings = json.loads((folder / "visits-profile.json").read_text(encoding="utf-8"))["settings"]
     assert "patient_no" in settings["forced_identifiers"]

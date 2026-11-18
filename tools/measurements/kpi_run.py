@@ -76,7 +76,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import kpi_rules  # noqa: E402
 
-GROUP_ORDER = ("P0", "P1", "P2", "P3", "P4", "S1", "S2", "2B", "S3", "S4", "S5", "S6", "S7", "S8", "HZ", "BC")
+GROUP_ORDER = ("P0", "P1", "P2", "P3", "P4", "S1", "S2", "2B", "S3", "S4", "S5", "S6", "S7", "S8", "HZ", "BC", "RU")
 GROUP_TITLES = {
     "P0": "Phase 0 - skeleton and security",
     "P1": "Phase 1 - the profiler",
@@ -92,6 +92,7 @@ GROUP_TITLES = {
     "S6": "Stage 6 - relationships between columns (baseline)",
     "HZ": "The health data zoo - every kind of healthcare data, end to end",
     "BC": "The broad program - relations between columns, the analyst battery (baseline)",
+    "RU": "Reliability - analysis code runs unchanged on the twin and reaches the real conclusions",
 }
 
 
@@ -316,12 +317,18 @@ def judge_rows(
                 problem = (f"{collected} pinned cases collected and run, fewer than the "
                            f"{entry['nodes_min_collected']} the ledger requires")
         partial = slow_left > 0 or test_skipped
+        produced: "list[str] | None" = None
         if entry.get("driver"):
             if slow:
                 records = drivers.get(entry["id"], [])
                 if records:
                     parts += [record["value"] for record in records]
                     details += [r["detail"] for r in records if r.get("detail")]
+                    named = [r.get("tiers") for r in records]
+                    if all(isinstance(tiers, list) for tiers in named):
+                        # The tiers the run produced: the entry's other tiers are judged on
+                        # their own runs (`kpi_rules.tier_bounds`).
+                        produced = sorted({t for tiers in named for t in tiers})  # type: ignore[union-attr]
                 else:
                     problem = f"its driver {entry['driver']} printed no value for it"
                 code = (driver_exits or {}).get(entry["driver"])
@@ -347,8 +354,11 @@ def judge_rows(
             word, message, value = kpi_rules.NOT_RUN, "slow tier: run with --slow", None
         else:
             value = _merge(parts)
-            verdict = kpi_rules.judge(entry, value, seconds_count, partial)
+            verdict = kpi_rules.judge(entry, value, seconds_count, partial, produced)
             word, message = verdict.word, verdict.message
+            unrun = sorted(set(entry.get("tiers") or {}) - set(produced)) if produced is not None else []
+            if unrun:
+                message += f" (its {', '.join(unrun)} keys are judged on their own runs, not run here)"
             if failed_after and word not in kpi_rules.DROPS:
                 # The test judged its value red, or failed on an assertion
                 # of its own after recording it: never a pass.

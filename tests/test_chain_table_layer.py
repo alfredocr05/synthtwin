@@ -40,10 +40,9 @@ def _described(folder, name, text, key=TEST_KEY):  # type: ignore[no-untyped-def
 
 
 def _with_chain(folder, name, document, statistical):  # type: ignore[no-untyped-def]
-    written = dict(document)
-    block = dict(written["relationships"])
-    block["statistical"] = statistical
-    written["relationships"] = block
+    # Through `chain.with_rules`, as every writer of a switched description
+    # (plan P4-D464): a chain no rule of which computes a column.
+    written = chain.with_rules(document, chain.Chained(statistical, (), {}, (), (), ""))
     return fixtures.write_profile(folder, f"{name}-on.json", written)
 
 

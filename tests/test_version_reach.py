@@ -68,7 +68,12 @@ nothing, and the samples that must report are 3.12 and 3.14 spellings.)
 THE LIMIT THAT WOULD MATTER is a string of source that IS RUN --
 handed to `exec`, `eval` or `compile`, or to `runpy` -- because that
 spelling reaches the floor's cells while this file says nothing about it.
-The tree holds NINETY-TWO such calls (counted again at batch 4t's
+The tree holds NINETY-FOUR such calls (counted again at batch 4u's
+merge of lane RU-a, 2026-11-16: the reliability battery,
+`tests/reliability_battery.py`, adds one `runpy.run_path`, K-RU-01, and
+lane BT3b's thirty-fourth vectors file one, plan P4-D467, the figure
+having stood one short since batch 4u's merge of lane BT3b; counted
+again at batch 4t's
 merge of lane ID-ROOM4, 2026-11-14: lane ID-ROOM4's thirty-third
 vectors file adds one, 2026-11-13, plan P4-D489; counted again at batch 4t's
 merge of lane HB3-b part a, 2026-11-13: its gate file,
@@ -98,7 +103,7 @@ having stood one short since the fifteenth vectors file's route arrived
 and that review's mutants adding two). They are listed in
 `ROUTES_THAT_RUN_SOURCE` below and
 `test_the_routes_that_run_a_string_of_source_are_the_ones_named_here`
-holds the tree to that list, so a ninety-second cannot arrive unread.
+holds the tree to that list, so a ninety-fifth cannot arrive unread.
 The `runpy` calls run a COMMITTED FILE of `tools/` or of `tests/`,
 which the folders below already read, and the `exec` and `compile`
 calls are held by what they are handed or by where they run:
@@ -210,6 +215,11 @@ calls are held by what they are handed or by where they run:
   the same `synthtwin` package's `__main__` inside the Windows
   rehearsal once the socket calls are made to raise, so what it runs is
   that same committed file.
+- `runpy.run_path` runs once more in `tests/reliability_battery.py` (lane
+  RU-a, K-RU-01): each committed analysis file of
+  `tests/reliability_scripts/`, run on a table as a person runs `python
+  file.py` there; this guard reads every file under `tests/`, those
+  among them.
 - `tests/test_stage3b_shared_steps.py` builds a module with
   `exec(compile(source, ...))` (plan P4-D366, the review of landing
   3b.D0), where `source` is `src/synthtwin/generation.py`, a file this
@@ -532,6 +542,9 @@ ROUTES_THAT_RUN_SOURCE = {
     # The thirty-third, lane ID-ROOM4's method G10.5 step 8 (plan P4-D489):
     # it runs the same oracle by path, as every file above does.
     ("tools/reference/make_generation_branch_vectors_33.py", "runpy.run_path"): 1,
+    # The thirty-fourth, layer L0's leftovers (lane BT3b, plan P4-D467): it
+    # runs the same oracle by path, as every file above does.
+    ("tools/reference/make_generation_branch_vectors_34.py", "runpy.run_path"): 1,
     ("tools/reference/make_generation_document_vectors.py", "runpy.run_path"): 1,
     # Lane TI (plan P4-D397): `python -m synthtwin`, run in the test's own
     # process the way the interpreter runs it, on the committed
@@ -548,6 +561,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # guard runs the `synthtwin` package's `__main__` the way `python -m`
     # does, on the same committed `src/synthtwin/__main__.py`.
     ("tools/bundle/guard_run.py", "runpy.run_module"): 1,
+    # Lane RU-a (K-RU-01): the reliability battery runs each committed
+    # analysis file of tests/reliability_scripts/ by path, on a table, as a
+    # person runs `python file.py`; those files are ones this guard reads.
+    ("tests/reliability_battery.py", "runpy.run_path"): 1,
 }
 RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module")
 
@@ -921,7 +938,48 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # 74 AT BATCH 4t'S MERGE OF LANE KV (plan P4-D487; 2026-11-14, step 11):
 # the line's 73 and the lane's one above (70 on its branch, on batch 4s's
 # 69), loaded once.
-FILES_LOADED_AS_MODULES = 74
+#
+# 68 ON LANE CHON (plan P4-D464, its repair 1 of 2026-11-12, one more on
+# batch 4r's 67): the switch-on gate, `tests/test_stage6_switch_on.py`, in
+# `_oracle`, loads the chain's oracle `tools/reference/chain_oracle.py`,
+# one call read from beside the test file, to hold the size guard's
+# decisions and the degraded chain's choice to the page. What it loads is
+# a committed file under tools/, which this guard reads directly, so the
+# floor holds for it as it does for the other sixty-seven.
+#
+# 75 AT BATCH 4u'S MERGE OF LANE CHON (plan P4-D464; 2026-11-16, step 2):
+# the line's 74 and the lane's one above (68 on its branch, on batch 4r's
+# 67), loaded once.
+#
+# 68 ON LANE GRb2-b (plan P4-D491 part b, its repair 1 of 2026-11-11, one
+# more on batch 4r's 67): the counting process's gate,
+# `tests/test_patient_intervals.py`, in
+# `test_k_bc_15_reads_each_table_apart_and_voids_a_bar_the_shuffle_meets`,
+# loads `K-BC-15`'s driver `tools/measurements/kpi_patient_intervals.py`,
+# one call read from beside the test file, to hold the driver's judging
+# (each table's twins apart, then the largest over the tables; a bar the
+# shuffled table meets in the same run void) to a constructed run. What it
+# loads is a committed file under tools/, which this guard reads directly,
+# so the floor holds for it as it does for the other sixty-seven.
+#
+# 76 AT BATCH 4u'S MERGE OF LANE GRb2-b (plan P4-D491 part b; 2026-11-16,
+# step 4): the line's 75 and the lane's one above (68 on its branch, on
+# batch 4r's 67), loaded once.
+#
+# 68 ON LANE MU (plan P4-D485, its repair 2 of 2026-11-13, one more on the
+# 67 of its base `7be40594`): the model-utility battery's gate,
+# `tests/test_model_utility.py`, in `_driver`, loads one of three committed
+# drivers under tools/measurements/ -- the lane's own
+# `kpi_model_utility.py`, lane E0b's `kpi_analyst_battery.py` and the
+# runner `kpi_run.py` -- one call, to hold their tiers, their kept runs and
+# their CPU readings to the cases. What it loads is a committed file under
+# tools/, which this guard reads directly, so the floor holds for it as it
+# does for the other sixty-seven.
+#
+# 77 AT BATCH 4u'S MERGE OF LANE MU (plan P4-D485; 2026-11-16, step 6): the
+# line's 76 and the lane's one above (68 on its branch, on the 67 of its
+# base `7be40594`), loaded once.
+FILES_LOADED_AS_MODULES = 77
 
 
 def _files() -> "list[pathlib.Path]":

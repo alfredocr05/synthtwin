@@ -625,6 +625,15 @@ def _published_class(census: "dict[str, int | None]", kind: str) -> int:
     return found if isinstance(found, int) else 0
 
 
+# THE SHARED SECTION'S HEADING ON A TWIN OF A DESCRIPTION THAT CARRIES A
+# CHAIN (lane CHON, plan P4-D464; LANE ST RULINGS 2 (5), LANE CHON RULINGS 1
+# (8): the words are this lane's; lane CHc may refine them with the claim
+# text): ST's block, then paragraphs 2 and 3, which hold of every twin;
+# no longer than the section's rule, and never the block's own first words
+# ("What you can analyse on this twin"), which its item 1 says.
+CHAINED_HEADING = "BETWEEN COLUMNS, AND TWO THINGS TRUE OF EVERY TWIN"
+
+
 def _independence_lines() -> "list[str]":
     """The two limits that hold for every twin this version builds.
 
@@ -681,6 +690,34 @@ def _independence_lines() -> "list[str]":
     ]
 
 
+# THE TWIN CAN SHOW A RELATIONSHIP THE TABLE DOES NOT HAVE (lane CHON's
+# repair 1, LANE CHON RULINGS 6 (1)(B); P4-D464): paragraph 3 says it on a
+# twin whose description carries a chain; every other twin keeps paragraph
+# 3 word for word. ITS FIGURES ARE LANE CHG'S, as this comment asked once
+# that lane landed (batch 4u's outside review, item 8): plan P4-D492 and
+# P4-D464's amendment of 2026-11-11, restated 2026-11-13 at the lane's
+# repair 1 from the stamps of `K-BC-03`, measured on invented tables at
+# 20,000 rows through the commands a person types, the grouping gate on:
+# on a table whose columns are unrelated a median of 7.6 and a largest of
+# 9.5 per cent of its 105 pairs called related over nine twins (2.9 on a
+# fresh sample); on the battery's cohorts 15.0, 14.0 and 16.1 per cent of
+# the effects that are not significant come out significant (10.0, 9.9 and
+# 10.6 on a fresh sample). The figures before the gate were one pair in
+# seven and 17 in 100 (9 on a fresh sample).
+_INVENTED_RELATIONSHIPS = [
+    "   The twin can also show a relationship your table does not have:",
+    "   measured on invented tables where the columns are unrelated,",
+    "   about one pair of columns in thirteen tests as related on the",
+    "   twin, one in ten at the most (about one in thirty-five on a",
+    "   fresh sample of the same patients), and on invented cohorts",
+    "   about 14 to 16 in 100 of the effects that are not significant",
+    "   come out significant on the twin (about 10 on a fresh sample).",
+    "   Use the twin to develop your code and to see effects that are",
+    "   really there: check on your table any effect the twin shows,",
+    "   and never read a negative finding from the twin.",
+]
+
+
 def _between_columns_lines(profile: contract.Profile, twin: generation.Twin) -> "list[str]":
     """THE SHARED REPORT'S BLOCK, on a twin of a switched description only (lane ST, plan P4-D458; contract 4.6b.8).
 
@@ -732,6 +769,13 @@ def _between_columns_lines(profile: contract.Profile, twin: generation.Twin) -> 
         if (first, second) in moved_pairs:
             said = f"{word}; {chain_grades.MOVED}, so A (approximate) here"
         lines += [f"   {_shown(first)} and {_shown(second)}: {said}"]
+    if relationships.set_aside:
+        # The columns the size guard's degraded chain is not drawn over
+        # (lane CHON, plan P4-D464), named as the description lists them.
+        named = ""
+        for name in relationships.set_aside:
+            named += (", " if named else "") + _shown(name)
+        lines += [f"{chain_grades.SET_ASIDE}: {named}."]
     lines += [chain_grades.ONCE_LINE, ""]
     return lines
 
@@ -2079,14 +2123,18 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
     population = _small_population_lines(profile)
     if population:
         lines = lines + [""] + population
+    block = _between_columns_lines(profile, twin)
     lines += [
         "",
         _RULE,
-        "THREE THINGS THAT ARE TRUE OF EVERY TWIN THIS VERSION BUILDS",
+        # ON A TWIN OF A DESCRIPTION THAT CARRIES A CHAIN the block takes
+        # paragraph 1's place, so the heading over it says what follows
+        # (lane CHON, plan P4-D464; LANE ST RULINGS 2 (5)); every other twin
+        # keeps it word for word.
+        CHAINED_HEADING if block else "THREE THINGS THAT ARE TRUE OF EVERY TWIN THIS VERSION BUILDS",
         _RULE,
         "",
     ]
-    block = _between_columns_lines(profile, twin)
     standing = _independence_lines()
     if block:
         # ON A SWITCHED TWIN THE BLOCK TAKES PARAGRAPH 1'S PLACE (plan
@@ -2095,6 +2143,11 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         while second < len(standing) and standing[second][:3] != "2. ":
             second = second + 1
         standing = standing[second:]
+        # ...and where the description carries a chain, paragraph 3 says
+        # the twin can show a relationship the table does not have (lane
+        # CHON's repair 1, LANE CHON RULINGS 6 (1)(B)).
+        if profile.relationships.ladder:
+            standing = standing + _INVENTED_RELATIONSHIPS
     lines = lines + block + standing
     lines += [
         "",

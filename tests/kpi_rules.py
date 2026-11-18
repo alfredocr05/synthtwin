@@ -44,12 +44,17 @@ Standard library only, so the runner can load it before pytest runs.
 from __future__ import annotations
 
 import ast
+import atexit
+import contextlib
 import fnmatch
 import json
 import os
 import pathlib
 import platform
 import re
+import shutil
+import tempfile
+from collections.abc import Iterator
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 LEDGER_PATH = REPO_ROOT / "tests" / "kpi" / "ledger.json"
@@ -83,8 +88,10 @@ MACHINE_KINDS = ("seconds_below", "peak_memory_below")
 # every kind of healthcare data, re-run at every merge (TRACKED T3).
 # BC is the broad between-columns program (plan P4-D398): stages 6 and
 # 7/7b made one program by the owner's direction of 2026-10-16, measured
-# by the analyst battery from its baseline on.
-ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|HZ|BC)-(\d\d)([a-z])?$")
+# by the analyst battery from its baseline on. RU is the reliability
+# battery (lane RU-a, 2026-11-16): analysis files run unchanged on the twin
+# and reaching the real table's conclusions.
+ID_PATTERN = re.compile(r"^K-(P[0-4]|S[1-8]|2B|HZ|BC|RU)-(\d\d)([a-z])?$")
 HEADLINES_AT_LEAST = 20
 # 36 from 35, LANE S5a OF THE DECEMBER PLAN (2026-10-26, plan P4-D437):
 # stage 5's first entries, and `K-S5-01` -- a caller tells a good run
@@ -132,6 +139,13 @@ HEADLINES_AT_LEAST = 20
 # columns holding on the twin, an end on or after its start -- as the
 # rules page (contract 4.6b.7, MR.10) fixed it. One step, with its reason;
 # nothing is demoted.
+#
+# 37 HELD, ONE HEADLINE DEMOTED (lane RU-a, 2026-11-16, under the owner's
+# priority order of 2026-11-10: time comes fourth): the reliability
+# battery's `K-RU-01` -- analysis files run unchanged on the twin and reach
+# the real table's conclusions -- takes the board, and `K-S1-01`, a speed
+# number (twenty numeric columns generated in under a minute), leaves it;
+# stage 1 keeps `K-S1-06` and speed keeps it and `K-S4-03`.
 HEADLINES_AT_MOST = 37
 
 # Verdict words, printed by the runner and stored in its report.
@@ -371,21 +385,48 @@ class Verdict:
         return f"Verdict({self.word!r}, {self.message!r})"
 
 
+def tier_bounds(entry: "dict", bounds: object, produced: "list[str] | None") -> object:
+    """The keyed bounds a driver's run is judged on where the entry measures in TIERS and the run produced some of them.
+
+    An entry may name its tiers (``tiers``: each key suffix, such as
+    ``_20k``, with the command that measures it, such as the driver's
+    ``--kpi``; another, ``_200k``, its ``--night``). A driver's KPI line
+    names the tiers its run produced (``tiers`` in the record,
+    `emit`). The keys of a tier the run did not produce are left out of
+    the bounds -- an ordinary ``kpi_run.py --slow`` runs the registered
+    command alone and never rejects the other tier's keys as not measured
+    (lane MU's K-BC-14, LANE MU RULINGS 6 (6), Codex's review of the lane,
+    its item 8) -- while every key of a tier it produced is judged, a key
+    it left out a miss. A run that names no tiers, or an entry that names
+    none, is judged on every key.
+    """
+    tiers = entry.get("tiers")
+    if produced is None or not isinstance(tiers, dict) or not isinstance(bounds, dict):
+        return bounds
+    unrun = [t for t in tiers if t not in produced]
+    return {k: v for k, v in bounds.items() if not any(k.endswith(t) for t in unrun)}
+
+
 def judge(
     entry: "dict",
     value: object,
     seconds_count: bool = True,
     partial: bool = False,
+    produced: "list[str] | None" = None,
 ) -> Verdict:
     """Judge a measured value against the entry's rule, bound and target.
 
     ``partial`` is True where only part of the entry was measured -- a
     KPI test judging its own keys, or a fast run that skipped the entry's
     slow driver -- so a key nobody measured is left out, not failed.
+    ``produced`` names the tiers a driver's run produced (`tier_bounds`):
+    the bound of an entry measured in tiers is judged on those tiers'
+    keys; its target never, so an entry is never called IMPROVED on a
+    part of it.
     """
     kind = entry["rule_kind"]
     kinds = entry.get("key_kinds", {})
-    misses = _misses(kind, kinds, value, entry["expected"], seconds_count, partial)
+    misses = _misses(kind, kinds, value, tier_bounds(entry, entry["expected"], produced), seconds_count, partial)
     status = entry["status"]
     if status == "GREEN":
         if misses:
@@ -577,6 +618,26 @@ def integrity_problems(ledger: "dict", root: pathlib.Path = REPO_ROOT) -> "list[
                 problems.append(f"{entry_id}: driver {script} does not exist")
             elif root == REPO_ROOT and pathlib.PurePosixPath(script).name not in readme:
                 problems.append(f"{entry_id}: driver {script} has no row in tools/measurements/README.md")
+        tiers = entry.get("tiers")
+        if tiers is not None:
+            # An entry measured in tiers (`tier_bounds`): each tier a key suffix and the command that measures it,
+            # every bounded key in one of them, the registered driver one of the commands; a malformed field would
+            # leave keys unjudged.
+            if not isinstance(tiers, dict) or not tiers or not all(
+                isinstance(t, str) and t.startswith("_") and isinstance(c, str) for t, c in tiers.items()
+            ):
+                problems.append(f"{entry_id}: tiers must map each key suffix ('_20k') to the command that measures it")
+            else:
+                for command in tiers.values():
+                    script = driver_script(command)
+                    if not script.startswith("tools/measurements/") or not (root / script).is_file():
+                        problems.append(f"{entry_id}: the tier command {command} is not a driver under tools/measurements/")
+                bounded = entry.get("expected") if isinstance(entry.get("expected"), dict) else {}
+                loose = sorted(k for k in bounded if not any(k.endswith(t) for t in tiers))
+                if loose:
+                    problems.append(f"{entry_id}: the bounded keys {loose} belong to no tier it names")
+                if driver and driver not in tiers.values():
+                    problems.append(f"{entry_id}: its driver {driver} measures none of its tiers")
         if measured_by == 0:
             problems.append(f"{entry_id}: nothing measures it (no node, test or driver)")
         if entry.get("source") == "driver" and not driver:
@@ -682,11 +743,108 @@ def the_small_table_refusal_off() -> None:
         defaults["small_tables_refused"] = False
 
 
-def guard_this_tree() -> str:
+# THE INSTALLATION'S DATA FOLDER, ONE OF THE RUN'S OWN (lane CHON's repair 2,
+# plan P4-D464 limit (15); LANE CHON RULINGS 7 (1)(c)). Every shipped
+# `synthtwin profile` run opens the installation's data folder -- its private
+# key, its record of earlier descriptions, its lock and its private reports
+# -- which the platform places from XDG_DATA_HOME (POSIX) or LOCALAPPDATA
+# (Windows), else in the account's own folder. The suite's conftest names a
+# folder for every test; a driver runs outside pytest, where nothing named
+# one, so a driver's runs wrote their keys, records and private reports into
+# the account's own folder, where a later run of the same invented table under
+# the same name met that record. A driver's run, and each table of the zoo's
+# engine (`health_zoo.run_table`), is given a folder of its own, as
+# `kpi_chain_shipped.py` gives each of its tables: it holds the fixed test key
+# (`bytes(range(32))`, the oracle's and the suite's), so a run's chain is the
+# same on every machine, and an empty record; it is removed when the run ends.
+TEST_KEY = bytes(range(32))
+DATA_FOLDER_NAMES = ("XDG_DATA_HOME", "LOCALAPPDATA")
+INSTALLATION_FOLDER = "synthtwin"
+_KEY_FILE = "chain-key"
+_LEDGER_FILE = "chain-ledger"
+_EMPTY_LEDGER = '{\n  "tables": [],\n  "version": 1\n}\n'
+
+
+def fresh_data_folder(beside: "pathlib.Path | None" = None) -> pathlib.Path:
+    """A new folder (in ``beside``, else the system's temporary folder) for XDG_DATA_HOME to name; its path.
+
+    Its installation folder holds the fixed test key and an empty record,
+    the folder 0700 and both files 0600 where modes exist, as the product
+    makes them.
+    """
+    place = pathlib.Path(tempfile.mkdtemp(prefix="synthtwin-installation-", dir=None if beside is None else str(beside)))
+    data = place / INSTALLATION_FOLDER
+    data.mkdir(mode=0o700)
+    key = data / _KEY_FILE
+    key.touch(mode=0o600)
+    ledger = data / _LEDGER_FILE
+    ledger.touch(mode=0o600)
+    if os.name != "nt":
+        data.chmod(0o700)
+        key.chmod(0o600)
+        ledger.chmod(0o600)
+    key.write_bytes(TEST_KEY)
+    ledger.write_text(_EMPTY_LEDGER, encoding="utf-8", newline="\n")
+    return place
+
+
+@contextlib.contextmanager
+def own_data_folder(beside: "pathlib.Path | None" = None) -> "Iterator[pathlib.Path]":
+    """Run the block with the installation's data folder in a new folder of its own; yields the installation folder.
+
+    XDG_DATA_HOME and LOCALAPPDATA name the new folder (`fresh_data_folder`)
+    inside the block, are put back as they were after it, and the folder is
+    removed with what the runs left in it (their records and private
+    reports, of invented tables).
+    """
+    place = fresh_data_folder(beside)
+    saved = {name: os.environ.get(name) for name in DATA_FOLDER_NAMES}
+    for name in DATA_FOLDER_NAMES:
+        os.environ[name] = str(place)
+    try:
+        yield place / INSTALLATION_FOLDER
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        shutil.rmtree(place, ignore_errors=True)
+
+
+def the_data_folder_of_this_run() -> pathlib.Path:
+    """Point this driver's process at a data folder of its own until it ends; the installation folder.
+
+    The folder is removed when the process exits. Every driver that calls
+    `guard_this_tree` has it, whichever module its runs of the shipped
+    command go through; a block that names its own folder
+    (`own_data_folder`) still has that one inside the block.
+    """
+    place = fresh_data_folder()
+    for name in DATA_FOLDER_NAMES:
+        os.environ[name] = str(place)
+    atexit.register(shutil.rmtree, str(place), True)
+    return place / INSTALLATION_FOLDER
+
+
+def guard_this_tree(source: "str | pathlib.Path | None" = None) -> str:
     """Print where synthtwin was imported from, and refuse unless it is THIS TREE'S CODE.
 
     It also turns the table floor off for the driver's process
-    (`the_small_table_refusal_off`, plan P4-D425): every driver calls this first.
+    (`the_small_table_refusal_off`, plan P4-D425), and points the
+    installation's data folder at a folder of the run's own
+    (`the_data_folder_of_this_run`, plan P4-D464 limit (15)): every driver
+    calls this first, among its module's own statements, so that no run of
+    the shipped `profile` it makes, through any module, opens the account's
+    own data folder (`tests/test_stage6_switch_on.py`'s sweep of the
+    drivers).
+
+    ``source``, where given, names the folder holding the `synthtwin`
+    package the run measures in place of this tree's `src`: a driver's
+    preview of another tree's head (`kpi_model_utility.py --preview`). The
+    same refusal holds against any other code, and the run has its data
+    folder and its floor as every other driver's (batch 4u's checks: the
+    preview had neither).
 
     A driver measured against an installed copy of another checkout
     reports a confident number about the wrong code; that has voided
@@ -724,7 +882,8 @@ def guard_this_tree() -> str:
     here = pathlib.Path(synthtwin.__file__).resolve()
     print(f"synthtwin imported from {here}", flush=True)
     the_small_table_refusal_off()
-    source = (REPO_ROOT / "src").resolve()
+    the_data_folder_of_this_run()
+    source = (pathlib.Path(source) if source is not None else REPO_ROOT / "src").resolve()
     if source in here.parents:
         return str(here)
     package = here.parent
@@ -763,7 +922,10 @@ def guard_this_tree() -> str:
     raise SystemExit(REFUSED_EXIT)
 
 
-def emit(entry_id: str, value: object, detail: str = "") -> None:
-    """One KPI line for `tools/measurements/kpi_run.py --slow`."""
-    record = {"id": entry_id, "value": value, "detail": detail}
+def emit(entry_id: str, value: object, detail: str = "", tiers: "list[str] | None" = None) -> None:
+    """One KPI line for `tools/measurements/kpi_run.py --slow` (``tiers``: the key suffixes of the tiers this run
+    produced, for an entry measured in tiers; `tier_bounds`)."""
+    record: "dict[str, object]" = {"id": entry_id, "value": value, "detail": detail}
+    if tiers is not None:
+        record["tiers"] = list(tiers)
     print("KPI " + json.dumps(record, sort_keys=True), flush=True)

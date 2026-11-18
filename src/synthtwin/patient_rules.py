@@ -86,9 +86,21 @@ GRAIN_KEYS = (
     "census", "classes", "derived", "fixed_rows", "grain_family", "grid",
     "ladder", "person", "position", "positions", "rows", "trend",
 )
+# The counting process's keys (contract 4.6c.14; lane GRb2-b, plan P4-D491
+# part b): all four beside the twelve where an interval rule stands, else
+# none of them (S34).
+COUNTING_KEYS = ("end_events", "hazard", "intervals", "switches")
+# The interval rule's origin and its places at most (4.6c.14 (a)).
+ORIGIN_ZERO = "zero"
+INTERVAL_PLACES_MAX = 6
 
 # The keys a block the layer empties keeps (S30).
 EMPTIED_KEPT = ("name", "position", "role")
+# The marks a position-like column's emptied block keeps beside them: those of
+# the reading its list was read through (`chain.described_cells`), so a
+# checked file's cells are read through them too (repair 2 of lane GRb,
+# Codex's item 6). Each is a rule's setting, never a count.
+POSITION_MARKS = ("top_coded", "top_category_pooled", "top_category_people", "top_coded_year", "present_count_withheld")
 
 
 def ceil_div(numerator: int, denominator: int) -> int:
@@ -1060,6 +1072,38 @@ def emptied(block: "dict[str, object]") -> bool:
     return True
 
 
+def position_emptied(block: "dict[str, object]") -> bool:
+    """Whether a position-like column's block holds no key but `name`, `position`, `role` and the marks its list was read through (S30).
+
+    The marks are `POSITION_MARKS` and a `remarks` list holding the dated
+    remark alone (repair 2 of lane GRb, Codex's item 6): the list is read
+    on the cells as the description read them (`chain.described_cells`),
+    and a checked file is read through the same marks. No mark is a count.
+    """
+    from synthtwin import taxonomy
+
+    dated = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
+    rest: "dict[str, object]" = {}
+    for key in block:
+        if key in POSITION_MARKS:
+            continue
+        if key == "remarks" and block[key] == [dated]:
+            continue
+        rest[key] = block[key]
+    return emptied(rest)
+
+
+def internal_name(name: str) -> bool:
+    """Whether a column name is one the patient layer gives its own columns: `r`'s, or a derived column's label (lane GRb, plan P4-D465)."""
+    if not isinstance(name, str):
+        raise TypeError("a column name is text")
+    if name == R_NAME:
+        return True
+    if not name.endswith(")"):
+        return False
+    return name.startswith("(own mean of ") or name.startswith("(first date of ")
+
+
 def check(document: "dict[str, object]", grain: "dict[str, object]", tabled: int, blank_rows: int, floor: int) -> "dict[str, object]":
     """Refuse a description whose patient layer breaks S29 to S33; return what the patient chain's check reads.
 
@@ -1067,7 +1111,7 @@ def check(document: "dict[str, object]", grain: "dict[str, object]", tabled: int
     person column and the patient count for `chain_check` to hold the
     patient chain to S23 to S28 over the patient table.
     """
-    if sorted(grain) != sorted(GRAIN_KEYS):
+    if sorted(grain) != sorted(GRAIN_KEYS) and sorted(grain) != sorted(GRAIN_KEYS + COUNTING_KEYS):
         raise broken("S29", "grain", "the patient layer holds exactly its twelve keys")
     columns = _get(document, "columns")
     blocks: "dict[str, dict[str, object]]" = {}
@@ -1080,6 +1124,12 @@ def check(document: "dict[str, object]", grain: "dict[str, object]", tabled: int
     settings = _get(document, "settings")
     persons = _get(settings, "person_columns")
     person = grain["person"]
+    # -- S29: no source column wears a name of the layer's own (lane GRb, plan
+    # P4-D465; Codex's review of lane GRa, item 10): `r`'s name and a derived
+    # column's label are the patient chain's own, never a column of the table.
+    for name in schema:
+        if internal_name(name):
+            raise broken("S29", f"{name}", "no column of the table is named as the patient layer names its own columns")
     # -- S29: the gate --
     if not isinstance(persons, list) or len(persons) != 1 or persons[0] != person or person not in blocks:
         raise broken("S29", "grain.person", "the layer stands only beside exactly one person column")
@@ -1122,7 +1172,7 @@ def check(document: "dict[str, object]", grain: "dict[str, object]", tabled: int
     length = census.lo if census.top_patients else len(census.bands)
     for name in schema:
         kind = classes[name]
-        if kind in (CLASS_POSITION, CLASS_HELD) and not emptied(blocks[name]):
+        if (kind == CLASS_HELD and not emptied(blocks[name])) or (kind == CLASS_POSITION and not position_emptied(blocks[name])):
             raise broken("S30", name, "a position-like or held column publishes no block of its own")
         if kind == CLASS_POSITION:
             if name not in listed or len(listed[name]) != length:
@@ -1190,7 +1240,456 @@ def check(document: "dict[str, object]", grain: "dict[str, object]", tabled: int
             raise broken("S33", "grain.trend", "each trend names a gridded column, its cell and its q")
         if not _whole(entry["q"]):
             raise broken("S33", f"{entry['column']}", "q is a whole number")
+    if "intervals" in grain:
+        counting_checked(grain, classes, blocks, patients, floor)
     return {"census": census, "classes": classes, "person": person, "patients": patients}
+
+
+# -- S34: THE COUNTING PROCESS (contract 4.6c.14; lane GRb2-b, plan P4-D491 part b) --
+
+
+def _rung_values(block: "dict[str, object]") -> "list[fractions.Fraction]":
+    """Every rung a number column's block publishes, as exact numbers."""
+    rungs = rules.rung_ladder(block)
+    out: "list[fractions.Fraction]" = []
+    if isinstance(rungs, dict):
+        for key in rungs:
+            found = rung_of(block, key)
+            if found is not None:
+                out += [found]
+    return out
+
+
+def _edge_value(edge: object) -> "fractions.Fraction | None":
+    if isinstance(edge, bool):
+        return None
+    if isinstance(edge, int):
+        return fractions.Fraction(edge)
+    if isinstance(edge, float):
+        return fractions.Fraction(repr(edge)) if edge == edge and edge not in (float("inf"), float("-inf")) else None
+    return fraction_read(edge)
+
+
+def _edges_held(edges: object, block: "dict[str, object]", where: str) -> "list[fractions.Fraction]":
+    """Edges that rise strictly above 0, each a rung its column's block publishes (S34: no edge of its own)."""
+    if not isinstance(edges, list):
+        raise broken("S34", where, "edges are a list")
+    rungs = _rung_values(block)
+    out: "list[fractions.Fraction]" = []
+    for edge in edges:
+        value = _edge_value(edge)
+        if value is None or value <= 0 or value not in rungs or (out and value <= out[-1]):
+            raise broken("S34", where, "each edge is a published rung of its column, above 0 and rising")
+        out += [value]
+    return out
+
+
+def _counts_held(value: object, length: int, floor: int, where: str) -> "list[int]":
+    if not isinstance(value, list) or len(value) != length or not all(_whole(one) and one >= 0 for one in value):
+        raise broken("S34", where, "one whole count for each band")
+    if any(0 < one < floor for one in value):
+        raise broken("S34", where, "every count is 0 or at least the floor, in patients")
+    return [int(one) for one in value]
+
+
+# The largest number S34 lets a published time or person-time hold (repair
+# 2, Codex's item 8): 2 ** 53, the last whole number binary64 holds
+# exactly, so the writer's arithmetic stays inside binary64 and loses no unit.
+TIME_MOST = fractions.Fraction(2 ** 53)
+
+
+def half_unit(value: fractions.Fraction, figures: int = 3) -> fractions.Fraction:
+    """Half a unit of the last of `figures` significant decimal figures of `value` (0 for 0): how far a published person-time may stand from its exact sum (4.6c.14 (f))."""
+    if value == 0:
+        return fractions.Fraction(0)
+    magnitude = 0
+    probe = abs(value)
+    while probe >= 10:
+        probe /= 10
+        magnitude += 1
+    while probe < 1:
+        probe *= 10
+        magnitude -= 1
+    return fractions.Fraction(10) ** (magnitude - figures + 1) / 2
+
+
+def _times_held(value: object, length: int, where: str) -> "list[fractions.Fraction]":
+    """Person-times: one decimal text a band, each at or above 0 and at most `TIME_MOST` (repair 2, Codex's item 8)."""
+    if not isinstance(value, list) or len(value) != length:
+        raise broken("S34", where, "one person-time for each band")
+    out: "list[fractions.Fraction]" = []
+    for one in value:
+        read = fraction_read(one)
+        if read is None or read < 0 or read > TIME_MOST:
+            raise broken("S34", where, "a person-time is a decimal text from 0 to 2 ** 53")
+        out += [read]
+    return out
+
+
+def _total_agrees(first: "list[fractions.Fraction]", second: "list[fractions.Fraction]") -> bool:
+    """Two margins' person-times add up to the same time within their published rounding (each entry half a unit of its third figure)."""
+    slack = sum((half_unit(one) for one in first + second), fractions.Fraction(0))
+    return abs(sum(first, fractions.Fraction(0)) - sum(second, fractions.Fraction(0))) <= slack
+
+
+def switches_held(turned: "list[int]", cells: "list[list[int]]", margin: "list[list[int]] | None", floor: int) -> bool:
+    """Whether a column's switches in each band may stand (contract 4.6c.14 (f)): every count they imply directly is 0 or at least the floor.
+
+    `turned[b]` the band's switched patients, `cells[k][b]` its ends of
+    value `k`, `margin[k]` the switch margin's ends of value `k` before
+    and after the switch (None where the margin is not published). Read
+    by the producer and by S34 alike. THE CLASS (repair 2; the verify's
+    item 1, ruled direct by LANE GRb2 RULINGS 11 (1)): a published zero
+    that makes one published count a part of another makes their
+    difference a count of patients. So: each band's switched and
+    never-switched patients; each band's ends of the values a state's
+    margin holds less that state's patients there (the band's patients
+    of the OTHER state ending with them; with no margin, every value: the
+    complement); and every cell of the table of switched patients by band
+    and end value, and of never-switched ones, that the published counts
+    and their zeros fix (`fixed_cells`: the margin's zero rows, a column's
+    zero cells, each band's switches and each value's ends after the
+    switch, bounds carried until they stand still).
+    """
+    width = len(turned)
+    values = len(cells)
+    people = [sum(cells[value][band] for value in range(values)) for band in range(width)]
+    states = [[people[band] - turned[band] for band in range(width)], list(turned)]
+    for state in range(2):
+        wanted = [value for value in range(values) if margin is None or margin[value][state] > 0]
+        for band in range(width):
+            implied = [states[state][band], sum(cells[value][band] for value in wanted) - states[state][band]]
+            if any(count < 0 or 0 < count < floor for count in implied):
+                return False
+    if margin is not None:
+        for count in fixed_cells(turned, cells, [line[1] for line in margin]):
+            if count < 0 or 0 < count < floor:
+                return False
+    return True
+
+
+def fixed_cells(turned: "list[int]", cells: "list[list[int]]", after: "list[int]") -> "list[int]":
+    """The counts of switched and of never-switched patients by band and end value that the published counts fix (repair 2).
+
+    The switched patients of band `b` ending with value `k`, `y[b][k]`,
+    lie in 0 to `cells[k][b]`, add up to `turned[b]` over the values and to
+    `after[k]` over the bands; each bound is narrowed by the others'
+    (each band's switches less the other values' upper bounds, and so on)
+    until none moves. Where the bounds meet, `y[b][k]` and
+    `cells[k][b] - y[b][k]` (the never-switched) are fixed counts. Returns
+    them, and a negative count where the published counts cannot all hold
+    (S34 refuses that). A fixed function of its arguments; exact.
+    """
+    width = len(turned)
+    values = len(cells)
+    low = [[0 for _value in range(values)] for _band in range(width)]
+    high = [[cells[value][band] for value in range(values)] for band in range(width)]
+    moved = True
+    rounds = 0
+    while moved and rounds < 4 * (width + values) + 4:
+        moved = False
+        rounds += 1
+        for band in range(width):
+            for value in range(values):
+                top = min(
+                    high[band][value],
+                    turned[band] - sum(low[band][other] for other in range(values) if other != value),
+                    after[value] - sum(low[other][value] for other in range(width) if other != band),
+                )
+                least = max(
+                    low[band][value],
+                    turned[band] - sum(high[band][other] for other in range(values) if other != value),
+                    after[value] - sum(high[other][value] for other in range(width) if other != band),
+                )
+                if top < least:
+                    return [-1]
+                if (least, top) != (low[band][value], high[band][value]):
+                    low[band][value], high[band][value] = least, top
+                    moved = True
+    out: "list[int]" = []
+    for band in range(width):
+        for value in range(values):
+            if low[band][value] == high[band][value]:
+                out += [low[band][value], cells[value][band] - low[band][value]]
+    return out
+
+
+def counting_checked(grain: "dict[str, object]", classes: "dict[str, str]", blocks: "dict[str, dict[str, object]]", patients: int, floor: int) -> None:
+    """S34: the counting process's four objects hold their shapes, their floors, their sums and the identities between them (contract 4.6c.14 (g)).
+
+    Reads the description alone. Every count is 0 or at least the floor
+    in patients and the ends add up to the patients; every edge is a rung
+    its column already publishes; no column of the process is a row
+    family's child. Repair 2 (Codex's items 7 and 8, the verify's item
+    1): the switch margin holds the switched patients after the switch
+    and the others before it; the patients treated from the origin and
+    every count they imply are 0 or at least the floor; each column's
+    switches hold `switches_held`; ends stand only beside person-time,
+    each band of time holds the person-time its patients can and must
+    hold, and every margin's person-time adds up to the same total, within
+    the published rounding; every time and person-time is a decimal text
+    from 0 to 2 ** 53. The micro-step (item 1 and its sibling): the
+    patients switching at or after each switch edge, and the census's
+    patients of each number of rows, stand among those ending at or after
+    the time edges below them, every difference 0 or at least the floor.
+    """
+    intervals = grain["intervals"]
+    if not isinstance(intervals, list) or len(intervals) != 1:
+        raise broken("S34", "grain.intervals", "one interval rule")
+    rule = intervals[0]
+    if not isinstance(rule, dict) or sorted(rule) != ["origin", "places", "start", "stop"]:
+        raise broken("S34", "grain.intervals", "the rule names its start, stop, origin and places")
+    start, stop = rule["start"], rule["stop"]
+    places = rule["places"]
+    if rule["origin"] != ORIGIN_ZERO or not _whole(places) or not 0 <= places <= INTERVAL_PLACES_MAX:
+        raise broken("S34", "grain.intervals", "the origin is zero and the places are 0 to 6")
+    taken: "list[str]" = []
+    for name in (start, stop):
+        if not isinstance(name, str) or name not in classes or classes[name] != CLASS_REPEATED or name in taken:
+            raise broken("S34", "grain.intervals", "start and stop are two repeated columns")
+        if _get(blocks[name], "role") not in rules.NUMBER_ROLES:
+            raise broken("S34", f"{name}", "start and stop are number columns")
+        taken += [name]
+    switches = grain["switches"]
+    if not isinstance(switches, list) or len(switches) > 1:
+        raise broken("S34", "grain.switches", "at most one switch rule")
+    switched = 0
+    never_total = 0
+    switch_edges: "list[fractions.Fraction]" = []
+    switch_bands: "list[int]" = []
+    for entry in switches:
+        keys = ["column", "edges", "from", "never", "patients", "to", "top_mean"]
+        if not isinstance(entry, dict) or sorted(entry) not in (keys, sorted(keys + ["origin"])):
+            raise broken("S34", "grain.switches", "the rule names its column, spellings, edges, patients, never and top mean, and its origin where it stands")
+        column = entry["column"]
+        if not isinstance(column, str) or column not in classes or classes[column] not in (CLASS_REPEATED, CLASS_INELIGIBLE) or column in taken:
+            raise broken("S34", "grain.switches", "the switch column is another repeated column, or one the layer leaves ineligible")
+        taken += [column]
+        if not isinstance(entry["from"], str) or not isinstance(entry["to"], str) or entry["from"] == entry["to"]:
+            raise broken("S34", f"{column}", "two different spellings")
+        edges = _edges_held(entry["edges"], blocks[start], f"{column}")
+        bands = _counts_held(entry["patients"], len(edges) + 1, floor, f"{column}")
+        never = entry["never"]
+        if not _whole(never) or never < 0 or 0 < never < floor:
+            raise broken("S34", f"{column}", "the patients who never switch are 0 or at least the floor")
+        if sum(bands) + never != patients or bands[-1] < floor:
+            raise broken("S34", f"{column}", "the switch time's bands hold every patient once, the top band at least the floor")
+        top_mean = fraction_read(entry["top_mean"])
+        lowest = edges[-1] if edges else fractions.Fraction(0)
+        if top_mean is None or top_mean < lowest or top_mean * 10 ** places > TIME_MOST:
+            raise broken("S34", f"{column}", "the top band's mean is a decimal text inside the band, at most 2 ** 53 of the column's units")
+        switched = sum(bands)
+        never_total = int(never)
+        switch_edges, switch_bands = edges, bands
+        if "origin" in entry:
+            _origin_held(entry["origin"], bands, int(never), _one_row_patients(grain), floor, f"{column}")
+    ends = grain["end_events"]
+    if not isinstance(ends, list) or len(ends) != 1:
+        raise broken("S34", "grain.end_events", "one end-event rule")
+    end = ends[0]
+    if not isinstance(end, dict) or sorted(end) != ["column", "none", "values"]:
+        raise broken("S34", "grain.end_events", "the rule names its column, its none spelling and its values")
+    column = end["column"]
+    if not isinstance(column, str) or column not in classes or classes[column] not in (CLASS_REPEATED, CLASS_INELIGIBLE) or column in taken:
+        raise broken("S34", "grain.end_events", "the end column is another repeated column, or one the layer leaves ineligible")
+    taken += [column]
+    values = end["values"]
+    if not isinstance(end["none"], str) or not isinstance(values, list) or len(values) < 2 or not all(isinstance(one, str) for one in values) or len(set(values)) != len(values):
+        raise broken("S34", f"{column}", "the none spelling and at least two different end values")
+    hazard = grain["hazard"]
+    if not isinstance(hazard, dict) or sorted(hazard) != ["columns", "edges", "events", "person_time", "switch"]:
+        raise broken("S34", "grain.hazard", "the hazard moments hold their bands, ends, person-time, switch and columns")
+    edges = _edges_held(hazard["edges"], blocks[stop], "grain.hazard")
+    bands_of_time = len(edges) + 1
+    events = hazard["events"]
+    if not isinstance(events, list) or len(events) != len(values):
+        raise broken("S34", "grain.hazard", "one line of ends for each end value")
+    lines_of_time = [_counts_held(line, bands_of_time, floor, "grain.hazard") for line in events]
+    ended = [sum(line) for line in lines_of_time]
+    if sum(ended) != patients:
+        raise broken("S34", "grain.hazard", "every patient ends once")
+    times = _times_held(hazard["person_time"], bands_of_time, "grain.hazard")
+    _time_bands_held(lines_of_time, times, edges)
+    census = census_read(_get(grain, "census"))
+    _census_edges_held(census, edges, lines_of_time, int(places), floor)
+    switch = hazard["switch"]
+    margin: "list[list[int]] | None" = None
+    if switch is not None:
+        if not switches or not isinstance(switch, dict) or sorted(switch) != ["events", "person_time"]:
+            raise broken("S34", "grain.hazard", "a switch margin stands only beside a switch rule")
+        lines = switch["events"]
+        if not isinstance(lines, list) or len(lines) != len(values):
+            raise broken("S34", "grain.hazard", "one line of ends for each end value in the switch's two states")
+        margin = [_counts_held(lines[at], 2, floor, "grain.hazard") for at in range(len(values))]
+        for at in range(len(values)):
+            if sum(margin[at]) != ended[at]:
+                raise broken("S34", "grain.hazard", "the switch's two states hold each end value's ends")
+        # THE CENSUS AND THE MARGIN HOLD ONE ANOTHER (repair 2, Codex's item
+        # 7): every switched patient ends after its switch (its switch time
+        # is the start of a row, below that row's stop), so the ends after
+        # the switch are the switched patients and those before it the rest.
+        if sum(line[1] for line in margin) != switched or sum(line[0] for line in margin) != never_total:
+            raise broken("S34", "grain.hazard", "the ends after the switch are the switched patients and those before it the patients who never switch")
+        state_times = _times_held(switch["person_time"], 2, "grain.hazard")
+        if any(sum(margin[at][state] for at in range(len(values))) > 0 and state_times[state] == 0 for state in range(2)) or not _total_agrees(state_times, times):
+            raise broken("S34", "grain.hazard", "each state holding ends holds person-time, and the two states' person-time adds up to the bands of time's")
+    if switches:
+        two_rows = census.top_patients + sum(census.bands[1:]) if census is not None and census.lo >= 2 else None
+        _late_edges_held(switch_edges, switch_bands, edges, lines_of_time, margin, int(places), floor, two_rows)
+    columns = hazard["columns"]
+    if not isinstance(columns, list):
+        raise broken("S34", "grain.hazard", "the columns are a list")
+    seen: "set[str]" = set()
+    for entry in columns:
+        if not isinstance(entry, dict) or sorted(entry) not in (["column", "events", "level", "person_time"], ["column", "events", "level", "person_time", "switches"]):
+            raise broken("S34", "grain.hazard", "each column names its column, level, ends and person-time, and its switches where they stand")
+        name = entry["column"]
+        if not isinstance(name, str) or name not in classes or classes[name] != CLASS_FIXED or name in seen or entry["level"] not in rules.LEVELS:
+            raise broken("S34", "grain.hazard", "each column is a patient-fixed column at L0, L1 or L2, once")
+        seen |= {name}
+        lines = entry["events"]
+        if not isinstance(lines, list) or len(lines) != len(values) or not lines or not isinstance(lines[0], list):
+            raise broken("S34", f"{name}", "one line of ends for each end value")
+        width = len(lines[0])
+        cells = [_counts_held(lines[at], width, floor, f"{name}") for at in range(len(values))]
+        for at in range(len(values)):
+            if sum(cells[at]) != ended[at]:
+                raise broken("S34", f"{name}", "the column's bands hold each end value's ends")
+        column_times = _times_held(entry["person_time"], width, f"{name}")
+        people = [sum(cells[at][band] for at in range(len(values))) for band in range(width)]
+        if any(people[band] > 0 and column_times[band] == 0 for band in range(width)) or not _total_agrees(column_times, times):
+            raise broken("S34", f"{name}", "each band holding patients holds person-time, and the column's person-time adds up to the bands of time's")
+        if "switches" in entry:
+            # The switches in each band (repair 1): beside a switch rule,
+            # every switched patient counted once, each band's switches at
+            # most its patients, and every count they imply directly 0 or
+            # at least the floor (`switches_held`, repair 2).
+            turned = _counts_held(entry["switches"], width, floor, f"{name}")
+            if not switches or sum(turned) != switched or any(turned[band] > people[band] for band in range(width)) or not switches_held(turned, cells, margin, floor):
+                raise broken("S34", f"{name}", "the switches in each band stand beside a switch rule, hold every switched patient once and imply no count of 1 to f - 1 (each band's patients who never switch, and its ends less a state's patients where the switch margin's zeros fix them)")
+    rows = grain["rows"]
+    for entry in rows if isinstance(rows, list) else []:
+        child = _get(entry, "child")
+        if isinstance(child, str) and child in taken:
+            raise broken("S34", f"{child}", "no column of the counting process is a row family's child")
+
+
+def _late_edges_held(
+    switch_edges: "list[fractions.Fraction]", switch_bands: "list[int]", time_edges: "list[fractions.Fraction]", lines: "list[list[int]]",
+    margin: "list[list[int]] | None", places: int, floor: int, two_rows: "int | None" = None,
+) -> None:
+    """S34 on the switch time's bands against the bands of time (contract 4.6c.14 (g); the micro-step, item 1, LANE GRb2 RULINGS 15 (1)).
+
+    The patients switching at or after a switch edge are among those
+    ending at or after every time edge at or below it, or within one unit
+    of the grid above it (a switch time is a row's start, below its
+    patient's end), and, where the switch margin publishes ends after the
+    switch of one value alone, among those ending with it; and, a switch
+    after the origin needing a row before it, among the census's patients
+    of two rows or more: each difference is 0 or at least the floor, never
+    below 0.
+    """
+    unit = fractions.Fraction(1, 10 ** places)
+    alone = [at for at in range(len(lines)) if margin is not None and margin[at][1] > 0]
+    for at_switch in range(len(switch_edges)):
+        turned = sum(switch_bands[at_switch + 1:])
+        if two_rows is not None and (two_rows < turned or 0 < two_rows - turned < floor):
+            raise broken("S34", "grain.switches", "the patients switching at or after each switch edge stand among the census's patients of two rows or more, and the difference is 0 or at least the floor")
+        for at_time in range(len(time_edges)):
+            if time_edges[at_time] > switch_edges[at_switch] + unit:
+                continue
+            ending = [sum(line[at_time + 1:]) for line in lines]
+            implied = [sum(ending) - turned] + ([ending[alone[0]] - turned] if len(alone) == 1 else [])
+            if any(count < 0 or 0 < count < floor for count in implied):
+                raise broken("S34", "grain.switches", "the patients switching at or after each switch edge stand among those ending at or after each time edge at or below it, and every difference is 0 or at least the floor")
+
+
+def _census_edges_held(census: "Census | None", time_edges: "list[fractions.Fraction]", lines: "list[list[int]]", places: int, floor: int) -> None:
+    """S34 on the census against the bands of time (contract 4.6c.14 (g); the micro-step, item 1's sibling, LANE GRb2 RULINGS 15 (1)).
+
+    Each row lasts a unit of the grid at least, so the census's patients
+    of `R` rows or more (for every `R` up to its top edge) are among those
+    ending at or after every time edge at or below `R` units: each
+    difference is 0 or at least the floor, never below 0.
+    """
+    if census is None:
+        return
+    unit = fractions.Fraction(1, 10 ** places)
+    for least in range(2, census.lo + 1):
+        rows = census.top_patients + sum(census.bands[least - 1:])
+        for at_time in range(len(time_edges)):
+            if time_edges[at_time] > least * unit:
+                continue
+            count = sum(sum(line[at_time + 1:]) for line in lines) - rows
+            if count < 0 or 0 < count < floor:
+                raise broken("S34", "grain.hazard", "the census's patients of each number of rows stand among those ending at or after each time edge at or below that many units, and every difference is 0 or at least the floor")
+
+
+def _one_row_patients(grain: "dict[str, object]") -> "int | None":
+    """The census's patients of one row, where it publishes them below its top band (`bands[0]`), else None."""
+    census = _get(grain, "census")
+    bands = _get(census, "bands")
+    if isinstance(bands, list) and bands and isinstance(bands[0], dict) and _whole(_get(bands[0], "patients")):
+        return int(bands[0]["patients"])
+    return None
+
+
+def _origin_held(origin: object, bands: "list[int]", never: int, single: "int | None", floor: int, where: str) -> None:
+    """S34 on `origin` (repair 2, Codex's item 2): two whole counts, some patient among them, inside the first band, and every count they imply directly 0 or at least the floor."""
+    if not isinstance(origin, list) or len(origin) != 2 or not all(_whole(one) and one >= 0 for one in origin):
+        raise broken("S34", where, "the patients treated from the origin are two whole counts")
+    one, more = int(origin[0]), int(origin[1])
+    implied = [one, more, bands[0] - one - more, sum(bands) - one - more]
+    if single is not None:
+        implied += [single - one, never - (single - one)]
+    if one + more == 0 or any(count < 0 or 0 < count < floor for count in implied):
+        raise broken("S34", where, "the patients treated from the origin stand inside the first band, and every count they imply directly is 0 or at least the floor")
+
+
+def _time_bands_held(lines: "list[list[int]]", times: "list[fractions.Fraction]", edges: "list[fractions.Fraction]") -> None:
+    """S34 (repair 2, Codex's item 7): each band of time holds the person-time its patients can and must hold, within the published rounding.
+
+    A patient ending beyond a band lived through all of it; one ending in
+    it, some of it (none where it ends at the band's lower edge); so the
+    band's person-time lies between the first patients times its width
+    and all of them times its width; the first band holds time wherever a
+    patient does (every follow-up is above 0); the open last band only
+    at or above 0.
+    """
+    lows = [fractions.Fraction(0)] + list(edges)
+    for band in range(len(times)):
+        inside = sum(line[band] for line in lines)
+        beyond = sum(line[later] for line in lines for later in range(band + 1, len(times)))
+        slack = half_unit(times[band])
+        if band == 0 and inside + beyond > 0 and times[band] == 0:
+            # Every patient's follow-up is above 0, so the first band holds time wherever a patient does.
+            raise broken("S34", "grain.hazard", "the first band of time holds person-time wherever a patient ends")
+        if band + 1 < len(lows):
+            width = lows[band + 1] - lows[band]
+            if times[band] + slack < beyond * width or times[band] - slack > (beyond + inside) * width:
+                raise broken("S34", "grain.hazard", "each band of time holds between its later patients' and all its patients' time through it")
+
+
+def hazard_bands_checked(grain: "dict[str, object]", scales: "dict[str, rules.Ladder]") -> None:
+    """S34, against the patient chain: each hazard column's bands are its ladder's bands at its level, holding the patients the chain publishes there (repair 2, Codex's item 7)."""
+    hazard = _get(grain, "hazard")
+    columns = _get(hazard, "columns")
+    for entry in columns if isinstance(columns, list) else []:
+        name = _get(entry, "column")
+        level = _get(entry, "level")
+        lines = _get(entry, "events")
+        if not isinstance(name, str) or name not in scales or level not in rules.LEVELS or not isinstance(lines, list) or not lines:
+            raise broken("S34", f"{name}", "a hazard column stands in the patient chain's ladder")
+        line = lines[0]
+        at_level = 0
+        for at in range(len(rules.LEVELS)):
+            if rules.LEVELS[at] == level:
+                at_level = at
+        if not isinstance(line, list) or len(line) != scales[name].counts[at_level]:
+            raise broken("S34", f"{name}", "a hazard column's bands are its ladder's bands at its level")
+        people = [sum(one[band] for one in lines if isinstance(one, list) and len(one) == len(line) and _whole(one[band])) for band in range(len(line))]
+        if people != rules.totals_at(scales[name], at_level):
+            raise broken("S34", f"{name}", "a hazard column's bands hold the patients the patient chain publishes in them")
 
 
 def edges_rise(edges: object, kind: str) -> bool:
@@ -1924,3 +2423,52 @@ def restriction_for(
             low, high, _valued = band_edges(child, block, level, band)
             ranges += [code_range(grid, low, high)]
     return Restriction(OWN_MEAN, place, tuple(ranges), tuple(edges), grid, value_bands)
+
+
+def decimal_fraction(value: object) -> "fractions.Fraction | None":
+    """A published number read exactly: a decimal written as text (`7.5`, `-0.25`, `1e-3`), a fraction written as `p/q`, or a number; None for anything else (lane GRb, plan P4-D465).
+
+    `p/q` IS READ (repair 2 of lane GRb): `decimal_text` writes an edge, a
+    step or a low end with no finite decimal as `p/q` (an own mean's edge over
+    readings at full binary64 precision, a step `(H - L) / 4095`), and this
+    reader skipped it, so V12.7 read every own mean below such an edge and
+    the walk and V12.7 read every grid code as 0 on such a grid.
+    """
+    if isinstance(value, str):
+        if not value or len(value) > 256:
+            return None
+        for character in value:
+            if character not in "0123456789+-.eE/":
+                return None
+        try:
+            return fractions.Fraction(value)
+        except (ValueError, ZeroDivisionError):
+            return None
+    return exact_number(value)
+
+
+def own_mean_band(readings: "list[object]", edges: "list[object]") -> int:
+    """A patient's own-mean band: how many published edges stand at or below the mean of its readings, exactly; -1 with none (lane GRb, plan P4-D465)."""
+    held = [one for one in readings if isinstance(one, fractions.Fraction)]
+    if not held:
+        return -1
+    mean = sum(held, fractions.Fraction(0)) / len(held)
+    count = 0
+    for edge in edges:
+        value = decimal_fraction(edge)
+        if value is not None and value <= mean:
+            count += 1
+    return count
+
+
+def grid_code_of(u: object, low: object, top: int, value: object) -> int:
+    """A reading's grid code `min(K, max(0, round((v - L) / u)))` on published decimal texts, 0 for no reading (lane GRb, plan P4-D465)."""
+    if not isinstance(value, fractions.Fraction):
+        return 0
+    step = decimal_fraction(u)
+    first = decimal_fraction(low)
+    if step is None or first is None or step == 0:
+        return 0
+    steps = (value - first) / step + fractions.Fraction(1, 2)
+    rounded = steps.numerator // steps.denominator
+    return min(top, max(0, rounded))

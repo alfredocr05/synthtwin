@@ -1,10 +1,9 @@
 """THE CHAIN'S ARRANGEMENT: the shared module of method G16 (G16.9; lane CHb, plan P4-D435).
 
-BUILT BEHIND THE CHAIN'S SWITCH. `generation.generate_held` calls it only
-for a description loaded with `contract.load_profile(..., chain=True)`
-whose chain places a family with a parent; no shipped command loads one
-(invariant S12), so every twin a person makes is byte for byte what it
-was.
+IN FORCE SINCE PLAN P4-D464 (lane CHON). `generation.generate_held` calls
+it for a description whose chain places a family with a parent, which
+the shipped `synthtwin generate` loads with its chain; a description
+whose chain is null makes its twin byte for byte as before.
 
 What lives here, each as the method writes it:
 
@@ -281,6 +280,97 @@ def normal_score(p: float) -> float:
         bottom = bottom * r + _CENTRE_BOTTOM[k]
     bottom = bottom * r + 1.0
     return top * q / bottom
+
+
+# THE NORMAL DISTRIBUTION FUNCTION, WRITTEN OUT (lane GRb, plan P4-D465;
+# method G16.15's patient weight): the exponential by Cody and Waite's
+# reduction and Horner's rule, the distribution function by Marsaglia's
+# series, each operation rounded once in the order written.
+_LN2_HIGH = 6.93147180369123816490e-01
+_LN2_LOW = 1.90821492927058770002e-10
+def _exp_terms() -> "tuple[float, ...]":
+    """`1 / k!` for `k` = 0 to 17, each the binary64 nearest it (`k!` is exact in binary64 up to 18!)."""
+    out: "list[float]" = []
+    whole = 1
+    for k in range(18):
+        if k:
+            whole = whole * k
+        out += [1.0 / whole]
+    return tuple(out)
+
+
+_EXP_TERMS = _exp_terms()
+_ROOT_TWO_PI = 2.5066282746310002
+_CDF_EDGE = 8.0
+# `2 ** 1022`, the largest power of two whose reciprocal is a normal binary64.
+_TWO_TO_1022 = float(1 << 1022)
+
+
+def times_two_to(value: float, power: int) -> float:
+    """`value * 2 ** power`, rounded once, in `*` and `/` by exact powers of two (lane GRb, plan P4-D465).
+
+    The shared module reaches `math` for `frexp` and `sqrt` alone (zone G's
+    set), so the scaling is written out: a power of two built from a whole
+    number (`float(1 << n)` is exact), each step exact but the last, which
+    rounds once as an `ldexp` rounds a subnormal result. For a `value` in
+    `[1/2, 2)` and `power` in `[-1075, 1024]` (the exponential's range).
+    """
+    if power > 1000:
+        return (value * float(1 << (power - 1000))) * float(1 << 1000)
+    if power >= 0:
+        return value * float(1 << power)
+    if power >= -1022:
+        return value / float(1 << -power)
+    return (value / float(1 << (-power - 1022))) / _TWO_TO_1022
+
+
+def exponential(x: float) -> float:
+    """`e ** x` for a binary64 `x`, in `+ - * /` written in order (lane GRb, plan P4-D465).
+
+    `x = k ln 2 + y` with `k` the nearest whole number to `x / ln 2` and
+    `y` taken in two steps (`ln 2`'s high and low parts), so `|y| <= ln 2
+    / 2`; `e ** y` by Horner's rule on its Taylor series to the term in
+    `y ** 17`; times `2 ** k`, exactly (`times_two_to`). Nought below
+    -745, where binary64 holds none.
+    """
+    if x < -745.0:
+        return 0.0
+    near = x / _LN2 + 0.5
+    k = int(near)
+    if near < k:
+        k = k - 1
+    y = (x - k * _LN2_HIGH) - k * _LN2_LOW
+    total = _EXP_TERMS[17]
+    for place in range(16, -1, -1):
+        total = total * y + _EXP_TERMS[place]
+    return times_two_to(total, k)
+
+
+def normal_cdf(z: float) -> float:
+    """The standard normal distribution function at `z` (lane GRb, plan P4-D465; method G16.15).
+
+    Marsaglia's series `1/2 + phi(z) (z + z**3 / 3 + z**5 / (3 5) + ...)`,
+    each term the last times `z**2 / (2 k + 1)`, summed until a term no
+    longer moves the sum; `phi(z) = exponential(-z**2 / 2) / sqrt(2 pi)`.
+    0 at or below -8 and 1 at or above 8, where the function lies within
+    `10**-15` of either.
+    """
+    if z <= -_CDF_EDGE:
+        return 0.0
+    if z >= _CDF_EDGE:
+        return 1.0
+    square = z * z
+    term = z
+    total = z
+    k = 1
+    while True:
+        term = term * square / (2 * k + 1)
+        moved = total + term
+        if moved == total:
+            break
+        total = moved
+        k = k + 1
+    return 0.5 + exponential(-0.5 * square) / _ROOT_TWO_PI * total
 
 
 def band_scores(totals: "list[int]", valued: "list[bool]") -> "list[float | None]":

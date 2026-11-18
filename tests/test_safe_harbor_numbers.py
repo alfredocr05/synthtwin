@@ -132,6 +132,24 @@ def test_no_zip_and_no_age_over_89_is_published_at_20000_rows(
     _check(shapes.run_safe_harbor(tmp_path, kind, 20000, linear=True), kind, 20000)
 
 
+def test_an_age_shape_described_again_at_another_size_differs_from_its_control_in_no_output(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Batch 4u's checks: since every shipped run is switched (lane CHON, plan P4-D464), the account's record warns on
+    the screen where a different table was described before under the same name, and K-S3-64's driver describes each
+    shape at 600 rows and then at 20,000 in one process: its 22 age shapes read 'outputs differing' at 20,000 rows, each
+    the screen's record line against its control's, described on a computer of its own. An age table is now described
+    on a computer of its own too, so a shape described again at another size differs from its control in no output
+    (MUTANT: the table described in the run's own data folder again, red: the screen differs)."""
+    (tmp_path / "first").mkdir()
+    (tmp_path / "again").mkdir()
+    first = shapes.run_safe_harbor(tmp_path / "first", "ages", 600)
+    again = shapes.run_safe_harbor(tmp_path / "again", "ages", 1200)
+    assert first["differing"] == [], first["differing"]
+    assert again["differing"] == [], again["differing"]
+    assert again["description_values"] == 0 and again["twin_cells"] == 0
+
+
 def test_the_linear_count_of_ages_is_the_regular_expressions_count() -> None:
     """The 20,000-row cases count ages by `shapes.number_token_counts`, each text read once (plan P4-D444).
 

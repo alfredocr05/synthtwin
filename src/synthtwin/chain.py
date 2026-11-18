@@ -1,12 +1,13 @@
 """The chain's profile side: scales, family tables and the keyed draw (contract 4.6b; lane CHa, plan P4-D418).
 
-NOT IN FORCE. Invariant S12 stands until the landing that ships stage 6
-whole (contract 4.6b's opening): no shipped description carries a fact
-between two columns. Everything here runs only where a caller hands
-`describe` a `ChainSwitch`, which `synthtwin profile` never does; the
-switch is a parameter of the profile entry point and of the tools
-(`cli._run_profile(..., chain=...)`), so every shipped description,
-summary and twin stays byte for byte as it was.
+IN FORCE SINCE THE LANDING THAT SHIPS STAGE 6 (plan P4-D464, lane CHON;
+contract 4.6b's opening, amended 2026-11-09): every shipped `synthtwin
+profile` run hands `describe` a `ChainSwitch` (`cli._chained_description`),
+behind the installation's key, record and lock, the holds of 4.6c.12 and
+the size guard of 4.6b.13's stated limit 4 (`size_decision`); only an
+internal setting no option reaches runs a command without it. A
+description whose `statistical` and `grain` are null loads and generates
+exactly as before.
 
 WHAT IT DOES, in 4.6b's order:
 
@@ -87,6 +88,234 @@ ROWS_PERSON = "the settings' person column identifies the person"
 OFF_RECOUNT = "a column's recount disagreed with its published counts"
 OFF_FEW = "fewer than two eligible columns"
 OFF_ROOT = "the root step drew no family"
+# THE PATIENT LAYER'S SUB-SWITCH (lane CHON, plan P4-D464; LANE CHON RULINGS
+# 1 (6)): a run whose switch leaves the layer off publishes no chain where
+# the layer would be drawn, until the generator reads the layer.
+OFF_LAYER = "one person stands on several rows, and this version publishes no patient layer yet"
+# THE SIZE GUARD (lane CHON, plan P4-D464; CHAIN-NEXT 2.2; LANE CHON RULINGS
+# 1 (9), 2 and 6 (2); the owner's priority order of 2026-11-10 and its
+# amendment): sized by the WHOLE RUN, never by one step, and it never takes
+# away the relationships of a table as a unit where some of them fit. Before
+# the chain is drawn the run projects its own end-to-end CPU time (profile,
+# generate and validate, the chain on) and the switched describe's memory at
+# the table's size (`size_decision`), from costs MEASURED on the build
+# machine, one process a step, each a line a + b r in the rows r FITTED
+# through the whole runs at 20,000 and 200,000 rows of lane CHs's three
+# shapes of 50 columns (lane CHON's repair 1, plan P4-D464; each slope the
+# largest of the shapes', each intercept kept as a term, the largest, never
+# below nought; every figure past 200,000 rows is a projection):
+# - every column of the table costs PLAIN_MILLISECONDS_A_COLUMN and
+#   PLAIN_NANOSECONDS_A_CELL a row: the command without the chain, the
+#   numeric shape's 351.9 and 3,284.2 CPU seconds (the code-heavy shape's
+#   156.1 and 1,462.9 lie below it);
+# - every PAIR of the columns the chain is drawn over costs the chain's
+#   addition CHAIN_MILLISECONDS_A_PAIR and CHAIN_NANOSECONDS_A_PAIR a row,
+#   each moment column with its 24 largest partners, or with EVERY partner
+#   EVERY_PARTNER_MILLISECONDS_A_PAIR and EVERY_PARTNER_NANOSECONDS_A_PAIR
+#   (the polish then aims at every pair of numbers): the numeric shape's
+#   whole runs over its 1,225 pairs, 1,487.1 and 7,589.5 seconds with the 24
+#   partners and 1,672.8 and 8,877.8 with every partner, less its run
+#   without the chain (the code-heavy shape's 1,081 pairs cost less a pair:
+#   571.9 and 3,353.2 seconds with the 24);
+# - the switched describe holds DESCRIBE_BYTES_FIXED, DESCRIBE_BYTES_A_CELL a
+#   row a column that could take part (each is read, and its codes held,
+#   before the degraded chain chooses: lane CHs's K-S6-15, 2,610 MB at
+#   2,000,000 x 50, the largest of its three shapes, PROJECTED), and
+#   DESCRIBE_BYTES_A_PAIR a pair of the columns drawn (the search's tables
+#   and the self-test's: the 302-column export of the zoo passed 2,561 MB at
+#   20,000 rows).
+# The run is allowed RUN_SECONDS_AT_MOST (about 24 CPU hours, the owner's
+# amended order, an interim figure until he names the longest run he
+# accepts) and PROCESS_BYTES_AT_MOST (8 GB a process). In that order: the
+# whole chain with every partner where it fits; else the whole chain with
+# the 24 partners; else THE DEGRADED CHAIN, over the most columns that fit,
+# those whose pairs carry the most dependence on the sample
+# (`strongest_columns`), every other column carried on its own and named;
+# and where not even two columns fit (the run without the chain takes the
+# time already), no chain: the owner's call. Projections, stated as such;
+# lane SX's nights measure them.
+RUN_SECONDS_AT_MOST = 24 * 3600
+PROCESS_BYTES_AT_MOST = 8 * 1024 * 1024 * 1024
+PLAIN_NANOSECONDS_A_CELL = 325_812
+PLAIN_MILLISECONDS_A_COLUMN = 522
+CHAIN_NANOSECONDS_A_PAIR = 14_377
+CHAIN_MILLISECONDS_A_PAIR = 640
+EVERY_PARTNER_NANOSECONDS_A_PAIR = 19_378
+EVERY_PARTNER_MILLISECONDS_A_PAIR = 691
+DESCRIBE_BYTES_FIXED = 150 * 1024 * 1024
+DESCRIBE_BYTES_A_CELL = 25
+DESCRIBE_BYTES_A_PAIR = 64 * 1024
+NANOSECONDS_A_SECOND = 1_000_000_000
+NANOSECONDS_A_MILLISECOND = 1_000_000
+
+
+@dataclasses.dataclass(frozen=True)
+class Sized:
+    """The size guard's decision for one table (`size_decision`), each figure PROJECTED.
+
+    `drawn` is the most eligible columns the chain may be drawn over: the
+    candidates themselves where the whole chain fits, fewer for the
+    degraded chain, 0 where no chain fits at all. `every_partner` says
+    whether each moment column takes every partner or its 24 largest.
+    `seconds` and `peak` are the run as decided; `seconds_whole` the run
+    with the whole chain and the 24 partners, `seconds_every` with every
+    partner, and `seconds_plain` the run without the chain.
+    """
+
+    candidates: int
+    drawn: int
+    every_partner: bool
+    seconds: int
+    peak: int
+    seconds_whole: int
+    seconds_every: int
+    seconds_plain: int
+
+    @property
+    def degraded(self) -> bool:
+        """Whether the chain is drawn over fewer columns than could take part (some, or none)."""
+        return self.candidates >= 2 and self.drawn < self.candidates
+
+
+def projected_seconds(rows: int, columns: int, drawn: int, every_partner: bool) -> int:
+    """The whole run's CPU seconds, profile, generate and validate, the chain drawn over `drawn` columns (rounded up).
+
+    A line `a + b r` in the rows `r` for each column of the table and each
+    pair of the columns drawn (lane CHON's repair 1, LANE CHON RULINGS 6
+    (2)): every column costs the run without the chain
+    `PLAIN_MILLISECONDS_A_COLUMN` and `PLAIN_NANOSECONDS_A_CELL` a row; a
+    pair of the columns drawn costs the chain's addition
+    `CHAIN_MILLISECONDS_A_PAIR` and `CHAIN_NANOSECONDS_A_PAIR` a row, or
+    with every partner `EVERY_PARTNER_MILLISECONDS_A_PAIR` and
+    `EVERY_PARTNER_NANOSECONDS_A_PAIR`. Whole numbers; raises nothing.
+    """
+    pairs = drawn * (drawn - 1) // 2 if drawn >= 2 else 0
+    per_pair = EVERY_PARTNER_NANOSECONDS_A_PAIR if every_partner else CHAIN_NANOSECONDS_A_PAIR
+    fixed_pair = EVERY_PARTNER_MILLISECONDS_A_PAIR if every_partner else CHAIN_MILLISECONDS_A_PAIR
+    nanoseconds = rows * (columns * PLAIN_NANOSECONDS_A_CELL + pairs * per_pair) + NANOSECONDS_A_MILLISECOND * (
+        columns * PLAIN_MILLISECONDS_A_COLUMN + pairs * fixed_pair
+    )
+    return (nanoseconds + NANOSECONDS_A_SECOND - 1) // NANOSECONDS_A_SECOND
+
+
+def projected_bytes(rows: int, candidates: int, drawn: int) -> int:
+    """The switched describe's projected peak (bytes): every candidate's codes read and held, the chain's tables over `drawn` columns."""
+    pairs = drawn * (drawn - 1) // 2 if drawn >= 2 else 0
+    return DESCRIBE_BYTES_FIXED + rows * candidates * DESCRIBE_BYTES_A_CELL + pairs * DESCRIBE_BYTES_A_PAIR
+
+
+def size_decision(rows: int, columns: int, candidates: int) -> Sized:
+    """THE SIZE GUARD's decision for a table of `rows` rows and `columns` columns, `candidates` of which could take part.
+
+    Read after the table and before the chain (`candidates` an upper
+    bound, `candidates_at_most`). In order: every partner where the whole
+    chain fits with it (`RUN_SECONDS_AT_MOST`, `PROCESS_BYTES_AT_MOST`);
+    else the 24 partners; else the most columns that fit with the 24
+    partners (at least two); else none. A fixed function of its three
+    numbers; reads no cell; raises nothing.
+    """
+
+    def fits(drawn: int, every_partner: bool) -> bool:
+        return (
+            projected_seconds(rows, columns, drawn, every_partner) <= RUN_SECONDS_AT_MOST
+            and projected_bytes(rows, candidates, drawn) <= PROCESS_BYTES_AT_MOST
+        )
+
+    whole = projected_seconds(rows, columns, candidates, False)
+    every = projected_seconds(rows, columns, candidates, True)
+    plain = projected_seconds(rows, columns, 0, False)
+
+    def sized(drawn: int, every_partner: bool) -> Sized:
+        return Sized(
+            candidates, drawn, every_partner, projected_seconds(rows, columns, drawn, every_partner),
+            projected_bytes(rows, candidates, drawn) if drawn >= 2 else 0, whole, every, plain,
+        )
+
+    if candidates < 2 or fits(candidates, True):
+        return sized(candidates, True)
+    if fits(candidates, False):
+        return sized(candidates, False)
+    drawn = candidates - 1
+    while drawn >= 2 and not fits(drawn, False):
+        drawn -= 1
+    return sized(drawn if drawn >= 2 else 0, False)
+
+
+def hours_of(seconds: int) -> str:
+    """CPU seconds in hours, to one decimal, rounded up (a projection's words)."""
+    tenths = (seconds + 359) // 360
+    return f"{tenths // 10}.{tenths % 10}"
+
+
+def size_note(sized: Sized) -> str:
+    """The private note of a table above even the degraded chain's budget: the projections and the bound, never a count of the table's rows."""
+    return (
+        "the table is larger than any chain is drawn for: the run without one is projected at about "
+        f"{hours_of(sized.seconds_plain)} CPU hours already, and even two columns drawn would take it past the "
+        f"{hours_of(RUN_SECONDS_AT_MOST)} hours this version allows a whole run (or the switched describe past "
+        f"{PROCESS_BYTES_AT_MOST // (1024 * 1024 * 1024)} GB); the whole chain would take about "
+        f"{hours_of(sized.seconds_whole)}: the owner's call"
+    )
+
+
+def guard_notes(sized: Sized, set_aside: int) -> "tuple[str, ...]":
+    """The private notes of a table the chain is drawn for: the size guard's choices, each with both projections.
+
+    The moments' partners (every partner, or the 24 largest and why), and,
+    where THE DEGRADED CHAIN set `set_aside` columns aside, the run relating
+    every column against the run as drawn. Projections in CPU hours, never
+    a count of the table's rows.
+    """
+    allowed = hours_of(RUN_SECONDS_AT_MOST)
+    # A list grown in place and frozen once (tests/test_no_quadratic_list_growth.py), never a tuple copied.
+    notes: "list[str]" = []
+    if sized.every_partner:
+        notes += [
+            f"the size guard: the moments take every partner, the whole run projected at about "
+            f"{hours_of(sized.seconds_every)} CPU hours with them, inside the {allowed} allowed"
+        ]
+    else:
+        notes += [
+            f"the size guard: the moments take each column's {moments.PARTNERS} largest partners, because every "
+            f"partner would take the projected run to about {hours_of(sized.seconds_every)} CPU hours, past the "
+            f"{allowed} allowed"
+        ]
+    if sized.degraded and set_aside:
+        notes += [
+            f"the size guard: relating every column would take the projected run to about "
+            f"{hours_of(sized.seconds_whole)} CPU hours, past the {allowed} allowed; drawn over {sized.drawn} "
+            f"columns it is about {hours_of(sized.seconds)}"
+        ]
+    return tuple(notes)
+
+
+def chain_refused_note(refusal: str) -> str:
+    """The private note of THE CHAIN'S FAIL-SAFE (lane CHON's repair 1): the loader refused the chain, so none is written.
+
+    Read by the private report as the reason no chain is published (the
+    prefix `_off` writes); the refusal's own words follow it, in the
+    private report alone.
+    """
+    return (
+        "no chain is published: the loader that reads the description refused the chain drawn for it, so the "
+        f"description is written without it (the command never writes a description its loader refuses): {refusal}"
+    )
+
+
+def rules_past_the_guard_note(sized: Sized, drawn: int, seconds: int) -> str:
+    """The private note where the columns the carried rules read took THE DEGRADED CHAIN past the guard's bound.
+
+    `drawn` is the columns the chain holds and `seconds` the whole run
+    projected with them (`projected_seconds`): a carried rule is never
+    dropped silently (fidelity first; LANE CHON RULINGS 5 (1)), so the run
+    may pass the allowance, and the note says by how much. No count of
+    the table's rows.
+    """
+    return (
+        f"the size guard: the carried rules read more columns than the {sized.drawn} it allowed, so the chain is "
+        f"drawn over {drawn}, and the whole run is projected at about {hours_of(seconds)} CPU hours against the "
+        f"{hours_of(RUN_SECONDS_AT_MOST)} allowed"
+    )
 
 FEW_LEVELS = 8
 SCREEN_ALL = 10
@@ -165,6 +394,19 @@ class ChainSwitch:
     # told them: a column whose block carries no mark of its own is read in
     # that unit (lane BT3a's repair 2, LANE BT3 RULINGS 6 (2)).
     ages_counted_in: "tuple[tuple[str, int], ...]" = ()
+    # THE PATIENT LAYER'S SUB-SWITCH (lane CHON, plan P4-D464): False, the
+    # shipped run's until lane GRb, draws no layer and so no chain where one
+    # person stands on several rows (`OFF_LAYER`).
+    patient_layer: bool = True
+    # THE SIZE GUARD'S DECISION (lane CHON, plan P4-D464; LANE CHON RULINGS
+    # 2), as `size_decision` made it for the shipped run: the most eligible
+    # columns the chain is drawn over (0, the library's default, bounds
+    # nothing; past it `strongest_columns` keeps the columns whose pairs
+    # carry the most dependence, THE DEGRADED CHAIN), and whether each
+    # moment column takes every partner (the library's default keeps the
+    # 24 largest, `chain_moments.PARTNERS`).
+    columns_at_most: int = 0
+    every_partner: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -453,9 +695,13 @@ def _reading_of(
         return out
     if role == rules.ROLE_DATETIME:
         form = _get(block, "format")
+        # ...ON THE CLOCK ITS RUNGS ARE PUBLISHED ON (`parsing.moment_on_its_clock`):
+        # a column read at UTC is read at UTC here too (batch 4u's checks).
+        read_at, resolution = _get(block, "datetimes_read_at"), _get(block, "resolution")
         for text in present:
             parsed = parsing.parse_datetime(spelled[text][2], form) if isinstance(form, str) else None
-            out[text] = ("other", None) if parsed is None else ("value", parsed[0])
+            moment = None if parsed is None else parsing.moment_on_its_clock(parsed, read_at, resolution)
+            out[text] = ("other", None) if moment is None else ("value", moment)
         return out
     if role == rules.ROLE_CLOCK:
         form = _get(block, "clock_form")
@@ -1960,6 +2206,91 @@ def screen_seeds(columns: "list[Column]") -> "tuple[tuple[int, int, int], ...]":
     return tuple(chosen + few_chosen)
 
 
+# -- THE DEGRADED CHAIN (the size guard; lane CHON, plan P4-D464) ----------
+
+
+def pair_dependence(first: Column, second: Column) -> float:
+    """How much two eligible columns depend on each other on the sample: Cramer's V squared over their screen codes.
+
+    The two columns' screen codes (`_screen_codes`) on the self-test's
+    sample, the same codes the triple screen counts: `phi2 = sum O^2 / (R
+    C) - 1` over the table of the two codes, divided by the fewer of the
+    two columns' codes seen, less one (0 where either sees one code).
+    Binary64 in a fixed order over the table's cells (the screen's zone D,
+    plan P4-D409 part 2): it chooses which columns the degraded chain is
+    drawn over, never a published value.
+    """
+    rows = len(first.screen)
+    if rows == 0 or len(second.screen) != rows:
+        return 0.0
+    width = second.screen_levels
+    cells = first.screen_levels * width
+    joint = [0] * cells
+    for x, y in zip(first.screen, second.screen):
+        joint[x * width + y] += 1
+    left = [0] * first.screen_levels
+    right = [0] * width
+    for cell in range(cells):
+        left[cell // width] += joint[cell]
+        right[cell % width] += joint[cell]
+    fewer = min(len([count for count in left if count]), len([count for count in right if count]))
+    if fewer < 2:
+        return 0.0
+    total = 0.0
+    for cell in range(cells):
+        observed = joint[cell]
+        if observed:
+            total += float(observed * observed) / float(left[cell // width] * right[cell % width])
+    return (total - 1.0) / float(fewer - 1)
+
+
+def rule_columns(carried: "typing.Sequence[tuple[typing.Any, typing.Any]]") -> "frozenset[str]":
+    """The eligible columns the carried rules read: each rule's input, and the source column that carries it.
+
+    `carried` holds each carried rule with its option (`_rule_steps`): the
+    loader refuses a description whose rule reads a column the chain does
+    not hold (S28: "an order rule reads one eligible column", "a source
+    carrier is another eligible column"), so THE DEGRADED CHAIN keeps every
+    one of these before any pair (contract 4.6b.13, stated limit 4,
+    amended 2026-11-12; lane CHON's repair 1, LANE CHON RULINGS 5 (1)). A
+    derived family's parent is its rule's input, so it is among them.
+    """
+    names: "set[str]" = set()
+    for rule, option in carried:
+        names |= set(rule.inputs)
+        if option.carrier != rules.CARRIER_DERIVED:
+            names |= {option.carrier}
+    return frozenset(names)
+
+
+def strongest_columns(columns: "list[Column]", at_most: int, forced: "frozenset[int]") -> "list[int]":
+    """The places of the columns THE DEGRADED CHAIN is drawn over: at most `at_most`, those whose pairs carry the most dependence.
+
+    Every pair of `columns` (the eligible columns, in schema order) is
+    scored by `pair_dependence` on the sample; the pairs are taken from
+    the strongest down (ties: the pair whose later column stands first in
+    the schema, then its earlier column), each bringing in its columns not
+    yet kept wherever they fit within `at_most`; the places in `forced`
+    (the columns the carried rules read, `rule_columns`, which the chain
+    must hold) are kept first, every one of them even where they alone
+    number more than `at_most` (a carried rule is never dropped). A fixed
+    function of the codes on the sample (contract 4.6b.13, amended
+    2026-11-10 and 2026-11-12). Returns the places kept, in schema order.
+    """
+    scored: "list[tuple[float, int, int]]" = []
+    for later in range(len(columns)):
+        for earlier in range(later):
+            scored += [(-pair_dependence(columns[later], columns[earlier]), later, earlier)]
+    kept = set(forced)
+    for _score, later, earlier in sorted(scored):
+        if len(kept) >= at_most:
+            break
+        brought = {later, earlier} - kept
+        if len(kept) + len(brought) <= at_most:
+            kept |= brought
+    return sorted(kept)
+
+
 # -- TIME-AND-EVENT PAIRS (4.6b.3, inventory row 11) ---------------------
 
 EVENT_WORDS = frozenset(
@@ -2707,6 +3038,26 @@ def _repeats(values: "list[str]") -> bool:
     return False
 
 
+def _could_name_the_people(values: "list[str]") -> bool:
+    """Whether a repeating column holds as many different present values as the owner's floor of people (lane CHON's repair 1, F2).
+
+    A column of fewer than `parsing.TABLE_PEOPLE_FLOOR` different values
+    names no person of a table the command describes: were it the person,
+    the table would hold fewer people than the owner's floor, which the
+    command refuses (plan P4-D425). One of that many or more might name
+    the people, so its open person question keeps the chain off whatever
+    the subject question says. Values as written, never folded.
+    """
+    seen: "set[str]" = set()
+    for text in values:
+        if _is_blank(text):
+            continue
+        seen |= {text}
+        if len(seen) >= parsing.TABLE_PEOPLE_FLOOR:
+            return True
+    return False
+
+
 def _requested(pairs: "tuple[tuple[str, str], ...]", eligible: "list[str]") -> "frozenset[tuple[str, str]]":
     """The questions file's pairs of two different eligible columns, each in both orders."""
     out: "set[tuple[str, str]]" = set()
@@ -2827,6 +3178,7 @@ def released_moments(
     columns: "dict[str, Column]",
     scales: "dict[str, rules.Ladder]",
     floor: int,
+    partners: int = moments.PARTNERS,
 ) -> "tuple[dict[str, object] | None, dict[str, int]]":
     """Rule B's `moments` object (contract 4.6d.0, plan P4-D455) from the codes the chain read.
 
@@ -2836,7 +3188,9 @@ def released_moments(
     sequence or free-text column is ineligible (4.6b.1), so no moment
     reads it; dates and clocks take no moment. The chain is reached only
     on a table of one row a person (`OFF_PERSON`), so every count here
-    is a count of people.
+    is a count of people. Each column keeps its `partners` largest `within`
+    entries (`moments.partners_for`: 24, or every other column where the
+    size guard allows every partner; lane CHON, plan P4-D464).
     """
     picked: "list[moments.Released]" = []
     groupings: "list[moments.Grouping]" = []
@@ -2868,7 +3222,7 @@ def released_moments(
         values = bytes(1 if level_zero[row] == levels[1] else 0 for row in range(len(level_zero)))
         present = bytearray(1 if level_zero[row] in levels else 0 for row in range(len(level_zero)))
         picked += [moments.Released(name, moments.KIND_BINARY, values, present)]
-    return moments.released(picked, groupings, floor)
+    return moments.released(picked, groupings, floor, partners)
 
 
 def _quantile_skew(block: "dict[str, object]") -> "float | None":
@@ -2951,6 +3305,51 @@ def _off(note: str, counts: "dict[str, int]", notes: "list[str]", content: str) 
     return Chained(None, tuple(notes + [f"no chain is published: {note}"]), counts, (), (), content)
 
 
+def off_reason(chained: Chained) -> str:
+    """Why no chain is published, as the last private note says it ('' where a chain stands or no note says)."""
+    prefix = "no chain is published: "
+    if chained.statistical is not None or not chained.notes:
+        return ""
+    last = chained.notes[-1]
+    return last[len(prefix) :] if last[: len(prefix)] == prefix else ""
+
+
+def candidates_at_most(document: "dict[str, object]", held: "tuple[str, ...]") -> int:
+    """How many columns could take part in the chain, read off the description alone (4.6b.1's reasons).
+
+    An upper bound of the eligible columns `describe` counts: a column its
+    block, a row sequence, a hold or a declaration keeps out is not
+    counted; whether a column's recount agrees is read later. Reads no
+    cell; raises nothing. Lane CHON, plan P4-D464 (the size guard).
+    """
+    columns = _get(document, "columns")
+    if not isinstance(columns, list):
+        return 0
+    settings_block = _get(document, "settings")
+    forced = _get(settings_block, "forced_identifiers") if isinstance(settings_block, dict) else None
+    identifiers = {f"{name}" for name in forced} if isinstance(forced, list) else set()
+    sequences = _sequence_places(document)
+    holding = set(held)
+    count = 0
+    for place in range(len(columns)):
+        block = columns[place]
+        if not isinstance(block, dict):
+            continue
+        if ineligible_reason(block, place in sequences, _get(block, "name") in holding, identifiers) is None:
+            count += 1
+    return count
+
+
+def guarded(table: reading.Table, note: str) -> Chained:
+    """No chain, for a table above the size guard: the content hash the ledger keys on, and the note why (lane CHON, plan P4-D464).
+
+    Reads the table's rows once for their content hash, as `describe` does
+    first, and nothing else; the note is the private report's alone.
+    """
+    hashes, filled = row_hash_buffer(table)
+    return _off(note, {}, [], _hex(content_hash(hashes, filled)))
+
+
 def too_few_columns(chained: Chained) -> bool:
     """Whether a table drew no chain for want of two eligible columns, so that the subject question would decide nothing."""
     return bool(chained.notes) and chained.notes[-1] == f"no chain is published: {OFF_FEW}"
@@ -3022,6 +3421,12 @@ def describe(
     hashes, filled = row_hash_buffer(table)
     content = _hex(content_hash(hashes, filled))
     _probed("row hashes", counts)
+    # A TABLE OF ONE COLUMN DRAWS NOTHING BETWEEN COLUMNS (lane CHON, plan
+    # P4-D464): said before any column is read, as the end of the eligible
+    # count below would say it, so the shipped command reads such a column
+    # once (`K-S3-55`).
+    if len(blocks) < 2:
+        return _off(OFF_FEW, counts, notes, content)
     if persons:
         # THE PERSON AND THE RECORD (lane GRa, RULINGS 1 (1)): a repeating key
         # nothing reads as the person holds the layer back, so no count of
@@ -3033,6 +3438,10 @@ def describe(
             return _off(OFF_NO_PERSON, counts, notes, content)
         if switch.rows_per_person == ROWS_ONE:
             return _off(OFF_PERSON, counts, notes, content)
+        # The layer's sub-switch: no layer, so no chain, until the generator
+        # reads it (lane CHON, plan P4-D464).
+        if not switch.patient_layer:
+            return _off(OFF_LAYER, counts, notes, content)
         # THE KEPT READINGS ARE THE TABLE LAYER'S (lane CHs, plan P4-D462):
         # the patient layer reads none of them, so they are let go before it
         # runs (batch 4q's merge of lane CHs beside lane GRa's layer).
@@ -3062,20 +3471,45 @@ def describe(
     # question (Safe Harbor, a ZIP) stays held and ineligible, and the person
     # has said its repeats are no person's (the statistics skeptic's item 7).
     named_key = False
+    left_out: "list[str]" = []
     for place in range(len(blocks)):
         named = _get(blocks[place], "name")
-        if (named in held or named in identifiers) and _repeats(reading.column_values(table, place)):
+        if not (named in held or named in identifiers):
+            continue
+        values = reading.column_values(table, place)
+        if _repeats(values):
             if switch.rows_per_person == ROWS_UNASKED:
                 return _off(OFF_HELD_REPEATS, counts, notes, content)
             # The open person question holds a repeating column: the subject
             # question cannot settle this table until that one is answered.
             if named in switch.held_by_person:
                 counts["person_question_holds"] = 1
+                # ...UNLESS THE SUBJECT QUESTION IS ANSWERED `one row each`
+                # (lane CHON's repair 1, LANE CHON RULINGS 3 (1), F2): then no
+                # person stands on two rows, so a column that repeats names no
+                # person; it stays held, its values unpublished and its twin
+                # made-up, LEFT OUT of the chain, and the chain is drawn over
+                # the rest, the column named in the notes. An unanswered
+                # record-number question on another column never turns the
+                # chain off -- where the column COULD NOT NAME THE PEOPLE of a
+                # table the command describes (`_could_name_the_people`): one
+                # of the owner's floor of different values or more might, and
+                # keeps the chain off until its own question is answered
+                # (HIPAA first: the chain counts in rows, and such a column
+                # may hold one person on many rows).
+                if switch.rows_per_person == ROWS_ONE and not _could_name_the_people(values):
+                    left_out += [f"{named}"]
+                    continue
             # (The description lists every held column among its declared
             # ones, so "answered" reads the declared ones no question holds.)
             if switch.rows_per_person == ROWS_ONE and named not in switch.held_by_person and (named in held or named in switch.unanswered or named not in identifiers):
                 continue
             named_key = True
+    if left_out and not named_key:
+        notes += [
+            "left out of the chain while their question whether they name the person or a record stays open "
+            f"(each row is another person, as answered), carried on their own and held: {_listed(tuple(left_out))}"
+        ]
     # THE PERSON COLUMN'S STATE FOR THE RULE STEPS (contract 4.6b.7, MR.3;
     # lane RO, plan P4-D459), as lane GRa's subject question leaves it (plan
     # P4-D449): a person column has gone to the patient layer above, and a
@@ -3083,6 +3517,16 @@ def describe(
     # (OFF_HELD_REPEATS); a column the answer `one row each` excuses is no
     # person's, so the rule steps read no person there.
     person_state = named_key
+    # THE SUBJECT QUESTION'S HOLD, READ BEFORE ANY COLUMN IS (lane CHON, plan
+    # P4-D464; time first, LANE I4m RULINGS 25): the shipped first round of
+    # every table meets it, so where two columns could take part (4.6b.1's
+    # reasons, read off the description) and the question is open, nothing
+    # below is read -- the column reading cost about a third of the plain
+    # describe there (lane CHs's stage table) for no chain. A table whose
+    # recount later leaves fewer than two eligible columns is then asked
+    # once and draws none when answered.
+    if switch.rows_per_person == ROWS_OPEN and candidates_at_most(document, tuple(held)) >= 2:
+        return _off(OFF_SUBJECT, counts, notes, content)
     blank_rows = rules.records_holding_nothing(document)
     # THE TABLED ROWS (lane CHs, plan P4-D462): the rows set aside, a record
     # holding nothing each, listed (E of them); every row reads on the
@@ -3207,11 +3651,12 @@ def describe(
         if len([total for total in coarse_totals if total > 0]) < 2:
             ineligible += [{"column": name, "reason": "one_band"}]
             continue
-        start_to_l0 = [0] * len(read.start.names)
-        for at in range(len(ladder.l0)):
-            for start_place in range(len(read.start.names)):
-                if read.start.names[start_place] in ladder.l0[at]:
-                    start_to_l0[start_place] = at
+        # Each starting band's `L0` band through an index of the bands'
+        # names, one pass over each (batch 4u's outside review, item 4: the
+        # scan of every band for every starting band was quadratic); the
+        # last band naming it wins, as the scan's did, and 0 where none does.
+        named_in = rules.l0_of_starts(read.start.names, ladder.l0)
+        start_to_l0 = [named_in[place] if place in named_in else 0 for place in range(len(read.start.names))]
         # `L0`'s codes through the starting bands' map, one byte a row; `L1`
         # and `L2` are read from them where they are asked for
         # (`_level_codes`): the same codes the first build held.
@@ -3256,6 +3701,25 @@ def describe(
         scales[name] = ladder
         eligible += [name]
         _probed("ladder and codes", counts)
+    # A HELD COLUMN A STILL-OPEN QUESTION LEAVES OUT OF THE CHAIN IS NAMED
+    # (lane CHON's repair 1, LANE CHON RULINGS 6 (4), on the statistics
+    # check: a column whose own question offers `identifier` and stays open
+    # is held, its values unpublished, so it takes no part; the chain is
+    # drawn over the rest, and the private notes name it, as F2's note names
+    # a column the person question holds). Private notes only: no shared
+    # byte moves.
+    waiting = [
+        f"{entry['column']}"
+        for entry in ineligible
+        if entry["reason"] in ("held", "identifier")
+        and entry["column"] in switch.unanswered
+        and entry["column"] not in left_out
+    ]
+    if waiting:
+        notes += [
+            "left out of the chain while their own question in the questions file stays open, carried on their "
+            f"own and held: {_listed(tuple(waiting))}"
+        ]
     # THE RULE STEPS (contract 4.6b.7, MR.3 and MR.7; lane RO, plan P4-D459):
     # every rule whose step opens, one step a rule, all before the chain,
     # each DRAWN among "not carried" and its eligible carried options. A
@@ -3304,6 +3768,43 @@ def describe(
         for rule, option in carried
         if option.carrier == rules.CARRIER_DERIVED and option.a_level is not None and option.level is not None
     )
+    # THE DEGRADED CHAIN (the size guard; lane CHON, plan P4-D464; LANE CHON
+    # RULINGS 2 (2); contract 4.6b.13 amended 2026-11-10 and 2026-11-12):
+    # where the guard drew the chain over fewer columns than are eligible,
+    # it is drawn over those whose pairs carry the most dependence on the
+    # sample, every column a carried rule reads -- its input, and the source
+    # column that carries it -- kept first (`rule_columns`; LANE CHON
+    # RULINGS 5 (1): the loader refuses a rule reading a column the chain
+    # does not hold), all of them where they alone pass the bound, and the
+    # excess said; every other eligible column is ineligible as `size`,
+    # carried on its own, and named in the notes.
+    if switch.columns_at_most >= 2 and len(eligible) > switch.columns_at_most:
+        read_by_rules = rule_columns(carried)
+        forced = frozenset(at for at in range(len(eligible)) if eligible[at] in read_by_rules)
+        kept_places = strongest_columns([columns[name] for name in eligible], switch.columns_at_most, forced)
+        kept_names = [eligible[at] for at in kept_places]
+        set_aside = [name for name in eligible if name not in kept_names]
+        notes += [
+            f"the size guard drew the chain over {len(kept_names)} of the {len(eligible)} eligible columns, those whose "
+            f"pairs carry the most dependence on the sample: {_listed(tuple(kept_names))}; carried on their own, "
+            f"for the table's size: {_listed(tuple(set_aside))}"
+        ]
+        if len(forced) > switch.columns_at_most:
+            notes += [
+                f"the size guard allowed {switch.columns_at_most} columns, and the carried rules read {len(forced)}: "
+                "every one is kept, since a carried rule is never dropped, and no other column is drawn"
+            ]
+        counts["set_aside_for_size"] = len(set_aside)
+        eligible = kept_names
+        for name in set_aside:
+            del columns[name]
+            del scales[name]
+            if name in moment_blocks:
+                del moment_blocks[name]
+        place_of_name = {f"{_get(blocks[at], 'name')}": at for at in range(len(blocks))}
+        entries = ineligible + [{"column": name, "reason": "size"} for name in set_aside]
+        ordered = sorted((place_of_name[f"{entries[at]['column']}"], at) for at in range(len(entries)))
+        ineligible = [entries[at] for _place, at in ordered]
     counts["eligible_columns"] = len(eligible)
     if len(eligible) < 2 and not carried:
         return _off(OFF_FEW, counts, notes, content)
@@ -3363,7 +3864,9 @@ def describe(
         listed = inputs[name]
         counts[key] = len(listed) if isinstance(listed, list) else 0
     block_of: "dict[str, dict[str, object]]" = {f"{_get(block, 'name')}": block for block in blocks}
-    released, released_counts = released_moments(eligible, block_of, columns, scales, floor)
+    released, released_counts = released_moments(
+        eligible, block_of, columns, scales, floor, moments.partners_for(len(eligible), switch.every_partner)
+    )
     _probed("released moments", counts)
     for key in released_counts:
         counts[f"moments {key}"] = released_counts[key]

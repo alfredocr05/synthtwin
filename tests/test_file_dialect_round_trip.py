@@ -100,9 +100,12 @@ def _round_trip(
     again.mkdir()
     copied = again / "twin.csv"
     copied.write_bytes(twin.read_bytes())
-    assert _exit_of(
-        ["profile", str(copied), "--out-dir", str(again), "--replace"] + list(flags)
-    ) == 0
+    # The twin's rows are the table's own here, so it is described again as
+    # on another computer (plan P4-D464; `fixtures.another_installation`).
+    with fixtures.another_installation(folder / "elsewhere"):
+        assert _exit_of(
+            ["profile", str(copied), "--out-dir", str(again), "--replace"] + list(flags)
+        ) == 0
     first = json.loads(described.read_text(encoding="utf-8"))
     second = json.loads((again / "twin-profile.json").read_text(encoding="utf-8"))
     exits = {}

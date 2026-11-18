@@ -1151,6 +1151,18 @@ def _chain_lines(lines_in: validation.ChainLines) -> "list[str]":
             lines += [f"  rule {rule.index} ({rule.line}): {named}, carried by {carrier}, class {_shown(rule.klass)}: {_chain_verdict(rule.verdict)}"]
             if rule.reason:
                 lines += [f"      {_shown(rule.reason)}"]
+    if lines_in.patient:
+        lines += [
+            "",
+            "The patient layer's own lines (V12.7): each published trend over",
+            "visits, each position-like column's list and each patient-fixed",
+            "column's row census, read on this file's patients. Each prints its",
+            "verdict alone: no count of patients or rows is printed.",
+        ]
+        for one in lines_in.patient:
+            lines += [f"  {_shown(one.kind)}: '{_shown(one.subject)}': {_chain_verdict(one.verdict)}"]
+            if one.reason:
+                lines += [f"      {_shown(one.reason)}"]
     lines += [
         "",
         "Every pair of eligible columns, one line a pair, with the word the",

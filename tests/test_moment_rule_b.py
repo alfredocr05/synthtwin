@@ -104,7 +104,8 @@ def _coded(table, document, statistical, floor=FLOOR):
 
 def _loads(tmp_path, document, statistical, name="mutant"):
     written = dict(document)
-    written["relationships"] = dict(written["relationships"], statistical=statistical)
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    written = chain.with_rules(written, chain.Chained(statistical, (), {}, (), (), ""))
     path = fixtures.write_profile(tmp_path, f"{name}.json", written)
     return contract.load_profile(str(path), chain=True)
 
@@ -612,6 +613,9 @@ def _tenfold_means(entry):
 MUTANTS = {
     "S39 scales": lambda m, s: m["scales"].update(fisher_z=1000),
     "S39 rule": lambda m, s: m.update(rule="A"),
+    # The partners are 24, or the eligible columns less one past 24 (contract 4.6d.0 amended 2026-11-10, lane CHON).
+    "S39 partners of neither kind": lambda m, s: m.update(partners=25),
+    "S39 partners below 24": lambda m, s: m.update(partners=8),
     "S40 an ineligible column": lambda m, s: m["columns"][0].update(column="record"),
     "S40 a column of no ladder": lambda m, s: m["within"][0].update(by="nowhere"),
     "S41 a band of five": lambda m, s: _first_binary_within(m)["groups"][0].__setitem__(0, 5),
@@ -635,6 +639,58 @@ MUTANTS = {
     "S43 a pair twice": lambda m, s: m.update(within=m["within"] + [dict(m["within"][0])]),
     "S43 a short row": lambda m, s: m["correlations"].__setitem__(-1, m["correlations"][-1][:-1]),
 }
+
+
+def _wide_text(rows=500, seed=11):
+    """An invented table of 28 eligible columns: 27 numbers built on three shared factors, and a flag."""
+    draw = random.Random(seed)
+    header = [f"n{at:02d}" for at in range(27)] + ["flag"]
+    lines = []
+    for _row in range(rows):
+        factors = [draw.gauss(0, 1) for _factor in range(3)]
+        cells = [f"{round(50 + 10 * factors[at % 3] + draw.gauss(0, 6), 1)}" for at in range(27)]
+        lines += [cells + ["1" if factors[0] + draw.gauss(0, 1) > 0 else "0"]]
+    return _csv(header, lines)
+
+
+def test_every_partner_where_the_size_guard_allows_it(tmp_path):
+    """Contract 4.6d.0 amended 2026-11-10 (lane CHON, plan P4-D464; LANE CHON RULINGS 2 (4)): EVERY PARTNER.
+
+    On a table of 28 eligible columns, the switch's `every_partner` writes
+    `partners` 27 and keeps every `within` entry a column holds (more than
+    24 on every number), the reference's object computed apart with the
+    same partners; without it, 24 and the 24 largest. The loader reads
+    both and the polish aims at the written partners. MUTANT: the cap left
+    at 24 under every partner; the loader taking only 24.
+    """
+    settings = taxonomy.Settings(small_cell_floor=FLOOR)
+    path = fixtures.write(tmp_path, "wide.csv", _wide_text())
+    table = reading.read_table(str(path), small_cell_floor=FLOOR)
+    document = profile.build_document(table, settings, [], [], [])
+    found = {}
+    for every in (True, False):
+        switch = chain.ChainSwitch("wide", KEY, rows_per_person=chain.ROWS_UNASKED, every_partner=every)
+        chained = chain.describe(table, document, settings, switch)
+        assert chained.statistical is not None and chained.statistical["moments"] is not None, chained.notes
+        found[every] = chained.statistical
+    every_moments = found[True]["moments"]
+    assert every_moments["partners"] == 27 and found[False]["moments"]["partners"] == 24
+    held = {}
+    for entry in every_moments["within"]:
+        held[entry["column"]] = held.get(entry["column"], 0) + 1
+    assert max(held.values()) > 24 and all(count <= 27 for count in held.values())
+    assert all(count <= 24 for count in [sum(1 for e in found[False]["moments"]["within"] if e["column"] == c) for c in held])
+    columns, groupings = _coded(table, document, found[True])
+    expected, _refused = _reference().describe(columns, groupings, FLOOR, 27)
+    assert every_moments == expected
+    loaded = _loads(tmp_path, document, found[True], name="every")
+    assert loaded.relationships.moments is not None and loaded.relationships.moments.partners == 27
+    assert _loads(tmp_path, document, found[False], name="some").relationships.moments.partners == 24
+    from synthtwin import generation
+
+    layout = generation._polish_layout(loaded)
+    pair_targets = [sum(1 for target in targets if target.kind == "pair") for _name, targets in layout.plan]
+    assert max(pair_targets) > 24
 
 
 @pytest.mark.parametrize("name", sorted(MUTANTS))

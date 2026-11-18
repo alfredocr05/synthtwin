@@ -697,7 +697,10 @@ def _put_after_each_answer(monkeypatch: pytest.MonkeyPatch, put: "object") -> "l
 
     The questions this test put are taken out again before the product
     reads the file, so the product meets only its own; the answers the
-    zoo gave them are returned, in order.
+    zoo gave them are returned, in order. A round the record refused and
+    the zoo runs once more with --replace-description (lane CHON's repair
+    2) is the same round: its questions are taken out for that run and put
+    back as they stood, and nothing is counted.
     """
     quietly = zoo._quietly
     given: "list[tuple[str, str]]" = []
@@ -709,10 +712,17 @@ def _put_after_each_answer(monkeypatch: pytest.MonkeyPatch, put: "object") -> "l
         path = pathlib.Path(arguments[arguments.index("--answers") + 1])
         document = json.loads(path.read_text(encoding="utf-8"))
         ours = [entry for entry in document.get("asked") or [] if entry.get("put_by_this_test")]
-        given.extend([(f"{entry.get('column') or entry.get('subject')}", f"{entry.get('your_answer')}") for entry in ours])
+        again = "--replace-description" in arguments
+        if not again:
+            given.extend([(f"{entry.get('column') or entry.get('subject')}", f"{entry.get('your_answer')}") for entry in ours])
         document["asked"] = [entry for entry in document.get("asked") or [] if not entry.get("put_by_this_test")]
         path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
         code, error = quietly(arguments, small_tables_refused)
+        if again:
+            document = json.loads(path.read_text(encoding="utf-8"))
+            document["asked"] = (document.get("asked") or []) + ours
+            path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
+            return code, error
         rounds[0] += 1
         document = json.loads(path.read_text(encoding="utf-8"))
         document["asked"] = (document.get("asked") or []) + put(rounds[0])  # type: ignore[operator]

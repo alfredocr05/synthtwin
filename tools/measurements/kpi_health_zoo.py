@@ -30,7 +30,18 @@ process's peak resident memory is read at the end. It prints
 
 Each table is written into a folder of its own under a temporary folder,
 and each shard's folder is removed when the shard is done; nothing is
-kept. Where openpyxl is absent the workbook exports are left out of both
+kept. EACH TABLE'S WALK RUNS IN A DATA FOLDER OF ITS OWN (lane CHON's
+repair 2, plan P4-D464 limit (15); LANE CHON RULINGS 7 (1)(c)):
+`run_table` names one for the walk -- the fixed test key and an empty
+record, removed after -- and `kpi_rules.guard_this_tree` one for the
+driver's process, so no key, record or private report of an invented
+table reaches the account's own data folder. The zoo answers the subject
+question as each export truly is (`health_zoo.subject_answer`), so an
+export whose chain draws is measured with its chain; an answered round
+the record refuses (the round after one a hold kept at null) is run once
+more with --replace-description, as the refusal's words say, and each
+such round is named on a line of its own beside the exports that drew a
+chain. Where openpyxl is absent the workbook exports are left out of both
 runs and said so. The peak memory is read through `resource`, which
 Windows lacks: there the key is left out and the line says it was not
 measured. Every 20,000-row run of this driver goes through the lane's
@@ -86,6 +97,17 @@ def _run_shards(folder: pathlib.Path, rows: int) -> "tuple[list[dict], list[floa
     return results, seconds
 
 
+def _chained_line(rows: int, results: "list[dict]") -> str:
+    """The exports whose walk drew a chain, and the answered rounds the record refused and the walk ran again, named."""
+    chained = {result["table"]: result.get("chained", 0) for result in results if result.get("chained", 0)}
+    refused = {result["table"]: result.get("record_refused", []) for result in results if result.get("record_refused")}
+    return (
+        f"{rows:,} rows: {len(chained)} of {len(results)} exports drew a chain (family tables {chained or 'none'}); "
+        f"the record refused {sum(len(rounds) for rounds in refused.values())} answered rounds, each run once more "
+        f"with --replace-description as its words say (answer rounds {refused or 'none'})"
+    )
+
+
 def _per_kind(kinds: "dict[str, dict]") -> "dict[str, str]":
     """Each failing kind's step, its failures and its owners, as K-HZ-02 prints them."""
     said: "dict[str, str]" = {}
@@ -112,6 +134,8 @@ def main() -> None:
         state = "passes" if verdict["passed"] else f"fails at {verdict['failing_step']}"
         print(f"20,000 rows: {kind} {state}; {len(verdict['failures'])} failing "
               f"{verdict['failures']}; smoke at 600 rows {'runs' if smoke.get(kind) else 'STOPS'}")
+    for rows, results in ((SMALL, small), (LARGE, large)):
+        print(_chained_line(rows, results))
     kinds = list(measured_large["kinds"])
     passing = [kind for kind in kinds if measured_large["kinds"][kind]["passed"] and smoke.get(kind)]
     workbook = set(health_zoo.workbook_kinds())

@@ -240,7 +240,7 @@ def _band_level(kind, values, bands, totals, small, floor):
     return groups, share
 
 
-def describe(columns, groupings, floor):
+def describe(columns, groupings, floor, partners=PARTNERS):
     """Rule B's whole object from coded rows.
 
     `columns`: [(name, kind, values)], kind "number" or "binary", values one
@@ -251,6 +251,9 @@ def describe(columns, groupings, floor):
     schema order. RULE W1 (contract 4.6b.3) for a binary: a band holding
     such a group holds two of the binary's levels or its absence. A
     grouping whose `L1` bands do not all pass is read on its `L2` bands.
+    Each column keeps its `partners` largest `within` entries (24, or every
+    other grouping where the size guard allows every partner: contract
+    4.6d.0 amended 2026-11-10, lane CHON), and `partners` is written.
     Returns (object or None, refused count).
     """
     entries, kept, refused = [], [], 0
@@ -316,8 +319,8 @@ def describe(columns, groupings, floor):
                 entry["level"] = 2
             ranked += [(share, place, entry)]
         ranked.sort(key=lambda held: (-held[0], held[1]))
-        within += [entry for _share, _place, entry in sorted(ranked[:PARTNERS], key=lambda held: held[1])]
+        within += [entry for _share, _place, entry in sorted(ranked[:partners], key=lambda held: held[1])]
     if not entries:
         return None, refused
-    return {"columns": entries, "correlations": triangle, "partners": PARTNERS, "rule": "B",
+    return {"columns": entries, "correlations": triangle, "partners": partners, "rule": "B",
             "scales": dict(SCALES), "within": within}, refused

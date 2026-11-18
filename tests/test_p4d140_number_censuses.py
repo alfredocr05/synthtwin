@@ -133,11 +133,15 @@ def _round_trip(
     again.mkdir()
     copied = again / "twin.csv"
     copied.write_bytes(twin.read_bytes())
-    assert (
-        _exit_of(
+    # The twin's rows may be the table's own, so it is described again as on
+    # another computer (plan P4-D464; `fixtures.another_installation`).
+    with fixtures.another_installation(folder / "elsewhere"):
+        described_again = _exit_of(
             ["profile", str(copied), "--out-dir", str(again), "--replace",
              "--smallest-group", floor] + list(flags)
         )
+    assert (
+        described_again
         == 0
     )
     written = list(csv.reader(io.StringIO(twin.read_text(encoding="utf-8"))))

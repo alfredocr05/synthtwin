@@ -109,6 +109,10 @@ PLAN_LANES = (
     # ...and lane CZ-E, the value readers (plan P4-D472): the signed reports
     # held for the reader's name they carry.
     "CZ-E",
+    # ...and lane BT's line, layer L0's twin of a stamp written with its
+    # zone, which the zoo's engine meets since it answers the subject
+    # question (lane CHON's repair 2; plan P4-D464 limit (1)).
+    "BT",
 )
 
 # The kinds the lane's step names, and the ones its reviews found missing

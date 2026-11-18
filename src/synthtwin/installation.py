@@ -1,11 +1,15 @@
 """The installation's private key, its ledger and its lock (contract 4.6b.4; lane CHa, plan P4-D418).
 
-NOT IN FORCE. Only a caller holding the chain's switch reaches this
-module (`cli._run_profile(..., chain=...)`, the tools); `synthtwin
-profile` never does, so no shipped run makes a key, a ledger or a lock.
+IN FORCE since the landing that ships stage 6 (lane CHON, plan P4-D464):
+every `synthtwin profile` run is switched and opens the installation
+before the table is read (`cli._run_profile`); a run of the internal
+unswitched setting, which no option reaches, never does.
 
 THE KEY is 32 bytes from `secrets.token_bytes`, made by the first run on
-the installation and kept in the installation's DATA FOLDER, a folder
+the installation THAT REACHES THE CHAIN (`with_key`; the dated amendment
+of 4.6b.4 of 2026-11-09: a run the table floor, a path or the reader
+refuses makes no key, no folder and no entry) and kept in the
+installation's DATA FOLDER, a folder
 private to the user's account: on POSIX `$XDG_DATA_HOME/synthtwin` (or
 `~/.local/share/synthtwin`; `~/Library/Application Support/synthtwin` on
 macOS), the folder made 0700 and the key file 0600; on Windows
@@ -283,7 +287,15 @@ def words_folder_open(path: str) -> str:
 
 @dataclasses.dataclass(frozen=True)
 class Opened:
-    """The installation opened for one run: its key and its ledger, or a refusal."""
+    """The installation opened for one run: its key and its ledger, or a refusal.
+
+    `had_ledger`, `key_made` and `made_folder` say what THIS run found and
+    made (lane CHON's repair 1, 4.6b.4 amended 2026-11-12): whether a
+    ledger stood when it was read, whether the run made the key, and the
+    first folder of the data folder's path the run made ('' where it made
+    none), so a run that reaches the chain and then writes no description
+    takes back what it left (`withdraw`, `remove_made_folder`).
+    """
 
     folder: pathlib.Path
     key: bytes = dataclasses.field(repr=False)
@@ -291,6 +303,9 @@ class Opened:
     lines: "tuple[str, ...]"
     refusal: str
     locked: bool
+    had_ledger: bool = True
+    key_made: bool = False
+    made_folder: str = ""
 
 
 def _mode_is_private(path: pathlib.Path, os_name: str) -> bool:
@@ -339,6 +354,7 @@ def open_installation(
     folder: pathlib.Path,
     new_key: bool = False,
     os_name: "str | None" = None,
+    key_now: bool = True,
 ) -> Opened:
     """Open the data folder before anything is read: take the lock, read the key and the ledger.
 
@@ -351,9 +367,23 @@ def open_installation(
     folder and the key where neither key nor ledger exists. Anything
     raised after the lock is taken (a full disk while the key is written)
     removes the lock before it goes on. `os_name` stands in for `os.name`.
+
+    ``key_now`` False is the shipped command's reading (lane CHON, plan
+    P4-D464; 4.6b.4 amended 2026-11-09): every refusal above is read as
+    before, but NOTHING IS MADE -- a data folder that does not stand is
+    not made and no lock is taken in it, and a key is not made -- until
+    the run reaches the chain (`with_key`), so a run refused before that
+    leaves no new key, folder or ledger entry behind.
     """
     name = os_name if os_name is not None else system_name()
     here = pathlib.Path(folder)
+    if not key_now and not here.exists():
+        # Nothing stands: nothing is read, and nothing is made yet. A
+        # ledger cannot stand where the folder does not, so `--new-key`
+        # is refused here as it would be beside an empty folder.
+        if new_key:
+            return Opened(folder, b"", (), (), words_new_key_refused(), False)
+        return Opened(folder, b"", (), (), "", False)
     here.mkdir(mode=0o700, parents=True, exist_ok=True)
     # An existing folder keeps the mode it had: one other accounts can
     # change lets them swap the ledger (Codex's item 11 on repair 1).
@@ -365,7 +395,7 @@ def open_installation(
     except FileExistsError:
         return Opened(folder, b"", (), (), words_locked(f"{lock}"), False)
     try:
-        return _opened_under_lock(folder, new_key, name)
+        return _opened_under_lock(folder, new_key, name, key_now)
     except BaseException:
         # Codex's item 13 on repair 1: a failure here left the lock behind.
         if lock.exists():
@@ -373,8 +403,56 @@ def open_installation(
         raise
 
 
-def _opened_under_lock(folder: pathlib.Path, new_key: bool, name: str) -> Opened:
-    """`open_installation`'s reading of the key and the ledger, the lock held."""
+def with_key(opened: Opened, new_key: bool = False, os_name: "str | None" = None) -> Opened:
+    """The installation as the run reaches the chain: its key, made now where none stands (4.6b.4 amended 2026-11-09).
+
+    `opened` is `open_installation(..., key_now=False)`'s. Where it holds
+    a key, or a refusal, it is returned as it is. Otherwise the data
+    folder is made (0700) where it does not stand, the lock taken where
+    `opened` holds none, and the key and the ledger read again under it
+    (another run may have made them since), the key made where neither
+    stands -- `words_key_made` then among the lines; every refusal of
+    `open_installation` stands. A lock this call takes is removed if it
+    raises. Lane CHON, plan P4-D464.
+    """
+    if opened.key or opened.refusal:
+        return opened
+    name = os_name if os_name is not None else system_name()
+    here = pathlib.Path(opened.folder)
+    if not opened.locked:
+        made = first_missing(here)
+        here.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if not _folder_is_private(here, name):
+            return Opened(opened.folder, b"", (), (), words_folder_open(f"{here}"), False)
+        lock = pathlib.Path(opened.folder, LOCK_FILE)
+        try:
+            lock.touch(mode=0o600, exist_ok=False)
+        except FileExistsError:
+            return Opened(opened.folder, b"", (), (), words_locked(f"{lock}"), False)
+        try:
+            return dataclasses.replace(_opened_under_lock(opened.folder, new_key, name, True), made_folder=made)
+        except BaseException:
+            if lock.exists():
+                lock.unlink()
+            raise
+    return _opened_under_lock(opened.folder, new_key, name, True)
+
+
+def first_missing(folder: pathlib.Path) -> str:
+    """The first folder of `folder`'s path that does not stand yet ('' where `folder` stands): what a run would make."""
+    here = pathlib.Path(f"{folder}")
+    missing = ""
+    while not here.exists():
+        missing = f"{here}"
+        above = pathlib.Path(os.path.dirname(f"{here}"))
+        if above == here:
+            break
+        here = above
+    return missing
+
+
+def _opened_under_lock(folder: pathlib.Path, new_key: bool, name: str, key_now: bool = True) -> Opened:
+    """`open_installation`'s reading of the key and the ledger, the lock held; the key made only where ``key_now``."""
     key_file = pathlib.Path(key_path(folder))
     ledger_file = pathlib.Path(folder, LEDGER_FILE)
     lines: "list[str]" = []
@@ -403,6 +481,10 @@ def _opened_under_lock(folder: pathlib.Path, new_key: bool, name: str) -> Opened
             return Opened(folder, b"", (), (), words_key_damaged(f"{key_file}", has_ledger), True)
     elif has_ledger and not new_key:
         return Opened(folder, b"", (), (), words_key_missing(f"{key_file}"), True)
+    if not key and not key_now:
+        # Read, not made: the run makes it when it reaches the chain.
+        return Opened(folder, b"", entries, tuple(lines), "", True, has_ledger)
+    key_made = False
     if not key:
         key = secrets.token_bytes(KEY_BYTES)
         key_file.touch(mode=0o600, exist_ok=False)
@@ -414,10 +496,11 @@ def _opened_under_lock(folder: pathlib.Path, new_key: bool, name: str) -> Opened
             # A key half written is no key: the next run makes it again.
             key_file.unlink()
             raise
+        key_made = True
         lines += [words_key_made(f"{key_file}")]
     if has_key and not has_ledger:
         lines += [words_ledger_started(f"{key_file}")]
-    return Opened(folder, key, entries, tuple(lines), "", True)
+    return Opened(folder, key, entries, tuple(lines), "", True, has_ledger, key_made)
 
 
 def release(opened: Opened) -> None:
@@ -474,17 +557,70 @@ def decide(
 
 def record(opened: Opened, entry: Entry) -> None:
     """Write the run's entry, replacing the table's earlier one, by a temporary file moved into place."""
-    kept: "list[dict[str, object]]" = []
+    kept: "list[Entry]" = []
     for old in opened.entries:
         if old.content == entry.content:
             continue
-        kept += [dataclasses.asdict(old)]
-    kept += [dataclasses.asdict(entry)]
-    text = json.dumps({"tables": kept, "version": LEDGER_VERSION}, sort_keys=True, indent=2) + "\n"
-    target = pathlib.Path(opened.folder, LEDGER_FILE)
-    temporary = pathlib.Path(opened.folder, LEDGER_FILE + ".new")
+        kept += [old]
+    kept += [entry]
+    _write_ledger(opened.folder, kept)
+
+
+def _write_ledger(folder: pathlib.Path, entries: "list[Entry]") -> None:
+    """The ledger holding `entries`, written to a temporary file moved into place (0600)."""
+    written: "list[dict[str, object]]" = []
+    for entry in entries:
+        written += [dataclasses.asdict(entry)]
+    text = json.dumps({"tables": written, "version": LEDGER_VERSION}, sort_keys=True, indent=2) + "\n"
+    target = pathlib.Path(folder, LEDGER_FILE)
+    temporary = pathlib.Path(folder, LEDGER_FILE + ".new")
     if temporary.exists():
         temporary.unlink()
     temporary.touch(mode=0o600, exist_ok=False)
     temporary.write_text(text, encoding="utf-8", newline="\n")
     temporary.replace(target)
+
+
+def withdraw(opened: Opened, recorded: bool) -> None:
+    """Take back what a run that wrote NO description left in the data folder, the lock still held.
+
+    Lane CHON's repair 1 (LANE CHON RULINGS 5 (2); 4.6b.4 amended
+    2026-11-12): a run refused after it reached the chain, or whose write
+    failed after its entry was recorded, leaves no new key and no entry
+    for a description never written. Where `recorded`, the ledger is
+    written back as the run read it (its entries before this run's), or
+    removed where none stood; the key is removed where this run made it.
+    Nothing where the run holds no lock (it opened nothing).
+    """
+    if not opened.locked:
+        return
+    folder = pathlib.Path(opened.folder)
+    if recorded:
+        if opened.had_ledger:
+            _write_ledger(folder, list(opened.entries))
+        else:
+            ledger = pathlib.Path(folder, LEDGER_FILE)
+            if ledger.exists():
+                ledger.unlink()
+    if opened.key_made:
+        key = pathlib.Path(f"{key_path(folder)}")
+        if key.exists():
+            key.unlink()
+
+
+def remove_made_folder(opened: Opened) -> None:
+    """After `release`: the folders this run made for the data folder, where nothing stands in them (`Opened.made_folder`)."""
+    if not opened.made_folder:
+        return
+    top = pathlib.Path(opened.made_folder)
+    here = pathlib.Path(f"{opened.folder}")
+    if top != here and top not in here.parents:
+        return
+    while True:
+        if not here.is_dir() or any(here.iterdir()):
+            return
+        here.rmdir()
+        above = pathlib.Path(os.path.dirname(f"{here}"))
+        if here == top or above == here:
+            return
+        here = above

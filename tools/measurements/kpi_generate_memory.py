@@ -117,7 +117,8 @@ def describe(table: str, out: pathlib.Path) -> "dict[str, object]":
     from synthtwin import cli
 
     said = io.StringIO()
-    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+    # In a data folder of its own (plan P4-D464 limit (15)): never the account's.
+    with kpi_rules.own_data_folder(), contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
         code = cli.main(["profile", table, "--out-dir", str(out), "--replace"])
     return {"exit": code}
 

@@ -1564,6 +1564,8 @@ FAMILY_CLINICAL_B: "tuple[Table, ...]" = (
                   lambda f: _soi(_t("apr_drg")(f)), "apr_drg", spoil_every("apr_drg", lambda v: v[:-1] + "1")),
             _pattern("icd10_long_tail", "a long tail of ICD-10-CM codes", "icd10_tail", zoo.ICD10_PATTERN),
         ),
+        # An encounter's several coded rows, keyed by the encounter alone.
+        rows_repeat_a_person=True,
     ),
 )
 
@@ -3323,6 +3325,12 @@ WIDE_OWNERS: "dict[str, tuple[tuple[str, str, str], ...]]" = {
                 # writes the word of the offset it writes: the word is in force
                 # where the offset is, which is this line's (the zoo plan's row 31).
                 "each zone word is the one in force on its date")),
+        # Measured once the zoo's engine answers the subject question (lane
+        # CHON's repair 2): the export's chain draws at 600 rows.
+        ("BT", "with the subject question answered the chain is drawn, and layer L0 makes a stamp written with its "
+               "zone from its published bands, so a European stamp's twin loses the offset its own date carries "
+               "and its shape (plan P4-D464 limit (1): layer L0's twin of a zoned stamp)",
+         covers("European stamps parse with their offset", columns=("eu_ts",))),
     ),
     "month_year": (
         ("TR", "a month and year column of its own ('03/2019') has no reading (the zoo plan's row 17)", covers(

@@ -2867,6 +2867,16 @@ class RelationshipManifest:
     # shared report then grades the families even where no chain is
     # published (lane ST, plan P4-D458). False on every shipped load.
     switched: bool = False
+    # THE COLUMNS THE SIZE GUARD SET ASIDE (lane CHON, plan P4-D464; contract
+    # 4.6b.13 amended 2026-11-10): each eligible column the degraded chain is
+    # not drawn over (`ineligible` as `size`), in schema order, which the
+    # twin's shared report names as carried on its own. Empty elsewhere.
+    set_aside: "tuple[str, ...]" = ()
+    # THE PATIENT LAYER, READ BEHIND THE SAME SWITCH (lane GRb, plan P4-D465;
+    # contract 4.6c.9, method G16.13): `grain` and the patient chain it
+    # stands beside, which the patient walk deals. None on every
+    # description a shipped command loads, and wherever `grain` is null.
+    grain: "PatientGrain | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3004,6 +3014,11 @@ class RuleBMoments:
     correlations: "tuple[tuple[tuple[float, int] | None, ...], ...]"
     within: "tuple[MomentWithin, ...]"
     spreads: "tuple[tuple[tuple[float, float] | None, ...], ...]" = ()
+    # The partners the description writes (contract 4.6d.0 amended
+    # 2026-11-10; lane CHON, plan P4-D464): `chain_moments.PARTNERS`, or
+    # every other eligible column where the size guard allowed every
+    # partner; the polish aims at that many correlations a column.
+    partners: int = chain_moments.PARTNERS
 
 
 def _moment_field(entry: "dict[str, object]", key: str) -> object:
@@ -3122,7 +3137,350 @@ def rule_b_moments(document: "dict[str, object]") -> "RuleBMoments | None":
                 chain_moments.LEVEL_COARSE if level == chain_moments.LEVEL_COARSE else chain_moments.LEVEL_BANDS,
             )
         ]
-    return RuleBMoments(tuple(columns), tuple(triangle), tuple(within), tuple(spread_triangle))
+    partners = _moment_whole(_moment_field(moments, "partners"))
+    return RuleBMoments(
+        tuple(columns), tuple(triangle), tuple(within), tuple(spread_triangle),
+        partners if partners > 0 else chain_moments.PARTNERS,
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class RowFamily:
+    """One row family of `grain.rows` (contract 4.6c.8, 4.6c.9; lane GRb, plan P4-D465).
+
+    `child` at `level` (0, 1 or 2), `parents` as `(column, level)`, each a
+    member of the grain family, and `table` the complete table counted in
+    ROWS, one row a joint cell of the parents (the last varying fastest),
+    one count a band of the child at its level.
+    """
+
+    child: str
+    level: int
+    parents: "tuple[tuple[str, int], ...]"
+    table: "tuple[tuple[int, ...], ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class DerivedColumn:
+    """One derived patient-level column of `grain.derived` (contract 4.6c.2): its label, kind, source, level and edges as published."""
+
+    name: str
+    kind: str
+    source: str
+    level: int
+    edges: "tuple[str, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class TrendCell:
+    """One published `Q_P` of `grain.trend` (contract 4.6c.1): the column, the cell's labels, `q`."""
+
+    column: str
+    cell: "tuple[str, ...]"
+    q: int
+
+
+@dataclasses.dataclass(frozen=True)
+class IntervalRule:
+    """`grain.intervals`' one entry (contract 4.6c.14 (a); lane GRb2-b, plan P4-D491 part b): `A` and `B`, their origin and places."""
+
+    start: str
+    stop: str
+    origin: str
+    places: int
+
+
+@dataclasses.dataclass(frozen=True)
+class SwitchRule:
+    """`grain.switches`' one entry (contract 4.6c.14 (b), (d)): the column, its first and second spellings, the switch time's bands in patients.
+
+    `edges` are the bands' lower edges after the first, each a rung of `A`
+    as published; `patients` one count a band; `never` the patients who
+    never switch; `top_mean` the top band's mean switch time (a decimal
+    text).
+    """
+
+    column: str
+    first: str
+    second: str
+    edges: "tuple[object, ...]"
+    patients: "tuple[int, ...]"
+    never: int
+    top_mean: str
+    # The patients treated from the origin (switch time 0), of one row and
+    # of two rows or more, where published (empty where not; repair 2,
+    # Codex's item 2): they stand inside the first band's count.
+    origin: "tuple[int, ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class EndRule:
+    """`grain.end_events`' one entry (contract 4.6c.14 (c)): the column, its none spelling and its end values in order."""
+
+    column: str
+    none: str
+    values: "tuple[str, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class HazardColumn:
+    """One patient-fixed column's margin of the hazard moments (contract 4.6c.14 (f)): its level, person-time and ends a band."""
+
+    column: str
+    level: int
+    person_time: "tuple[str, ...]"
+    events: "tuple[tuple[int, ...], ...]"
+    # The patients whose switch time stands in each band, where published
+    # (empty where the column carries no switches; repair 1).
+    switches: "tuple[int, ...]" = ()
+
+
+@dataclasses.dataclass(frozen=True)
+class HazardMoments:
+    """`grain.hazard` (contract 4.6c.14 (e), (f)): the bands of time, each end value's ends and the person-time in each margin.
+
+    `events[k][j]` the patients ending with value `k` in band `j`;
+    person-times are published decimal texts; `switch_time` and
+    `switch_events` the margin of the switch's two states (empty where
+    none is published).
+    """
+
+    edges: "tuple[object, ...]"
+    person_time: "tuple[str, ...]"
+    events: "tuple[tuple[int, ...], ...]"
+    switch_time: "tuple[str, ...]"
+    switch_events: "tuple[tuple[int, ...], ...]"
+    columns: "tuple[HazardColumn, ...]"
+
+
+@dataclasses.dataclass(frozen=True)
+class PatientGrain:
+    """The patient layer a switched description publishes (contract 4.6c.9; lane GRb, plan P4-D465).
+
+    Read only after `chain_check.check` has held `grain` to S29 to S33, so
+    every entry is the shape 4.6c.9 writes. `bands[k]` is the patients of
+    `r = k + 1` below the census's `lo`; `top_patients` and `top_rows` its
+    open top band. `classes` is each column's class in schema order;
+    `positions` each position-like column's list (a value's text, or None
+    at a `null` entry); `ladder` the row ladder of each repeated and dealt
+    date column, counted in rows; `patient_ladder` and `patient_chain`
+    the patient chain (`statistical`), counted in patients; `grid` each
+    trend column's `(u, L, K)` as published decimal texts.
+    """
+
+    person: str
+    lo: int
+    bands: "tuple[int, ...]"
+    top_patients: int
+    top_rows: int
+    classes: "tuple[tuple[str, str], ...]"
+    position: "str | None"
+    positions: "tuple[tuple[str, tuple[str | None, ...]], ...]"
+    ladder: "tuple[LadderEntry, ...]"
+    derived: "tuple[DerivedColumn, ...]"
+    grain_family: "int | None"
+    rows: "tuple[RowFamily, ...]"
+    grid: "tuple[tuple[str, str, str, str], ...]"
+    trend: "tuple[TrendCell, ...]"
+    patient_ladder: "tuple[LadderEntry, ...]"
+    patient_chain: "tuple[ChainFamily, ...]"
+    # THE COUNTING PROCESS (contract 4.6c.14; lane GRb2-b, plan P4-D491
+    # part b): present only where an interval rule stands.
+    intervals: "tuple[IntervalRule, ...]" = ()
+    switches: "tuple[SwitchRule, ...]" = ()
+    end_events: "tuple[EndRule, ...]" = ()
+    hazard: "HazardMoments | None" = None
+
+
+def _texts_of(value: object) -> "tuple[str, ...]":
+    """A published list of texts read back (each entry written as text)."""
+    return tuple(f"{one}" for one in value) if isinstance(value, list) else ()
+
+
+def _counts_of(value: object) -> "tuple[int, ...]":
+    """A published list of whole numbers read back (0 for an entry that is none)."""
+    return tuple(_grain_whole(one) for one in value) if isinstance(value, list) else ()
+
+
+def counting_process(grain: "dict[str, object]") -> "tuple[tuple[IntervalRule, ...], tuple[SwitchRule, ...], tuple[EndRule, ...], HazardMoments | None]":
+    """`grain`'s counting process read back (contract 4.6c.14; lane GRb2-b, plan P4-D491 part b), or empties where it does not stand.
+
+    Read only after `chain_check.check` has held it to S34. Guarantees: a
+    fixed function of `grain`; raises nothing; no I/O of any kind.
+    """
+    if "intervals" not in grain:
+        return (), (), (), None
+    intervals: "list[IntervalRule]" = []
+    listed = _moment_field(grain, "intervals")
+    for entry in listed if isinstance(listed, list) else []:
+        if isinstance(entry, dict):
+            intervals += [IntervalRule(f"{entry['start']}", f"{entry['stop']}", f"{entry['origin']}", _grain_whole(_moment_field(entry, "places")))]
+    switches: "list[SwitchRule]" = []
+    listed = _moment_field(grain, "switches")
+    for entry in listed if isinstance(listed, list) else []:
+        if isinstance(entry, dict):
+            edges = entry["edges"] if isinstance(_moment_field(entry, "edges"), list) else []
+            switches += [SwitchRule(
+                f"{entry['column']}", f"{entry['from']}", f"{entry['to']}", tuple(edges),
+                _counts_of(_moment_field(entry, "patients")), _grain_whole(_moment_field(entry, "never")), f"{entry['top_mean']}",
+                _counts_of(entry["origin"]) if "origin" in entry else (),
+            )]
+    ends: "list[EndRule]" = []
+    listed = _moment_field(grain, "end_events")
+    for entry in listed if isinstance(listed, list) else []:
+        if isinstance(entry, dict):
+            ends += [EndRule(f"{entry['column']}", f"{entry['none']}", _texts_of(_moment_field(entry, "values")))]
+    written = grain["hazard"] if "hazard" in grain else None
+    hazard: "HazardMoments | None" = None
+    if isinstance(written, dict):
+        columns: "list[HazardColumn]" = []
+        listed = _moment_field(written, "columns")
+        for entry in listed if isinstance(listed, list) else []:
+            if isinstance(entry, dict):
+                level = entry["level"] if "level" in entry else "L0"
+                columns += [HazardColumn(
+                    f"{entry['column']}", _CHAIN_LEVELS[level] if isinstance(level, str) and level in _CHAIN_LEVELS else 0,
+                    _texts_of(_moment_field(entry, "person_time")),
+                    tuple(_counts_of(line) for line in entry["events"]) if isinstance(_moment_field(entry, "events"), list) else (),
+                    _counts_of(entry["switches"]) if "switches" in entry else (),
+                )]
+        switch = written["switch"] if "switch" in written else None
+        hazard = HazardMoments(
+            tuple(written["edges"]) if isinstance(_moment_field(written, "edges"), list) else (),
+            _texts_of(_moment_field(written, "person_time")),
+            tuple(_counts_of(line) for line in written["events"]) if isinstance(_moment_field(written, "events"), list) else (),
+            _texts_of(_moment_field(switch, "person_time")) if isinstance(switch, dict) else (),
+            tuple(_counts_of(line) for line in switch["events"]) if isinstance(switch, dict) and isinstance(_moment_field(switch, "events"), list) else (),
+            tuple(columns),
+        )
+    return tuple(intervals), tuple(switches), tuple(ends), hazard
+
+
+def patient_total(grain: PatientGrain) -> int:
+    """`N`, the patients a published census counts."""
+    return sum(grain.bands) + grain.top_patients
+
+
+def class_in(grain: PatientGrain, name: str) -> str:
+    """A column's published class in the patient layer, "" for a name `classes` does not hold."""
+    for column, kind in grain.classes:
+        if column == name:
+            return kind
+    return ""
+
+
+def patient_counted(grain: "PatientGrain | None") -> "tuple[str, ...]":
+    """The columns whose blocks the loader reads counted in patients: the person column, then each patient-fixed one.
+
+    The same names, in the same order, as the loader's frame reads them
+    (`_patient_layer_frame`, contract 4.6c.3 (b)); empty where no `grain`
+    stands. The validator checks these blocks over a file's patients
+    (batch 4u's merge of lane GRb, plan P4-D465). Raises nothing.
+    """
+    if grain is None:
+        return ()
+    counted = [grain.person]
+    for column, kind in grain.classes:
+        if kind == "patient_fixed" and column != grain.person:
+            counted += [column]
+    return tuple(counted)
+
+
+def _grain_whole(value: object) -> int:
+    """A JSON whole number, else 0."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def patient_grain(document: "dict[str, object]") -> "PatientGrain | None":
+    """`grain` and the patient chain a switched description publishes, or None (lane GRb, plan P4-D465).
+
+    Read only after `chain_check.check` has held them to S23 to S33.
+    Guarantees: a fixed function of the document; raises nothing; no I/O
+    of any kind.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict) or "grain" not in relationships:
+        return None
+    grain = relationships["grain"]
+    statistical = relationships["statistical"] if "statistical" in relationships else None
+    if not isinstance(grain, dict) or not isinstance(statistical, dict):
+        return None
+    census = grain["census"] if "census" in grain else None
+    if not isinstance(census, dict):
+        return None
+    bands = census["bands"] if "bands" in census else []
+    top = census["top"] if "top" in census else {}
+    counts = tuple(_grain_whole(entry["patients"]) for entry in bands if isinstance(entry, dict) and "patients" in entry) if isinstance(bands, list) else ()
+    classes: "list[tuple[str, str]]" = []
+    for entry in grain["classes"] if isinstance(_moment_field(grain, "classes"), list) else []:
+        if isinstance(entry, dict) and isinstance(_moment_field(entry, "column"), str) and isinstance(_moment_field(entry, "class"), str):
+            classes += [(entry["column"], entry["class"])]
+    positions: "list[tuple[str, tuple[str | None, ...]]]" = []
+    for entry in grain["positions"] if isinstance(_moment_field(grain, "positions"), list) else []:
+        if isinstance(entry, dict) and isinstance(_moment_field(entry, "column"), str) and isinstance(_moment_field(entry, "values"), list):
+            positions += [(entry["column"], tuple(None if value is None else f"{value}" for value in entry["values"]))]
+    derived: "list[DerivedColumn]" = []
+    for entry in grain["derived"] if isinstance(_moment_field(grain, "derived"), list) else []:
+        if isinstance(entry, dict):
+            level = entry["level"] if "level" in entry else "L0"
+            derived += [DerivedColumn(
+                f"{entry['name']}", f"{entry['kind']}", f"{entry['source']}",
+                _CHAIN_LEVELS[level] if isinstance(level, str) and level in _CHAIN_LEVELS else 0,
+                tuple(f"{edge}" for edge in entry["edges"]) if isinstance(_moment_field(entry, "edges"), list) else (),
+            )]
+    rows: "list[RowFamily]" = []
+    for entry in grain["rows"] if isinstance(_moment_field(grain, "rows"), list) else []:
+        if not isinstance(entry, dict):
+            continue
+        parents: "list[tuple[str, int]]" = []
+        for parent in entry["parents"] if isinstance(_moment_field(entry, "parents"), list) else []:
+            if isinstance(parent, dict) and isinstance(_moment_field(parent, "column"), str) and _moment_field(parent, "level") in _CHAIN_LEVELS:
+                parents += [(parent["column"], _CHAIN_LEVELS[f"{parent['level']}"])]
+        table: "list[tuple[int, ...]]" = []
+        for line in entry["table"] if isinstance(_moment_field(entry, "table"), list) else []:
+            if isinstance(line, list):
+                table += [tuple(_grain_whole(cell) for cell in line)]
+        level = entry["level"] if "level" in entry else "L0"
+        rows += [RowFamily(
+            f"{entry['child']}",
+            _CHAIN_LEVELS[level] if isinstance(level, str) and level in _CHAIN_LEVELS else 0,
+            tuple(parents), tuple(table),
+        )]
+    grids: "list[tuple[str, str, str, str]]" = []
+    for entry in grain["grid"] if isinstance(_moment_field(grain, "grid"), list) else []:
+        if isinstance(entry, dict):
+            grids += [(f"{entry['column']}", f"{entry['u']}", f"{entry['L']}", f"{entry['K']}")]
+    trend: "list[TrendCell]" = []
+    for entry in grain["trend"] if isinstance(_moment_field(grain, "trend"), list) else []:
+        if isinstance(entry, dict):
+            cell = entry["cell"] if isinstance(_moment_field(entry, "cell"), list) else []
+            trend += [TrendCell(f"{entry['column']}", tuple(f"{label}" for label in cell), _grain_whole(_moment_field(entry, "q")))]
+    family = grain["grain_family"] if "grain_family" in grain else None
+    position = grain["position"] if "position" in grain else None
+    chain = statistical["chain"] if "chain" in statistical else None
+    intervals, switches, end_events, hazard = counting_process(grain)
+    return PatientGrain(
+        person=f"{grain['person']}",
+        lo=_grain_whole(_moment_field(census, "lo")),
+        bands=counts,
+        top_patients=_grain_whole(_moment_field(top, "patients")) if isinstance(top, dict) else 0,
+        top_rows=_grain_whole(_moment_field(top, "rows")) if isinstance(top, dict) else 0,
+        classes=tuple(classes),
+        position=position if isinstance(position, str) else None,
+        positions=tuple(positions),
+        ladder=_ladder_list(grain["ladder"] if "ladder" in grain else None),
+        derived=tuple(derived),
+        grain_family=family if isinstance(family, int) and not isinstance(family, bool) else None,
+        rows=tuple(rows),
+        grid=tuple(grids),
+        trend=tuple(trend),
+        patient_ladder=_ladder_list(statistical["ladder"] if "ladder" in statistical else None),
+        patient_chain=_chain_list(chain if isinstance(chain, list) else []),
+        intervals=intervals,
+        switches=switches,
+        end_events=end_events,
+        hazard=hazard,
+    )
 
 
 def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, ...], int]":
@@ -3146,7 +3504,11 @@ def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, .
         return (), 0
     chain = statistical["chain"] if "chain" in statistical else None
     families = len(chain) if isinstance(chain, list) else 0
-    published = statistical["ladder"] if "ladder" in statistical else None
+    return _ladder_list(statistical["ladder"] if "ladder" in statistical else None), families
+
+
+def _ladder_list(published: object) -> "tuple[LadderEntry, ...]":
+    """A published ladder's entries (4.6b.2's shape, checked before), each as a `LadderEntry`."""
     entries: "list[LadderEntry]" = []
     if isinstance(published, list):
         for entry in published:
@@ -3176,7 +3538,7 @@ def ladder_entries(document: "dict[str, object]") -> "tuple[tuple[LadderEntry, .
                     _level_bands(entry["l2"] if "l2" in entry else None),
                 )
             ]
-    return tuple(entries), families
+    return tuple(entries)
 
 
 def _level_bands(value: object) -> "tuple[tuple[int, ...], ...]":
@@ -3211,9 +3573,14 @@ def chain_families(document: "dict[str, object]") -> "tuple[ChainFamily, ...]":
     if not isinstance(statistical, dict):
         return ()
     chain = statistical["chain"] if "chain" in statistical else None
-    out: "list[ChainFamily]" = []
     if not isinstance(chain, list):
         return ()
+    return _chain_list(chain)
+
+
+def _chain_list(chain: "list[object]") -> "tuple[ChainFamily, ...]":
+    """A published chain's families (4.6b.5's shape, checked before), in chain order."""
+    out: "list[ChainFamily]" = []
     for entry in chain:
         if not isinstance(entry, dict):
             continue
@@ -7906,7 +8273,7 @@ def _declared_pairs(
     return pairs
 
 
-def _relationships(value: object, chain: bool = False) -> RelationshipManifest:
+def _relationships(value: object, chain: "bool | None" = False) -> RelationshipManifest:
     """The eight reserved names, every one of them empty (S12).
 
     Guarantees: accepts the value under `relationships`; returns the
@@ -7925,13 +8292,15 @@ def _relationships(value: object, chain: bool = False) -> RelationshipManifest:
     mapping = _mapping(value, "relationships", _AT_THE_TOP)
     _keys(mapping, where, RELATIONSHIP_KEYS, "that block")
     for name in RELATIONSHIP_KEYS:
-        # THE CHAIN'S SWITCH (lane CHa, plan P4-D418; contract 4.6b, NOT
-        # IN FORCE): a caller that asks for it lets `statistical` through
-        # to `chain_check`'s invariants S23 to S28, and `grain`, the
-        # patient layer (lane GRa, plan P4-D449; contract 4.6c), to its
-        # S29 to S33. No shipped command asks, so S12 stands word for
-        # word for every one of them.
-        if chain and name in ("statistical", "grain"):
+        # THE CHAIN'S SWITCH (lane CHa, plan P4-D418; contract 4.6b, IN
+        # FORCE since plan P4-D464): a load with it -- every load a shipped
+        # command makes -- lets `statistical` through to `chain_check`'s
+        # invariants S23 to S28, and `grain`, the patient layer (lane GRa,
+        # plan P4-D449; contract 4.6c), to its S29 to S33 (S12's third
+        # sentence as amended); the other six keep R18's refusal word for
+        # word. A load without it, the internal unswitched setting's, reads
+        # S12 as it was written before that landing.
+        if chain is not False and name in ("statistical", "grain"):
             continue
         if mapping[name] is not None:
             raise errors.ProfileError(
@@ -24616,15 +24985,18 @@ def checked_description(text: str) -> Profile:
     made-up spellings (`generation.made_up_spellings`) reads exactly the
     typed description `synthtwin generate` will load. Every step of
     `load_profile` that reads text runs (the scan, the parse, the version,
-    every rule); none that reads a file. Raises ProfileError where the
-    text is not a valid description. No I/O.
+    every rule); none that reads a file. SINCE LANE CHON'S LANDING (plan
+    P4-D464, merged at batch 4u's step 2) `load_profile` reads the chain
+    where a description publishes one (its `chain` None, the shipped
+    reading), and so does this. Raises ProfileError where the text is not
+    a valid description. No I/O.
     """
     shown = "the description in memory"
     _scanned(text, shown)
-    return _validated(_versioned(_parsed(text, shown), shown), False)
+    return _validated(_versioned(_parsed(text, shown), shown), None)
 
 
-def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
+def _validated(document: "dict[str, object]", chain: "bool | None" = None) -> Profile:
     """Step 7 and step 8: every rule, then the typed objects (10.1).
 
     The top level is checked first and the columns afterwards, in list
@@ -24661,11 +25033,11 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     # invariants S23 to S33 are read first, on the description itself, and
     # the blocks the layer counts in patients or empties are read so.
     layer = _patient_layer_frame(document, chain)
-    if chain:
+    if chain is not False:
         chain_check.check(document)
     # THE COLUMNS A CARRIED RULE COMPUTES, read as such only behind the
     # chain's switch (lane RO, plan P4-D459; contract 4.6b.7's waiver).
-    computed = computed_columns(document) if chain else {}
+    computed = computed_columns(document) if chain is not False else {}
     columns = _columns(
         document["columns"],
         _Frame(
@@ -24712,8 +25084,8 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     # -- the minute and the second (3b.T3, P4-D372)
     _clock_field_storage(source, columns)
     # -- the chain's invariants S23 to S28, behind its switch (lane CHa,
-    # plan P4-D418; contract 4.6b.11, NOT IN FORCE)
-    if chain:
+    # plan P4-D418; contract 4.6b.11, in force since plan P4-D464)
+    if chain is not False:
         # ...and its `L0` ladder, which the generator's band totals read
         # (lane BT, plan P4-D429; method G4.2a, G4.2b, G5.7).
         entries, families = ladder_entries(document)
@@ -24725,7 +25097,17 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
             moments=rule_b_moments(document),
             rules=rule_entries(document),
             words=pair_words(document),
-            switched=True,
+            # A DESCRIPTION WHOSE `statistical` AND `grain` ARE NULL LOADS
+            # EXACTLY AS BEFORE (4.6b's opening, plan P4-D464): every
+            # description is made with the switch once it is on, and one
+            # that publishes nothing between columns cannot be told from
+            # one an earlier version wrote, so the shipped reading
+            # (`chain` None) reads only one that publishes something as
+            # switched; a caller that names the switch (`chain` True, lane
+            # ST's reading) reads every description so.
+            switched=True if chain is True else _publishes_between(document),
+            set_aside=size_set_aside(document),
+            grain=patient_grain(document),
         )
     return Profile(
         profile_version=PROFILE_VERSION,
@@ -24740,8 +25122,32 @@ def _validated(document: "dict[str, object]", chain: bool = False) -> Profile:
     )
 
 
+def size_set_aside(document: "dict[str, object]") -> "tuple[str, ...]":
+    """The columns a description's degraded chain is not drawn over: `statistical.ineligible` as `size`, in order (plan P4-D464).
+
+    Read after the chain's invariants hold; a description of any other
+    shape names none. Raises nothing.
+    """
+    relationships = document["relationships"] if "relationships" in document else None
+    statistical = relationships["statistical"] if isinstance(relationships, dict) and "statistical" in relationships else None
+    entries = statistical["ineligible"] if isinstance(statistical, dict) and "ineligible" in statistical else None
+    named: "list[str]" = []
+    for entry in entries if isinstance(entries, list) else []:
+        if isinstance(entry, dict) and "reason" in entry and entry["reason"] == "size" and "column" in entry and isinstance(entry["column"], str):
+            named += [entry["column"]]
+    return tuple(named)
+
+
+def _publishes_between(document: "dict[str, object]") -> bool:
+    """Whether a description publishes something between columns: `statistical` or `grain` not null (plan P4-D464)."""
+    relationships = document["relationships"] if "relationships" in document else None
+    if not isinstance(relationships, dict):
+        return False
+    return any(key in relationships and relationships[key] is not None for key in ("statistical", "grain"))
+
+
 def _patient_layer_frame(
-    document: "dict[str, object]", chain: bool
+    document: "dict[str, object]", chain: "bool | None"
 ) -> "tuple[tuple[str, ...], str, int, tuple[str, ...]]":
     """What the column reading needs of the patient layer: its patient-counted blocks, the person, the patients, the emptied blocks.
 
@@ -24753,7 +25159,7 @@ def _patient_layer_frame(
     empty: "tuple[tuple[str, ...], str, int, tuple[str, ...]]" = ((), "", 0, ())
     relationships = document["relationships"] if "relationships" in document else None
     grain = relationships["grain"] if isinstance(relationships, dict) and "grain" in relationships else None
-    if not chain or not isinstance(grain, dict):
+    if chain is False or not isinstance(grain, dict):
         return empty
     person = grain["person"] if "person" in grain else None
     census = grain["census"] if "census" in grain else None
@@ -25160,6 +25566,23 @@ def _numbered(name: str) -> "tuple[int, str]":
 # words are what tells the two questions about one column apart.
 _SAFE_HARBOR_DATES_SEEN = "beside its other values, read as dates"
 
+# THE SUBJECT QUESTION'S PLACE AND ITS TWO ANSWERS THAT NAME NO COLUMN
+# (`asking.BETWEEN_COLUMNS`, `asking.ROWS_PER_PERSON`,
+# `asking.ANSWER_ONE_ROW_EACH` and `asking.ANSWER_NO_PERSON_COLUMN`,
+# mirrored here for the reason above; the suite compares them): a text
+# line `rows_per_person = one row each` answers it (Codex's review of
+# batch 4u, item 6).
+_BETWEEN_COLUMNS = "between_columns"
+_ROWS_PER_PERSON = "rows_per_person"
+_ROWS_PER_PERSON_WORDS = ("one row each", "several rows, no column names the person")
+
+
+def _subject_question(document: "dict[str, object]") -> "dict[object, object] | None":
+    """The subject question's entry under the chain's one entry of a questions file; None where the file holds none."""
+    chained = document[_BETWEEN_COLUMNS] if _BETWEEN_COLUMNS in document else None
+    found = chained[_ROWS_PER_PERSON] if isinstance(chained, dict) and _ROWS_PER_PERSON in chained else None
+    return found if isinstance(found, dict) and "answers_you_can_give" in found else None
+
 
 def _question_key(entry: "dict[object, object]") -> "tuple[tuple[str, ...], bool]":
     """What tells one question about a column from another in the file: the answers it offers, and whether it asks about values that read as dates."""
@@ -25289,6 +25712,13 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
     lines that answer one question are refused, naming both lines, whether
     the question is open or an answer the file keeps: `id = identifier`
     then `id = code` about a kept `identifier` took the last before this.
+
+    THE SUBJECT QUESTION (Codex's review of batch 4u, item 6): where the file
+    holds it under `between_columns` and no column of the file is named
+    `rows_per_person`, a line `rows_per_person = <answer>` answers it: one
+    of its two answers that name no column, whatever its capitals, or the
+    name of the column that identifies the person, as written (the command
+    checks that the column exists, as it checks a typed one). One line.
     """
     if not isinstance(text, str):
         raise TypeError("internal check: an answers file's text was not text")
@@ -25302,6 +25732,10 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
     pool: "list[dict[object, object]]" = [entry for _section, entry in asked] + kept
     held_as = [_kept_answer(entry) for entry in kept]
     bound: "dict[int, int]" = {}
+    subject = _subject_question(document)
+    if [entry for entry in pool if _named_by(entry) == _ROWS_PER_PERSON]:
+        subject = None
+    subject_line = 0
     line_number = 0
     for raw in text.split("\n"):
         line_number = line_number + 1
@@ -25315,6 +25749,13 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
         word = _answer_word(line[cut + 1 :]) if cut > 0 else ""
         if not name or not word:
             raise errors.ProfileError(errors.answers_line_not_understood(shown, line_number))
+        if subject is not None and name == _ROWS_PER_PERSON:
+            if subject_line:
+                raise errors.ProfileError(errors.answers_line_answers_again(shown, line_number, name, subject_line))
+            subject_line = line_number
+            found = _answer_offered(word, [one for one in _offered_words(subject) if one in _ROWS_PER_PERSON_WORDS])
+            subject["your_answer"] = found if found else word
+            continue
         targets, changes = _line_targets(pool, len(asked), held_as, asked, name, word, shown, line_number)
         # ...and an open question and the kept answer of the same question
         # (one column, the same answers offered) are one question here too:
@@ -25343,8 +25784,21 @@ def _answers_mapping(
     return parsed
 
 
-def load_profile(raw_path: str, chain: bool = False) -> Profile:
+def load_profile(raw_path: str, chain: "bool | None" = None) -> Profile:
     """Read one profile document, or refuse it (contract section 10).
+
+    THE CHAIN IS READ (``chain`` None, the shipped reading since the
+    landing that ships stage 6, plan P4-D464; S12's third sentence
+    amended): `statistical` and `grain` are each null or the object their
+    sections specify, checked against S23 to S43 (`chain_check`) before
+    any column; the other six reserved names stay empty (R18). A
+    description whose `statistical` and `grain` are null loads exactly as
+    it did before. ``chain`` True reads the same and marks every
+    description as made with the switch (`RelationshipManifest.switched`,
+    lane ST's reading, whose twin's shared report grades every family on
+    a description that publishes no chain); ``chain`` False reads S12 as
+    it was written before that landing (the internal unswitched setting
+    and the tests that pin it).
 
     Guarantees:
 
@@ -25382,19 +25836,44 @@ def load_profile(raw_path: str, chain: bool = False) -> Profile:
 def load_profile_document(raw_path: str) -> "tuple[Profile, dict[str, object]]":
     """`load_profile` with the chain's switch on, and the document it read (lane CHv, plan P4-D430).
 
-    NOT IN FORCE: only `synthtwin validate` run with the chain's switch
-    (`cli.main(..., chain=...)`, which no command-line option sets) calls
-    this. It reads the description ONCE, as `load_profile(raw_path,
-    chain=True)` does, with every refusal of that function and its
+    IN FORCE since plan P4-D464: every shipped `synthtwin validate` run
+    calls this (the internal unswitched setting does not). It reads the
+    description ONCE, as `load_profile(raw_path)` does (the shipped
+    reading, plan P4-D464), with every refusal of that function and its
     invariants S23 to S28 (`chain_check`), and hands back the parsed
     document beside the typed one, so the validator's V12 lines read the
     chain from the very bytes the loader accepted, never from a second
     read of the file.
     """
-    return _loaded(raw_path, True)
+    return _loaded(raw_path, None)
 
 
-def _loaded(raw_path: str, chain: bool) -> "tuple[Profile, dict[str, object]]":
+def load_profile_text(text: str, shown: str) -> Profile:
+    """The shipped reading of a description's TEXT, as `load_profile` reads a file's (lane CHON's repair 1).
+
+    Every check `load_profile(raw_path)` runs after it has read the file --
+    the scan, the version, the parse, the round trip and every refusal of
+    the typed description, S23 to S43 among them -- on ``text``, the bytes
+    a run is about to write, named ``shown`` in the words. RAISES the
+    ProfileError `load_profile` would raise on a file holding those bytes;
+    reads no file. The command runs it on every description that carries
+    a chain before it writes it: it never writes one its own loader refuses
+    (LANE MPp RULINGS 6 (1), LANE CHON RULINGS 5 (1)(c)).
+    """
+    if not isinstance(text, str):
+        raise TypeError("internal check: a description to load was not text")
+    try:
+        _scanned(text, shown)
+        document = _versioned(_parsed(text, shown), shown)
+        _round_tripped(document, text, _utf8_length(text), shown)
+        return _validated(document, None)
+    except MemoryError as error:
+        raise errors.ProfileError(
+            errors.profile_out_of_memory(shown)
+        ) from error
+
+
+def _loaded(raw_path: str, chain: "bool | None") -> "tuple[Profile, dict[str, object]]":
     """The body of `load_profile`: the typed description and the document it was read from."""
     validated = validate_local_path(raw_path, purpose="description")
     place = pathlib.Path(validated)

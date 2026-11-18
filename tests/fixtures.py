@@ -16,9 +16,12 @@ wrongly. Its docstring says what goes wrong when they are decided
 anywhere else.
 """
 
+import contextlib
 import json
+import os
 import pathlib
 import random
+import typing
 
 from synthtwin import canonical, contract as _contract
 
@@ -908,3 +911,38 @@ def zero_rows(described: "object") -> "object":
         n_rows=0,
         source=dataclasses.replace(described.source, dialect=form),
     )
+
+
+# A SECOND INSTALLATION (lane CHON, plan P4-D464). Every shipped `profile`
+# run keeps a record of the tables it describes, and refuses the same rows
+# under another name: a test that describes a table's twin again (its rows
+# the table's own, where the twin draws every row back) does so as on
+# another computer, in a data folder of its own holding the fixed test key
+# and an empty record, the test's own folder named again on the way out.
+_TEST_KEY = bytes(range(32))
+_EMPTY_RECORD = '{\n  "tables": [],\n  "version": 1\n}\n'
+
+
+@contextlib.contextmanager
+def another_installation(place: pathlib.Path) -> "typing.Iterator[pathlib.Path]":
+    """XDG_DATA_HOME and LOCALAPPDATA at ``place`` while the block runs, its data folder holding the fixed test key."""
+    data = place / "synthtwin"
+    if not data.is_dir():
+        data.mkdir(mode=0o700, parents=True)
+        (data / "chain-key").write_bytes(_TEST_KEY)
+        (data / "chain-ledger").write_text(_EMPTY_RECORD, encoding="utf-8", newline="\n")
+        if os.name != "nt":
+            data.chmod(0o700)
+            (data / "chain-key").chmod(0o600)
+            (data / "chain-ledger").chmod(0o600)
+    saved = {name: os.environ.get(name) for name in ("XDG_DATA_HOME", "LOCALAPPDATA")}
+    os.environ["XDG_DATA_HOME"] = str(place)
+    os.environ["LOCALAPPDATA"] = str(place)
+    try:
+        yield data
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value

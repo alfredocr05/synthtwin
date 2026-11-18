@@ -553,3 +553,29 @@ def test_each_way_the_cross_check_reader_can_be_absent_has_its_own_reason() -> N
     assert "ran before this point" in crosscheck.REASON
     assert "NOTHING OF SYNTHTWIN HAS RUN" in crosscheck.REASON_FIXTURE
     assert "Not measured here: " in crosscheck.REASON_PART
+
+
+# -- the model-utility battery's fitters ------------------------------------
+#
+# `tests/test_model_utility.py` skips, with its reason in the report line,
+# where statsmodels or scikit-learn is absent: CI's `minimums` cell installs
+# the declared floors alone, so there the test-only libraries are absent by
+# design (LANE MU RULINGS 4 (1) item 1). Every other cell installs the
+# development lock, and with it mypy (a TOOLS root) and both fitters; a cell
+# that has mypy and lacks a fitter lost it from the lock, and the battery's
+# skip would hide that. This case is red there, so a missing fitter stays red
+# wherever the development lock is installed.
+BATTERY_FITTERS = ("statsmodels", "sklearn")
+
+
+def test_a_missing_fitter_is_red_wherever_the_development_lock_is_installed() -> None:
+    """mypy importable (the development lock) while statsmodels or scikit-learn is not: red; the floors-only cell skips."""
+    import importlib.util
+
+    if importlib.util.find_spec("mypy") is None:
+        pytest.skip("mypy is absent: the floors-only cell (CI's minimums), where the test-only fitters are absent by design")
+    missing = [name for name in BATTERY_FITTERS if importlib.util.find_spec(name) is None]
+    assert not missing, (
+        f"{', '.join(missing)} cannot be imported where the development lock is installed (mypy is): the "
+        "model-utility battery's gate file would skip instead of failing, and K-BC-14's fitters would be gone"
+    )

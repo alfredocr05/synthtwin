@@ -138,10 +138,12 @@ def run(table: str, out: pathlib.Path, group_bytes: int, trace: bool, walk_bytes
     if trace:
         tracemalloc.start()
     said = io.StringIO()
-    started = time.process_time()
-    with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
-        code = cli.main(["profile", table, "--out-dir", str(out), "--replace"], small_tables_refused=False)
-    seconds = time.process_time() - started
+    # In a data folder of its own (plan P4-D464 limit (15)): never the account's.
+    with kpi_rules.own_data_folder():
+        started = time.process_time()
+        with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
+            code = cli.main(["profile", table, "--out-dir", str(out), "--replace"], small_tables_refused=False)
+        seconds = time.process_time() - started
     traced = -1
     if trace:
         traced = tracemalloc.get_traced_memory()[1]

@@ -615,6 +615,145 @@ def case_polish_targets():
     return out
 
 
+def _alternating(base, step, groups, n, sd=None):
+    """`groups` published bands of `n` readings each, their means (or shares) `base` plus and minus `step` in turn
+    (a last odd band at `base`), each with a band spread of `sd` where one is given; units as published."""
+    out = []
+    for g in range(groups):
+        value = base if groups % 2 == 1 and g == groups - 1 else base + (step if g % 2 == 0 else -step)
+        out += [[n, value] if sd is None else [n, value, sd]]
+    return out
+
+
+def polish_gate_edges():
+    """`case_polish_gate`'s published-fact inputs at both sides of the gate's level: each `(label, kind, groups,
+    column)`, the groups and the column in the units contract 4.6d.0 (3) sets at their counts (a mean in tenths, a
+    column's spread in thousandths, a band's spread in tenths, a share in ten-thousandths). A 12-band `within`
+    entry of 1,000 readings a band (a column of mean 120.0 and spread 30.000 at 12,000 readings), its means 1.5 and
+    1.6 codes either side of the column's in turn (group chi-square 30.0 and about 34.1 on 11 degrees of freedom,
+    the point about 31.43); a two-band split of 6,000 readings a band, 0.9 and 1.0 either side (about 10.8 and
+    13.3 on one, the point about 11.16), and 0.6 (4.8: over the 0.05 point, under the 0.001 point); a binary's
+    shares in 11 bands of 1,000 readings, its column share 0.2000, ten bands 0.0218 and 0.0219 either side in
+    turn and one at 0.2000 (about 29.7 and 30.0 on ten, the point about 29.76). AND TWO ENTRIES WITH EMPTY BANDS
+    (repair 1, skeptic 1's item 2: a band holding none of the column's readings, `[0]`, as a measurement taken in
+    some bands only): a 12-band `within` entry whose bands 3 and 8 hold nothing and whose ten others hold 1,000
+    readings 1.6 codes either side in turn (a column of 10,000 readings): about 28.4 on nine degrees of freedom,
+    over the point there (about 28.06) and under the point on eleven (about 31.43), so it is kept only when k
+    counts the bands holding a count; and a 12-band entry with ONE band holding readings (12,000 at 125.0), the
+    other eleven empty: no grouping shown, dropped with no test taken (a point on nought degrees of freedom does
+    not exist)."""
+    live10 = _alternating(1200, 16, 10, 1000, 300)
+    return [
+        ("within12_under", "within", _alternating(1200, 15, 12, 1000, 300), [1200, 30000, 12000]),
+        ("within12_over", "within", _alternating(1200, 16, 12, 1000, 300), [1200, 30000, 12000]),
+        ("split_under", "within", _alternating(1200, 9, 2, 6000, 300), [1200, 30000, 12000]),
+        ("split_over", "within", _alternating(1200, 10, 2, 6000, 300), [1200, 30000, 12000]),
+        ("split_between", "within", _alternating(1200, 6, 2, 6000, 300), [1200, 30000, 12000]),
+        ("shares11_under", "share", _alternating(2000, 218, 11, 1000), [2000, 11000]),
+        ("shares11_over", "share", _alternating(2000, 219, 11, 1000), [2000, 11000]),
+        ("empty12_live10", "within", live10[:3] + [[0]] + live10[3:7] + [[0]] + live10[7:], [1200, 30000, 10000]),
+        ("empty12_live1", "within", [[0]] * 5 + [[12000, 1250, 300]] + [[0]] * 6, [1200, 30000, 12000]),
+    ]
+
+
+def polish_gate_plan():
+    """`case_polish_gate`'s description: numbers `A`, `B` and `C` of 12,000 readings (means 120.0, 90.0 and 70.0,
+    spreads 30.000, 20.000 and 10.000), a binary `F` (share 0.3000) and a 12-level grouping label `G`; published
+    pairs B-A 0.3, C-A 0.01, C-B 0.02 (printed r over 10 ** 12, 12,000 rows each); `within` entries, in order:
+    A in G's bands 1.6 codes either side (beyond chance), B in G's 1.0 either side (not), C in F's two bands
+    (8,400 at 69.7, 3,600 at 70.7: beyond chance, a `within` of C and a `by` of F), A in F's (119.9, 120.2: not),
+    B in F's (89.8, 90.6: over the 0.05 point only), F's shares in G's bands 0.0200 either side (not) and in B's four
+    `L1` bands of 3,000 readings 0.0300 either side (beyond chance). Returns the columns, the pairs and the
+    entries as `(column, by, groups)`, every one at level 1."""
+    columns = {"A": [1200, 30000, 12000], "B": [900, 20000, 12000], "C": [700, 10000, 12000], "F": [3000, 12000]}
+    pairs = {("B", "A"): 300000000000, ("C", "A"): 10000000000, ("C", "B"): 20000000000}
+    split = [[8400, 697, 300], [3600, 707, 300]]
+    entries = [
+        ("A", "G", _alternating(1200, 16, 12, 1000, 300)),
+        ("B", "G", _alternating(900, 10, 12, 1000, 200)),
+        ("C", "F", split),
+        ("A", "F", [[8400, 1199, 300], [3600, 1202, 300]]),
+        ("B", "F", [[8400, 898, 200], [3600, 906, 200]]),
+        ("F", "G", _alternating(3000, 200, 12, 1000)),
+        ("F", "B", _alternating(3000, 300, 4, 3000)),
+    ]
+    return columns, pairs, entries
+
+
+def _gate_targets(columns, pairs, entries):
+    """The ungated plan of `polish_gate_plan`'s description, as G16.3 builds it before the gate: each number's pairs
+    in the moments' order (A, B, C), then its `within` entries in order; the binary's `by` targets (each number's
+    entry grouped by it), then its `share` targets. Each goal emulated (`within_target`, `share_target`)."""
+    numbers = ["A", "B", "C"]
+    plan = []
+    for name in numbers:
+        targets = []
+        for other in numbers:
+            key = (name, other) if (name, other) in pairs else (other, name)
+            if other != name and key in pairs:
+                targets += [{"kind": "pair", "name": other, "level": 1, "goal": co.b64(F(pairs[key], 10 ** 12)),
+                             "n": 12000}]
+        mean, sd, n = columns[name]
+        for column, by, groups in entries:
+            if column == name:
+                _encoding, _sds, goal = co.within_target(groups, mean, sd, n)
+                targets += [{"kind": "within", "name": by, "level": 1, "goal": goal}]
+        plan += [(name, targets)]
+    targets = []
+    for column, by, groups in entries:
+        if by == "F" and column in numbers:
+            mean, sd, n = columns[column]
+            _encoding, _sds, goal = co.within_target(groups, mean, sd, n)
+            targets += [{"kind": "by", "name": column, "level": 1, "goal": goal}]
+    for column, by, groups in entries:
+        if column == "F":
+            _encoding, goal = co.share_target(groups, columns["F"][0], columns["F"][1])
+            targets += [{"kind": "share", "name": by, "level": 1, "goal": goal}]
+    plan += [("F", targets)]
+    return plan
+
+
+def case_polish_gate():
+    """G16.3's GROUPING GATE (lane CHG, plan P4-D492; LANE CHG RULINGS 1 (2) and (8)): the 0.001 point by Wilson and
+    Hilferty's cube on eleven counts of degrees of freedom from 1 to 1,000 (and the 0.05 point, the level's mutant);
+    each published-fact input of `polish_gate_edges` (two with empty bands among them) with its goal, statistic,
+    degrees of freedom and both decisions; and the plan of `polish_gate_plan`'s
+    description kept by the gate, beside its four MUTANTS: the gate off (every target kept), the level 0.05, a
+    dropped target kept with a goal of nought, and the correlations gated too. Each kept target is
+    `[kind, name, goal]` in plan order, a column left with none absent."""
+    degrees = [1, 2, 3, 4, 5, 10, 11, 20, 50, 100, 1000]
+    z005 = co.b64(F("1.6449"))
+    edges = {}
+    for label, kind, groups, column in polish_gate_edges():
+        if kind == "within":
+            _encoding, _sds, goal = co.within_target(groups, column[0], column[1], column[2])
+        else:
+            _encoding, goal = co.share_target(groups, column[0], column[1])
+        counts = [group[0] for group in groups]
+        live = [n for n in counts if n > 0]
+        edges[label] = {"kind": kind, "groups": groups, "column": column, "goal": co.b64_hex(goal),
+                        "df": len(live) - 1, "statistic": co.b64_hex(co.b64_mul(sum(live), goal)),
+                        "kept": co.beyond_chance(counts, goal), "kept_005": co.beyond_chance(counts, goal, z005)}
+    columns, pairs, entries = polish_gate_plan()
+    counts_of = {(column, by, 1): [group[0] for group in groups] for column, by, groups in entries}
+    plan = _gate_targets(columns, pairs, entries)
+
+    def listed(gated):
+        return {column: [[t["kind"], t["name"], co.b64_hex(t["goal"])] for t in targets] for column, targets in gated}
+
+    return {
+        "points": {f"{df}": co.b64_hex(co.gate_point(df)) for df in degrees},
+        "points_005": {f"{df}": co.b64_hex(co.gate_point(df, z005)) for df in degrees},
+        "edges": edges,
+        "plan_ungated": listed(plan),
+        "plan": listed(co.gated_plan(plan, counts_of)),
+        "plan_mutant_off": listed(co.gated_plan(plan, counts_of, "off")),
+        "plan_mutant_level_005": listed(co.gated_plan(plan, counts_of, "level_005")),
+        "plan_mutant_nought": listed(co.gated_plan(plan, counts_of, "nought")),
+        "plan_mutant_pairs": listed(co.gated_plan(plan, counts_of, "pairs")),
+    }
+
+
 def implied_nofit_inputs(half):
     """`case_implied_nofit`'s inputs at `half` rows a cell: the table, each row's cell, the parent's ranks (None in
     cell 0, which holds no parent reading; 0 to half - 1 in cell 1) and each row's hidden sum from SplitMix64 words."""
@@ -1678,8 +1817,102 @@ def case_rules_step():
     return out
 
 
+# --- the patient layer's cases (method G16.17's 1, 14, 15; lane GRb, plan P4-D465) ---------
+
+PATIENT_SEED = 465
+CDF_POINTS = ["-7.9", "-5", "-3", "-1.5", "-0.3", "0", "0.7", "2.2", "4", "7.5"]
+EXP_POINTS = ["-744", "-30.5", "-1", "-0.125", "0", "0.5", "1", "3.75", "40", "700"]
+
+
+def case_patient_line(mean_excess=False):
+    """Case 1: `r` from a census with an open top band; the census met exactly (mutant: the mean excess each)."""
+    out = []
+    for q, m in ((11, 3), (0, 4), (57, 7), (1000, 11), (5, 13)):
+        line = [q // m] * m if mean_excess else co.straight_line(q, m)
+        out += [{"q": q, "m": m, "line": line, "met": sum(line) == q}]
+    return out
+
+
+def case_patient_split(first_minimiser=False):
+    """Case 14: the excess split's tie, two grain cells of 55 top-band patients under one parent cell, q = 11: (5, 6)
+    (mutant: the solver's first minimiser, the greatest vector, (6, 5)); and three small splits beside it."""
+    out = []
+    for targets, total in (([F(11, 2), F(11, 2)], 11), ([F(1, 3), F(5, 2), F(7, 4)], 6), ([F(0), F(3)], 1), ([F(9, 4), F(9, 4), F(9, 4)], 10)):
+        found = co.excess_split(targets, total)
+        if first_minimiser:
+            cost = sum(abs(F(found[at]) - targets[at]) for at in range(len(targets)))
+            ties = [found]
+            for vector in _vectors(total, len(targets)):
+                if sum(abs(F(vector[at]) - targets[at]) for at in range(len(targets))) == cost:
+                    ties += [list(vector)]
+            found = max(ties)
+        out += [{"targets": [[t.numerator, t.denominator] for t in targets], "total": total, "split": found}]
+    return out
+
+
+def _vectors(left, places):
+    if places == 1:
+        yield (left,)
+        return
+    for first in range(left + 1):
+        for rest in _vectors(left - first, places - 1):
+            yield (first,) + rest
+
+
+def case_patient_scores():
+    """Case 15 (a): the patient scores of 1,000 patients in five bands, bit for bit."""
+    words = splitmix64(PATIENT_SEED, 4 * 1000)
+    sums = [co.hidden_score(words[4 * p:4 * p + 3]) * 65536 + 393210 for p in range(1000)]
+    sums = [int(one) for one in sums]
+    places = [words[4 * p + 3] for p in range(1000)]
+    bands = [(7 * p) % 5 for p in range(1000)]
+    scores = [co.b64_hex(one) for one in co.patient_scores(sums, places, bands)]
+    digest = hashlib.sha256(",".join(scores).encode("ascii")).hexdigest()
+    return {"seed": PATIENT_SEED, "bands": "7 p mod 5", "count": len(scores), "first": scores[:8], "sha256": digest}
+
+
+def case_patient_omega():
+    """Case 15 (b): the weight of a published three-by-two table on a reduced grid (six steps, three points a band), bit for bit."""
+    table = [[300, 60], [180, 180], [50, 310]]
+    shares = [40, 45, 35]
+    return {
+        "table": table,
+        "shares": shares,
+        "steps": 6,
+        "points": 3,
+        "omega": co.b64_hex(co.omega_of(table, shares, 6, 3)),
+    }
+
+
+def case_two_exchange_close(no_pair=False):
+    """Case 6: the two-exchange close, the random exchanges off: two patients of three rows, codes (0, 0, 1) and
+    (0, 0, 2), `S_P` 6, window 0 (`Q_P` 0, odd `r`): no single exchange meets the gap of -6, and the largest step that
+    fits (-4) leaves 2 with no step left that fits, while two exchanges on different patients (-2 and -4) meet it
+    (repair 1 of lane GRb, the first skeptic's item 3: a case the largest-fit fallback cannot meet alone; mutant: the
+    two-exchange step removed, which stalls at 2)."""
+    codes, total = co.trend_close([0, 0, 1, 0, 0, 2], [0, 3], 3, 6, 0, 0, None, not no_pair)
+    return {"codes": codes, "total": total, "met": total == 0}
+
+
+def case_shared_functions():
+    """The shared module's exponential and normal distribution function at fixed points, bit for bit."""
+    return {
+        "cdf": [[point, co.b64_hex(co.normal_cdf(co.b64(F(point))))] for point in CDF_POINTS],
+        "exp": [[point, co.b64_hex(co.exponential(co.b64(F(point))))] for point in EXP_POINTS],
+    }
+
+
 def chain_cases():
     return {
+        "patient_line": case_patient_line(),
+        "patient_line_mutant_mean_excess": case_patient_line(mean_excess=True),
+        "patient_split": case_patient_split(),
+        "patient_split_mutant_first_minimiser": case_patient_split(first_minimiser=True),
+        "patient_scores": case_patient_scores(),
+        "patient_omega": case_patient_omega(),
+        "patient_shared_functions": case_shared_functions(),
+        "patient_two_exchange_close": case_two_exchange_close(),
+        "patient_two_exchange_close_mutant_no_pair": case_two_exchange_close(True),
         "stated_exponential": case_stated_exponential(),
         "ladder_merge": case_ladder_merge(),
         "one_band": case_one_band(),
@@ -1714,6 +1947,7 @@ def chain_cases():
         "polish_mutant_aims_apart": case_polish(feasible=False),
         "psd_projection": case_psd_projection(),
         "polish_targets": case_polish_targets(),
+        "polish_gate": case_polish_gate(),
         "implied_nofit": case_implied_nofit(),
         "implied_nofit_floor": case_implied_nofit(10000),
         "empty_and_absent": case_empty_and_absent(),

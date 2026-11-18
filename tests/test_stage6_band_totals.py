@@ -252,10 +252,8 @@ def _switched(folder: pathlib.Path, path: pathlib.Path) -> _Switched:
     document = profile.build_document(table, settings, [], [], [])
     chained = chain.describe(table, document, settings, chain.ChainSwitch(path.stem, TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
-    written = dict(document)
-    relationships = dict(written["relationships"])  # type: ignore[call-overload]
-    relationships["statistical"] = chained.statistical
-    written["relationships"] = relationships
+    # Every writer of a switched description goes through `chain.with_rules` (LANE RO RULINGS 2 (4), plan P4-D464).
+    written = chain.with_rules(document, chained)
     on = fixtures.write_profile(folder, f"{path.stem}-switched.json", written)
     off = fixtures.write_profile(folder, f"{path.stem}-plain.json", document)
     return _Switched(
@@ -737,7 +735,7 @@ LEAST_MUTANTS = {
     # step 3's first half withdrawn: a value the cut empties keeps no cell
     "values_kept_off": ("_l0_values_kept", lambda facts, walls, entries, held: None),
     # step 4 withdrawn
-    "mode_off": ("_l0_mode_kept", lambda facts, walls, entries, today: None),
+    "mode_off": ("_l0_mode_kept", lambda facts, walls, entries, today, heaps=None: None),
     # step 2b withdrawn: the edge value takes the crossing ranks
     "edge_off": ("_l0_edge_kept", lambda entries, new, first, last, wall, proof, below: None),
     # step 2b reading only the edge value's own heaps (Codex's review of lane BT2, item 1)

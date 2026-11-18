@@ -866,11 +866,12 @@ def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at
     Red on a tally that pools the dates into the totals.
 
     SINCE LANE ID-ROOM2 (plan P4-D457) the six held date columns' keys are 0, and since its
-    follow-up (LANE ID-ROOM2 RULINGS 7 (1)) K-HZ-06 is OPEN-held, owner lane ID-ROOM3, for a held
-    birth-date column whose layout census is withheld whole, which its target names and no leg of
-    its driver reads yet: the measured counts read OPEN-held, and the offsetting case -- a real key
-    newly written into `instrument_magnitudes.sample_id` -- reads worse beside dates that can fall
-    no lower, as a merged-only match in another column and one date of a held column each do.
+    follow-up (LANE ID-ROOM2 RULINGS 7 (1)) K-HZ-06 was OPEN-held, owner lane ID-ROOM3, for a held
+    birth-date column whose layout census is withheld whole, which its target names; since that
+    lane (batch 4t) a leg of its driver reads it and the stamp meets the target, so the measured
+    counts read IMPROVED (OPEN-held without that leg), and the offsetting case -- a real key newly
+    written into `instrument_magnitudes.sample_id` -- reads worse beside dates that can fall no
+    lower, as a merged-only match in another column and one date of a held column each do.
     """
     import kpi_rules
 
@@ -886,25 +887,33 @@ def test_k_hz_06_counts_the_held_birth_dates_apart_and_every_other_zoo_column_at
     }
     assert sum(equal + merged for equal, merged in measured.values()) == 0
     assert entry["status"] == "OPEN"
-    assert entry["target"] == {"census_withheld_twin_cells_equal_to_a_real_date": 0}
-    assert not set(entry["target"]) & set(entry["value_at"]["value"])
+    census = "census_withheld_twin_cells_equal_to_a_real_date"
+    assert entry["target"] == {census: 0}
+    # SINCE LANE ID-ROOM3 (batch 4t) A LEG OF THE DRIVER READS THE TARGET, and batch 4t's stamp (34e9a21, written
+    # after that batch's last whole suite) holds it at 0: the entry meets its target and reads IMPROVED, its status
+    # the records' to flip. A run whose census leg reads nothing still reads OPEN-held, and each offsetting case
+    # still reads worse beside it (batch 4u's checks: the public head 218eb506 read this case red).
+    assert entry["value_at"]["value"][census] == 0
     assert entry["expected"][room.ZOO_EQUAL] == 0 and entry["expected"][room.ZOO_MERGING] == 0
 
-    def word(by_column: "dict[str, tuple[int, int]]") -> str:
+    def word(by_column: "dict[str, tuple[int, int]]", census_read: bool = True) -> str:
         value = dict(entry["value_at"]["value"])
+        if not census_read:
+            value.pop(census)
         for key in owned:
             value[key] = 0
         room.tally_zoo(value, by_column)
         return kpi_rules.judge(entry, value).word
 
     held = dict(measured, **{"instrument_magnitudes.sample_id": (0, 0)})
-    assert word(held) == kpi_rules.OPEN_HELD
+    assert word(held) == kpi_rules.IMPROVED
+    assert word(held, census_read=False) == kpi_rules.OPEN_HELD
     offset = dict(measured, **{"instrument_magnitudes.sample_id": (1, 1)})
-    assert word(offset) == kpi_rules.OPEN_WORSE
+    assert word(offset) == word(offset, census_read=False) == kpi_rules.OPEN_WORSE
     merging = dict(measured, **{"patients.patient_id": (0, 1)})
-    assert word(merging) == kpi_rules.OPEN_WORSE
+    assert word(merging) == word(merging, census_read=False) == kpi_rules.OPEN_WORSE
     over = dict(measured, **{"registry_extract.dob_short": (1, 0)})
-    assert word(over) == kpi_rules.OPEN_WORSE
+    assert word(over) == word(over, census_read=False) == kpi_rules.OPEN_WORSE
     value: "dict[str, object]" = {}
     room.tally_zoo(value, {"phi_registry.med_rec_no": (2, 3)})
     assert (value[room.ZOO_EQUAL], value[room.ZOO_MERGING]) == (2, 3)

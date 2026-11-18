@@ -400,7 +400,9 @@ def step(action: str, kind: str, rows: int, folder: pathlib.Path) -> "dict[str, 
     with contextlib.redirect_stdout(said), contextlib.redirect_stderr(said):
         if action == "describe":
             (folder / "desc").mkdir(exist_ok=True)
-            code = cli.main(["profile", str(table), "--out-dir", str(folder / "desc"), "--replace"], small_tables_refused=False)
+            # In a data folder of its own (plan P4-D464 limit (15)): never the account's.
+            with kpi_rules.own_data_folder():
+                code = cli.main(["profile", str(table), "--out-dir", str(folder / "desc"), "--replace"], small_tables_refused=False)
         else:
             (folder / "twin").mkdir(exist_ok=True)
             code = cli.main(

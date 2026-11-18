@@ -1088,16 +1088,33 @@ def within_moments(
     return groups, share, why, LEVEL_COARSE
 
 
+def partners_for(eligible: int, every_partner: bool) -> int:
+    """The `partners` a description of `eligible` eligible columns writes: `PARTNERS`, or every other column.
+
+    Every partner (the size guard's choice where the whole run fits with
+    it; lane CHON, plan P4-D464) is written as the eligible columns less
+    one wherever that passes `PARTNERS`, so a table of at most
+    `PARTNERS` + 1 eligible columns writes `PARTNERS` either way, its bytes
+    unmoved.
+    """
+    return max(PARTNERS, eligible - 1) if every_partner else PARTNERS
+
+
 def released(
     columns: "list[Released]",
     groupings: "list[Grouping]",
     floor: int,
+    partners: int = PARTNERS,
 ) -> "tuple[dict[str, object] | None, dict[str, int]]":
     """The `moments` object rule B publishes (contract 4.6d.0), and the refusals counted by kind and reason.
 
     `columns` and `groupings` stand in schema order. None where nothing
     is published. The `within` entries are read grouping by grouping, one
-    pass over the rows for each column, and ranked afterwards.
+    pass over the rows for each column, and ranked afterwards; each column
+    keeps its `partners` largest (`PARTNERS`, or every other grouping
+    column where the size guard allows every partner: lane CHON, plan
+    P4-D464, contract 4.6d.0 amended 2026-11-10), and `partners` is
+    written as the object's own.
     """
     counts: "dict[str, int]" = {}
 
@@ -1151,9 +1168,9 @@ def released(
         # Each grouping column stands once in a column's list, so the
         # ranking never compares two entries past their places.
         held = sorted(ranked[column.name])
-        for _dropped in held[PARTNERS:]:
+        for _dropped in held[partners:]:
             count("not among the partners")
-        for _place, chosen in sorted((place, chosen) for _share, place, chosen in held[:PARTNERS]):
+        for _place, chosen in sorted((place, chosen) for _share, place, chosen in held[:partners]):
             count(f"published within: {column.kind}")
             within += [chosen]
     if not entries:
@@ -1161,7 +1178,7 @@ def released(
     return {
         "columns": entries,
         "correlations": triangle,
-        "partners": PARTNERS,
+        "partners": partners,
         "rule": RULE_B,
         "scales": {
             "column_sd": SCALE_COLUMN_SPREAD,

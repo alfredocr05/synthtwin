@@ -41,6 +41,13 @@ APPROXIMATED fact is checked against lives in
 `docs/spec/generation-method-v1.md` G12 and is CITED here, never
 restated, so the two can never drift apart. No cross-column check of any
 kind: this version carries none, because the profile publishes none.
+*Amended Monday 2026-11-09 (the landing that ships stage 6, plan P4-D464):* the
+sentence holds of a description whose `statistical` and `grain` are
+`null`, which is measured, reported and exited exactly as before; a
+description that publishes a chain is checked between columns by V12
+(and V13 where it publishes moments), on every shipped `synthtwin
+validate` run. The words of V7.3 and V7.4 that a report prints are lane
+CHc's claim text.
 
 ---
 
@@ -3694,7 +3701,11 @@ would be.
 **No shipped command runs anything in this section**, and the sentence
 at the head of this document (no cross-column check of any kind, because
 the profile publishes none) stays true until the landing that ships
-stage 6. What follows is what lane CHv builds for the chain,
+stage 6. *Amended Monday 2026-11-09 (plan P4-D464): that landing has
+shipped. Every `synthtwin validate` run reads the description through
+`contract.load_profile_document` and runs this section where it carries
+a chain; one that carries none is measured, reported and exited exactly
+as before (the internal unswitched setting alone reads it the old way).* What follows is what lane CHv builds for the chain,
 layer L1, against the families `docs/spec/profile-contract-v6.md`
 section 4.6b publishes and the arrangement
 `docs/spec/generation-method-v1.md` G16 makes. The held page of plan
@@ -3999,6 +4010,92 @@ file whose `L0` totals or census differ: the `L0` totals of the file's
 own columns and of `r`, never a derived column's, whose patient totals
 are what its own line judges (mutant 11 reads MISSED there).
 
+AMENDED Monday 2026-11-09 (lane GRb, plan P4-D465): V12.7 BUILT behind the
+chain's switch, `chain_validation.patient_lines`, reached by one call of
+`lines_of` where `grain` stands. Its readings: patients by the published
+person column's cells as written on the tabled rows; positions by the
+published position column's readings; every column at its published
+ladder through the profiler's own reader (`chain.read_column`); an own
+mean and a grid code read exactly (`patient_rules.own_mean_band`,
+`grid_code_of`). V12.3's gate is read as the file's own counts of the
+object holding no count of 1 to `f - 1` (patients for a family of the
+patient chain and a trend cell, rows for a row family); otherwise the
+line prints `not judged` in fixed words. The trend, position and row
+census lines print in the written report's patient section (`quality`).
+V12.9's mutants 7, 8, 9, 10 and 12 are pinned in
+`tests/test_stage6_patient_generate.py`; 11 and 13 need a first-date
+column and a row census beside an open top band, which the gate's tables
+do not publish (owed), and `K-S6-04`'s driver is not widened (owed).
+
+AMENDED Tuesday 2026-11-10 (lane GRb's repair 1, plan P4-D465; LANE GRb
+RULINGS 4 (3) and (5)): A DERIVED COLUMN'S TOTALS CLOSE NO FAMILY. A family
+of the patient chain and a row family read "not judged" where the `L0`
+totals of the file's own columns or of `r` differ, never where a derived
+column's patient totals do: those are what the derived column's own line
+judges, so its family reads MISSED there (the build gated on them too and
+read such a family WITHHELD; the first skeptic's item 2). WHAT IS READ
+TODAY, the gate of this landing as ruled: the census line first and
+always; a family, a row family and a trend cell judged only where the
+census holds and the file's own counts of the object hold no count of 1 to
+`f - 1` (the HIPAA floor), a family and a row family also where their
+non-derived members' `L0` totals hold; the row census where the census
+holds; each position list always; each line its verdict alone, no
+measured number (the first skeptic measured no exposure on 22 switched
+descriptions of 20,000 to 500,000 rows). WHAT IS OWED, owner lane GRb's
+next step: the family's certificate and SWING read on the file's own
+counts in that floor's place, and the members' `L0` totals read by the row
+census and trend lines.
+
+AMENDED Tuesday 2026-11-10 (lane GRb's repair 2, plan P4-D465; LANE GRb
+RULINGS 5 (5) and (6), on its outside review): A ROW FAMILY READS ITS
+CHILD'S TOTALS, AND A POSITION LIST READS THE CELLS AS ITS DESCRIPTION
+READ THEM. A row family is judged only where its child's own `L0` totals,
+counted in rows over the file's tabled rows, are the published ones, as the
+paragraph above reads every non-derived member; the repair-1 head read the
+parents' alone, so a twin reading moved to another `L0` band inside its
+family's band left the row family HELD (Codex's item 7); it now reads "not
+judged". A position-like column's list was read by the producer on the
+column's cells as the description read them (the age top-code and its
+pooled top category, the year cut, dates in disguise held, a column counted
+absent), and its emptied block keeps the marks that reading reads (contract
+4.6c.12's departure of 2026-11-10); the list is checked on the file's cells
+read through the same marks (`chain.described_cells`), so a source whose
+first visit's age is 92 checks clean against its own list `90, 80, ...`,
+where the repair-1 head read it MISSED (Codex's item 6). A published edge,
+grid step or low end written as `p/q` (no finite decimal) is read as that
+fraction; the repair-1 head read it as nothing, so on `ST2` written at full
+binary64 precision (19,914 rows) every own mean read below its edge and
+every grid code 0. Still owed, as
+above: the certificate or SWING read and the members' `L0` totals on the
+row census and trend lines, owner lane GRb's next step.
+
+AMENDED Monday 2026-11-16 (batch 4u's merge of lane GRb, plan P4-D465):
+THE BLOCKS COUNTED IN PATIENTS ARE CHECKED ON THE FILE'S PATIENTS. Where
+`grain` stands, the loader reads the person column's block and each
+patient-fixed column's block as the patient table's (contract 4.6c.3
+(b): one row a patient), so V2's column checks of those blocks read the
+file's patient table: each patient's first tabled row, the patients read
+as this section reads them, every column at its place, re-described by
+V2's two descriptions; every other block is checked on the file's rows
+as before. Read on the file's rows, the shipped command's twin of a table
+of several rows a person missed the person column's presence, forms and
+repetition and each patient-fixed column's counts: measured on the zoo's
+25 exports at 20,000 rows with the shipped command's patient layer set
+on, the 14 that publish `grain` missed 5 to 17 checks each, and 15
+checks on five of them once these blocks are read on the patients.
+
+AMENDED Wednesday 2026-11-18 (batch 4u's outside review, item 3; plan
+P4-D465): EACH PATIENT'S FIRST POSITION. The patient table those blocks
+are checked on takes each patient's first position, not the first row
+the file stores: the patient's rows in the published position column's
+order, ties and absent readings by row order, that column read with its
+published block where the block reads a value of the file, and else with
+the file's own description of it, as the producer read it before the
+description held it. On the review's table (20,000 rows, 2,000 patients
+stored newest first, one patient's newest visit written with the other
+value of a patient-fixed column) the real table checked against its own
+description read four checks of that column missed, and reads none.
+
 **V12.8 What is checked elsewhere, and why.** Whether a patient-fixed
 column is constant within each patient, and whether each dealt date
 runs in visit order, are properties of a twin, met by construction
@@ -4042,6 +4139,68 @@ and a green case beside it: the same twin undamaged, every line HELD. The
 lines count by band codes and patient keys, as V12.6 counts; the
 derived columns add one pass over the rows. Lane CHv measures them with
 V12.6's under `K-S6-15`.
+
+**V12.11 The counting process's lines (lane GRb2-b, plan P4-D491 part
+b; contract 4.6c.14; NOT IN FORCE).** *Added Wednesday 2026-11-11.*
+Where `grain.intervals` stands, V12.7's lines gain, read on the file's
+patients as V12.7 reads them (`chain_validation.patient_lines` calling
+`patient_intervals.lines`), verdicts alone, no measured number:
+`intervals A to B` HELD where every file patient keeps the interval rule
+(its rows sorted by `A`: `A` below `B`, the first `A` at 0, each next
+`A` the previous `B`), else MISSED; `switches W` HELD where every
+patient keeps the switch rule with the published spellings, else MISSED;
+`end events Z` HELD where every patient's rows but its last hold the
+none spelling, else MISSED; and, where the interval rule holds on the
+file, one `hazard` line a margin (the bands of time, the switch's two
+states, each published column, and each column's switches in each band
+where it publishes them (repair 1): the file patients whose switch
+column reaches its second spelling, in each band). CORRECTED (repair 2,
+Codex's item 3: the line compared the counts of ends alone, so a file
+whose groups' person-time was exchanged, 220 against 2,200 for 2,200
+against 220, read HELD on every line): a margin's line is HELD where
+every count of ends lies within three times the published count's square
+root, and one, of it, AND every cell's RATE holds on the file's own
+person-time there: the expected ends are the published ends times the
+file's person-time over the published person-time, and the file's ends
+lie within three times the expected ends' square root, and one, of them,
+or within a quarter of them (the main effects the writer fits leave a
+cell's rate up to about a fifth off where the real hazard holds a joint
+effect: 18 per cent in one band of the entry date on the invented
+registry at 20,000 rows), each widened by the published person-time's
+rounding (half a unit of its third figure, as a share of it); a moved
+rate is MISSED and its cell named (the end value and the band, no
+number). WHAT THE QUARTER HIDES (LANE GRb2 RULINGS 12 (1) and 15 (4);
+verify 2's measure on 24 generated tables of 1,000 to 9,000 patients,
+one real move at a time, by scaling the follow-up of one band's patients
+or the time after the switch): on 96 bands of 247 to 2,416 ends, a
+band's rate raised by 10, 15 and 20 per cent read HELD on 96 of 96, by
+25 per cent on 91, by 30 per cent on 2, by 50 and 100 per cent on 0;
+lowered by 10 to 30 per cent (a fall of 9 to 23 per cent) HELD on 96 of
+96, by a fall of 33 per cent on 0; the state after the switch, raised
+by the same steps, HELD on 24, 24, 24, 22, 0, 0 and 0 of 24, lowered on
+24, 24, 24, 24, 24, 0 and 0. So at the floor's sizes a rise of a cell's
+rate up to a fifth and a fall up to 23 per cent read HELD; the quarter
+is not widened. THE SWITCH TIME'S BANDS (repair 2, Codex's item 4): one
+`switches` line `the switch time's bands of W`, HELD where each band's
+patients, the patients who never switch and, where `origin` stands, the
+patients treated from the origin of one row and of more lie within that
+square-root bound of the published counts, and the top band's mean
+switch time within three spreads over the root of its patients, and one
+unit of the grid, of the published mean (the spread read as the top mean
+less the band's lower edge over the root of three, a uniform band's);
+MISSED otherwise, the moved count named. Every line is WITHHELD with
+V12.3's words where the file's own counts of its object hold one of 1 to
+`f - 1`, and prints no measured number. The lines read each file
+patient's rows once, the start readings normalised once for every
+patient (repair 2, Codex's item 5: they were rebuilt for each patient, so
+1,000, 2,000 and 4,000 rows made 500,000, 2,000,000 and 8,000,000 visits);
+plan P4-D491 states the measured seconds. A file the process wrote
+breaks no rule by construction (method G16.19); its margins differ from
+the published by the draw. The gate file `tests/test_patient_intervals.py`
+holds a green case (the twin, every line HELD), a red case for each
+rule's line (one row damaged, the line MISSED), Codex's two
+reproductions (the exchanged person-time, the census [110, 110] read as
+[220, 0]) and a generated case of each.
 
 ## V13. Between columns: the moments read on the file (stage 6, plan P4-D413; specified, NOT BUILT)
 

@@ -808,6 +808,11 @@ MIXED_SEED = 8101
 # each empty (the column is numbers, so no block gains `count_form`); the
 # same bytes with those three taken out hash to 93996a59...5344cc, the
 # digest on 110cb46. The other four files did not move.
+# AND THE QUESTIONS FILE RE-RECORDED BY PLAN P4-D464 (the switch on: every
+# `synthtwin profile` run is switched): it gains the chain's entry under
+# `between_columns` -- its `add`, `drop` and carried pairs, each empty, and
+# its question -- and no subject question, the table being one column
+# (a2364bd0...8c47 before). The other four files did not move.
 MIXED_AT_668F276 = {
     "mixed-1000-s1-profile.json": "4c31290cc223df3d9b92e42780ddbfe3ab86320bd6a12de702c4b7ca18987408",
     "mixed-1000-s1-profile.txt": "1a615c0070fd7173faa26a3fa86ad6307232bb9d997c4514bbd2ecfbe2bddeed",
@@ -816,7 +821,12 @@ MIXED_AT_668F276 = {
     # and since its repair 2 that a column is named exactly and the numbers
     # are not read back: its bytes moved with those sentences alone; the
     # description, its summary, the twin and its report keep 668f276's.
-    "mixed-1000-s1-questions.json": "956ee00ee105bc2aa827b41d1076549dfe9ef672c03a880da1f3adc43d98262d",
+    # At batch 4u's merge of lane CHON (step 2) both moves stand together,
+    # measured on the merged tree beside both heads: the file is the line's
+    # (`956ee00e...`) with plan P4-D464's `between_columns` entry and nothing
+    # else, and the lane's (`59a5a2d9...`) with lane EZ-a's `how_to_answer`
+    # and nothing else.
+    "mixed-1000-s1-questions.json": "19330f2e95ae92114da0828b13583902b7c32ae7be64783f4cfc0629bb03659c",
     "mixed-1000-s1-twin.csv": "fcae8034d6551018be81752c89d66faff8d7589e764565b89225cc9bde9d235a",
     "mixed-1000-s1-twin-report.txt": "03fb04b18cfefb7f15cb60309a209342d9e7a3a7166b923e868b6e05594bd213",
 }

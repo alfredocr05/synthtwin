@@ -67,6 +67,7 @@ import time
 
 from synthtwin import cli, parsing
 
+import fixtures
 import persons_counted
 
 PATIENTS = 44
@@ -812,6 +813,18 @@ def _count_real_linear(
     }
 
 
+# THE PRIVATE REPORT'S LINE (lane ST, plan P4-D458; on every shipped run
+# since plan P4-D464) names a file in the installation's data folder, whose
+# name holds twelve figures of a digest of the table's name: no value of the
+# table, and never a shared byte. The screen is scanned without it.
+_PRIVATE_REPORT_LINE = "The private report, for you alone"
+
+
+def _shared_screen(text: str) -> str:
+    """The screen as a shared text: every line but the private report's."""
+    return "\n".join(line for line in text.split("\n") if _PRIVATE_REPORT_LINE not in line)
+
+
 def count_real(
     real: "list[str]", texts: "list[str]", cells: "list[str]", linear: "bool | None" = None
 ) -> "dict[str, int]":
@@ -958,7 +971,7 @@ def run(folder: pathlib.Path, kind: str, rows: int) -> "dict[str, object]":
         cells = []
     counted = count_real(
         [value for value in real if value not in starts],
-        [without_the_folder(text, folder) for text in [*texts.values(), screen.getvalue()]],
+        [without_the_folder(text, folder) for text in [*texts.values(), _shared_screen(screen.getvalue())]],
         cells,
     )
     seen: "dict[str, object]" = {
@@ -1491,7 +1504,7 @@ def _profiled(
                      f"{kind}_long-twin-quality.txt")
     }
     texts["real-quality"] = (checked / f"{kind}_long-quality.txt").read_text(encoding="utf-8")
-    texts["screen"] = screen.getvalue().replace(f"{folder}", "<folder>")
+    texts["screen"] = _shared_screen(screen.getvalue()).replace(f"{folder}", "<folder>")
     for name in texts:
         texts[name] = texts[name].replace(f"{folder}", "<folder>")
     return {"profile_exit": profiled, "generate_exit": generated,
@@ -1564,7 +1577,17 @@ def run_safe_harbor(
     `number_token_counts`, each text read once; the counts are the same.
     """
     table, real = write_safe_harbor_table(folder, kind, rows)
-    seen = _profiled(folder, table, kind, answer)
+    if kind in ZIP_KINDS:
+        seen = _profiled(folder, table, kind, answer)
+    else:
+        # ...AN AGE TABLE ON A COMPUTER OF ITS OWN, as its control is (batch 4u's checks): every shipped run keeps the
+        # account's record of descriptions by name (plan P4-D464), so a table described again after another size of the
+        # same name carries the record's warning on the screen, and the screen alone differed from the control's: K-S3-64's
+        # driver, each shape at 600 rows and then at 20,000 in one process, read 22 'outputs differing', every one that line.
+        # Its data folder stands beside the folder, never inside it: the command refuses a data folder inside the folder
+        # it writes to or reads the table from.
+        with fixtures.another_installation(folder.with_name(folder.name + "-installation")):
+            seen = _profiled(folder, table, kind, answer)
     texts = seen["texts"]
     assert isinstance(texts, dict)
     document = json.loads(texts[f"{kind}_long-profile.json"])
@@ -1601,7 +1624,8 @@ def run_safe_harbor(
             decoy_folder = folder / "decoy"
             decoy_folder.mkdir()
             decoy_table, _same = write_safe_harbor_table(decoy_folder, kind, rows, decoy=True)
-            decoy_twin = set(f"{cell}" for cell in _profiled(decoy_folder, decoy_table, kind, answer)["twin"])  # type: ignore[arg-type]
+            with fixtures.another_installation(folder / "elsewhere"):
+                decoy_twin = set(f"{cell}" for cell in _profiled(decoy_folder, decoy_table, kind, answer)["twin"])  # type: ignore[arg-type]
             again = _count_zips(kind, real, [], [cell for cell in cells if cell not in decoy_twin], linear)
             found["twin_cells_by_chance"] = counted["twin_cells"] - again["twin_cells"]
             found["twin_cells"] = again["twin_cells"]
@@ -1610,7 +1634,11 @@ def run_safe_harbor(
     control_folder = folder / "top-coded"
     control_folder.mkdir()
     control_table, _none = write_safe_harbor_table(control_folder, kind, rows, top_coded=True)
-    control = _profiled(control_folder, control_table, kind, answer)
+    # Another table under the same name: described as on another computer
+    # (plan P4-D464), so its screen carries no warning of the record's that
+    # the table's own does not (`fixtures.another_installation`).
+    with fixtures.another_installation(folder / "elsewhere"):
+        control = _profiled(control_folder, control_table, kind, answer)
     control_texts = control["texts"]
     assert isinstance(control_texts, dict)
     if linear:
@@ -2263,7 +2291,7 @@ def _sh2_profiled(
                      f"{kind}_long-twin-quality.txt")
     }
     texts["real-quality"] = (checked / f"{kind}_long-quality.txt").read_text(encoding="utf-8")
-    texts["screen"] = screen.getvalue().replace(f"{folder}", "<folder>")
+    texts["screen"] = _shared_screen(screen.getvalue()).replace(f"{folder}", "<folder>")
     for name in texts:
         texts[name] = texts[name].replace(f"{folder}", "<folder>")
     twin = _csv_column(folder / f"{kind}_long-twin.csv", 1)

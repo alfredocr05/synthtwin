@@ -24,10 +24,9 @@ draw's exponential is the stated polynomial of 4.6b.4 in correctly
 rounded binary64 steps (plan P4-D409 part 2, zone D's rule). The module
 is reached by the loader, so it is held to zone G's imports.
 
-NOT IN FORCE. Invariant S12 stands until the landing that ships stage 6:
-`synthtwin profile`, `generate` and `validate` never publish or accept a
-chain. These functions run only behind the switch the product does not
-expose (`chain.ChainSwitch`, `contract.load_profile(..., chain=True)`).
+IN FORCE SINCE PLAN P4-D464 (lane CHON): `synthtwin profile`, `generate`
+and `validate` publish and read the chain (S12's third sentence replaced,
+contract amended 2026-11-09).
 """
 
 import dataclasses
@@ -71,7 +70,9 @@ NINE_RUNGS = (
     ("p50",),
 )
 
-# The reasons 4.6b.1 lists, and no other.
+# The reasons 4.6b.1 lists, and no other: `size` an eligible column the
+# size guard's degraded chain is not drawn over (4.6b.13 amended
+# 2026-11-10; lane CHON, plan P4-D464).
 INELIGIBLE_REASONS = (
     "identifier",
     "free_text",
@@ -86,6 +87,7 @@ INELIGIBLE_REASONS = (
     # A value column typed by a key column (lane KV, plan P4-D487; contract
     # 6.3k): not one distribution, its key column a label candidate.
     "keyed",
+    "size",
 )
 
 # The settings of 4.6b.14 recorded in `procedure` (4.6b.5).
@@ -740,6 +742,56 @@ def _small(count: object, floor: int) -> bool:
     return isinstance(count, int) and not isinstance(count, bool) and 0 < count < floor
 
 
+def name_key(name: object) -> object:
+    """A band name as a key of an index: equal for two names exactly where the names compare equal.
+
+    A range or a published level may be written as a list or a tuple; a
+    list cannot be the key of an index, so each is read as a tuple tagged
+    with its kind, item by item: two lists (or two tuples) are the same
+    key where their items are equal, a list is never a tuple's key and a
+    word or a number is never either's. Every other name is its own key.
+    A fixed function of the argument; raises nothing itself (an item no
+    index may hold raises at the index, `l0_of_starts`).
+    """
+    if isinstance(name, list):
+        return ("list",) + tuple(name_key(one) for one in name)
+    if isinstance(name, tuple):
+        return ("tuple",) + tuple(name_key(one) for one in name)
+    return name
+
+
+def l0_of_starts(names: "tuple[object, ...]", l0: "tuple[tuple[object, ...], ...]") -> "dict[int, int]":
+    """Each starting band's `L0` band, by the starting band's place: the last `L0` band one of whose names equals it.
+
+    A place no `L0` band names is left out. The same answer, place for
+    place, as scanning every `L0` band for every starting band, which is
+    what the chain did until batch 4u's outside review, item 4: about ten
+    thousand million comparisons a column at 2,000,000 rows of 100,000
+    bands, before the size guard's selection; an index of the names
+    (`name_key`) makes it one pass over each. Where a name cannot be
+    indexed the scan is run instead, so the answer never differs. A fixed
+    function of its arguments; reads and writes nothing else.
+    """
+    found: "dict[int, int]" = {}
+    try:
+        last: "dict[object, int]" = {}
+        for at in range(len(l0)):
+            for member in l0[at]:
+                last[name_key(member)] = at
+        for place in range(len(names)):
+            key = name_key(names[place])
+            if key in last:
+                found[place] = last[key]
+        return found
+    except TypeError:
+        found = {}
+        for at in range(len(l0)):
+            for place in range(len(names)):
+                if names[place] in l0[at]:
+                    found[place] = at
+        return found
+
+
 def small_group_bands(block: "dict[str, object]", start: Starting, ladder: Ladder, floor: int) -> "set[int]":
     """The `L0` bands of a column holding an OWN-FACT GROUP of 1 to `floor - 1` rows.
 
@@ -758,12 +810,9 @@ def small_group_bands(block: "dict[str, object]", start: Starting, ladder: Ladde
     holding no row, checks this list alone, a subset of the producer's.
     """
     role = f"{_get(block, 'role')}"
-    l0_of_start: "dict[int, int]" = {}
-    for at in range(len(ladder.l0)):
-        for name in ladder.l0[at]:
-            for place in range(len(start.names)):
-                if start.names[place] == name:
-                    l0_of_start[place] = at
+    # Each starting band's `L0` band through an index of the names, the
+    # scan's answer place for place (batch 4u's outside review, item 4).
+    l0_of_start = l0_of_starts(start.names, ladder.l0)
     marked: "set[int]" = set()
     value_starts = [place for place in range(len(start.names)) if start.value[place]]
     every_value = {l0_of_start[place] for place in value_starts if place in l0_of_start}

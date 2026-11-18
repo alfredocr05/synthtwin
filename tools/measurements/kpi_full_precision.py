@@ -80,7 +80,8 @@ def described(folder, name, cells):
     started = time.perf_counter()
     heard = io.StringIO()
     code = None
-    with contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
+    # In a data folder of its own (plan P4-D464 limit (15)): never the account's.
+    with kpi_rules.own_data_folder(), contextlib.redirect_stdout(heard), contextlib.redirect_stderr(heard):
         try:
             code = cli.main(["profile", str(path), "--out-dir", str(folder), "--replace"], small_tables_refused=False)
         except BaseException as stopped:  # noqa: BLE001 -- a stack trace is what this counts

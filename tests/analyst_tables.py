@@ -366,6 +366,26 @@ HEADERS = {
     "ST1": ST1_COLUMNS, "ST2": ST2_COLUMNS, "ST3": ST3_COLUMNS,
     "ST4": ST4_COLUMNS, "ST5": ST5_COLUMNS, "ST6": ST6_COLUMNS, "SD": SD_COLUMNS,
 }
+# What the person who holds each table knows of its columns (the zoo's `knows`), the
+# readings route S of `tests/twin_routes.py` answers the questions file with (lane MU's
+# statistics check, item 1: every blank entry answered by the column's known reading).
+# A date column is asked nothing and knows nothing.
+_ST1_KNOWS = {
+    "age": "measurement", "urban": "code", "language": "code", "ward": "code", "smoker": "code",
+    "glucose": "measurement", "sbp": "measurement", "lactate": "measurement", "diabetes": "code",
+    "ventilated": "code", "crp": "measurement", "procedures": "measurement", "cost": "measurement",
+    "died": "code", "fu_days": "measurement", "event": "code", "readmit": "code", "creatinine": "measurement",
+}
+KNOWS = {
+    "ST1": {k: v for k, v in _ST1_KNOWS.items() if k in ST1_COLUMNS},
+    "ST2": {"sid": "identifier", "arm": "code", "age": "measurement", "visit": "measurement", "marker": "measurement"},
+    "ST3": {"centre": "code", "stage": "code", "age": "measurement", "urban": "code", "status": "code"},
+    "ST4": {"code": "code", "payer": "code", "visits": "measurement", "amount": "measurement",
+            "weight": "measurement", "dose_rate": "measurement", "dose": "measurement", "cond_a": "code",
+            "cond_b": "code", "cond_c": "code", "readmit": "code", "outcome": "code"},
+    "ST5": {k: v for k, v in _ST1_KNOWS.items() if k in ST5_COLUMNS},
+    "ST6": {k: v for k, v in _ST1_KNOWS.items() if k in ST6_COLUMNS},
+}
 
 
 def lines(name: str, rows: int, seed: int) -> "Iterator[str]":

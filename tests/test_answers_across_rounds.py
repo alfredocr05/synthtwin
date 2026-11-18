@@ -683,7 +683,18 @@ def test_a_later_answer_to_the_question_asked_again_wins(tmp_path: pathlib.Path,
     person = json.dumps(cli._PERSON_KEPT_MEANS).encode("utf-8")
     record = json.dumps(asking._KEPT_MEANS[asking.ANSWER_IDENTIFIER]).encode("utf-8")
     assert once["questions"].count(person) == 1 and several["questions"].count(person) == 0
-    assert once["questions"].replace(person, record) == several["questions"]
+    # SINCE EVERY SHIPPED RUN IS SWITCHED (lane CHON, plan P4-D464; batch 4u's
+    # checks) the one round's file also keeps, in the chain's entry, the person
+    # reading its `identifier` gave (`asking.COLUMNS_SAID`: `pid` the person);
+    # the later round's changed kept answer reads as record numbers, as its own
+    # words say, and keeps none. Those are the files' only other difference:
+    # one repeating record number counts the people by it either way.
+    once_document = json.loads(once["questions"].replace(person, record))
+    several_document = json.loads(several["questions"])
+    said = once_document[asking.BETWEEN_COLUMNS].pop(asking.COLUMNS_SAID)
+    assert said == {"person": ["pid"], asking.ANSWER_RECORD: []}
+    assert asking.COLUMNS_SAID not in several_document[asking.BETWEEN_COLUMNS]
+    assert once_document == several_document
     assert {name: once[name] for name in once if name != "questions"} == {
         name: several[name] for name in several if name != "questions"
     }
@@ -1692,7 +1703,10 @@ def _route_four_case(folder: pathlib.Path) -> None:
     asked = entry_about(list(first["asked"]), _ROUTE_FOUR_COLUMN)  # type: ignore[arg-type]
     assert len(asked) == 1 and asked[0]["read_as_now"] == asking.ANSWER_IDENTIFIER, "route four did not put the question"
     assert asked[0]["your_answer"] == "", f"the file answers for the person: {asked[0]['your_answer']!r}"
-    assert offered(asked[0]) == (asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER), (
+    # ...and, since the switch is on for every shipped run (plan P4-D464),
+    # the person question's `identifier` split in two: `record` beside it
+    # (lane GRa, RULINGS 1 (1)).
+    assert offered(asked[0]) == (asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD), (
         f"code not offered in round one: {offered(asked[0])}"
     )
     said_in_round_one = code_choice(asked[0])

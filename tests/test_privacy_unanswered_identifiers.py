@@ -664,7 +664,7 @@ def test_route_four_is_put_to_a_column_of_counts(tmp_path: pathlib.Path) -> None
     (plan P4-D420, lane HX3).
     """
     seen = shapes.run(tmp_path, "randkey", _ROWS)
-    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
+    assert seen["asked"] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD]]
     _check_held(seen, "randkey")
 
 
@@ -841,7 +841,7 @@ def test_income_in_whole_thousands_is_held_and_keep_gives_back_the_count(
     asked = [entry for entry in questions["asked"] if entry["column"] == "income"]
     assert [
         [choice["answer"] for choice in entry["answers_you_can_give"]] for entry in asked
-    ] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER]]
+    ] == [[asking.ANSWER_KEEP, asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD]]
     assert [entry["read_as_now"] for entry in asked] == [asking.ANSWER_IDENTIFIER]
 
     for entry in asked:
@@ -987,7 +987,7 @@ def _check_list_held(seen: "dict[str, object]", rows: int, kind: str) -> None:
     asked = seen["asked"]
     assert isinstance(asked, list) and len(asked) == 1, "one question, never two"
     if rows != _ROWS and kind in _PERSON_FIRST:
-        assert asked == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+        assert asked == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD]]
     else:
         assert asked == [_LIST_ANSWERS]
 
@@ -1270,7 +1270,7 @@ def test_a_list_of_three_figure_codes_is_held_by_the_person_question_alone(
     )["asked"]
     offered = [[choice["answer"] for choice in entry["answers_you_can_give"]]
                for entry in asked if entry["column"] == "codes"]
-    assert offered == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]]
+    assert offered == [[asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD]]
     assert _block(document, "codes")["role"] == taxonomy.ROLE_IDENTIFIER
 
 

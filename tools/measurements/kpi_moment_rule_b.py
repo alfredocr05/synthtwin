@@ -325,8 +325,9 @@ def measure_table(name: str, folder: pathlib.Path, reference: object) -> "dict[s
     # The description as the profile command writes it, read back with the chain's switch on: on a table naming
     # its person column, the patient layer's `grain` and its column blocks too, where the layer stands (lane GRa,
     # plan P4-D449; `cli._chained_description`).
-    written = dict(document)
-    relationships = dict(written["relationships"], statistical=statistical)  # type: ignore[arg-type]
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    written = chain.with_rules(document, chained)
+    relationships = dict(written["relationships"])  # type: ignore[call-overload]
     if chained.grain is not None:
         relationships["grain"] = chained.grain
     if chained.columns is not None:

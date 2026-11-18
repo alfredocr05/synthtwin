@@ -158,6 +158,16 @@ GENERAL_ANSWERS = frozenset(
         # ...and that a column's values are each a measurement of the kind its
         # key column names (lane KV, plan P4-D487, question Q-KEYED).
         "keyed",
+        # ...and the person question's second reading of a repeating key,
+        # a record of the person -- an encounter, an order, an account --
+        # offered on every shipped run since the switch is on (lane GRa,
+        # RULINGS 1 (1); plan P4-D464): what the column is.
+        "record",
+        # ...and the subject question's three (lane GRa, plan P4-D449; put
+        # by every shipped run since plan P4-D464): whether one person
+        # stands on several rows, and which column names the person --
+        # what the data is (lane CHON's repair 2).
+        "one row each", "the name of a column", "several rows, no column names the person",
     }
 )
 # THE VALUE COLUMNS THE ZOO KNOWS ARE TYPED BY A KEY (lane KV, plan P4-D487):
@@ -1614,6 +1624,12 @@ class Table:
     # or 'ages over 89' (Safe Harbor: no age past the top-code 90 printed
     # or written as a number).
     leaks: "tuple[tuple[str, str], ...]" = ()
+    # THE SUBJECT QUESTION (lane GRa, plan P4-D449; put by every shipped run
+    # since plan P4-D464), answered as the export truly is (lane CHON's
+    # repair 2, `subject_answer`): True where one person stands on several
+    # rows and no column names the person -- the coded rows of encounters,
+    # each keyed by its encounter alone.
+    rows_repeat_a_person: bool = False
 
 
 def _csv_reader(**options: object) -> "Callable[[pathlib.Path], dict[str, object]]":
@@ -1833,6 +1849,8 @@ TABLES: "tuple[Table, ...]" = (
             _pattern("procedures", "HCPCS level II", "hcpcs", r"[A-V]\d{4}"),
             _pattern("procedures", "ICD-10-PCS", "icd10pcs", r"[0-9A-HJ-NP-Z]{7}"),
         ),
+        # An encounter's several coded rows, keyed by the encounter alone.
+        rows_repeat_a_person=True,
     ),
     Table(
         "labs", ".csv", labs,
@@ -2020,6 +2038,8 @@ TABLES: "tuple[Table, ...]" = (
                   lambda f: _length_percentiles(_t("note_text")(f)), "note_text",
                   spoil_every("note_text", lambda v: v.split("\n")[0][:20])),
         ),
+        # An encounter's several notes, keyed by the note and the encounter.
+        rows_repeat_a_person=True,
     ),
     Table(
         "surveys", ".xlsx", surveys,
@@ -2753,8 +2773,13 @@ def analyst_failures(
 # -- the person's answers ---------------------------------------------------
 
 
-def _entries(document: "dict") -> "list[dict]":
-    """Every entry of a questions file that takes an answer."""
+def _entries(document: "dict", subject: bool = False) -> "list[dict]":
+    """Every entry of a questions file that takes an answer; with ``subject``, the subject question last where the file puts it.
+
+    The zoo's engine (`run_table`) reads the subject question too (lane
+    CHON's repair 2); the other walks that borrow these answers read the
+    entries they read before.
+    """
     found: "list[dict]" = []
     for key in ("about_your_file", "asked"):
         for entry in document.get(key) or []:
@@ -2763,7 +2788,41 @@ def _entries(document: "dict") -> "list[dict]":
     for entry in (document.get("checklist") or {}).get("columns") or []:
         if isinstance(entry, dict) and "answers_you_can_give" in entry:
             found += [entry]
+    put = _subject_entry(document) if subject else None
+    if put is not None:
+        found += [put]
     return found
+
+
+def _subject_entry(document: "dict") -> "dict | None":
+    """The subject question's entry, where the file puts it: under the chain's one entry (lane GRa, plan P4-D449)."""
+    from synthtwin import asking
+
+    between = document.get(asking.BETWEEN_COLUMNS)
+    entry = between.get(asking.ROWS_PER_PERSON) if isinstance(between, dict) else None
+    return entry if isinstance(entry, dict) and "answers_you_can_give" in entry else None
+
+
+def subject_answer(table: Table) -> str:
+    """The subject question's answer as the export truly is (lane CHON's repair 2; LANE CHON RULINGS 7 (1)(a)).
+
+    THE ZOO ANSWERS TRUTHFULLY (the orchestrator, 2026-10-25): whether one
+    person -- a patient, a participant or another subject -- stands on
+    more than one row is a fact about the data, so the person who holds
+    the table answers it: the name of the column that names a person on
+    several rows (`Table.person`); 'several rows, no column names the
+    person' where one person stands on several rows and no column names
+    the person (`Table.rows_repeat_a_person`: the coded rows of
+    encounters); 'one row each' where no column names a person on several
+    rows, every row another person's.
+    """
+    from synthtwin import asking
+
+    if table.person:
+        return table.person
+    if table.rows_repeat_a_person:
+        return asking.ANSWER_NO_PERSON_COLUMN
+    return asking.ANSWER_ONE_ROW_EACH
 
 
 def _offered(entry: "dict") -> "list[str]":
@@ -2771,15 +2830,25 @@ def _offered(entry: "dict") -> "list[str]":
 
 
 def _asks_for_people(entry: "dict") -> bool:
-    """Whether an entry is the person question: its `identifier` answer means the people the rows are about."""
+    """Whether an entry is the person question: its `identifier` answer means the people the rows are about.
+
+    Since the switch is on for every shipped run (plan P4-D464), that
+    answer reads "identifies the person" beside `record` (lane GRa,
+    RULINGS 1 (1)), and the zoo answers it as it did: `keep` for a record
+    number that is not the table's person column.
+    """
     return any(
-        f"{choice.get('answer')}" == "identifier" and "people" in f"{choice.get('means', '')}"
+        f"{choice.get('answer')}" == "identifier"
+        and ("people" in f"{choice.get('means', '')}" or "identifies the person" in f"{choice.get('means', '')}")
         for choice in entry["answers_you_can_give"]
     )
 
 
 # Keys whose strings are names or answers rather than prose a person reads.
 NOT_PROSE = frozenset({"column", "answer", "your_answer", "table", "subject"})
+# What `answer_generally` records the subject question as asking about: it
+# names no column (the file writes it under the chain's entry).
+SUBJECT_QUESTION = "rows_per_person"
 
 
 def prose(value: object) -> "list[str]":
@@ -2798,9 +2867,14 @@ def prose(value: object) -> "list[str]":
 
 
 def answer_generally(
-    table: Table, document: "dict", old_ages: "frozenset[str] | None" = None,
+    table: Table, document: "dict", old_ages: "frozenset[str] | None" = None, subject: bool = False,
 ) -> "tuple[list[dict], bool]":
     """Fill a questions file the way the person who holds the table would.
+
+    With ``subject`` -- the zoo's engine, `run_table` (lane CHON's repair 2;
+    LANE CHON RULINGS 7 (1)(a)) -- the subject question too, where the file
+    puts it, as the export truly is (`subject_answer`); the other walks
+    that borrow these answers leave it open, as before.
 
     The answers are GENERAL facts about the data: which column is a
     record number, which holds codes, how a date orders its day and
@@ -2837,7 +2911,8 @@ def answer_generally(
     framing = " ".join(prose({key: value for key, value in document.items() if key not in ("about_your_file", "asked", "checklist")}))
     checklist_words = " ".join(prose({key: value for key, value in checklist.items() if key != "columns"}))
     listed = [id(entry) for entry in checklist.get("columns") or []]
-    for entry in _entries(document):
+    subject_entry = _subject_entry(document) if subject else None
+    for entry in _entries(document, subject):
         offered = _offered(entry)
         column = f"{entry.get('column', '')}"
         if column in every_column:
@@ -2887,6 +2962,13 @@ def answer_generally(
         # P4-D481): a column of notes is free text, `text`, as it truly is.
         if not given and "text" in offered and any(column in table.kinds.get(kind, ()) for kind in KINDS_OF_NOTES):
             given = "text"
+        # THE SUBJECT QUESTION (lane GRa, plan P4-D449), in the round the
+        # product puts it -- after the person question where that question
+        # holds a repeating column -- answered as the export truly is (lane
+        # CHON's repair 2; LANE CHON RULINGS 7 (1)(a)): before it the zoo
+        # left it open, so no export's chain was ever drawn.
+        if entry is subject_entry:
+            given = subject_answer(table)
         entry["your_answer"] = given
         words = " ".join(prose(entry) + [framing] + ([checklist_words] if id(entry) in listed else []))
         this_general = all(
@@ -2894,7 +2976,9 @@ def answer_generally(
         ) and not ANALYSIS_WORDS.search(words)
         general = general and this_general
         asked += [{
-            "column": column or f"{entry.get('subject', entry.get('about', 'the file'))}",
+            "column": column or (
+                SUBJECT_QUESTION if entry is subject_entry else f"{entry.get('subject', entry.get('about', 'the file'))}"
+            ),
             "offered": offered,
             "given": given,
             "general": this_general,
@@ -2920,13 +3004,32 @@ def _quietly(arguments: "list[str]", small_tables_refused: bool = False) -> "tup
         with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
             code = cli.main(arguments, small_tables_refused=small_tables_refused)
     except Exception as failure:  # noqa: BLE001 -- a traceback is a result to record
-        return -1, f"{type(failure).__name__}: {failure}"[:300]
+        return -1, f"{type(failure).__name__}: {failure}"[:SAID_AT_MOST]
     except SystemExit as stop:
         return int(stop.code or 0) if isinstance(stop.code, int) else 2, "exited"
     if code in (0, 3):
         return int(code), ""
     said = [line for line in sink.getvalue().split("\n") if line.strip()]
-    return int(code), (said[-1] if said else "")[:300]
+    return int(code), (said[-1] if said else "")[:SAID_AT_MOST]
+
+
+# The characters of a failed step's last line `_quietly` keeps.
+SAID_AT_MOST = 300
+
+
+def _refused_by_the_record(error: str, name: str) -> bool:
+    """Whether a step's last line is the record's refusal of a changed description (contract 4.6b.4).
+
+    A shipped profile run that would publish a different description of a
+    table the installation described before, under the same name and key,
+    where either of the two publishes between columns, is refused in
+    `installation.words_changed`'s words, the last line the command prints
+    (measured, lane CHON's repair 2): the answered round after one a hold
+    kept at null is such a run.
+    """
+    from synthtwin import installation, parsing
+
+    return bool(error) and error == parsing.visible_lines(installation.words_changed(name))[:SAID_AT_MOST]
 
 
 def people_in(table: Table, header: "list[str]", rows: "list[list[str]]") -> "int | None":
@@ -2990,6 +3093,16 @@ def _keep_the_most(kept: "dict[str, dict]", found: "dict[str, dict]") -> None:
                 kept[key][count] = max(kept[key].get(count, 0), entry[count])
 
 
+def _families_published(path: pathlib.Path) -> int:
+    """The family tables a written description publishes between columns: 0 where `statistical` is null or the file does not read."""
+    try:
+        statistical = json.loads(path.read_text(encoding="utf-8"))["relationships"]["statistical"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return 0
+    families = statistical.get("chain") if isinstance(statistical, dict) else None
+    return len(families) if isinstance(families, list) else 0
+
+
 def run_table(
     table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool = False,
 ) -> "dict":
@@ -3007,7 +3120,27 @@ def run_table(
     written -- the first, before any answer, under the stage
     'unanswered' -- and the twin once generate has written it, so what a
     step published is kept whatever a later step does.
+
+    THE SHIPPED RUN'S RECORD (contract 4.6b.4; lane CHON's repair 2,
+    LANE CHON RULINGS 7 (1)(b) and (c)): the walk runs in a data folder of
+    its own (`kpi_rules.own_data_folder`: the fixed test key and an empty
+    record, removed after), never the account's, wherever it is called
+    from; and an answered round the record refuses in its own words
+    (`_refused_by_the_record`: the round after one a hold kept at null,
+    the first to publish between columns) is run once more with
+    --replace-description, as those words tell the person whose earlier
+    description was never shared -- the round counted in `record_refused`,
+    never hidden. `chained` is the number of family tables the last
+    description publishes between columns (0 where it publishes none).
     """
+    import kpi_rules
+
+    with kpi_rules.own_data_folder():
+        return _walk_table(table, folder, n, seed, small_tables_refused)
+
+
+def _walk_table(table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool) -> "dict":
+    """`run_table`'s steps, in the data folder it names."""
     from synthtwin import validation
 
     folder.mkdir(parents=True, exist_ok=True)
@@ -3021,6 +3154,7 @@ def run_table(
     result: "dict" = {
         "table": table.name, "rows": n, "steps": {}, "misses": [], "analyst": [],
         "floor": small_tables_refused, "people": people_in(table, header, rows),
+        "record_refused": [], "chained": 0,
     }
     del header, rows
     steps = result["steps"]
@@ -3057,11 +3191,13 @@ def run_table(
     first = True
     while result["answer_rounds"] < ANSWER_ROUNDS_AT_MOST:
         document = json.loads(questions_path.read_text(encoding="utf-8"))
-        entries = _entries(document)
+        # The subject question among them (lane CHON's repair 2): the zoo's
+        # engine answers it in the round the product puts it.
+        entries = _entries(document, subject=True)
         new = [entry for entry in entries if _question_key(entry) not in put and not f"{entry.get('your_answer') or ''}"]
         if not first and not new:
             break
-        asked, general = answer_generally(table, document, old_ages)
+        asked, general = answer_generally(table, document, old_ages, subject=True)
         result["asked"] += [
             question for entry, question in zip(entries, asked) if _question_key(entry) not in put
         ]
@@ -3070,15 +3206,25 @@ def run_table(
         questions_path.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
         arguments = ["profile", f"{source}", "--replace", "--answers", f"{questions_path}"]
         code, error = _quietly(arguments, small_tables_refused)
-        steps["answers"] = {"exit": code, "error": error}
         result["answer_rounds"] += 1
         first = False
+        if code == 1 and _refused_by_the_record(error, stem):
+            # THE RECORD'S REFUSAL, MET AS ITS WORDS TELL THE PERSON (contract
+            # 4.6b.4; LANE CHON RULINGS 1 (2) option (a), 7 (1)(b)): the
+            # earlier description of this table, a hold's null, was never
+            # shared, so the round runs once more with --replace-description,
+            # counted here.
+            result["record_refused"] += [result["answer_rounds"]]
+            arguments = [*arguments, "--replace-description"]
+            code, error = _quietly(arguments, small_tables_refused)
+        steps["answers"] = {"exit": code, "error": error}
         if code != 0:
             if _floor_refused(arguments, small_tables_refused, code):
                 result["refused_by_floor"] = "answers"
             result["seconds"] = time.perf_counter() - started
             return result
         _keep_the_most(result["leaks"], leaked(table, source, None, profile_path, real_raw=real_raw))
+    result["chained"] = _families_published(profile_path)
 
     code, error = _quietly(["generate", f"{profile_path}", "--replace", "--seed", "0"], small_tables_refused)
     steps["generate"] = {"exit": code, "error": error}
@@ -3096,8 +3242,10 @@ def run_table(
     seen: "list[object]" = []
     measure = validation.measure
 
-    def keep(description: object, path: str, sheet: str = "") -> object:
-        outcome = measure(description, path, sheet)  # type: ignore[arg-type]
+    def keep(description: object, path: str, sheet: str = "", *document: object) -> object:
+        # The switched run hands a chained description's parsed document on
+        # (plan P4-D464), as `validation.measure` takes it.
+        outcome = measure(description, path, sheet, *document)  # type: ignore[arg-type]
         seen.extend([outcome])
         return outcome
 

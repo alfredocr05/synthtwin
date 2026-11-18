@@ -614,11 +614,18 @@ def test_a_person_column_in_two_layouts_publishes_a_census_its_twin_meets(
 def test_a_declared_identifier_beside_the_person_names_no_layout_three_people_wear(
     tmp_path: pathlib.Path,
 ) -> None:
-    """Item 3: `x` declared beside `patient`; three patients' plans are written `ZQ-#####`."""
+    """Item 3: `x` declared beside `patient`; three patients' plans are written `ZQ-#####`.
+
+    Since plan P4-D464 every shipped run is switched, and a switched run
+    counts people by the repeating key that names the person (lane GRa,
+    RULINGS 1 (1)): `patient`; `x`, declared too, stays an identifier and
+    held, a record of the person. The plans' layout is still named nowhere.
+    """
     table, _screen = _profiled(tmp_path, "plans", persons_counted.plan_rare_table(20000),
                                "--identifier", "patient", "--identifier", "x")
     described = _described(tmp_path, "plans")
-    assert described["settings"]["person_columns"] == ["patient", "x"]
+    assert described["settings"]["person_columns"] == ["patient"]
+    assert sorted(described["settings"]["forced_identifiers"]) == ["patient", "x"]
     block = _block(described, "x")
     assert "zq" not in json.dumps(block).casefold(), block
     summary = (tmp_path / "plans-profile.txt").read_text(encoding="utf-8")

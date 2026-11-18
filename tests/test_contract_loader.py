@@ -3615,7 +3615,10 @@ def battery() -> list[Mutation]:
         ),
         Mutation(
             "R18", "a description that carries how the columns move together",
-            edit_in("relationships", grain="one row per person"),
+            # `temporal`, one of the six reserved names that stay empty since
+            # the landing that ships stage 6 (plan P4-D464): `grain` and
+            # `statistical` are read by their own sections' rules there.
+            edit_in("relationships", temporal="one row per person"),
             names="update synthtwin",
         ),
         # -- how the table's file is written (plan P4-D86) -------------

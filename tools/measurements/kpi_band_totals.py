@@ -94,7 +94,9 @@ to 2; lane BT's verify's sparse table at table draw 3 at seeds 0 and 3
 zoo's 25 exports at 20,000 rows (table seed 0) at seeds 0 and 1, unless
 `--no-zoo`. One process of a few hundred megabytes, about an hour with the
 zoo. The 200,000-row leg is a separate run under the heavy-slot guard
-(`--rows 200000 --seeds 0,1,2,3,4 --draws 7 --no-zoo`, one table draw).
+(`--rows 200000 --seeds 0,1,2,3,4 --draws 7,11 --no-zoo`, both table draws
+since lane BT3b, plan P4-D467: draw 11 at seed 0 is where the `change`
+column's distance grows with L0, which the leg of draw 7 alone never ran).
 """
 
 import dataclasses
@@ -405,10 +407,8 @@ def _described(folder: pathlib.Path, name: str, path: pathlib.Path) -> _Describe
     chained = chain.describe(table, document, settings, chain.ChainSwitch(name, TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     if chained.statistical is None:
         return _Described(path, table, document, None, None, plain, workbook)
-    written = dict(document)
-    relationships = dict(written["relationships"])  # type: ignore[call-overload]
-    relationships["statistical"] = chained.statistical
-    written["relationships"] = relationships
+    # Every writer of a switched description goes through `chain.with_rules` (LANE RO RULINGS 2 (4), plan P4-D464).
+    written = chain.with_rules(document, chained)
     on = folder / f"{name}-switched.json"
     on.write_text(canonical.serialize(written), encoding="utf-8", newline="\n")
     try:

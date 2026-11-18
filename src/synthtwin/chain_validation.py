@@ -1,10 +1,10 @@
 """Validator V12 for the chain's families, layer L1 (validation method V12; lane CHv, plan P4-D430).
 
-NOT IN FORCE. Invariant S12 stands until the landing that ships stage 6
-whole: `synthtwin validate` never turns this on. It runs only where a
-caller hands `cli.main` the chain's switch, which reaches
-`validation.measure` as the description's parsed document; every other
-run, report and exit code is what it was.
+IN FORCE SINCE PLAN P4-D464 (lane CHON): `synthtwin validate` reads every
+description through `contract.load_profile_document` and runs these lines
+wherever it carries a chain (validation method V12 as amended
+2026-11-09); a description carrying none is measured, reported and
+exited exactly as before.
 
 WHAT IT CHECKS (V12.2), against the PUBLISHED choices and none of its
 own (V12.1): each eligible column of the measured file is cut at its
@@ -761,6 +761,11 @@ def lines_of(
     statistical = _get(_get(document, "relationships"), "statistical")
     if not isinstance(statistical, dict):
         return None
+    # THE PATIENT LAYER (V12.7; lane GRb, plan P4-D465): where `grain`
+    # stands, `statistical` is the patient chain, counted in patients, and
+    # the file is read in patients and in rows by the patient lines.
+    if isinstance(_get(_get(document, "relationships"), "grain"), dict):
+        return patient_lines(document, table, redescribed, settings, declared_codes, declared_measured, declared_commas, stored_as)
     floor = _whole(_get(_get(document, "settings"), "small_cell_floor"))
     published_blocks: "dict[str, dict[str, object]]" = {}
     columns_written = _get(document, "columns")
@@ -1111,3 +1116,634 @@ def with_lines(outcome: validation.Outcome, lines: validation.ChainLines) -> val
         not_checkable=census.not_checkable + lines.not_checkable,
     )
     return dataclasses.replace(outcome, census=counted, chain=lines)
+
+
+# -- THE PATIENT LAYER'S LINES (V12.7; lane GRb, plan P4-D465) ---------------------
+
+R_NAME = "(rows per patient)"
+PATIENT_GATE = (
+    "not judged: the file's own counts of this object hold a count of 1 to f - 1, "
+    "so describing this file on its own would not publish it"
+)
+CENSUS_DIFFERS = "not judged: the file's census of rows per patient differs from the published one"
+
+
+def _patient_codes(
+    table: reading.Table,
+    place: int,
+    block: "dict[str, object]",
+    entry: "dict[str, object]",
+    settings: taxonomy.Settings,
+    declared: "dict[str, bool]",
+    stored_as: str,
+    holding_nothing: int,
+) -> "tuple[list[int], chain_rules.Ladder] | None":
+    """Each file row's `L0` band of one column at its published ladder (0-based; -1 outside every band), and the ladder."""
+    found = _published_scale(entry, block)
+    if found is None:
+        return None
+    scale, _start = found
+    read = chain.read_column(table, place, block, settings, declared, stored_as, holding_nothing)
+    if read is None:
+        return None
+    to_l0 = _l0_of_start(scale, read.start)
+    return [to_l0[read.codes[row]] for row in range(table.n_rows)], scale
+
+
+def patients_first_rows(
+    table: reading.Table,
+    redescribed: "dict[str, object]",
+    person: str,
+    positions: "list[object] | None" = None,
+) -> "list[int] | None":
+    """Each patient's first position in a file, in the order the patients first stand (batch 4u's merge of lane GRb).
+
+    The patients are read as `patient_lines` reads them: the tabled rows
+    (every row but the file's own records holding nothing, ``redescribed``
+    being the file's own description) that share one value of the person
+    column, a cell of nothing but spaces and tabs naming no patient. None
+    where the file holds no column of that name. ``positions`` is each
+    row's reading of the published position column (`position_readings`),
+    None where none stands: each patient's rows are then put in its order,
+    ties and absent readings by row order, as the producer put them
+    (`patient_layer`'s position column), and the first of them is the
+    patient's row (batch 4u's outside review, item 3: read on the stored
+    first row, a table whose visits stand newest first missed its own
+    patient-fixed counts). The validator checks the blocks the loader
+    reads counted in patients (`contract.patient_counted`) on these rows.
+    A function of the four; raises nothing.
+    """
+    place_of = {table.column_names[at]: at for at in range(len(table.column_names))}
+    if person not in place_of:
+        return None
+    mask, _count = _tabled_rows(table, chain_rules.records_holding_nothing(redescribed))
+    keys = reading.column_values(table, place_of[person])
+    rows_of: "dict[str, list[int]]" = {}
+    order: "list[str]" = []
+    for row in range(table.n_rows):
+        if not mask[row] or _holds_nothing(keys[row]):
+            continue
+        if keys[row] not in rows_of:
+            rows_of[keys[row]] = []
+            order += [keys[row]]
+        rows_of[keys[row]] += [row]
+    if positions is not None:
+        _in_position_order(rows_of, order, positions)
+    return [rows_of[key][0] for key in order]
+
+
+def _exact_readings(
+    table: reading.Table,
+    place: int,
+    block: "dict[str, object]",
+    settings: taxonomy.Settings,
+    declared: "dict[str, bool]",
+    stored_as: str,
+) -> "list[object]":
+    """Each row's exact reading of one column, as V12.7 reads it (`patient_rules.reading_of`); None where its cell holds none."""
+    from synthtwin import patient_rules
+
+    values = reading.column_values(table, place)
+    meaning = chain.reading_of(block, values, settings, declared, stored_as)
+    role = f"{_get(block, 'role')}"
+    out: "list[object]" = []
+    for text in values:
+        kind, value = meaning[text] if text in meaning else ("missing", None)
+        out += [patient_rules.reading_of(role, value, block) if kind == "value" else None]
+    return out
+
+
+def position_readings(
+    document: "dict[str, object]",
+    table: reading.Table,
+    redescribed: "dict[str, object]",
+    settings: taxonomy.Settings,
+    declared_codes: "list[str]",
+    declared_measured: "list[str]",
+    declared_commas: "list[str]",
+    stored_as: "tuple[str, ...]",
+) -> "list[object] | None":
+    """Each row's reading of the published position column (`grain.position`), as the producer read it; None where none stands.
+
+    The producer put each patient's rows in the order of the position
+    column's own readings, read before the description held that column
+    (`patient_layer`: the first dealt date column keeps its place where its
+    own description in rows is later held, as Safe Harbor dates are held
+    by default). So the column is read with its published block where that
+    block reads a value of the file, as `patient_lines` reads it, and else
+    with the file's own description of it (``redescribed``, V2.1), which
+    reads the file's cells as `synthtwin profile` does (batch 4u's outside
+    review, item 3). None where `grain` names no position, or the file or
+    the description holds no column of that name. Nothing read here
+    reaches a report: only which row stands first. A function of its
+    arguments; raises nothing for a description the loader accepted.
+    """
+    position = _get(_get(_get(document, "relationships"), "grain"), "position")
+    if not isinstance(position, str):
+        return None
+    place_of = {table.column_names[at]: at for at in range(len(table.column_names))}
+    if position not in place_of:
+        return None
+    place = place_of[position]
+    declared = {"code": position in declared_codes, "measurement": position in declared_measured, "decimal_comma": position in declared_commas}
+    storage = stored_as[place] if place < len(stored_as) else ""
+    readings: "list[object] | None" = None
+    for source in (document, redescribed):
+        written = _get(source, "columns")
+        for one in written if isinstance(written, list) else []:
+            if not isinstance(one, dict) or f"{one['name']}" != position:
+                continue
+            read = _exact_readings(table, place, one, settings, declared, storage)
+            if any(stamp is not None for stamp in read):
+                return read
+            readings = read if readings is None else readings
+    return readings
+
+
+def _in_position_order(rows_of: "dict[str, list[int]]", order: "list[str]", stamps: "list[object]") -> None:
+    """Each patient's rows put in its readings' order, in place: ties and absent readings by row order (V12.7)."""
+    for key in order:
+        present = sorted((stamp, row) for row in rows_of[key] for stamp in (stamps[row],) if stamp is not None)
+        rows_of[key] = [row for _stamp, row in present] + [row for row in rows_of[key] if stamps[row] is None]
+
+
+def patient_lines(
+    document: "dict[str, object]",
+    table: reading.Table,
+    redescribed: "dict[str, object]",
+    settings: taxonomy.Settings,
+    declared_codes: "list[str]",
+    declared_measured: "list[str]",
+    declared_commas: "list[str]",
+    stored_as: "tuple[str, ...]",
+) -> "validation.ChainLines | None":
+    """V12.7's lines of a file against a description whose `grain` stands: verdicts alone, no measured number.
+
+    The file's patients are read by the published person column (its
+    tabled rows sharing one value), their positions by the published
+    position column (each patient's rows by its reading, ties and absent
+    readings by row order), every column at its published ladder. THE
+    CENSUS LINE IS JUDGED FIRST, AND ALWAYS. Every other line is judged
+    where the census and the `L0` totals it reads hold, and, V12.3's gate
+    as built here, where the file's own counts of the object hold no
+    count of 1 to `f - 1` (patients for a family of the patient chain,
+    rows for a row family, patients for a trend cell); otherwise its
+    fixed words stand. The validator draws nothing, chooses nothing and
+    never reads the key. Raises nothing for a description the loader
+    accepted.
+    """
+    from synthtwin import patient_rules
+
+    relationships = _get(document, "relationships")
+    grain = _get(relationships, "grain")
+    statistical = _get(relationships, "statistical")
+    if not isinstance(grain, dict) or not isinstance(statistical, dict):
+        return None
+    floor = _whole(_get(_get(document, "settings"), "small_cell_floor"))
+    blocks: "dict[str, dict[str, object]]" = {}
+    written = _get(document, "columns")
+    for block in written if isinstance(written, list) else []:
+        if isinstance(block, dict):
+            blocks[f"{block['name']}"] = block
+    place_of = {table.column_names[at]: at for at in range(len(table.column_names))}
+    person = f"{_get(grain, 'person')}"
+    if person not in place_of:
+        return None
+    file_nothing = chain_rules.records_holding_nothing(redescribed)
+    mask, _count = _tabled_rows(table, file_nothing)
+    keys = reading.column_values(table, place_of[person])
+    rows_of: "dict[str, list[int]]" = {}
+    order: "list[str]" = []
+    for row in range(table.n_rows):
+        if not mask[row] or _holds_nothing(keys[row]):
+            continue
+        if keys[row] not in rows_of:
+            rows_of[keys[row]] = []
+            order += [keys[row]]
+        rows_of[keys[row]] += [row]
+
+    def declared_of(name: str) -> "dict[str, bool]":
+        return {"code": name in declared_codes, "measurement": name in declared_measured, "decimal_comma": name in declared_commas}
+
+    def exact_readings(name: str) -> "list[object]":
+        return _exact_readings(
+            table, place_of[name], blocks[name], settings, declared_of(name), stored_as[place_of[name]] if place_of[name] < len(stored_as) else ""
+        )
+
+    position = _get(grain, "position")
+    if isinstance(position, str) and position in place_of and position in blocks:
+        _in_position_order(rows_of, order, exact_readings(position))
+    r_of = {key: len(rows_of[key]) for key in order}
+    # -- the census line, judged first and always --
+    census = _get(grain, "census")
+    lo = _whole(_get(census, "lo"))
+    bands_written = _get(census, "bands")
+    published_bands = [_whole(_get(entry, "patients")) for entry in bands_written] if isinstance(bands_written, list) else []
+    top = _get(census, "top")
+    counted = [0 for _band in published_bands]
+    top_patients = 0
+    top_rows = 0
+    for key in order:
+        rho = r_of[key]
+        if rho >= lo:
+            top_patients += 1
+            top_rows += rho
+        elif 1 <= rho <= len(counted):
+            counted[rho - 1] += 1
+    census_held = counted == published_bands and top_patients == _whole(_get(top, "patients")) and top_rows == _whole(_get(top, "rows"))
+    totals: "list[validation.ChainTotal]" = [
+        validation.ChainTotal(R_NAME, validation.HELD if census_held else validation.MISSED, tuple(published_bands) + (_whole(_get(top, "patients")),))
+    ]
+    # -- each patient-chain column's band, a patient each --
+    ladder = statistical["ladder"] if isinstance(statistical["ladder"], list) else []
+    entries = {f"{entry['column']}": entry for entry in ladder if isinstance(entry, dict)}
+    scales: "dict[str, chain_rules.Ladder]" = {}
+    band_of_patient: "dict[str, list[int]]" = {}
+    derived = {f"{entry['name']}": entry for entry in grain["derived"] if isinstance(entry, dict)} if isinstance(_get(grain, "derived"), list) else {}
+    row_ladder = {f"{entry['column']}": entry for entry in grain["ladder"] if isinstance(entry, dict)} if isinstance(_get(grain, "ladder"), list) else {}
+    row_codes: "dict[str, list[int]]" = {}
+    row_scales: "dict[str, chain_rules.Ladder]" = {}
+
+    def row_read(name: str) -> bool:
+        if name in row_codes:
+            return True
+        if name not in place_of or name not in blocks or name not in row_ladder:
+            return False
+        found = _patient_codes(table, place_of[name], blocks[name], row_ladder[name], settings, declared_of(name),
+                               stored_as[place_of[name]] if place_of[name] < len(stored_as) else "", file_nothing)
+        if found is None:
+            return False
+        row_codes[name], row_scales[name] = found
+        return True
+
+    for name in entries:
+        entry = entries[name]
+        if name == R_NAME:
+            names = [band[0][0] if isinstance(band, list) and band and isinstance(band[0], list) else "" for band in entry["l0"]]
+            codes = []
+            for key in order:
+                rho = r_of[key]
+                label = f"{rho}" if rho < lo else ""
+                code = len(names) - 1
+                for place in range(len(names)):
+                    if names[place] == label:
+                        code = place
+                codes += [code]
+            band_of_patient[name] = codes
+            scales[name] = chain_rules.Ladder(name, tuple((one,) for one in names), (tuple(range(len(names))),) * 3, (len(names),) * 3, tuple(_whole(one) for one in entry["totals"]), tuple(True for _one in names))
+            continue
+        if name in derived:
+            spec = derived[name]
+            source = f"{spec['source']}"
+            if source not in place_of or source not in blocks:
+                continue
+            kind = f"{spec['kind']}"
+            codes = []
+            if kind == "own_mean":
+                values = exact_readings(source)
+                edges = list(spec["edges"]) if isinstance(spec["edges"], list) else []
+                for key in order:
+                    codes += [patient_rules.own_mean_band([values[row] for row in rows_of[key]], edges)]
+            else:
+                if not row_read(source):
+                    continue
+                level = _LEVEL_OF[f"{spec['level']}"] if f"{spec['level']}" in _LEVEL_OF else 0
+                values = exact_readings(source)
+                for key in order:
+                    dated = [row for row in rows_of[key] if values[row] is not None]
+                    if not dated:
+                        codes += [-1]
+                        continue
+                    first = sorted((values[row], row) for row in dated)[0][1]
+                    l0 = row_codes[source][first]
+                    codes += [row_scales[source].maps[level][l0] if l0 >= 0 else -1]
+            band_of_patient[name] = codes
+            found_scale = _derived_scale(entry)
+            if found_scale is not None:
+                scales[name] = found_scale
+            continue
+        if name not in place_of or name not in blocks:
+            continue
+        found = _patient_codes(table, place_of[name], blocks[name], entry, settings, declared_of(name),
+                               stored_as[place_of[name]] if place_of[name] < len(stored_as) else "", file_nothing)
+        if found is None:
+            continue
+        codes_rows, scale = found
+        scales[name] = scale
+        band_of_patient[name] = [codes_rows[rows_of[key][0]] for key in order]
+    held_totals: "set[str]" = set()
+    for name in entries:
+        entry = entries[name]
+        if name == R_NAME:
+            if census_held:
+                held_totals |= {name}
+            continue
+        published = tuple(_whole(one) for one in entry["totals"])
+        if name not in band_of_patient or name not in scales:
+            totals += [validation.ChainTotal(name, "", published, NO_SUCH_COLUMN)]
+            continue
+        counts = [0 for _one in published]
+        inside = True
+        for code in band_of_patient[name]:
+            if 0 <= code < len(counts):
+                counts[code] += 1
+            else:
+                inside = False
+        verdict = validation.HELD if inside and tuple(counts) == published else validation.MISSED
+        if verdict == validation.HELD:
+            held_totals |= {name}
+        totals += [validation.ChainTotal(name, verdict, published)]
+
+    def cell_of(parents: "list[tuple[str, int]]", patient: int) -> int:
+        cell = 0
+        for name, level in parents:
+            maps = scales[name].maps[level]
+            code = band_of_patient[name][patient]
+            if code < 0:
+                return -1
+            cell = cell * scales[name].counts[level] + maps[code]
+        return cell
+
+    lines: "list[validation.ChainFamily]" = []
+    not_judged = 0
+    chain_written = statistical["chain"] if isinstance(statistical["chain"], list) else []
+    for at, written_family in enumerate(chain_written):
+        family = _published_family(written_family)
+        sizes = chain_rules.radices(family, scales) if all(name in scales for name, _level in chain_rules.members(family)) else [1]
+        width = len(family.table) // sizes[0] if sizes[0] else 0
+        rows_written = tuple(tuple(family.table[row * sizes[0]:(row + 1) * sizes[0]]) for row in range(width))
+        names = [name for name, _level in chain_rules.members(family)]
+        if any(name not in scales or name not in band_of_patient for name in names):
+            lines += [validation.ChainFamily(at, family.child, family.level, family.parents, rows_written, "", A_MEMBER_NOT_CHECKABLE)]
+            continue
+        # The gate reads the L0 totals of the file's own columns and of `r`,
+        # NEVER a derived column's: its patient totals are what its own line
+        # judges, so a family holding it reads MISSED there, not "not judged"
+        # (V12.7; repair 1 of lane GRb, the first skeptic's item 2).
+        if not census_held or any(name not in held_totals for name in names if name not in derived):
+            lines += [validation.ChainFamily(at, family.child, family.level, family.parents, rows_written, validation.WITHHELD, CENSUS_DIFFERS if not census_held else NOT_JUDGED)]
+            not_judged += 1
+            continue
+        measured = [0 for _cell in family.table]
+        for patient_at in range(len(order)):
+            cell = cell_of(list(family.parents), patient_at)
+            child_band = band_of_patient[family.child][patient_at]
+            if cell < 0 or child_band < 0:
+                continue
+            measured[cell * sizes[0] + scales[family.child].maps[family.level][child_band]] += 1
+        if any(0 < one < floor for one in measured):
+            lines += [validation.ChainFamily(at, family.child, family.level, family.parents, rows_written, validation.WITHHELD, PATIENT_GATE)]
+            continue
+        verdict = validation.HELD if tuple(measured) == family.table else validation.MISSED
+        lines += [validation.ChainFamily(at, family.child, family.level, family.parents, rows_written, verdict)]
+    # -- the row families, counted in rows --
+    rows_written_grain = grain["rows"] if isinstance(_get(grain, "rows"), list) else []
+    for at, written_family in enumerate(rows_written_grain):
+        child = f"{written_family['child']}"
+        level = _LEVEL_OF[f"{written_family['level']}"] if f"{written_family['level']}" in _LEVEL_OF else 0
+        parents = [(f"{one['column']}", _LEVEL_OF[f"{one['level']}"] if f"{one['level']}" in _LEVEL_OF else 0) for one in written_family["parents"]]
+        table_written = tuple(tuple(_whole(cell) for cell in line) for line in written_family["table"])
+        index = len(chain_written) + at
+        if not row_read(child) or any(name not in scales or name not in band_of_patient for name, _level in parents):
+            lines += [validation.ChainFamily(index, child, level, tuple(parents), table_written, "", A_MEMBER_NOT_CHECKABLE)]
+            continue
+        # THE CHILD'S OWN `L0` TOTALS, counted in rows over the tabled rows, hold
+        # before its family is judged, as V12.7's dated line of 2026-11-10 says of
+        # every non-derived member (repair 2 of lane GRb, Codex's item 7: the build
+        # read the parents' alone, so a reading moved to another `L0` band inside
+        # its family's band left the family HELD).
+        published_child = row_ladder[child]["totals"] if isinstance(_get(row_ladder[child], "totals"), list) else []
+        counted_child = [0 for _band in published_child]
+        child_inside = True
+        for key in order:
+            for row in rows_of[key]:
+                code = row_codes[child][row]
+                if 0 <= code < len(counted_child):
+                    counted_child[code] += 1
+                else:
+                    child_inside = False
+        child_held = child_inside and counted_child == [_whole(one) for one in published_child]
+        if not census_held or not child_held or any(name not in held_totals for name, _level in parents if name not in derived):
+            lines += [validation.ChainFamily(index, child, level, tuple(parents), table_written, validation.WITHHELD, CENSUS_DIFFERS if not census_held else NOT_JUDGED)]
+            not_judged += 1
+            continue
+        child_scale = row_scales[child]
+        bands = child_scale.counts[level]
+        measured_rows = [[0 for _band in range(bands)] for _line in table_written]
+        for patient_at, key in enumerate(order):
+            cell = cell_of(parents, patient_at)
+            if cell < 0 or cell >= len(measured_rows):
+                continue
+            for row in rows_of[key]:
+                code = row_codes[child][row]
+                if code >= 0:
+                    measured_rows[cell][child_scale.maps[level][code]] += 1
+        if any(0 < one < floor for line in measured_rows for one in line):
+            lines += [validation.ChainFamily(index, child, level, tuple(parents), table_written, validation.WITHHELD, PATIENT_GATE)]
+            continue
+        verdict = validation.HELD if tuple(tuple(line) for line in measured_rows) == table_written else validation.MISSED
+        lines += [validation.ChainFamily(index, child, level, tuple(parents), table_written, verdict)]
+    # -- each published Q_P, the position lists and the patient-fixed row censuses --
+    extra: "list[validation.PatientLine]" = []
+    grids = {f"{entry['column']}": entry for entry in grain["grid"] if isinstance(entry, dict)} if isinstance(_get(grain, "grid"), list) else {}
+    trend = grain["trend"] if isinstance(_get(grain, "trend"), list) else []
+    for cell_written in trend:
+        column = f"{cell_written['column']}"
+        labels = [f"{label}" for label in cell_written["cell"]]
+        subject = f"{column} in the cell"
+        for label in labels:
+            subject = subject + f" {label}"
+        if not census_held:
+            extra += [validation.PatientLine("trend", subject, validation.WITHHELD, CENSUS_DIFFERS)]
+            continue
+        if column not in grids or column not in place_of or column not in blocks:
+            extra += [validation.PatientLine("trend", subject, "", NO_SUCH_COLUMN)]
+            continue
+        grid = grids[column]
+        top_code = _whole_text(f"{grid['K']}")
+        want: "dict[str, str]" = {}
+        for label in labels:
+            name_part, value_part = _label_parts(label)
+            want[name_part] = value_part
+        held_levels: "dict[str, int]" = {}
+        for written_family in chain_written:
+            family = _published_family(written_family)
+            members = dict(family.parents)
+            members[family.child] = family.level
+            if all(name in members for name in want):
+                held_levels = members
+                break
+        values = exact_readings(column)
+        total = 0
+        members_count = 0
+        rho = _whole_text(want[R_NAME]) if R_NAME in want else 0
+        for patient_at, key in enumerate(order):
+            if r_of[key] != rho:
+                continue
+            same = True
+            for name in want:
+                label = want[name]
+                if name == R_NAME:
+                    continue
+                if name not in band_of_patient or name not in scales:
+                    same = False
+                    break
+                code = band_of_patient[name][patient_at]
+                level = held_levels[name] if name in held_levels else 0
+                if code < 0 or f"{scales[name].maps[level][code]}" != label:
+                    same = False
+            if not same:
+                continue
+            members_count += 1
+            for j, row in enumerate(rows_of[key]):
+                code = patient_rules.grid_code_of(grid["u"], grid["L"], top_code, values[row])
+                total += code * (2 * (j + 1) - rho - 1)
+        if 0 < members_count < floor:
+            extra += [validation.PatientLine("trend", subject, validation.WITHHELD, PATIENT_GATE)]
+            continue
+        q = _whole(cell_written["q"])
+        window_high = 2 * q + 1 if rho % 2 == 0 else 2 * q
+        extra += [validation.PatientLine("trend", subject, validation.HELD if 2 * q <= total <= window_high else validation.MISSED)]
+    positions = grain["positions"] if isinstance(_get(grain, "positions"), list) else []
+    for entry in positions:
+        column = f"{entry['column']}"
+        listed = entry["values"] if isinstance(entry["values"], list) else []
+        if not any(value is not None for value in listed):
+            continue
+        if column not in place_of:
+            extra += [validation.PatientLine("positions", column, "", NO_SUCH_COLUMN)]
+            continue
+        # THE CELLS AS THE DESCRIPTION READ THEM (repair 2 of lane GRb, Codex's
+        # item 6): the list was read through the marks its block keeps (the age
+        # top-code and its pool, the year cut, dates in disguise held), so the
+        # file's cells are read through them too; a column carrying none is
+        # read as written.
+        cells = chain.described_cells(
+            table, place_of[column], blocks[column] if column in blocks else {}, settings, declared_of(column),
+            stored_as[place_of[column]] if place_of[column] < len(stored_as) else "",
+        )
+        list_held = True
+        for j, value in enumerate(listed):
+            if value is None:
+                continue
+            seen: "dict[str, int]" = {}
+            for key in order:
+                if j < len(rows_of[key]):
+                    text = cells[rows_of[key][j]]
+                    seen[text] = seen[text] + 1 if text in seen else 1
+            most = 0
+            for text in seen:
+                most = max(most, seen[text])
+            modal = sorted(text for text in seen if seen[text] == most)
+            if modal != [f"{value}"]:
+                list_held = False
+        extra += [validation.PatientLine("positions", column, validation.HELD if list_held else validation.MISSED)]
+    fixed_rows = grain["fixed_rows"] if isinstance(_get(grain, "fixed_rows"), list) else []
+    for entry in fixed_rows:
+        column = f"{entry['column']}"
+        if not census_held or column not in band_of_patient or column not in scales:
+            extra += [validation.PatientLine("fixed rows", column, validation.WITHHELD, CENSUS_DIFFERS if not census_held else NO_SUCH_COLUMN)]
+            continue
+        level = _LEVEL_OF[f"{entry['level']}"] if f"{entry['level']}" in _LEVEL_OF else 0
+        published_rows = [_whole(one) for one in entry["rows"]]
+        summed = [0 for _one in published_rows]
+        for patient_at, key in enumerate(order):
+            code = band_of_patient[column][patient_at]
+            if code >= 0 and scales[column].maps[level][code] < len(summed):
+                summed[scales[column].maps[level][code]] += r_of[key]
+        extra += [validation.PatientLine("fixed rows", column, validation.HELD if summed == published_rows else validation.MISSED)]
+    # -- V12.11: THE COUNTING PROCESS (contract 4.6c.14; lane GRb2-b, plan P4-D491 part b) --
+    intervals = _get(grain, "intervals")
+    if isinstance(intervals, list) and intervals and isinstance(intervals[0], dict):
+        from synthtwin import patient_intervals
+
+        start_name = f"{intervals[0]['start']}"
+        stop_name = f"{intervals[0]['stop']}"
+        if start_name in place_of and stop_name in place_of and start_name in blocks and stop_name in blocks:
+            texts: "dict[str, list[str]]" = {}
+            for key in ("switches", "end_events"):
+                entries_of = grain[key] if isinstance(_get(grain, key), list) else []
+                for entry in entries_of:
+                    if isinstance(entry, dict) and f"{entry['column']}" in place_of:
+                        texts[f"{entry['column']}"] = reading.column_values(table, place_of[f"{entry['column']}"])
+            hazard_bands: "dict[str, list[int]]" = {}
+            hazard_columns = _get(_get(grain, "hazard"), "columns")
+            for entry in hazard_columns if isinstance(hazard_columns, list) else []:
+                name = f"{entry['column']}" if isinstance(entry, dict) else ""
+                if name in band_of_patient and name in scales and f"{entry['level']}" in _LEVEL_OF:
+                    level = _LEVEL_OF[f"{entry['level']}"]
+                    hazard_bands[name] = [scales[name].maps[level][code] if code >= 0 else -1 for code in band_of_patient[name]]
+            for kind, subject, verdict, reason in patient_intervals.lines(
+                grain, [rows_of[key] for key in order], exact_readings(start_name), exact_readings(stop_name), texts, hazard_bands, floor,
+            ):
+                extra += [validation.PatientLine(kind, subject, verdict, reason)]
+        else:
+            extra += [validation.PatientLine("intervals", f"{start_name} to {stop_name}", "", NO_SUCH_COLUMN)]
+    counted_lines: "dict[str, int]" = {validation.HELD: 0, validation.MISSED: 0, validation.WITHHELD: 0, "": 0}
+    for total_line in totals:
+        counted_lines[total_line.verdict] += 1
+    for line in lines:
+        counted_lines[line.verdict] += 1
+    for one in extra:
+        counted_lines[one.verdict] += 1
+    return validation.ChainLines(
+        (),
+        tuple(totals),
+        tuple(lines),
+        (),
+        counted_lines[validation.HELD],
+        counted_lines[validation.MISSED],
+        counted_lines[validation.WITHHELD],
+        counted_lines[""],
+        not_judged,
+        (),
+        tuple(extra),
+    )
+
+
+def _derived_scale(entry: "dict[str, object]") -> "chain_rules.Ladder | None":
+    """A derived column's published ladder: one band an `L0` band, its coarser levels as published."""
+    l0 = entry["l0"] if "l0" in entry else None
+    totals = entry["totals"] if "totals" in entry else None
+    if not isinstance(l0, list) or not isinstance(totals, list):
+        return None
+    count = len(l0)
+    second = _published_level(entry["l1"] if "l1" in entry else None, count)
+    third = _published_level(entry["l2"] if "l2" in entry else None, count)
+    if second is None or third is None:
+        return None
+    return chain_rules.Ladder(
+        f"{entry['column']}",
+        tuple((f"band {at}",) for at in range(count)),
+        (tuple(range(count)), second, third),
+        (count, max(second) + 1 if second else 1, max(third) + 1 if third else 1),
+        tuple(_whole(one) for one in totals),
+        tuple(True for _one in range(count)),
+    )
+
+
+_LEVEL_OF = {"L0": 0, "L1": 1, "L2": 2}
+
+
+def _label_parts(label: str) -> "tuple[str, str]":
+    """A trend cell's label `name=value` as its two parts (the last `=` divides them)."""
+    if not isinstance(label, str):
+        raise TypeError("a label is text")
+    at = len(label) - 1
+    while at >= 0 and label[at] != "=":
+        at -= 1
+    if at < 0:
+        return label, ""
+    return label[:at], label[at + 1:]
+
+
+def _whole_text(text: str) -> int:
+    """A text of digits read as a whole number, else 0."""
+    if not isinstance(text, str) or not text:
+        return 0
+    value = 0
+    for character in text:
+        if character < "0" or character > "9":
+            return 0
+        value = value * 10 + (ord(character) - ord("0"))
+    return value

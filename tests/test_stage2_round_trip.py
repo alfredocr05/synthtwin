@@ -221,7 +221,12 @@ def _round_trip(
     copied.write_bytes(twin.read_bytes())
     redescribed = ["profile", str(copied), "--out-dir", str(again), "--replace"]
     if by_command:
-        assert _exit_of(redescribed + list(flags)) == 0
+        # The twin may hold the table's own rows in another order, which
+        # this computer's record knows as the same table under another name
+        # and refuses (contract 4.6b.4; plan P4-D464): it is described as
+        # on another computer.
+        with fixtures.another_installation(folder / "elsewhere"):
+            assert _exit_of(redescribed + list(flags)) == 0
     else:
         describe_with_the_producer(
             copied, again / "twin-profile.json", flags

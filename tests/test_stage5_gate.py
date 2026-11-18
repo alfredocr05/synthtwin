@@ -1521,7 +1521,8 @@ _USAGE_311 = (
     "                 [--twelve-hour COLUMN] [--date-count COLUMN SYSTEM]\n"
     "                 [--metadata-rows N] [--delimiter CHARACTER] [--answers FILE]\n"
     "                 [--keep-value VALUE] [--missing-value VALUE] [--day-first]\n"
-    "                 [--sheet NAME] [--first-row {auto,names,data}]\n"
+    "                 [--sheet NAME] [--first-row {auto,names,data}] [--name NAME]\n"
+    "                 [--replace-description] [--new-key] [--private-folder FOLDER]\n"
     "                 [{profile,generate,validate,doctor}] [path]\n"
 )
 
@@ -2092,12 +2093,28 @@ def _rendered_questions(result: results.Result, kept: "dict[str, bytes]", table_
     answers: "dict[str, typing.Any]" = (
         json.loads(kept[results.FILE_QUESTIONS].decode("utf-8")) if results.FILE_QUESTIONS in kept else {}
     )
+    # THE CHAIN'S ONE ENTRY (plan P4-D464: every shipped run is switched),
+    # which the result's records do not hold: read from the file, as the
+    # answers the run acted on are.
+    between = answers.get(asking.BETWEEN_COLUMNS)
+    chained: "dict[str, typing.Any]" = {}
+    if isinstance(between, dict):
+        chained = {
+            "chain_pairs": between["pairs_carried_exactly"],
+            "chain_requests": (
+                tuple(tuple(pair) for pair in between["add"]),
+                tuple(tuple(pair) for pair in between["drop"]),
+            ),
+            "chain_subject": between.get(asking.ROWS_PER_PERSON),
+            "chain_said": asking.columns_said(answers),
+        }
     document = asking.questions_document_of(
         table_name,
         result.questions,
         about,
         answers.get(asking.ANSWERED_BEFORE),
         answers.get(asking.ANSWERED_BEFORE_COLUMNS),
+        **chained,
     )
     return canonical.serialize(document).encode("utf-8")
 
@@ -2165,8 +2182,25 @@ _TODAY_S_FILES = {
     # And again with its repair 2 (LANE EZ RULINGS 7, Codex's items 2 and 3):
     # that line says a column is named exactly and the numbers are not read
     # back, and nothing else in either file changed.
-    "held": "ad8a7d51a85709a7c1ccb5b6732239cc0737ac719ee8d198d4943b462ec4bed4",
-    "filequestion": "2c19c2e643b2be8f075f0229ee0c30c7587738c5137955b1c838c91a0dfaaa43",
+    # MOVED BY PLAN P4-D464 (the switch on: every `synthtwin profile` run is
+    # switched), ffd75d61... before: the file gains the chain's entry under
+    # `between_columns` -- its `add`, `drop` and carried pairs, each empty,
+    # its question, and the subject question with its three answers -- and
+    # nothing else; no word or number of the table is new to it.
+    # AT BATCH 4u'S MERGE OF LANE CHON (step 2) both moves stand together,
+    # measured on the merged tree beside both heads at 20,000 rows: each file
+    # is the line's (`ad8a7d51...` and `2c19c2e6...`) with plan P4-D464's
+    # `between_columns` entry (its pairs, its question and the subject
+    # question) and nothing else, and the lane's (`fcb919ce...` and
+    # `73f230cd...`) with lane EZ-a's `how_to_answer` and nothing else.
+    "held": "831ae85613512a22ad10b768dc9d334496a344a80801ab643922ca9697563b91",
+    # ...and the dates' file moved alike (f9a69d98... before): the chain's
+    # entry under `between_columns` with the subject question, nothing else.
+    # Both digests measured at 20,000 rows on lane CHON's head (2026-11-10),
+    # each file as the shipped run wrote it holding that entry; at 4,000
+    # rows each shape's file on the base and on the head differs in that
+    # entry alone.
+    "filequestion": "a0d379ab22942b55e70e207243278c27d15efcde5daec057ff13d883aedf3190",
 }
 
 

@@ -11048,7 +11048,7 @@ def _l0_least_move(
     _l0_values_kept(facts, walls, entries, held)
     _l0_heap_lost(facts, walls, entries, distinct, heaps)
     _l0_counted(facts, entries, distinct, _l0_heap_gaps(facts, heaps), floor)
-    _l0_mode_kept(facts, walls, entries, today)
+    _l0_mode_kept(facts, walls, entries, today, heaps)
     _l0_counts_met(column, walls, entries)
     by_place = [0 for _place in range(count)]
     added: "list[tuple[float, int]]" = []
@@ -12107,7 +12107,13 @@ def _l0_held_count(entries: _Entries) -> int:
     return found
 
 
-def _l0_mode_kept(facts: contract.NumericFacts, walls: "tuple[_Piece, ...]", entries: _Entries, today: _Entries) -> None:
+def _l0_mode_kept(
+    facts: contract.NumericFacts,
+    walls: "tuple[_Piece, ...]",
+    entries: _Entries,
+    today: _Entries,
+    heaps: "list[tuple[float, int, int]] | None" = None,
+) -> None:
     """Step 4 of `_l0_least_move`: the published mode at its published count, where today's twin held it so.
 
     Where today's twin's first stratum on the mode held exactly
@@ -12117,6 +12123,17 @@ def _l0_mode_kept(facts: contract.NumericFacts, walls: "tuple[_Piece, ...]", ent
     neighbour and then the other, each keeping one: the published pair
     is held as today's twin held it, and no piece's count moves. Nothing
     changes elsewhere. The entries are changed in place.
+
+    A PROVEN HEAP KEEPS ITS RANKS (lane BT3b, plan P4-D467; LANE BT3 OWED
+    ADDED (3)): a cell handed across the boundary between two values moves
+    that boundary by one rank, so the mode gives its neighbour no more cells
+    than leave every rank of the mode's own proven heap (``heaps``, step 1)
+    on the mode, the rest going to the other neighbour, and a neighbour gives
+    the mode none of the ranks its own proven heap holds. On an invented
+    count of 74 whole numbers at 20,000 rows step 1 put the mode `56` on its
+    heap's 402 ranks and this step handed 41 of them back to `55`; the heap
+    now stands whole, and the mode's count is met inside the room the heaps
+    leave (where none is left, the rest stays on the mode).
     """
     mode = facts.mode
     wanted = facts.mode_count
@@ -12156,11 +12173,18 @@ def _l0_mode_kept(facts: contract.NumericFacts, walls: "tuple[_Piece, ...]", ent
         sides = [sides[1], sides[0]]
     over = entries.sizes[own] - wanted
     if over > 0:
-        entries.sizes[sides[0]] = entries.sizes[sides[0]] + over
-        entries.sizes[own] = wanted
+        for side in sides:
+            given = min(over, _l0_mode_room(entries, own, side, heaps, True))
+            if given <= 0:
+                continue
+            entries.sizes[side] = entries.sizes[side] + given
+            entries.sizes[own] = entries.sizes[own] - given
+            over = over - given
+            if over <= 0:
+                return
         return
     for side in sides:
-        given = min(-over, entries.sizes[side] - 1)
+        given = min(-over, entries.sizes[side] - 1, _l0_mode_room(entries, own, side, heaps, False))
         if given <= 0:
             continue
         entries.sizes[side] = entries.sizes[side] - given
@@ -12168,6 +12192,48 @@ def _l0_mode_kept(facts: contract.NumericFacts, walls: "tuple[_Piece, ...]", ent
         over = over + given
         if over >= 0:
             return
+
+
+def _l0_mode_room(
+    entries: _Entries, own: int, side: int, heaps: "list[tuple[float, int, int]] | None", giving: bool
+) -> int:
+    """How many cells step 4 may move between the mode's entry ``own`` and its neighbour ``side`` and keep every proven heap whole.
+
+    ``giving``: the mode gives them (its heap bounds the room), else the
+    neighbour does (the neighbour's heap bounds it). A cell crossing the
+    boundary between the two values moves it by one rank. Unbounded (the
+    column's cells) where the value whose ranks shrink holds no proven
+    heap. A function of the entries now. Raises nothing.
+    """
+    total = 0
+    for size in entries.sizes:
+        total = total + max(size, 0)
+    if not heaps:
+        return total
+    shrinking = own if giving else side
+    value = entries.values[shrinking]
+    span = [heap for heap in heaps if heap[0] == value]
+    if not span:
+        return total
+    _value, first, last = span[0]
+    start = 0
+    held = 0
+    for at in range(len(entries.values)):
+        if entries.sizes[at] <= 0:
+            continue
+        if entries.values[at] < value:
+            start = start + entries.sizes[at]
+        elif entries.values[at] == value:
+            held = held + entries.sizes[at]
+    end = start + held - 1
+    # The shrinking value loses ranks on the side facing the other one.
+    if entries.values[side] < entries.values[own]:
+        facing_low = giving
+    else:
+        facing_low = not giving
+    if facing_low:
+        return max(first - start, 0)
+    return max(end - last, 0)
 
 
 def _l0_is_edge(walls: "tuple[_Piece, ...]", entries: _Entries, at: int) -> bool:
@@ -16430,6 +16496,18 @@ def _listed_census(
     the floored histogram -- and the count of different numbers it then
     misses is named.
 
+    0. LAYER L0'S CUT RANKS COME FIRST, on an eligible column (lane BT3b,
+       plan P4-D467; LANE CHON RULINGS 8 (1)): each band's published
+       total is a count of the real column's own cells (contract 4.6b.2),
+       so how many cells hold a listed value below each edge is its cut
+       rank, exactly (`_listed_l0_pins`), ranked above every fact here.
+       The listed census solved its counts without them, and on a chained
+       survey score of `-99` and 1 to 5 it wrote 3,649 cells in a band
+       published with 3,651, which `generate` refused (`cells_by_band`'s
+       internal check). G5.7a's (P6) lays such a column without its band
+       totals (rule B3) where a band holds cells and no listed value, or
+       fewer cells than its listed values, so the pins always stand.
+
     Guarantees: accepts the block and its facts, whose `few_values` is
     not empty; returns `n_numeric` cells, the listed spellings in
     ascending order of their numbers, and a deviation for each published
@@ -16454,6 +16532,11 @@ def _listed_census(
     high = [total for _each in range(count + 1)]
     high[0] = 0
     low[count] = total
+    # 0. LAYER L0'S CUT RANKS, before every other bound (`least` falls back
+    # to one cell a value below where they leave no room for two).
+    for place, at_least, at_most, _fact in _listed_l0_pins(facts, numbers, total):
+        low[place] = max(low[place], at_least)
+        high[place] = min(high[place], at_most)
     missed: "dict[str, bool]" = {}
     bounds = _census_bounds(low, high, fewest, most)
     if bounds is None:
@@ -16609,6 +16692,58 @@ def _listed_census(
             )
         ]
     return cells, notes
+
+
+def _listed_l0_pins(
+    facts: contract.NumericFacts, numbers: "list[float]", total: int
+) -> "list[tuple[int, int, int, str]]":
+    """Layer L0's cut ranks as pins of a listed census (G6.9 step 0; lane BT3b, plan P4-D467).
+
+    Each `(j, R, R, "band totals")`: the cells holding one of the `j`
+    listed values below an edge are that edge's cut rank `R` (G5.7a), a
+    count of the real column's own cells. Empty where the column carries
+    no cuts or its cuts lay another count of numbers. A function of the
+    two. Raises nothing. No I/O.
+    """
+    cut = facts.l0
+    if cut is None or cut.cells != total:
+        return []
+    ranks = _l0_ranks(cut)
+    pins: "list[tuple[int, int, int, str]]" = []
+    for place in range(len(cut.edges)):
+        below = 0
+        for number in numbers:
+            if number < cut.edges[place]:
+                below = below + 1
+        pins += [(below, ranks[place], ranks[place], "band totals")]
+    return pins
+
+
+def _listed_l0_room(facts: contract.NumericFacts, cut: "contract.L0Cuts") -> bool:
+    """G5.7a's (P6) on a listed column: each band holds a listed value where it holds cells, and room for each (lane BT3b).
+
+    A band's cells are written at the listed values inside it (`_listed_census`
+    step 0), each at least once: a band holding cells and no listed value,
+    or fewer cells than its listed values, cannot be met, and the column is
+    then made without its band totals (rule B3) rather than refused. True
+    where every band can be met, and on a column the listed census does
+    not write. A function of the two. Raises nothing. No I/O.
+    """
+    if not facts.few_values or facts.number_spellings:
+        return True
+    listed = [0 for _band in range(len(cut.counts))]
+    for text in facts.few_values:
+        read = parsing.parse_number(text)
+        number = read if read is not None else 0.0
+        band = 0
+        for edge in cut.edges:
+            if edge <= number:
+                band = band + 1
+        listed[band] = listed[band] + 1
+    for band in range(len(cut.counts)):
+        if cut.counts[band] < listed[band] or (cut.counts[band] > 0 and listed[band] == 0):
+            return False
+    return True
 
 
 def _moded_counts(
@@ -74569,8 +74704,8 @@ def _l0_columns(
 ) -> "dict[str, tuple[contract.L0Cuts | None, str]]":
     """Each eligible number column's cuts, or the precondition it fails (method G5.7a; plan P4-D429).
 
-    Read only where the description's chain is published (behind the
-    switch no shipped command sets): `relationships.ladder` names the
+    Read only where the description's chain is published (every shipped
+    load since plan P4-D464): `relationships.ladder` names the
     eligible columns and their `L0` bands. A `count` or `continuous`
     column takes its cuts here; every other role is laid out as before
     and named, where it is eligible, as made without L0.
@@ -74975,6 +75110,10 @@ def _l0_number_cuts(
             return None, "(P3): a band holds no value the column's written widths can write"
         if piece.figures >= 0 and _l0_count(facts, piece, piece.figures, None, None, 1) < 1:
             return None, "(P3): a band holds no value the column may write"
+    # (P6) ON A COLUMN WRITTEN AS ITS LISTED VALUES (G6.9; lane BT3b, plan
+    # P4-D467): each band's cells go to the listed values inside it.
+    if not _listed_l0_room(facts, cut):
+        return None, "(P6): a band holds cells and no listed value, or fewer cells than its listed values"
     return cut, ""
 
 
@@ -75811,6 +75950,68 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
         raise errors.ProfileError(_seed_out_of_range(0))
     if seed < 0 or seed > _WORD_CEILING:
         raise errors.ProfileError(_seed_out_of_range(seed))
+    # THE PATIENT LAYER (method G16.13 to G16.17; lane GRb, plan P4-D465),
+    # behind the chain's switch alone: a description whose `grain` stands is
+    # made by the patient walk. Its stream gives, in this order, the seeds
+    # of the row columns' run and of the patient table's run (each this
+    # function on a description of its own, `patient_walk.row_table` and
+    # `patient_walk.patient_table`), then the walk's own words: each row
+    # family's hidden sums, its patients' four words where its child has an
+    # own-mean parent, then each trend column's proposals (G16.17).
+    if profile.relationships.grain is not None:
+        from synthtwin import patient_walk
+
+        walking = numpy.random.default_rng(seed)
+        planned = patient_walk.draw_plan(profile)
+        seeds = [int(word) for word in walking.integers(0, _WORD_CEILING, size=2, dtype="uint64", endpoint=True)]
+        # The row columns' run is handed over in a box the walk empties of its
+        # columns once it has read them (G16.17's memory; lane GRb's repair 1):
+        # this frame keeps no reference of its own (a caller's argument stays
+        # on its stack until the call returns on Python 3.10).
+        rows_box = [generate_held(patient_walk.row_table(profile), seeds[0])]
+        patients_made = generate_held(patient_walk.patient_table(profile).profile, seeds[1])
+        row_sums: "list[chain_walk.Packed]" = []
+        patient_words: "list[chain_walk.Packed]" = []
+        for walk_at in range(len(planned.families)):
+            sums = chain_walk.packed(planned.rows, chain_walk.SUM_WIDTH)
+            for start in range(0, planned.rows, chain_walk.BLOCK_ROWS):
+                size = min(chain_walk.BLOCK_ROWS, planned.rows - start)
+                block = walking.integers(0, _WORD_CEILING, size=int(3 * size), dtype="uint64", endpoint=True)
+                for first in range(0, size, _SUMMED_ROWS):
+                    last = min(size, first + _SUMMED_ROWS)
+                    summed = chain_walk.hidden_sums([int(word) for word in block[3 * first:3 * last]])
+                    for at in range(len(summed)):
+                        chain_walk.put(sums, start + first + at, summed[at])
+                del block
+            row_sums += [sums]
+            walk_words = chain_walk.packed(4 * planned.patients if planned.families[walk_at] else 0, 8)
+            if planned.families[walk_at]:
+                block = walking.integers(0, _WORD_CEILING, size=int(4 * planned.patients), dtype="uint64", endpoint=True)
+                for at in range(4 * planned.patients):
+                    chain_walk.put(walk_words, at, int(block[at]))
+                del block
+            patient_words += [walk_words]
+        trend_words: "list[chain_walk.Packed]" = []
+        for count in planned.trend:
+            walk_words = chain_walk.packed(count, 8)
+            if count:
+                block = walking.integers(0, _WORD_CEILING, size=int(count), dtype="uint64", endpoint=True)
+                for at in range(count):
+                    chain_walk.put(walk_words, at, int(block[at]))
+                del block
+            trend_words += [walk_words]
+        # The counting process's words (G16.19; lane GRb2-b, plan P4-D491 part
+        # b), after the trend's: none drawn where no interval rule stands.
+        interval_words = chain_walk.packed(planned.intervals, 8)
+        if planned.intervals:
+            block = walking.integers(0, _WORD_CEILING, size=int(planned.intervals), dtype="uint64", endpoint=True)
+            for at in range(planned.intervals):
+                chain_walk.put(interval_words, at, int(block[at]))
+            del block
+        return patient_walk.twin(
+            profile, seed, rows_box, patients_made,
+            patient_walk.Draws(tuple(row_sums), tuple(patient_words), tuple(trend_words), 2 + planned.words, interval_words),
+        )
     plan = plan_generation(profile)
     generator = numpy.random.default_rng(seed)
     arranging = dialect.arranging(
@@ -76829,8 +77030,8 @@ def _reservation(
 ) -> "tuple[tuple[int, ...], bool, tuple[bool, ...], tuple[int, int]] | None":
     """The reserved rows of method G4.2a, whether they are a workbook's, and the columns that may give.
 
-    Runs only where the description's chain is published (behind the
-    switch no shipped command sets); None elsewhere, and every column is
+    Runs only where the description's chain is published (every shipped
+    load since plan P4-D464); None elsewhere, and every column is
     placed as before. `E` is the records holding nothing the description
     places -- in a text file the targets G2.1 step 2's arithmetic places,
     in a workbook `empty_rows_inside` -- and `E_eff` the fewest cells
@@ -78786,7 +78987,10 @@ def _reader_reading(facts: object, text: str, comma: bool) -> "tuple[str, object
         return chain_rules.OTHER, None
     if isinstance(facts, contract.DatetimeFacts):
         parsed = parsing.parse_datetime(text, facts.parser_family)
-        return (chain_rules.OTHER, None) if parsed is None else ("value", parsed[0])
+        # ...on the clock its rungs are published on, as the chain reads it
+        # (`parsing.moment_on_its_clock`, batch 4u's checks).
+        moment = None if parsed is None else parsing.moment_on_its_clock(parsed, facts.datetimes_read_at, facts.resolution)
+        return (chain_rules.OTHER, None) if moment is None else ("value", moment)
     if isinstance(facts, contract.ClockFacts):
         ordinal = None
         if facts.clock_form in parsing.CLOCK_FORMS:
@@ -79020,6 +79224,24 @@ _POLISH_LAST_STEPS = 4
 _POLISH_FEASIBLE = True
 # A correlation's aim, a binary's latent one too, stays inside this either way.
 _POLISH_AIM_MOST = 0.999
+# THE GROUPING GATE (lane CHG, plan P4-D492): a grouping target -- a
+# number's means in a grouping's bands (`within`), a binary's shares there
+# (`share`), a binary's split of a number (`by`) -- is kept only where the
+# published facts show its grouping beyond chance: its group chi-square,
+# the published count times its goal, above the chi-square's upper 0.001
+# point on `k - 1` degrees of freedom, `k` the groups holding a published
+# count (`_gate_point`, `_beyond_chance`). A dropped target leaves the plan
+# and its moment is left to the walk. A test may set it False: the gate
+# off, every grouping target aimed at (the polish of lane MPg alone).
+_POLISH_GATE = True
+# The 0.001 point's normal deviate, the constant the method page states.
+_POLISH_GATE_Z = 3.0902
+# The target kinds the gate keeps whole (a correlation is one direction:
+# met, it holds the published value with no fresh remainder beside it) and
+# the kinds it tests; a target of any other kind is refused, never gated
+# open (`_gate_keeps`).
+_POLISH_GATE_WHOLE = ("pair",)
+_POLISH_GATE_TESTED = ("within", "share", "by")
 
 
 @dataclasses.dataclass
@@ -79352,6 +79574,68 @@ def _share_target(entry: "contract.MomentColumn", within: "contract.MomentWithin
     return _PolishTarget("share", within.by, goal, tuple(encoding), goal, within.level)
 
 
+def _gate_point(df: int) -> float:
+    """The chi-square's upper 0.001 point on `df` degrees of freedom: Wilson and Hilferty's cube (G16.3's gate, lane CHG).
+
+    `a = 2 / (9 df)`, `c = (1 - a) + z sqrt(a)` (`z` the gate's
+    `_POLISH_GATE_Z`), the point `df ((c c) c)`: each operation binary64
+    and rounded once in the order written (G16.8). The point is a cube, a
+    product, so no root but the square root is taken and no library
+    function decides a byte; comparing a statistic with it is comparing
+    the statistic's cube root, Wilson and Hilferty's normal reading, with
+    `(1 - a) + z sqrt(a)`, without taking the root.
+    """
+    a = 2.0 / (9.0 * df)
+    c = (1.0 - a) + _POLISH_GATE_Z * math.sqrt(a)
+    return df * ((c * c) * c)
+
+
+def _beyond_chance(within: "contract.MomentWithin", goal: float) -> bool:
+    """Whether a grouping target's published goal shows its grouping beyond chance (G16.3's gate, lane CHG).
+
+    The GROUP CHI-SQUARE `N goal`, `N` the published count (the sum of the
+    entry's groups' counts) and `goal` the target's (the weighted variance
+    of the published group means or shares, each standardized), on `k - 1`
+    degrees of freedom, `k` the groups holding a published count: kept only
+    above `_gate_point(k - 1)`. An entry with fewer than two such groups
+    shows nothing and is dropped. Published facts alone: the generator
+    reads the description, never a cell.
+    """
+    count = 0
+    groups = 0
+    for group in within.groups:
+        if group.n > 0:
+            count = count + group.n
+            groups = groups + 1
+    if groups < 2:
+        return False
+    return count * goal > _gate_point(groups - 1)
+
+
+def _gate_keeps(name: str, target: _PolishTarget, entries: "dict[tuple[str, str, int], contract.MomentWithin]") -> bool:
+    """Whether G16.3's GROUPING GATE keeps one target of the polished column `name` (lane CHG, plan P4-D492).
+
+    A `pair` is kept whole. A `within` or `share` target of `name`, and a
+    `by` target (`name` the binary, the target's `name` the number), is kept
+    where its `within` entry shows its grouping beyond chance
+    (`_beyond_chance`), every one where `_POLISH_GATE` is False (a test's
+    mutant). A target of any other kind is refused whatever the setting:
+    a kind the gate has no test for is never aimed at by default.
+    """
+    if target.kind in _POLISH_GATE_WHOLE:
+        return True
+    if target.kind not in _POLISH_GATE_TESTED:
+        raise errors.ProfileError(
+            f"synthtwin internal check: the polish holds a target of kind {target.kind!r}, which its "
+            "grouping gate has no test for, so the twin would be aimed at it whatever the published "
+            "facts show. This means a mistake in synthtwin; please report it. Nothing has been written."
+        )
+    if not _POLISH_GATE:
+        return True
+    key = (target.name, name, target.level) if target.kind == "by" else (name, target.name, target.level)
+    return _beyond_chance(entries[key], target.goal)
+
+
 @dataclasses.dataclass
 class _PolishLayout:
     """G16.3's plan (`_polish_plan`) and the published correlations its projection moved past rounding, to be disclosed."""
@@ -79385,7 +79669,9 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
 
     A NUMBER moment column of the ladder with a code clip, with at least
     one target: each other such column with a published correlation, the
-    `chain_moments.PARTNERS` largest in size (ties in the moments' order;
+    description's `partners` largest in size (`chain_moments.PARTNERS`, or
+    every other column where the size guard allowed every partner: lane
+    CHON, plan P4-D464; ties in the moments' order;
     repair 2: a number aimed at every other one cost the rows times the
     numbers a step, and the rest is left to the walk), in the moments'
     order, its goal from `_target_correlations` and, where the pair holds
@@ -79398,8 +79684,12 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
     column of the ladder (both levels published, so none held), with at
     least one target: each `within` entry of a polished number grouped by
     it on its `L1` bands (`by`), then each of its own `within` entries
-    whose grouping column the ladder holds (`share`). A fixed function of
-    the description, so the plan counts its words.
+    whose grouping column the ladder holds (`share`). THE GROUPING GATE
+    (lane CHG, plan P4-D492) then keeps each `within`, `share` and `by`
+    target only where its published goal shows its grouping beyond chance
+    at the 0.001 level (`_gate_keeps`), and every `pair`; a column left with
+    none is not polished. A fixed function of the description, so the plan
+    counts its words.
     """
     moments = profile.relationships.moments
     if moments is None:
@@ -79426,7 +79716,7 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
                 for at, published in enumerate(values[mine])
                 if at != mine and published is not None and goals[mine][at] is not None
             )
-            chosen = {ranked[k][1]: True for k in range(min(len(ranked), chain_moments.PARTNERS))}
+            chosen = {ranked[k][1]: True for k in range(min(len(ranked), moments.partners))}
             for at in range(len(numbers)):
                 goal = goals[mine][at]
                 if at not in chosen or goal is None:
@@ -79479,6 +79769,18 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
                     targets += [found]
         if targets:
             plan += [(entry.column, targets)]
+    # THE GROUPING GATE (lane CHG, plan P4-D492): each grouping target kept
+    # only where the published facts show its grouping beyond chance, every
+    # correlation kept; a column left with no target is not polished, the
+    # walk alone placing it. Applied to the whole plan, so a target of a kind
+    # the gate has no test for is refused wherever it was made.
+    entries = {(within.column, within.by, within.level): within for within in moments.within}
+    gated: "list[tuple[str, list[_PolishTarget]]]" = []
+    for name, targets in plan:
+        kept = [target for target in targets if _gate_keeps(name, target, entries)]
+        if kept:
+            gated += [(name, kept)]
+    plan = gated
     # THE ORDER OF A ROUND (repair 1): the numbers from the finest frame to
     # the coarsest (ties in schema order), then the binaries in schema order,
     # so the column with the most room in its frame re-sorts last and ends a
@@ -86162,3 +86464,18 @@ def _the_mark_published(column: contract.ColumnBlock) -> "bool | None":
         return False if column.top_category_pooled > 0 else None
     return numbers.percentiles.maximum >= mark
 
+
+
+# The generator's own readings and words, named for the patient walk
+# (lane GRb, plan P4-D465; `synthtwin.patient_walk`), which reads a twin's
+# cells into their bands exactly as the walk above reads them.
+WORD_CEILING = _WORD_CEILING
+reader_reading = _reader_reading
+reader_edges = _reader_edges
+declared_a_decimal_comma = _declared_a_decimal_comma
+holes_reserved = _holes_reserved
+every_hole_spelling = _every_hole_spelling
+deviation_of = _deviation
+rung_by_key = _rung_by_key
+value_start = _value_start
+recounted = _recounted

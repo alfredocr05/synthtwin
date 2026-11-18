@@ -982,8 +982,10 @@ def test_the_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
     from synthtwin.cli import main
 
     mo = _load("moment_oracle")
+    # (Outside the table's folder: a data folder inside it is refused before
+    # anything is made, lane CHON's repair 1.)
     for name in ("HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME"):
-        monkeypatch.setenv(name, str(tmp_path / "home"))
+        monkeypatch.setenv(name, str(tmp_path.parent / f"{tmp_path.name}-home"))
     rows = ["age,ward,score"]
     for r in range(600):
         rows += ["%d,%s,%d" % (20 + (r * 7) % 61, "w%d" % (r % 3), (r * 13) % 97)]
@@ -1150,3 +1152,133 @@ def test_the_switched_product_s_chain_against_the_oracle(tmp_path, monkeypatch):
     except pytest.skip.Exception as skipped:
         pytest.fail(f"the switched product published no chain: {skipped}")
     assert len(published) == 1 and published[0] is not None and published[0]["chain"]
+
+
+# --- the patient layer (method G16.14 and G16.15; lane GRb, plan P4-D465) -------------
+
+
+def _product_patient_walk():
+    return pytest.importorskip("synthtwin.patient_walk")
+
+
+def test_the_census_top_band_line_meets_the_census_and_its_mutant_does_not():
+    """G16.17 case 1: the excess line sums to `q`; the mutant (each patient the mean excess) misses the census where `m` does not divide `q`."""
+    assert _json(oc.case_patient_line()) == FROZEN["chain"]["patient_line"]
+    assert all(entry["met"] for entry in FROZEN["chain"]["patient_line"])
+    assert not all(entry["met"] for entry in FROZEN["chain"]["patient_line_mutant_mean_excess"])
+    walk = _product_patient_walk()
+    for entry in FROZEN["chain"]["patient_line"]:
+        assert walk.straight_line(entry["q"], entry["m"]) == entry["line"]
+
+
+def test_the_top_band_split_is_the_least_vector_and_codex_s_tie_is_five_six():
+    """G16.17 case 14: two grain cells of 55 top-band patients, `q = 11`: `(5, 6)` on every run (mutant: the solver's first minimiser, `(6, 5)`)."""
+    assert _json(oc.case_patient_split()) == FROZEN["chain"]["patient_split"]
+    assert FROZEN["chain"]["patient_split"][0]["split"] == [5, 6]
+    assert FROZEN["chain"]["patient_split_mutant_first_minimiser"][0]["split"] == [6, 5]
+    walk = _product_patient_walk()
+    for entry in FROZEN["chain"]["patient_split"]:
+        targets = [Fraction(numerator, denominator) for numerator, denominator in entry["targets"]]
+        assert walk.excess_split(targets, entry["total"]) == entry["split"]
+
+
+def test_the_patient_scores_and_the_weight_bit_for_bit():
+    """G16.17 case 15: the patient scores of 1,000 patients in five bands and the weight of a published three-by-two table equal the
+    frozen vector's on every machine (the library's functions, which G16.8 forbids, are the next test's mutant)."""
+    import hashlib
+
+    case = FROZEN["chain"]["patient_scores"]
+    assert _json(oc.case_patient_scores()) == case
+    walk = _product_patient_walk()
+    words = oc.splitmix64(case["seed"], 4 * 1000)
+    sums = [walk.chain_walk.hidden_sum(words[4 * p], words[4 * p + 1], words[4 * p + 2]) for p in range(1000)]
+    places = [words[4 * p + 3] for p in range(1000)]
+    scores = walk.patient_scores(sums, places, [(7 * p) % 5 for p in range(1000)])
+    texts = [one.hex() for one in scores]
+    assert hashlib.sha256(",".join(texts).encode("ascii")).hexdigest() == case["sha256"]
+    weight = FROZEN["chain"]["patient_omega"]
+    assert walk.omega_of(weight["table"], weight["shares"], weight["steps"], weight["points"]).hex() == weight["omega"]
+
+
+def test_the_shared_exponential_and_normal_distribution_function_bit_for_bit():
+    """The shared module's written-out exponential and normal distribution function, at fixed points, equal the oracle's emulated binary64."""
+    case = FROZEN["chain"]["patient_shared_functions"]
+    assert _json(oc.case_shared_functions()) == case
+    walk = _product_patient_walk()
+    for point, value in case["cdf"]:
+        assert walk.chain_walk.normal_cdf(float(point)).hex() == value
+    for point, value in case["exp"]:
+        assert walk.chain_walk.exponential(float(point)).hex() == value
+    # The mutant: the library's distribution function, which G16.8 forbids, moves at least one frozen value.
+    import math
+
+    assert any((0.5 * math.erfc(-float(point) / math.sqrt(2.0))).hex() != value for point, value in case["cdf"])
+
+
+def test_the_shared_arithmetic_is_the_method_page_s_written_text():
+    """G16.13 to G16.17's amendment (q) (lane GRb's repair 2, Codex's item 9): the exponential's and the normal distribution
+    function's constants and frozen points, read off the method page, are the oracle's and the product's bit for bit, and the
+    frozen vector's; the other grouping of the distribution function's last line (the product before the quotient) gives
+    another result at -0.3, so the text decides between them. MUTANT: either grouping in the oracle or the product moves the
+    page's point at -0.3."""
+    import re
+
+    page = (REPOSITORY / "docs" / "spec" / "generation-method-v1.md").read_text(encoding="utf-8")
+    start = page.index("(q) THE ARITHMETIC OF (c), WRITTEN")
+    text = page[start:page.index("## G17.", start)]
+    constants = dict(re.findall(r"`(LN2|H|L|R) = (0x[0-9a-f.]+p[-+][0-9]+)`", text))
+    assert sorted(constants) == ["H", "L", "LN2", "R"]
+    walk = _product_patient_walk()
+    shared = walk.chain_walk
+    assert constants == {"LN2": shared._LN2.hex(), "H": shared._LN2_HIGH.hex(), "L": shared._LN2_LOW.hex(), "R": shared._ROOT_TWO_PI.hex()}
+    assert constants == {
+        "LN2": co.b64_hex(co.b64(Fraction(co._LN2_TEXT))), "H": co.b64_hex(co.b64(Fraction(co._LN2_HIGH_TEXT))),
+        "L": co.b64_hex(co.b64(Fraction(co._LN2_LOW_TEXT))), "R": co.b64_hex(co.b64(Fraction(co._ROOT_TWO_PI_TEXT))),
+    }
+    cdf = re.findall(r"`normal_cdf\(([-0-9.]+)\) = (0x[0-9a-f.]+p[-+][0-9]+)`", text)
+    exp = re.findall(r"`exponential\(([-0-9.]+)\) = (0x[0-9a-f.]+p[-+][0-9]+)`", text)
+    assert len(cdf) == 10 and len(exp) == 10
+    assert [list(one) for one in cdf] == FROZEN["chain"]["patient_shared_functions"]["cdf"]
+    assert [list(one) for one in exp] == FROZEN["chain"]["patient_shared_functions"]["exp"]
+    for point, value in cdf:
+        assert co.b64_hex(co.normal_cdf(co.b64(Fraction(point)))) == value and shared.normal_cdf(float(point)).hex() == value, point
+    for point, value in exp:
+        assert co.b64_hex(co.exponential(co.b64(Fraction(point)))) == value and shared.exponential(float(point)).hex() == value, point
+    z = -0.3
+    square = z * z
+    term = z
+    total = z
+    k = 1
+    while True:
+        term = term * square / (2 * k + 1)
+        if total + term == total:
+            break
+        total = total + term
+        k = k + 1
+    other = 0.5 + (shared.exponential(-0.5 * square) * total) / shared._ROOT_TWO_PI
+    written = dict(cdf)["-0.3"]
+    assert other.hex() == "0x1.87423a677e90ep-2" != written and "0x1.87423a677e90ep-2" in text
+
+
+def test_the_two_exchange_close_meets_a_gap_no_single_exchange_fits(monkeypatch):
+    """G16.17 case 6 (lane GR's gate case): the cell's `S_P` ends in its window by two exchanges on different patients, the random
+    exchanges off, where the largest step that fits stalls short of it (repair 1 of lane GRb, the first skeptic's item 3).
+    MUTANT, in the oracle and in the product: the two-exchange step removed (the product's `_two_held` finding none), which
+    stalls at 2."""
+    case = FROZEN["chain"]["patient_two_exchange_close"]
+    assert _json(oc.case_two_exchange_close()) == case
+    mutant = FROZEN["chain"]["patient_two_exchange_close_mutant_no_pair"]
+    assert case["met"] and not mutant["met"] and mutant["total"] == 2
+    walk = _product_patient_walk()
+
+    def closed() -> "tuple[int, list[int]]":
+        patients = walk._Patients(2, {}, {}, [3, 3], [0, 3])
+        codes = [0, 0, 1, 0, 0, 2]
+        cells = [f"{code}" for code in codes]
+        return walk._exact_close(cells, codes, [0, 1], patients, 3, 6, (0, 0)), codes
+
+    total, codes = closed()
+    assert total == case["total"] and codes == case["codes"]
+    monkeypatch.setattr(walk, "_two_held", lambda steps, holders, want: [])
+    total, codes = closed()
+    assert total == mutant["total"] and codes == mutant["codes"]

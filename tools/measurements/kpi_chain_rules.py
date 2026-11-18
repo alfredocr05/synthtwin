@@ -451,13 +451,17 @@ def price(shape: str, rows: int, keyed: int, command: bool) -> "dict[str, object
     settings = taxonomy.Settings(small_cell_floor=FLOOR)
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
     if command:
+        import kpi_rules
+
         here = os.getcwd()
         os.chdir(folder)
         try:
             saved = sys.stdout
             sys.stdout = io.StringIO()
             try:
-                cli.main(["profile", path.name])
+                # In a data folder of its own (plan P4-D464 limit (15)): never the account's.
+                with kpi_rules.own_data_folder():
+                    cli.main(["profile", path.name])
             finally:
                 sys.stdout = saved
         finally:

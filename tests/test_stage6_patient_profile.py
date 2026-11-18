@@ -118,8 +118,8 @@ def _described(
 
 def _switched(document: "dict[str, object]", chained: chain.Chained) -> "dict[str, object]":
     """The description a switched run writes: the chain, `grain` and the columns as the layer publishes them."""
-    out = json.loads(json.dumps(document))
-    out["relationships"]["statistical"] = chained.statistical
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    out = json.loads(json.dumps(chain.with_rules(document, chained)))
     if chained.grain is not None:
         out["relationships"]["grain"] = chained.grain
     if chained.columns is not None:
@@ -154,7 +154,8 @@ def test_switch_off_publishes_no_patient_layer(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     header, rows = _visits(1200, 3)
     fixtures.write(tmp_path, "visits.csv", _csv(header, rows))
-    code = cli.main(["profile", "visits.csv", "--identifier", "pid"])
+    # The run as it was before the landing that ships stage 6 (plan P4-D464).
+    code = cli.main(["profile", "visits.csv", "--identifier", "pid"], unswitched=True)
     capsys.readouterr()
     assert code == 0
     written = json.loads((tmp_path / "visits-profile.json").read_text(encoding="utf-8"))
@@ -170,8 +171,10 @@ def test_the_loader_refuses_grain_without_the_switch(tmp_path, visits_layer):
     # Mutant: `contract._relationships` letting `grain` through with chain=False.
     _folder, document, chained = visits_layer
     path = fixtures.write_profile(tmp_path, "layer.profile.json", _switched(document, chained))
+    # The loader as it read before the landing that ships stage 6 (plan
+    # P4-D464), the internal unswitched setting's; the shipped one reads it.
     with pytest.raises(errors.ProfileError):
-        contract.load_profile(str(path))
+        contract.load_profile(str(path), chain=False)
     loaded = contract.load_profile(str(path), chain=True)
     assert len(loaded.columns) == 7
     # `grain` alone, on the description a shipped command writes: S12 names it.
@@ -179,7 +182,7 @@ def test_the_loader_refuses_grain_without_the_switch(tmp_path, visits_layer):
     alone["relationships"]["grain"] = chained.grain
     path = fixtures.write_profile(tmp_path, "grain-alone.profile.json", alone)
     with pytest.raises(errors.ProfileError) as caught:
-        contract.load_profile(str(path))
+        contract.load_profile(str(path), chain=False)
     assert "grain" in str(caught.value)
 
 
@@ -1909,7 +1912,8 @@ def test_the_person_question_offers_the_record_answer_only_behind_the_switch(tmp
         for _line in range(1 + key % 5):
             rows += [[f"K{key:05d}xz", draw.choice(["F", "M"]), f"{draw.gauss(100, 15):.1f}"]]
     fixtures.write(tmp_path, "lines.csv", _csv(["ref", "gender", "charge"], rows))
-    assert cli.main(["profile", "lines.csv"]) == 0
+    # The run as it was before the landing that ships stage 6 (plan P4-D464).
+    assert cli.main(["profile", "lines.csv"], unswitched=True) == 0
     capsys.readouterr()
     plain = json.loads((tmp_path / "lines-questions.json").read_text(encoding="utf-8"))
     def answers_of(document: "dict[str, object]") -> "list[str]":
@@ -2021,7 +2025,10 @@ def test_a_subject_answer_naming_a_column_is_never_read_as_one_row_each():
 
 def test_one_row_each_releases_a_column_held_for_another_question(tmp_path):
     # Mutants: the release dropped (the question decides nothing on this answer); the release
-    # reaching a key answered `identifier`, or a column the person question still holds.
+    # reaching a key answered `identifier`. A column the person question still holds is LEFT
+    # OUT of the chain under `one row each` and the chain drawn over the rest (lane CHON's
+    # repair 1, LANE CHON RULINGS 3 (1), F2: an unanswered record-number question on another
+    # column never turns the chain off); while the subject question is open it holds.
     draw = random.Random(16)
     rows = [[draw.choice(["F", "M"]), f"{draw.gauss(100, 12):.1f}", draw.choice(["a", "b", "c"]), f"{52000 + draw.randint(0, 40)}"] for _row in range(2000)]
     header = ["gender", "value", "site", "zip"]
@@ -2031,8 +2038,8 @@ def test_one_row_each_releases_a_column_held_for_another_question(tmp_path):
     _document, chained = _described(tmp_path / "open", header, rows, persons=(), rows_per_person=chain.ROWS_OPEN, held=("zip",))
     assert chained.statistical is None and any(chain.OFF_SUBJECT in note for note in chained.notes)
     _document, chained = _described(tmp_path / "person", header, rows, persons=(), rows_per_person=chain.ROWS_ONE, held=("zip",), held_by_person=("zip",))
-    assert chained.statistical is None and any(chain.OFF_HELD_REPEATS in note for note in chained.notes)
-    assert chain.person_question_holds(chained)
+    assert chained.statistical is not None and {"column": "zip", "reason": "identifier"} in chained.statistical["ineligible"]
+    assert any("left out of the chain while their question" in note and "zip" in note for note in chained.notes)
     _document, chained = _described(tmp_path / "open2", header, rows, persons=(), rows_per_person=chain.ROWS_OPEN, held=("zip",), held_by_person=("zip",))
     assert chained.statistical is None and chain.person_question_holds(chained)
     _document, chained = _described(tmp_path / "walk", header, rows, persons=(), rows_per_person=chain.ROWS_UNASKED, held=("zip",))

@@ -126,14 +126,23 @@ class Described:
         self._runs = 0
 
     def validate(self, rows, switched=True, empty_at=(), header=None, description=None):
-        """Validate a file of `rows` against this description; return (code, written report, screen)."""
+        """Validate a file of `rows` against this description; return (code, written report, screen).
+
+        ``switched`` False runs the command as before the switch (`main`'s
+        internal `unswitched`, plan P4-D464): every shipped run reads the
+        chain, so only that setting reaches S12's refusal.
+        """
         self._runs += 1
         place = self.folder / f"run{self._runs}"
         place.mkdir()
         measured = _write(place / "twin.csv", header or self.header, rows, empty_at)
         run = cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH) if switched else None
         code, said = _quiet(
-            lambda: cli.main(["validate", str(description or self.path), "--twin", str(measured), "--out-dir", str(place)], chain=run)
+            lambda: cli.main(
+                ["validate", str(description or self.path), "--twin", str(measured), "--out-dir", str(place)],
+                chain=run,
+                unswitched=not switched,
+            )
         )
         written = place / "twin-quality.txt"
         return code, written.read_text(encoding="utf-8") if written.exists() else "", said

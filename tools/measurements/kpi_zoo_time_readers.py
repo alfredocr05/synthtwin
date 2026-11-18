@@ -85,6 +85,14 @@ sys.path.insert(0, str(ROOT / "tests"))
 import health_zoo  # noqa: E402
 import kpi_rules  # noqa: E402
 
+# THE TREE GUARD FIRST, AT THE MODULE'S TOP (plan P4-D464 limit (15); batch
+# 4u's merge of lane CHON): every shipped `synthtwin profile` run opens the
+# installation's data folder, and this driver reaches that command through
+# the test modules too (`unanswered_identifier_shapes`,
+# `identifier_room_shapes`), so the guard points the process at a data
+# folder of its own before anything runs.
+kpi_rules.guard_this_tree()
+
 ROWS = 20_000
 READ_ROLES = ("datetime", "time_of_day")
 # (table, column, how its written form is read, the form): a pattern the
@@ -464,7 +472,6 @@ def unanswered_figures(rows: int, folder: pathlib.Path) -> "dict[str, dict[str, 
 
 
 def main() -> None:
-    kpi_rules.guard_this_tree()
     parser = argparse.ArgumentParser()
     parser.add_argument("--kpi", action="store_true")
     parser.add_argument("--rows", type=int, default=ROWS)

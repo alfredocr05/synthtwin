@@ -37,7 +37,12 @@ MINOR = (3, 14)
 # The committed pin: {"version": "3.14.N", "embeddable": SHA-256,
 # "installer": SHA-256}, or None while the build trusts on first use.
 PINNED: "dict[str, str] | None" = None
-SIGNERS = ("Python Software Foundation", "Microsoft Corporation")
+SIGNERS = (
+    "Python Software Foundation",
+    "Microsoft Corporation",
+    # the C runtime files python.org ships (vcruntime140.dll, vcruntime140_1.dll) carry this Microsoft signer
+    "Microsoft Windows Software Compatibility Publisher",
+)
 _BASE = "https://www.python.org/ftp/python/{version}/"
 EMBEDDABLE = "python-{version}-embed-amd64.zip"
 INSTALLER = "python-{version}-amd64.exe"

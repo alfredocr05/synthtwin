@@ -368,7 +368,10 @@ def test_a_register_with_a_letter_in_front_is_not_offered_measurement(tmp_path: 
     assert _profile(tmp_path, ["subject"] + cells) == 0
     asked = _asked(tmp_path, "subject")
     assert len(asked) == 1
-    assert _offered(asked[0]) == [asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER]
+    # ...and the shipped run's person question offers `record` beside
+    # `identifier` (plan P4-D464: every run is switched, lane GRa's split
+    # of the identifier answer), still no `measurement`.
+    assert _offered(asked[0]) == [asking.ANSWER_KEEP, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD]
 
 
 def test_the_safe_harbor_question_is_the_one_put(tmp_path: pathlib.Path) -> None:

@@ -218,12 +218,18 @@ def _long_with_fixed_columns() -> "tuple[list[str], list[list[str]], dict[str, d
 
 
 def _plain_run(folder: pathlib.Path, name: str, text: str, arguments: "list[str]") -> "dict[str, object]":
-    """The same `synthtwin profile` run with the chain's switch off, as shipped: its questions file and its summary."""
+    """The same `synthtwin profile` run with the chain's switch off: its questions file and its summary.
+
+    The internal unswitched setting (plan P4-D464), the run as the base
+    shipped it: since the switch is on in every shipped run, a run left to
+    the default would be switched and would meet the record of the
+    switched run above.
+    """
     table = fixtures.write(folder, f"{name}.csv", text)
     out = folder / "out"
     out.mkdir()
     with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        code = cli.main(["profile", str(table), "--out-dir", str(out)] + arguments)
+        code = cli.main(["profile", str(table), "--out-dir", str(out)] + arguments, unswitched=True)
     return {
         "code": code,
         "questions": json.loads((out / f"{name}-questions.json").read_text(encoding="utf-8")),

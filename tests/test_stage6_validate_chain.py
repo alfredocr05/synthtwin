@@ -487,7 +487,10 @@ def test_a_description_without_a_chain_validates_to_the_same_bytes_either_way(tm
     """A description carrying no chain, validated with the switch and without
     it: the same written report byte for byte, the same screen and the same
     exit code. And the switched description is refused WITHOUT the switch,
-    invariant S12 word for word."""
+    invariant S12 word for word. Since plan P4-D464 every shipped run is
+    switched, so "without the switch" is `main`'s internal `unswitched`,
+    and the description is the shipped profile's first round, which the
+    subject question holds at null."""
     monkeypatch.chdir(tmp_path)
     table = _write(tmp_path / "plain.csv", HEADER, _clinic_rows(300, seed=2))
     code, said = _quiet(lambda: cli.main(["profile", str(table), "--out-dir", str(tmp_path)]))
@@ -499,7 +502,11 @@ def test_a_description_without_a_chain_validates_to_the_same_bytes_either_way(tm
         out = tmp_path / f"out-{switched}"
         out.mkdir()
         run = cli.ChainRun(rows_per_person=asking.ANSWER_ONE_ROW_EACH) if switched else None
-        code, said = _quiet(lambda: cli.main(["validate", str(described), "--twin", str(table), "--out-dir", str(out)], chain=run))
+        code, said = _quiet(
+            lambda: cli.main(
+                ["validate", str(described), "--twin", str(table), "--out-dir", str(out)], chain=run, unswitched=not switched
+            )
+        )
         runs += [(code, (out / "plain-quality.txt").read_bytes(), said.replace(str(out), "OUT"))]
     assert runs[0] == runs[1]
     code, report, said = clinic.validate(clinic.rows, switched=False)
@@ -528,8 +535,10 @@ def test_the_oracle_agrees_with_v12_s_exact_lines_on_the_switched_case(tmp_path,
     exchanged between rows of different `ward` (its band totals kept), V12
     reads MISSED exactly on the families whose oracle count differs from
     the published table, and HELD on the rest."""
+    # The data folder outside the folder the table and the outputs share,
+    # which the command refuses (lane CHON's repair 1; contract 4.6b.4).
     for name in ("HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME"):
-        monkeypatch.setenv(name, str(tmp_path / "home"))
+        monkeypatch.setenv(name, str(tmp_path.parent / f"{tmp_path.name}-home"))
     rows = [["%d" % (20 + (r * 7) % 61), "w%d" % (r % 3), "%d" % ((r * 13) % 97)] for r in range(600)]
     header = ["age", "ward", "score"]
     table = _write(tmp_path / "trial.csv", header, rows)

@@ -645,6 +645,101 @@ average about 1.5), summed 39.20 s of setup, call and teardown (39.7 CPU
 seconds, user plus system), within a quarter of the row, the rule of the
 paragraph of the 39 rows.
 
+ONE ROW ADDED 2026-11-13, at lane BT3b (plan P4-D467): the lane's gate
+file `tests/test_stage6_l0_followups.py`, 78.2 s (9 cases: an invented
+survey of 20,000 rows through the switched command and its answers
+round, Codex's count at 20,000 rows, the frozen cases), its setup, call
+and teardown seconds summed from one `pytest -q --durations=0` process
+on the lane's head under Python 3.11 at a one-minute load of about 42
+to 61 (64.8 CPU s, 78.3 s of wall).
+
+ONE ROW ADDED AND ONE WEIGHED AGAIN 2026-11-09, on lane GRb's branch
+(plan P4-D465): the patient walk's gate
+`tests/test_stage6_patient_generate.py`, 102.23 s (21 cases: invented
+visit, laboratory and encounter tables of about 7,900, 12,000 and 15,000
+rows made through the patient walk, each rule beside its mutant), and
+`tests/test_chain_oracle.py`, 9.67 s (47 cases: the lane's five patient
+cases added; 2.87 s before), timed together by one
+`pytest -q --durations=0` process on the lane's head under Python 3.11,
+each file's setup, call and teardown seconds summed, on a machine other
+work was loading heavily (one-minute load average about 50).
+
+ONE ROW WEIGHED AGAIN 2026-11-10, on lane GRb's repair 1 (plan P4-D465):
+`tests/test_stage6_patient_generate.py`, 141.19 s (28 cases: the seven
+the repair adds read ST2 with unit words at 20,000 rows and lane GRa's two
+first-date shapes of about 20,500 rows), timed by one `pytest -q
+--durations=0` process on the repair's head under Python 3.11, each case's
+setup, call and teardown seconds summed (91.96 CPU seconds, under the
+suite's three minutes), on a machine other work was loading heavily (a
+one-minute load about 50); the repair's final head, its 28 cases again,
+took 85.26 CPU seconds (213.21 s at a load about 95).
+
+TWO ROWS WEIGHED AGAIN 2026-11-10, on lane GRb's repair 2 (plan P4-D465):
+`tests/test_stage6_patient_generate.py`, 261.23 s (38 cases: the ten the
+repair adds by then read Codex's position table at 22,000 rows, his workbook shape
+of 7,909 records and four smaller workbooks, and unit states), timed by one
+`pytest -q --durations=0` process on the repair's head under Python 3.11,
+each case's setup, call and teardown seconds summed (107.90 CPU seconds,
+under the suite's three minutes), on a machine other work was loading
+heavily (a one-minute load about 50); `tests/test_chain_oracle.py`, 12.97 s
+(48 cases, one skipped: the repair adds one), timed whole by the same
+process's sibling run. The repair's last case, a round trip of 6,000
+generated fractions, took 0.36 s more (39 cases, 261.59 s).
+
+ONE ROW WEIGHED AGAIN 2026-11-10, on lane GRb's follow-up (plan P4-D465):
+`tests/test_stage6_patient_generate.py`, 344.71 s (41 cases: the follow-up
+adds two generated unit cases, 5,000 parent cells of the own-mean close
+and 4,000 cells of the trend close, each made beside its reference, 52.32
+and 4.70 s of the total, and grows one by a count), timed by one `pytest
+-q --durations=0` process on the follow-up's tree under Python 3.11, each
+case's setup, call and teardown seconds summed (130.46 CPU seconds, under
+the suite's three minutes), on a machine other work was loading heavily
+(one-, five- and fifteen-minute loads of 40, 51 and 66 at its end).
+
+ONE ROW ADDED 2026-11-11, by lane GRb2-b (plan P4-D491 part b):
+`tests/test_patient_intervals.py`, 142.76 s (18 cases: the counting
+process's gate, its one table at 20,000 rows described and generated once
+for six cases, 56.77 s, and its V12.11 case reading that twin four times,
+57.91 s), timed by one `pytest -q --durations=0` process on the lane's
+head under Python 3.11, each case's setup, call and teardown seconds
+summed (54.17 CPU seconds, under the suite's three minutes), on a machine
+other work was loading (a one-minute load about 52 at its start); its
+nineteenth case, 3,000 generated band tables of the floor's merge, added
+after, took 0.9 s alone. AMENDED 2026-11-11 by the lane's repair 1: 247.79 s
+(29 cases; the V12.11 case 103.08 s, the 20,000-row table's setup 42.23 s,
+the ten new cases at 3,000 to 6,000 rows and the generated machine-free
+cases the rest), timed the same way (133.88 CPU seconds, under the suite's
+three minutes) beside two whole suites and other lanes' runs. AMENDED
+2026-11-11 by the lane's repair 2: 320.36 s (52 cases; the 20,000-row
+table's setup 48.43 s, the V12.11 case 47.61 s, the new constant-census
+case at 20,000 rows 40.13 s, the generated machine-free cases and the
+cases at 3,000 to 6,000 rows the rest), timed the same way (151.49 CPU
+seconds, under the suite's three minutes) at one-minute loads of 33 to 50.
+AMENDED 2026-11-12 by the lane's micro-step: 484.73 s (59 cases; the
+20,000-row table's setup 65.35 s, the V12.11 case 60.96 s, the
+constant-census case 51.87 s, the generated machine-free cases and the
+cases at 3,000 to 6,000 rows the rest), timed the same way (173.04 CPU
+seconds, under the suite's three minutes) at one-minute loads of 92 to 102.
+
+ONE ROW ADDED 2026-11-11, lane MU (plan P4-D485), MEASURED AGAIN at its
+micro-step (2026-11-13): `tests/test_model_utility.py`, 247.48 s (70 cases:
+each generator's truths at 20,000 rows, the hand fitters' known answers, a
+fit read only where it settled and a separated binomial fit stopped at each
+of its call sites, a start-stop row below 0 read as one failed analysis,
+the harness's generated cases, K-BC-14's size and tiers and each check of
+them, the driver's kept runs and CPU readings, the routes' folders, route
+S's answers, route U and the fast part through route C at 5,000 rows): its
+70 cases timed alone by one `pytest -q --durations=0` process on the
+micro-step's head `2804805d` under Python 3.11, their setup, call and
+teardown seconds summed (163.7 CPU seconds, 152.2 user and 11.6 system,
+250.7 s wall, the booster on one OpenMP thread, at a one-minute load
+average of 44 to 48). Repair 2's head `53c29298` read 221.65 s for its 61
+cases (162.4 CPU seconds at load 32 to 34); repair 1 read 400.46 s for its
+45 cases (44 on `2f0a4e1a` at load 62 to 73, the 45th on the next head;
+165.8 CPU seconds); the build's head `c121bec8` read 328.22 s for its 19
+cases (130.4 CPU seconds at load 41 to 47): the seconds move with the
+machine's load, the CPU seconds little.
+
 A FILE WITH NO ROW weighs `DEFAULT_SECONDS`. Only a file added since
 the last measurement has none: it is placed like an ordinary small file
 and runs in its shard from the commit that adds it. A file every case of
@@ -677,7 +772,7 @@ SECONDS = {
     "tests/test_census_reading_handed_over.py": 1.3,
     "tests/test_chain_grades_held_dates.py": 7.0,
     "tests/test_chain_method_page.py": 2.2,
-    "tests/test_chain_oracle.py": 2.87,
+    "tests/test_chain_oracle.py": 12.97,
     "tests/test_chain_profile.py": 45.82,
     "tests/test_chain_table_layer.py": 13.5,
     "tests/test_ci_demo_steps.py": 30.63,
@@ -768,6 +863,7 @@ SECONDS = {
     "tests/test_merged_line_review_items_4t.py": 175.0,
     "tests/test_method_citations_resolve.py": 1.38,
     "tests/test_mixture_reader_bounds.py": 30.15,
+    "tests/test_model_utility.py": 247.48,
     "tests/test_module_names_once.py": 1.72,
     "tests/test_moment_method_page.py": 0.82,
     "tests/test_moment_oracle.py": 21.54,
@@ -940,6 +1036,7 @@ SECONDS = {
     "tests/test_packaging_allowlist.py": 0.0,
     "tests/test_parsing.py": 0.01,
     "tests/test_paths.py": 0.01,
+    "tests/test_patient_intervals.py": 484.73,
     "tests/test_patient_page.py": 0.58,
     "tests/test_people_said.py": 18.6,
     "tests/test_persons_names_residuals.py": 38.01,
@@ -1046,7 +1143,9 @@ SECONDS = {
     "tests/test_stage6_chain_recount.py": 148.65,
     "tests/test_stage6_chain_recount_settled.py": 49.61,
     "tests/test_stage6_clock_mirror.py": 64.23,
+    "tests/test_stage6_l0_followups.py": 78.2,
     "tests/test_stage6_order_rules.py": 59.29,
+    "tests/test_stage6_patient_generate.py": 344.71,
     "tests/test_stage6_patient_profile.py": 354.3,
     "tests/test_stage6_reader_step.py": 16.68,
     "tests/test_stage6_selftest_reports.py": 158.03,

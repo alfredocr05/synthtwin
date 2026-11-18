@@ -54,7 +54,10 @@ WHAT IS HELD, each red on its mutant:
 - repair 4 (LANE MPg RULINGS 14 (3)): the polish's sort, held to a plain
   sort of (score, row) tuples on a 20,000-row twin and its ties to the
   lower row, stands in tests/test_moment_polish_sort.py, a file of its own
-  because this one passed 180 CPU seconds with it (LANE MPg RULINGS 13 (2)).
+  because this one passed 180 CPU seconds with it (LANE MPg RULINGS 13 (2));
+- lane CHG's repair 1 (plan P4-D492): K-S6-12's driver classes each moment
+  kept, dropped or never aimed at by G16.3's grouping gate, naming each
+  target of a plan as it names the moment it reads.
 """
 
 import dataclasses
@@ -496,7 +499,8 @@ def test_a_held_identifier_column_never_moves(tmp_path, monkeypatch: pytest.Monk
     chained = chain.describe(table, document, settings, chain.ChainSwitch("held", bytes(range(32)), ("record",), rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None and chained.statistical["moments"] is not None
     written = dict(document)
-    written["relationships"] = dict(written["relationships"], statistical=chained.statistical)
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    written = chain.with_rules(written, chain.Chained(chained.statistical, (), {}, (), (), ""))
     path = fixtures.write_profile(tmp_path, "held-profile.json", written)
     loaded = contract.load_profile(str(path), chain=True)
     moments = loaded.relationships.moments
@@ -555,7 +559,8 @@ def test_two_nearly_collinear_pairs_come_back_within_their_bound(tmp_path, monke
     chained = chain.describe(table, document, settings, chain.ChainSwitch("pairs", bytes(range(32)), rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None and chained.statistical["moments"] is not None
     written = dict(document)
-    written["relationships"] = dict(written["relationships"], statistical=chained.statistical)
+    # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+    written = chain.with_rules(written, chain.Chained(chained.statistical, (), {}, (), (), ""))
     path = fixtures.write_profile(tmp_path, "pairs-profile.json", written)
     loaded = contract.load_profile(str(path), chain=True)
     moments = chained.statistical["moments"]
@@ -632,9 +637,13 @@ def test_a_top_coded_age_moves_only_among_its_own_cells(tmp_path, monkeypatch: p
     assert not set(keys) & {row[0] for row in rows}
 
 
-def test_the_plan_is_a_function_of_the_description() -> None:
+def test_the_plan_is_a_function_of_the_description(monkeypatch: pytest.MonkeyPatch) -> None:
     """`_polish_plan` reads the description alone: a number moment column with a clip, its partners
-    in the moments' order, then its `within` entries; none where no moment is published."""
+    in the moments' order, then its `within` entries; none where no moment is published. The plan's
+    construction is read with lane CHG's grouping gate off (plan P4-D492): on this toy's 100 readings
+    `a`'s means by `f` show no grouping beyond chance (group chi-square 7.7 on one degree of freedom,
+    the 0.001 point 11.16), so the gated plan drops that target and keeps the pair
+    (tests/test_polish_grouping_gate.py holds the gate)."""
     moments = contract.RuleBMoments(
         (
             contract.MomentColumn("a", "number", 100, mean=120.0, sd=30.0, clip=(0.0, 10.0)),
@@ -655,24 +664,31 @@ def test_the_plan_is_a_function_of_the_description() -> None:
     class _Profile:
         relationships: contract.RelationshipManifest
 
+    gated = generation._polish_plan(_Profile(relationships))  # type: ignore[arg-type]
+    assert [(name, [(t.kind, t.name) for t in targets]) for name, targets in gated] == [
+        ("a", [("pair", "b")]), ("b", [("pair", "a")])]
+    monkeypatch.setattr(generation, "_POLISH_GATE", False)
     plan = generation._polish_plan(_Profile(relationships))  # type: ignore[arg-type]
     assert [name for name, _targets in plan] == ["a", "b"]
     first = plan[0][1]
     assert [(t.kind, t.name, t.level) for t in first] == [("pair", "b", 1), ("within", "f", 2)]
     assert first[0].goal == 0.25
     assert first[1].encoding == ((110.0 - 120.0) / 30.0, (127.0 - 120.0) / 30.0, 0.0) and first[1].goal > 0.0
+    assert 100 * first[1].goal < generation._gate_point(1)
     bare = dataclasses.replace(relationships, moments=None)
     assert generation._polish_plan(_Profile(bare)) == []  # type: ignore[arg-type]
 
 
-def test_the_plan_reads_partners_binaries_and_the_projected_goals() -> None:
+def test_the_plan_reads_partners_binaries_and_the_projected_goals(monkeypatch: pytest.MonkeyPatch) -> None:
     """Repair 1's plan, from the description alone: a number's means in the bands of a partner it holds a
     published correlation with are no target of it (a partner `b`; the binary `f` stays a grouping); a
     binary with both levels published is polished toward a number's split by it (`by`, its slope the
     split times the normal density at its share) and its shares in a grouping's bands (`share`, the
     density over its spread), each aim starting at its goal over its slope; and correlation goals no data
     can hold (0.9, 0.9, -0.9) are the projected matrix's, the oracle's frozen bits; a round runs the
-    numbers from the finest frame (most bands at the chain level) to the coarsest, then the binaries."""
+    numbers from the finest frame (most bands at the chain level) to the coarsest, then the binaries.
+    Read with lane CHG's grouping gate off (plan P4-D492); with it on, `f`'s shares in `b`'s bands (group
+    chi-square 4.2 on one degree of freedom) leave the plan, `a`'s split by `f` (16.7) stays."""
     frozen = FROZEN["psd_projection"][0]
     moments = contract.RuleBMoments(
         (
@@ -700,6 +716,9 @@ def test_the_plan_reads_partners_binaries_and_the_projected_goals() -> None:
     class _Profile:
         relationships: contract.RelationshipManifest
 
+    gated = dict(generation._polish_plan(_Profile(relationships)))  # type: ignore[arg-type]
+    assert [(t.kind, t.name) for t in gated["f"]] == [("by", "a")] and [t.kind for t in gated["a"]] == ["pair", "pair", "within"]
+    monkeypatch.setattr(generation, "_POLISH_GATE", False)
     ordered = generation._polish_plan(_Profile(relationships))  # type: ignore[arg-type]
     assert [name for name, _targets in ordered] == ["b", "c", "a", "f"]
     plan = dict(ordered)
@@ -906,7 +925,8 @@ def test_an_incomplete_pair_s_own_spreads_are_read_and_aimed_at(tmp_path) -> Non
         document = profile.build_document(table, settings, [], [], [])
         chained = chain.describe(table, document, settings, chain.ChainSwitch(label, bytes(range(32)), rows_per_person=chain.ROWS_UNASKED))
         written = dict(document)
-        written["relationships"] = dict(written["relationships"], statistical=chained.statistical)
+        # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+        written = chain.with_rules(written, chain.Chained(chained.statistical, (), {}, (), (), ""))
         path = fixtures.write_profile(tmp_path, f"{label}-profile.json", written)
         loaded = contract.load_profile(str(path), chain=True)
         moments = loaded.relationships.moments
@@ -951,6 +971,48 @@ def test_k_s6_12_judges_an_incomplete_pair_s_own_spreads(clinic) -> None:  # typ
     line[at][other][2][0] = 10 * line[at][other][2][0]
     moved = [row for row in kpi.moments_on(table, document, statistical) if row[0] == "pair spread"]
     assert [good for _kind, good in kpi.inside(moved, 2 * math.sqrt(2.0))].count(False) == 1
+
+
+def _moment_polish_driver(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """K-S6-12's driver imported afresh by its name from tools/measurements, the search path restored after (a plain
+    import: `tests/test_version_reach.py` holds the loads of a file as a module to a recorded count)."""
+    import sys
+
+    monkeypatch.syspath_prepend(str(REPOSITORY / "tools" / "measurements"))
+    monkeypatch.delitem(sys.modules, "kpi_moment_polish", raising=False)
+    return importlib.import_module("kpi_moment_polish")
+
+
+def test_k_s6_12_classes_each_moment_by_the_gated_plan(clinic, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]
+    """Lane CHG's repair 1 (skeptic 1's item 1 (b), the statistics check's item 5; LANE CHG RULINGS 2 (2)(b) and 3
+    (2)): K-S6-12's driver reads each kind apart for the moments the grouping gate keeps, those it drops and those no
+    plan aims at. It names each target of a polish plan as it names the moment it reads -- a correlation by its two
+    columns, a `within` and a `share` target by the polished column and its grouping, a binary's `by` target by the
+    number it splits and the binary (the entry a number's `within` target in the binary's bands reads too) -- so
+    every entry the ungated plan aims at is a moment the driver judges, the gated plan's entries among them; and on
+    the clinic each class holds moments, a `by` target among the kept and the dropped ones. Mutants, each red: a
+    `within` or `share` target named with its grouping first (five entries no moment carries); the kept class read
+    as dropped."""
+    kpi = _moment_polish_driver(monkeypatch)
+    table = reading.read_table(str(clinic.table), small_cell_floor=11)
+    document = json.loads(clinic.path.read_text(encoding="utf-8"))
+    statistical = json.loads(json.dumps(clinic.statistical))
+    loaded = contract.load_profile(str(clinic.path), chain=True)
+    gated = generation._polish_plan(loaded)
+    kept = kpi.aimed(gated)
+    with monkeypatch.context() as off:
+        off.setattr(generation, "_POLISH_GATE", False)
+        ungated = generation._polish_plan(loaded)
+    every = kpi.aimed(ungated)
+    found = kpi.moments_on(table, document, statistical)
+    entries = {row[4] for row in found}
+    assert kept < every <= entries, (sorted(every - entries), sorted(kept - every))
+    splits = {("within", target.name, name, target.level) for name, targets in ungated for target in targets if target.kind == "by"}
+    kept_splits = {("within", target.name, name, target.level) for name, targets in gated for target in targets if target.kind == "by"}
+    assert kept_splits and splits - kept_splits and splits <= every
+    classes = [row[4] for row in kpi.classed(found, kept, every)]
+    assert {("kept",), ("dropped",), ("never",)} == set(classes)
+    assert [row[:4] for row in kpi.classed(found, kept, every)] == [row[:4] for row in found]
 
 
 def test_a_moved_goal_is_disclosed_in_the_twin_s_report(clinic, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]

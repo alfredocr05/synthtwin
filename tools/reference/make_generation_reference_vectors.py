@@ -2864,7 +2864,7 @@ def floored_cap(bound, floor, numeric, distinct, longest):
     return min(bound, floor - 1)
 
 
-def listed_runs(lengths, low_rows, high_rows, start, numbers):
+def listed_runs(lengths, low_rows, high_rows, start, numbers, reaching=False):
     """How many leading and trailing runs lie inside a LISTED tail (G5.3e).
 
     The layout neither joins nor divides a band's runs that lie wholly
@@ -2873,11 +2873,22 @@ def listed_runs(lengths, low_rows, high_rows, start, numbers):
     tail names nowhere.  ``low_rows`` and ``high_rows`` are the rows of
     a listed tail on each side and nought where that side is read by its
     shape, which is what turns this off.
+
+    A RUN THAT REACHES ACROSS A TAIL'S EDGE IS ONE OF THOSE RUNS where the
+    band's runs must be joined, which is what ``reaching`` says (lane BT3b,
+    plan P4-D467, from method G5.3e's text): the run is the tail's where
+    ANY of its ranks is, not only where all of them are.  Without it this
+    file joined forty-nine one-rank runs between `1500` and `2000` into
+    `2000` on case 3 of G14.3a and wrote `1500` on 250 cells where the
+    product writes 299.
     """
     inside_low = []
     reach = start
     for length in lengths:
-        if low_rows <= 0 or reach + length > low_rows:
+        if low_rows <= 0:
+            break
+        inside = reach < low_rows if reaching else reach + length <= low_rows
+        if not inside:
             break
         reach = reach + length
         inside_low += [length]
@@ -2886,8 +2897,9 @@ def listed_runs(lengths, low_rows, high_rows, start, numbers):
     reach = start + sum(lengths)
     for place in range(len(lengths)):
         length = lengths[len(lengths) - 1 - place]
-        beyond = reach - length < numbers - high_rows
-        if high_rows <= 0 or beyond or place >= len(lengths) - lead:
+        edge = numbers - high_rows
+        inside = reach > edge if reaching else reach - length >= edge
+        if high_rows <= 0 or not inside or place >= len(lengths) - lead:
             break
         reach = reach - length
         inside_high += [length]
@@ -2960,7 +2972,20 @@ def band_allotment(
         reader_low["rows"] if reader_low and reader_low["listed"] else 0,
         reader_high["rows"] if reader_high and reader_high["listed"] else 0,
     )
-    lead, trail = listed_runs(lengths, listed[0], listed[1], low, numeric)
+    whole = listed_runs(lengths, listed[0], listed[1], low, numeric)
+    lead, trail = listed_runs(
+        lengths, listed[0], listed[1], low, numeric, len(lengths) > strata
+    )
+    # G5.3e's qualifications of the protection, from the method's text
+    # (lane BT3b, plan P4-D467): a run across a tail's edge counts only
+    # where the band's runs must be joined (the argument above); runs that
+    # are the WHOLE BAND are left to the ordinary walk; and a band holding
+    # a run that only REACHES into a tail is still LEVELLED after the
+    # protection, because what the tail needs is that the run not be
+    # joined away, not that it be held still.
+    if lead + trail >= len(lengths):
+        lead, trail = 0, 0
+    evens = lead > whole[0] or trail > whole[1]
     # A PINNED END'S RUN IS NEVER JOINED where its own tail reads the
     # shared staircase (G5.3b, plan P4-D405): the join that would take the
     # band's first run at rank 0 (a shared low tail), or its last at the
@@ -3003,6 +3028,8 @@ def band_allotment(
             + levelled(inner_lengths, cap)
             + lengths[len(lengths) - trail:]
         )
+        if evens:
+            sizes = levelled(sizes, cap)
         if sum(sizes) != count or any(size < 1 for size in sizes):
             raise AssertionError(
                 "a band's allotment must cover its own cells with a stratum "
@@ -34366,6 +34393,36 @@ def _listed_units(text, places):
     return sign * int(whole + fraction.ljust(places, "0"))
 
 
+def listed_l0_ranks(column, numbers, cells):
+    """G6.9 step 0 (lane BT3b, plan P4-D467): each L0 edge's boundary, `(listed values below it, its cut rank)`.
+
+    Read only on an eligible column (``column["_l0"]``, its edges and band
+    counts, as G5.7a writes them) whose bands count ``cells`` numbers.
+    """
+    if column.get("_l0") is None:
+        return []
+    edges, counts = column["_l0"]
+    if sum(counts) != cells:
+        return []
+    found = []
+    rank = 0
+    for place, edge in enumerate(edges):
+        rank += counts[place]
+        found.append((sum(1 for number in numbers if number < edge), rank))
+    return found
+
+
+def l0_listed_room(column, edges, counts):
+    """G5.7a's (P6) (lane BT3b, plan P4-D467): on a column G6.9 writes, every band holding cells holds a listed value, and as many cells as listed values."""
+    if not column.get("few_values") or column.get("number_spellings"):
+        return True
+    listed = [0] * len(counts)
+    for text in column["few_values"]:
+        number = float(text)
+        listed[sum(1 for edge in edges if edge <= number)] += 1
+    return all(counts[band] >= listed[band] and not (counts[band] > 0 and listed[band] == 0) for band in range(len(counts)))
+
+
 def _listed_consistent(bounds, counts):
     """G6.9's bounds made consistent: one pass forward and one back, up to four times.
 
@@ -34710,6 +34767,12 @@ def listed_census(column):
     bounds = {j: [0, cells] for j in range(values + 1)}
     bounds[0] = [0, 0]
     bounds[values] = [cells, cells]
+    # STEP 0, LAYER L0'S CUT RANKS FIRST (lane BT3b, plan P4-D467): the
+    # cells below each edge are its cut rank, a count of the real column's
+    # own cells, so the boundary after the listed values below the edge
+    # stands there before any other fact is read.
+    for j, rank in listed_l0_ranks(column, numbers, cells):
+        bounds[j] = [max(bounds[j][0], rank), min(bounds[j][1], rank)]
     counts = {i: (least, cells) for i in range(values)}
     settled = _listed_consistent(bounds, counts)
     if settled is None:
@@ -63698,7 +63761,7 @@ def l0_heap_spans(known, cells):
     return heaps
 
 
-def l0_mode_step(values, counts, pieces, edges, mode, wanted):
+def l0_mode_step(values, counts, pieces, edges, mode, wanted, heaps=None, late=()):
     """G5.7c step 4 on the strata holding cells, in value order: the counts after it.
 
     ``pieces`` names each stratum's piece and ``edges`` whether it holds
@@ -63709,6 +63772,15 @@ def l0_mode_step(values, counts, pieces, edges, mode, wanted):
     is not (lane BT2) -- the cells short coming from that neighbour and
     then the other, each keeping one. The caller asks only where today's
     twin held the mode at ``wanted`` and the move changed its count.
+
+    A PROVEN HEAP KEEPS ITS RANKS (lane BT3b, plan P4-D467): ``heaps``
+    are step 1's `(value, first rank, last rank)` and ``late`` the
+    `(value, cells)` of the points step 3 added after the ordered strata,
+    which hold ranks too. A cell crossing the boundary between two values
+    moves it one rank, so the value whose ranks shrink gives no rank its
+    own heap holds: the mode hands its neighbour at most the ranks between
+    its start (or end) and its heap, the rest going to the other side, and
+    a neighbour gives the mode none of its heap's ranks.
     """
     counts = list(counts)
     place = values.index(mode)
@@ -63719,13 +63791,33 @@ def l0_mode_step(values, counts, pieces, edges, mode, wanted):
         sides = [sides[1], sides[0]]
     if len(sides) == 2 and edges[sides[0]] and not edges[sides[1]]:
         sides = [sides[1], sides[0]]
+
+    def room(side, giving):
+        everything = sum(counts) + sum(cells for _value, cells in late)
+        shrinking = values[place] if giving else values[side]
+        span = [heap for heap in heaps or [] if heap[0] == shrinking]
+        if not span:
+            return everything
+        _value, first, last = span[0]
+        start = sum(c for v, c in zip(values, counts) if v < shrinking) + sum(c for v, c in late if v < shrinking)
+        held = sum(c for v, c in zip(values, counts) if v == shrinking) + sum(c for v, c in late if v == shrinking)
+        facing_low = giving if values[side] < mode else not giving
+        return max(first - start, 0) if facing_low else max(start + held - 1 - last, 0)
+
     over = counts[place] - wanted
     if sides and over > 0:
-        counts[sides[0]] += over
-        counts[place] = wanted
+        for side in sides:
+            given = min(over, room(side, True))
+            if given <= 0:
+                continue
+            counts[side] += given
+            counts[place] -= given
+            over -= given
+            if over <= 0:
+                break
     elif sides:
         for side in sides:
-            given = min(-over, counts[side] - 1)
+            given = min(-over, counts[side] - 1, room(side, False))
             if given <= 0:
                 continue
             counts[side] -= given
@@ -64209,7 +64301,8 @@ def l0_least_move(column, values, sizes, bands, figures):
             ]
             kept_counts = l0_mode_step(
                 [value_of[other] for other in holding], [now[other] for other in holding],
-                [piece_of[other] for other in holding], on_edge, mode, wanted,
+                [piece_of[other] for other in holding], on_edge, mode, wanted, heaps,
+                [(value_of[other], now[other]) for other in late if now.get(other, 0) > 0],
             )
             for at, other in enumerate(holding):
                 now[other] = kept_counts[at]
@@ -68454,10 +68547,18 @@ L0_CELL_INPUTS.update(
                                    2220]}})
 
 
-# Cases 3, 4, 14 and 15 are frozen on the least move itself, from today's strata the
-# product's pipeline hands it: this file's pipeline reaches other strata on these four
+# Cases 4, 14 and 15 are frozen on the least move itself, from today's strata the
+# product's pipeline hands it: this file's pipeline reaches other strata on these
 # shapes WITHOUT layer L0 (stated in plan P4-D448), and the least move is what A-P4-59's
-# amendment for L0 owes.
+# amendment for L0 owes. Case 3 is no longer among them (lane BT3b, plan P4-D467): its
+# strata parted only because this file's layout lacked G5.3e's run that reaches across a
+# listed tail's edge, which `listed_runs` now reads, so it is made by this file's own
+# number pipeline. What parts the other three is a rule this file does not state, each
+# measured by turning the product's pass off: G6.7 on case 4 (one stratum of 450 cells
+# at 67, inside the published empty stretch (65, 70), where the product writes 70),
+# plan P4-D179's choice of which cell takes which of several published widths (G5.2a) on
+# case 14 (the 101 cells of 0.2 spelt 0.20 by the product), and its exchange of values
+# between neighbouring strata (G5.2a) on case 15 (1.2 and 1.094, 1.9 and 1.999 swapped).
 L0_TODAY = {'l0_cells_case_14': {'bands': ['positive',
                                 'positive',
                                 'positive',
@@ -68777,10 +68878,6 @@ L0_TODAY = {'l0_cells_case_14': {'bands': ['positive',
                                  1.099,
                                  1.1,
                                  2.0]},
- 'l0_cells_case_3': {'bands': ['positive', 'positive', 'positive', 'positive', 'positive', 'positive'],
-                     'figures': 0,
-                     'sizes': [951, 1750, 550, 1250, 299, 200],
-                     'values': [250.0, 500.0, 750.0, 1000.0, 1500.0, 2000.0]},
  'l0_cells_case_4': {'bands': ['zero',
                                'positive',
                                'positive',
@@ -72489,8 +72586,9 @@ def l0_later_document():
     """The thirty-first file: A-P4-59's amendment for layer L0 (lane BT2, plan P4-D448), each case and its answer."""
     document = l0_rule_document(L0_LATER_CASES)
     document["what"] = (
-        "A-P4-59's amendment for layer L0 (lane BT2, plan P4-D448; method G14.3a): the cells of cases 5 and 8, the "
-        "least move on today's strata of cases 3, 4, 14 and 15, case 17's room, case 7 (b)'s windows, the clock's "
+        "A-P4-59's amendment for layer L0 (lane BT2, plan P4-D448; method G14.3a): the cells of cases 3 and 8 (case 3 "
+        "made by this file's own number pipeline since lane BT3b, plan P4-D467), the least move on today's strata of "
+        "cases 4, 5, 14 and 15, case 17's room, case 7 (b)'s windows, the clock's "
         "knots of case 9, the workbook's classes of case 12 and the interface of case 13, and lane BT2's first "
         "repair's three (step 2b beside the next value's heap, step 4 beside an edge, a grained date held in its "
         "band and wearing its one mark), each with the answer this file computes from the method's text."
@@ -72513,6 +72611,717 @@ def l0_rule_document(names=None):
         "(l0_cells_count_short) and over it (l0_cells_count_over) and of step 4's mode kept "
         "(l0_cells_mode_kept), the heaps a ladder proves, a cut census group's halves and a column's "
         "reserved cells.",
+        "generated_by": "tools/reference/make_generation_reference_vectors.py",
+        "method": "docs/spec/generation-method-v1.md",
+        "never_imports": ["synthtwin", "numpy", "pandas"],
+        "cases": cases,
+    }
+
+
+# ------------------------------- layer L0's leftovers, the thirty-fourth file
+#
+# Lane BT3b (plan P4-D467; LANE CHON RULINGS 8 (1)): a column written as its
+# listed values (G6.9) takes its L0 bands' cut ranks before every other
+# published fact (step 0), and G5.7a's (P6) lays it without its band totals
+# where a band holds cells and no listed value, or fewer cells than its
+# listed values. The descriptions are a profiler's account of an invented
+# survey of 20,000 rows (two scores of 1 to 5 beside the code -99 and their
+# sum beside 999), given as inputs; the third case's list is that of the
+# second score with one value taken off, which no profiler writes, for the
+# precondition alone. tests/test_stage6_l0_followups.py holds the product
+# to every answer.
+
+THIRTY_FOURTH_BRANCH_PART = "branches-34"
+
+L0_LISTED_INPUTS = {'l0_cells_listed_pain': {'bands': [[[None, 'p10']],
+                                    [['p10', 'p30']],
+                                    [['p30', 'p50']],
+                                    [['p50', 'p60']],
+                                    [['p60', 'p80']],
+                                    [['p80', None]]],
+                          'block': {'bin_groups': [{'count': 1447, 'first': 0, 'last': 0},
+                                                   {'count': 3515, 'first': 1, 'last': 30},
+                                                   {'count': 14638, 'first': 31, 'last': 31}],
+                                    'decimal_plus': {},
+                                    'detection_evidence': '20000 of the 20000 values are written as numbers',
+                                    'empty_bins': [1,
+                                                   2,
+                                                   3,
+                                                   4,
+                                                   5,
+                                                   6,
+                                                   7,
+                                                   8,
+                                                   9,
+                                                   10,
+                                                   11,
+                                                   12,
+                                                   13,
+                                                   14,
+                                                   15,
+                                                   16,
+                                                   17,
+                                                   18,
+                                                   19,
+                                                   20,
+                                                   21,
+                                                   22,
+                                                   23,
+                                                   24,
+                                                   25,
+                                                   26,
+                                                   27,
+                                                   28,
+                                                   29],
+                                    'empty_edges': [[-99.0, 1.0]],
+                                    'few_values': ['-99', '1', '2', '3', '4', '5'],
+                                    'field_widths': {'1': 18353, '2': 1647},
+                                    'fraction_widths': {},
+                                    'group_separator': '',
+                                    'integer_valued': True,
+                                    'kurtosis': 10.183705555023227,
+                                    'mean': -5.2843,
+                                    'missing_by_class': {'(blank)': 0,
+                                                         '(date-sentinel)': 0,
+                                                         '(declared-missing)': 0,
+                                                         '(numeric-sentinel)': 0,
+                                                         '(text-code)': 0,
+                                                         '(withheld)': 0},
+                                    'missing_by_source': {},
+                                    'mode': 5.0,
+                                    'mode_count': 4643,
+                                    'n_contradictory': 0,
+                                    'n_distinct': 6,
+                                    'n_distinct_folded': 6,
+                                    'n_distinct_values': 6,
+                                    'n_left_out_of_statistics': 0,
+                                    'n_missing': 0,
+                                    'n_missing_blank': 0,
+                                    'n_missing_withheld': 0,
+                                    'n_negative': 1647,
+                                    'n_negative_unrepresentable': 0,
+                                    'n_not_numeric': 0,
+                                    'n_numeric': 20000,
+                                    'n_out_of_range': 0,
+                                    'n_present': 20000,
+                                    'n_rows': 20000,
+                                    'n_sentinel_candidates_unpublished': 0,
+                                    'n_used_in_statistics': 20000,
+                                    'n_zero': 0,
+                                    'name': 'pain_score',
+                                    'negative_form': 'minus',
+                                    'negative_notations': {'minus': 1647},
+                                    'numeric_share': 1.0,
+                                    'numeric_styles': {'plain': 20000},
+                                    'pad_widths': {},
+                                    'percentiles': {'max': 5.0,
+                                                    'min': -99.0,
+                                                    'p01': -99.0,
+                                                    'p05': -99.0,
+                                                    'p10': 1.0,
+                                                    'p25': 1.0,
+                                                    'p50': 3.0,
+                                                    'p75': 4.0,
+                                                    'p90': 5.0,
+                                                    'p95': 5.0,
+                                                    'p99': 5.0},
+                                    'percentiles_between': {'p02': -99.0,
+                                                            'p03': -99.0,
+                                                            'p04': -99.0,
+                                                            'p06': -99.0,
+                                                            'p07': -99.0,
+                                                            'p08': -99.0,
+                                                            'p09': 1.0,
+                                                            'p11': 1.0,
+                                                            'p12': 1.0,
+                                                            'p13': 1.0,
+                                                            'p14': 1.0,
+                                                            'p15': 1.0,
+                                                            'p16': 1.0,
+                                                            'p17': 1.0,
+                                                            'p18': 1.0,
+                                                            'p19': 1.0,
+                                                            'p20': 1.0,
+                                                            'p21': 1.0,
+                                                            'p22': 1.0,
+                                                            'p23': 1.0,
+                                                            'p24': 1.0,
+                                                            'p26': 2.0,
+                                                            'p27': 2.0,
+                                                            'p28': 2.0,
+                                                            'p29': 2.0,
+                                                            'p30': 2.0,
+                                                            'p31': 2.0,
+                                                            'p32': 2.0,
+                                                            'p33': 2.0,
+                                                            'p34': 2.0,
+                                                            'p35': 2.0,
+                                                            'p36': 2.0,
+                                                            'p37': 2.0,
+                                                            'p38': 2.0,
+                                                            'p39': 2.0,
+                                                            'p40': 2.0,
+                                                            'p41': 2.0,
+                                                            'p42': 2.0,
+                                                            'p43': 3.0,
+                                                            'p44': 3.0,
+                                                            'p45': 3.0,
+                                                            'p46': 3.0,
+                                                            'p47': 3.0,
+                                                            'p48': 3.0,
+                                                            'p49': 3.0,
+                                                            'p51': 3.0,
+                                                            'p52': 3.0,
+                                                            'p53': 3.0,
+                                                            'p54': 3.0,
+                                                            'p55': 3.0,
+                                                            'p56': 3.0,
+                                                            'p57': 3.0,
+                                                            'p58': 3.0,
+                                                            'p59': 3.0,
+                                                            'p60': 4.0,
+                                                            'p61': 4.0,
+                                                            'p62': 4.0,
+                                                            'p63': 4.0,
+                                                            'p64': 4.0,
+                                                            'p65': 4.0,
+                                                            'p66': 4.0,
+                                                            'p67': 4.0,
+                                                            'p68': 4.0,
+                                                            'p69': 4.0,
+                                                            'p70': 4.0,
+                                                            'p71': 4.0,
+                                                            'p72': 4.0,
+                                                            'p73': 4.0,
+                                                            'p74': 4.0,
+                                                            'p76': 4.0,
+                                                            'p77': 5.0,
+                                                            'p78': 5.0,
+                                                            'p79': 5.0,
+                                                            'p80': 5.0,
+                                                            'p81': 5.0,
+                                                            'p82': 5.0,
+                                                            'p83': 5.0,
+                                                            'p84': 5.0,
+                                                            'p85': 5.0,
+                                                            'p86': 5.0,
+                                                            'p87': 5.0,
+                                                            'p88': 5.0,
+                                                            'p89': 5.0,
+                                                            'p91': 5.0,
+                                                            'p92': 5.0,
+                                                            'p93': 5.0,
+                                                            'p94': 5.0,
+                                                            'p96': 5.0,
+                                                            'p97': 5.0,
+                                                            'p98': 5.0},
+                                    'position': 1,
+                                    'quality_state': 'ok',
+                                    'remarks': [],
+                                    'role': 'continuous',
+                                    'sentinel_verdicts': [],
+                                    'skew': -3.0250916078652885,
+                                    'statistical_type': 'continuous',
+                                    'std': 28.109636801176475,
+                                    'std_unrepresentable': False,
+                                    'structural_role': 'data',
+                                    'tails': {'high': {'mean_distance': 0.0,
+                                                       'percent': 99,
+                                                       'rms_distance': 0.0,
+                                                       'rows': 200,
+                                                       'values': [5.0]},
+                                              'low': {'mean_distance': 0.0,
+                                                      'percent': 1,
+                                                      'rms_distance': 0.0,
+                                                      'rows': 200,
+                                                      'values': [-99.0]}},
+                                    'thousands_marks': {},
+                                    'value_histogram': {},
+                                    'wide_runs': 'none'},
+                          'rows': 20000,
+                          'seed': 0,
+                          'totals': [1647, 3515, 3382, 3379, 3434, 4643]},
+ 'l0_cells_listed_sum': {'bands': [[[None, 'p10']],
+                                   [['p10', 'p20']],
+                                   [['p20', 'p40']],
+                                   [['p40', 'p60']],
+                                   [['p60', 'p70']],
+                                   [['p70', 'p90']],
+                                   [['p90', None]]],
+                         'block': {'bin_groups': [{'count': 18508, 'first': 0, 'last': 0},
+                                                  {'count': 1092, 'first': 1, 'last': 31}],
+                                   'decimal_plus': {},
+                                   'detection_evidence': 'all 20000 numeric values are whole and none is '
+                                                         'negative, so this column counts things',
+                                   'empty_bins': [1,
+                                                  2,
+                                                  3,
+                                                  4,
+                                                  5,
+                                                  6,
+                                                  7,
+                                                  8,
+                                                  9,
+                                                  10,
+                                                  11,
+                                                  12,
+                                                  13,
+                                                  14,
+                                                  15,
+                                                  16,
+                                                  17,
+                                                  18,
+                                                  19,
+                                                  20,
+                                                  21,
+                                                  22,
+                                                  23,
+                                                  24,
+                                                  25,
+                                                  26,
+                                                  27,
+                                                  28,
+                                                  29,
+                                                  30],
+                                   'empty_edges': [[10.0, 999.0]],
+                                   'few_values': ['2', '3', '4', '5', '6', '7', '8', '9', '10', '999'],
+                                   'field_widths': {'1': 18200, '2': 508, '3': 1292},
+                                   'fraction_widths': {},
+                                   'group_separator': '',
+                                   'integer_valued': True,
+                                   'kurtosis': 13.547557951480966,
+                                   'mean': 70.42425,
+                                   'missing_by_class': {'(blank)': 0,
+                                                        '(date-sentinel)': 0,
+                                                        '(declared-missing)': 0,
+                                                        '(numeric-sentinel)': 0,
+                                                        '(text-code)': 0,
+                                                        '(withheld)': 0},
+                                   'missing_by_source': {},
+                                   'mode': 6.0,
+                                   'mode_count': 3573,
+                                   'n_contradictory': 0,
+                                   'n_distinct': 10,
+                                   'n_distinct_folded': 10,
+                                   'n_distinct_values': 10,
+                                   'n_left_out_of_statistics': 0,
+                                   'n_missing': 0,
+                                   'n_missing_blank': 0,
+                                   'n_missing_withheld': 0,
+                                   'n_negative': 0,
+                                   'n_negative_unrepresentable': 0,
+                                   'n_not_numeric': 0,
+                                   'n_numeric': 20000,
+                                   'n_out_of_range': 0,
+                                   'n_present': 20000,
+                                   'n_rows': 20000,
+                                   'n_sentinel_candidates_unpublished': 0,
+                                   'n_used_in_statistics': 20000,
+                                   'n_zero': 0,
+                                   'name': 'scale_sum',
+                                   'negative_form': 'minus',
+                                   'negative_notations': {},
+                                   'number_spellings': {},
+                                   'numeric_share': 1.0,
+                                   'numeric_styles': {'plain': 20000},
+                                   'pad_widths': {},
+                                   'percentiles': {'max': 999.0,
+                                                   'min': 2.0,
+                                                   'p01': 2.0,
+                                                   'p05': 3.0,
+                                                   'p10': 4.0,
+                                                   'p25': 5.0,
+                                                   'p50': 6.0,
+                                                   'p75': 8.0,
+                                                   'p90': 9.0,
+                                                   'p95': 999.0,
+                                                   'p99': 999.0},
+                                   'percentiles_between': {'p02': 3.0,
+                                                           'p03': 3.0,
+                                                           'p04': 3.0,
+                                                           'p06': 4.0,
+                                                           'p07': 4.0,
+                                                           'p08': 4.0,
+                                                           'p09': 4.0,
+                                                           'p11': 4.0,
+                                                           'p12': 4.0,
+                                                           'p13': 4.0,
+                                                           'p14': 4.0,
+                                                           'p15': 4.0,
+                                                           'p16': 4.0,
+                                                           'p17': 5.0,
+                                                           'p18': 5.0,
+                                                           'p19': 5.0,
+                                                           'p20': 5.0,
+                                                           'p21': 5.0,
+                                                           'p22': 5.0,
+                                                           'p23': 5.0,
+                                                           'p24': 5.0,
+                                                           'p26': 5.0,
+                                                           'p27': 5.0,
+                                                           'p28': 5.0,
+                                                           'p29': 5.0,
+                                                           'p30': 5.0,
+                                                           'p31': 5.0,
+                                                           'p32': 5.0,
+                                                           'p33': 6.0,
+                                                           'p34': 6.0,
+                                                           'p35': 6.0,
+                                                           'p36': 6.0,
+                                                           'p37': 6.0,
+                                                           'p38': 6.0,
+                                                           'p39': 6.0,
+                                                           'p40': 6.0,
+                                                           'p41': 6.0,
+                                                           'p42': 6.0,
+                                                           'p43': 6.0,
+                                                           'p44': 6.0,
+                                                           'p45': 6.0,
+                                                           'p46': 6.0,
+                                                           'p47': 6.0,
+                                                           'p48': 6.0,
+                                                           'p49': 6.0,
+                                                           'p51': 7.0,
+                                                           'p52': 7.0,
+                                                           'p53': 7.0,
+                                                           'p54': 7.0,
+                                                           'p55': 7.0,
+                                                           'p56': 7.0,
+                                                           'p57': 7.0,
+                                                           'p58': 7.0,
+                                                           'p59': 7.0,
+                                                           'p60': 7.0,
+                                                           'p61': 7.0,
+                                                           'p62': 7.0,
+                                                           'p63': 7.0,
+                                                           'p64': 7.0,
+                                                           'p65': 7.0,
+                                                           'p66': 7.0,
+                                                           'p67': 7.0,
+                                                           'p68': 8.0,
+                                                           'p69': 8.0,
+                                                           'p70': 8.0,
+                                                           'p71': 8.0,
+                                                           'p72': 8.0,
+                                                           'p73': 8.0,
+                                                           'p74': 8.0,
+                                                           'p76': 8.0,
+                                                           'p77': 8.0,
+                                                           'p78': 8.0,
+                                                           'p79': 8.0,
+                                                           'p80': 8.0,
+                                                           'p81': 8.0,
+                                                           'p82': 8.0,
+                                                           'p83': 9.0,
+                                                           'p84': 9.0,
+                                                           'p85': 9.0,
+                                                           'p86': 9.0,
+                                                           'p87': 9.0,
+                                                           'p88': 9.0,
+                                                           'p89': 9.0,
+                                                           'p91': 9.09,
+                                                           'p92': 10.0,
+                                                           'p93': 10.0,
+                                                           'p94': 999.0,
+                                                           'p96': 999.0,
+                                                           'p97': 999.0,
+                                                           'p98': 999.0},
+                                   'position': 1,
+                                   'quality_state': 'ok',
+                                   'remarks': [],
+                                   'role': 'count',
+                                   'sentinel_verdicts': [],
+                                   'skew': 3.5421324333689794,
+                                   'statistical_type': 'count',
+                                   'std': 244.03774274265783,
+                                   'std_unrepresentable': False,
+                                   'structural_role': 'data',
+                                   'tails': {'high': {'mean_distance': 0.0,
+                                                      'percent': 99,
+                                                      'rms_distance': 0.0,
+                                                      'rows': 200,
+                                                      'values': [999.0]},
+                                             'low': {'mean_distance': 0.0,
+                                                     'percent': 1,
+                                                     'rms_distance': 0.0,
+                                                     'rows': 200,
+                                                     'values': [2.0]}},
+                                   'thousands_marks': {},
+                                   'value_histogram': {},
+                                   'wide_runs': 'none'},
+                         'rows': 20000,
+                         'seed': 0,
+                         'totals': [1166, 2148, 3143, 3573, 3462, 2920, 3588]},
+ 'l0_room_listed': {'bands': [[[None, 'p10']],
+                              [['p10', 'p20']],
+                              [['p20', 'p40']],
+                              [['p40', 'p70']],
+                              [['p70', None]]],
+                    'block': {'bin_groups': [{'count': 768, 'first': 0, 'last': 0},
+                                             {'count': 1216, 'first': 1, 'last': 30},
+                                             {'count': 17616, 'first': 31, 'last': 31}],
+                              'decimal_plus': {},
+                              'detection_evidence': '20000 of the 20000 values are written as numbers',
+                              'empty_bins': [1,
+                                             2,
+                                             3,
+                                             4,
+                                             5,
+                                             6,
+                                             7,
+                                             8,
+                                             9,
+                                             10,
+                                             11,
+                                             12,
+                                             13,
+                                             14,
+                                             15,
+                                             16,
+                                             17,
+                                             18,
+                                             19,
+                                             20,
+                                             21,
+                                             22,
+                                             23,
+                                             24,
+                                             25,
+                                             26,
+                                             27,
+                                             28,
+                                             29],
+                              'empty_edges': [[-99.0, 1.0]],
+                              'few_values': ['-99', '1', '3', '4', '5'],
+                              'field_widths': {'1': 19032, '2': 968},
+                              'fraction_widths': {},
+                              'group_separator': '',
+                              'integer_valued': True,
+                              'kurtosis': 18.628762848417786,
+                              'mean': -1.7692,
+                              'missing_by_class': {'(blank)': 0,
+                                                   '(date-sentinel)': 0,
+                                                   '(declared-missing)': 0,
+                                                   '(numeric-sentinel)': 0,
+                                                   '(text-code)': 0,
+                                                   '(withheld)': 0},
+                              'missing_by_source': {},
+                              'mode': 3.0,
+                              'mode_count': 6277,
+                              'n_contradictory': 0,
+                              'n_distinct': 6,
+                              'n_distinct_folded': 6,
+                              'n_distinct_values': 6,
+                              'n_left_out_of_statistics': 0,
+                              'n_missing': 0,
+                              'n_missing_blank': 0,
+                              'n_missing_withheld': 0,
+                              'n_negative': 968,
+                              'n_negative_unrepresentable': 0,
+                              'n_not_numeric': 0,
+                              'n_numeric': 20000,
+                              'n_out_of_range': 0,
+                              'n_present': 20000,
+                              'n_rows': 20000,
+                              'n_sentinel_candidates_unpublished': 0,
+                              'n_used_in_statistics': 20000,
+                              'n_zero': 0,
+                              'name': 'sleep_score',
+                              'negative_form': 'minus',
+                              'negative_notations': {'minus': 968},
+                              'numeric_share': 1.0,
+                              'numeric_styles': {'plain': 20000},
+                              'pad_widths': {},
+                              'percentiles': {'max': 5.0,
+                                              'min': -99.0,
+                                              'p01': -99.0,
+                                              'p05': 1.0,
+                                              'p10': 1.0,
+                                              'p25': 2.0,
+                                              'p50': 3.0,
+                                              'p75': 4.0,
+                                              'p90': 4.0,
+                                              'p95': 5.0,
+                                              'p99': 5.0},
+                              'percentiles_between': {'p02': -99.0,
+                                                      'p03': -99.0,
+                                                      'p04': -99.0,
+                                                      'p06': 1.0,
+                                                      'p07': 1.0,
+                                                      'p08': 1.0,
+                                                      'p09': 1.0,
+                                                      'p11': 2.0,
+                                                      'p12': 2.0,
+                                                      'p13': 2.0,
+                                                      'p14': 2.0,
+                                                      'p15': 2.0,
+                                                      'p16': 2.0,
+                                                      'p17': 2.0,
+                                                      'p18': 2.0,
+                                                      'p19': 2.0,
+                                                      'p20': 2.0,
+                                                      'p21': 2.0,
+                                                      'p22': 2.0,
+                                                      'p23': 2.0,
+                                                      'p24': 2.0,
+                                                      'p26': 2.0,
+                                                      'p27': 2.0,
+                                                      'p28': 2.0,
+                                                      'p29': 2.0,
+                                                      'p30': 2.0,
+                                                      'p31': 3.0,
+                                                      'p32': 3.0,
+                                                      'p33': 3.0,
+                                                      'p34': 3.0,
+                                                      'p35': 3.0,
+                                                      'p36': 3.0,
+                                                      'p37': 3.0,
+                                                      'p38': 3.0,
+                                                      'p39': 3.0,
+                                                      'p40': 3.0,
+                                                      'p41': 3.0,
+                                                      'p42': 3.0,
+                                                      'p43': 3.0,
+                                                      'p44': 3.0,
+                                                      'p45': 3.0,
+                                                      'p46': 3.0,
+                                                      'p47': 3.0,
+                                                      'p48': 3.0,
+                                                      'p49': 3.0,
+                                                      'p51': 3.0,
+                                                      'p52': 3.0,
+                                                      'p53': 3.0,
+                                                      'p54': 3.0,
+                                                      'p55': 3.0,
+                                                      'p56': 3.0,
+                                                      'p57': 3.0,
+                                                      'p58': 3.0,
+                                                      'p59': 3.0,
+                                                      'p60': 3.0,
+                                                      'p61': 3.0,
+                                                      'p62': 4.0,
+                                                      'p63': 4.0,
+                                                      'p64': 4.0,
+                                                      'p65': 4.0,
+                                                      'p66': 4.0,
+                                                      'p67': 4.0,
+                                                      'p68': 4.0,
+                                                      'p69': 4.0,
+                                                      'p70': 4.0,
+                                                      'p71': 4.0,
+                                                      'p72': 4.0,
+                                                      'p73': 4.0,
+                                                      'p74': 4.0,
+                                                      'p76': 4.0,
+                                                      'p77': 4.0,
+                                                      'p78': 4.0,
+                                                      'p79': 4.0,
+                                                      'p80': 4.0,
+                                                      'p81': 4.0,
+                                                      'p82': 4.0,
+                                                      'p83': 4.0,
+                                                      'p84': 4.0,
+                                                      'p85': 4.0,
+                                                      'p86': 4.0,
+                                                      'p87': 4.0,
+                                                      'p88': 4.0,
+                                                      'p89': 4.0,
+                                                      'p91': 5.0,
+                                                      'p92': 5.0,
+                                                      'p93': 5.0,
+                                                      'p94': 5.0,
+                                                      'p96': 5.0,
+                                                      'p97': 5.0,
+                                                      'p98': 5.0},
+                              'position': 1,
+                              'quality_state': 'ok',
+                              'remarks': [],
+                              'role': 'continuous',
+                              'sentinel_verdicts': [],
+                              'skew': -4.192898927988013,
+                              'statistical_type': 'continuous',
+                              'std': 21.95322364850839,
+                              'std_unrepresentable': False,
+                              'structural_role': 'data',
+                              'tails': {'high': {'mean_distance': 0.0,
+                                                 'percent': 99,
+                                                 'rms_distance': 0.0,
+                                                 'rows': 200,
+                                                 'values': [5.0]},
+                                        'low': {'mean_distance': 0.0,
+                                                'percent': 1,
+                                                'rms_distance': 0.0,
+                                                'rows': 200,
+                                                'values': [-99.0]}},
+                              'thousands_marks': {},
+                              'value_histogram': {},
+                              'wide_runs': 'none'},
+                    'laid': False,
+                    'rows': 20000,
+                    'seed': 0,
+                    'totals': [968, 1216, 3849, 6277, 7690]}}
+
+
+L0_LISTED_WHY = {
+    "l0_cells_listed_pain": "G6.9 step 0 (lane BT3b): a score of 1 to 5 beside the code -99 at 20,000 cells, chained: "
+    "each band's published count is a cut rank the listed census meets before every other fact, so every band holds "
+    "its count (the census alone wrote 3,649 cells in a band of 3,651 on the zoo's survey, which generate refused).",
+    "l0_cells_listed_sum": "G6.9 step 0 (lane BT3b): the sum of two scores, 2 to 10 beside the code 999, at 20,000 "
+    "cells: seven bands, each at its published count.",
+    "l0_room_listed": "G5.7a's (P6) (lane BT3b): the second score's list with the value 2 taken off, so the band "
+    "[2, 3) holds 3,849 cells and no listed value: the column is made without its band totals (rule B3), never "
+    "refused.",
+}
+
+
+def l0_listed_case(name):
+    """One case of G6.9 step 0 or of (P6): the oracle's own number pipeline, layer L0's cuts on a listed column."""
+    given = L0_LISTED_INPUTS[name]
+    block = given["block"]
+    edges = [l0_rung(block, band[0][0]) for band in given["bands"][1:]]
+    case = {
+        "why": L0_LISTED_WHY[name], "column": block, "rows": given["rows"], "bands": given["bands"],
+        "totals": given["totals"], "seed": given["seed"],
+    }
+    if given.get("laid") is False:
+        room, _pieces = l0_room(block, edges, list(given["totals"]))
+        case["rule"] = "room"
+        case["answer"] = {"laid": room and l0_listed_room(block, edges, list(given["totals"]))}
+        return case
+    working = dict(block)
+    working["_content_words"] = []
+    working["_declared_short"] = False
+    working["_truths"] = 0
+    working["_code_declared"] = False
+    working["_parse_rate"] = MINIMUM_PARSE_RATE
+    working["_rungs"] = {key: l0_rung(block, key) for key in ALL_LADDER_KEYS}
+    working["_l0"] = (edges, list(given["totals"]))
+    content, _chain, _missed = _numeric_content(working)
+    counts = {}
+    for cell in list(content) + list(absent_cells(working)):
+        counts[cell] = counts.get(cell, 0) + 1
+    case["rule"] = "cells"
+    case["answer"] = {"counts": [[cell, counts[cell]] for cell in sorted(counts)]}
+    return case
+
+
+L0_FOLLOWUP_CASES = {
+    "l0_cells_listed_pain": lambda: l0_listed_case("l0_cells_listed_pain"),
+    "l0_cells_listed_sum": lambda: l0_listed_case("l0_cells_listed_sum"),
+    "l0_room_listed": lambda: l0_listed_case("l0_room_listed"),
+}
+
+
+def l0_followups_document():
+    """The thirty-fourth file: layer L0's leftovers (lane BT3b, plan P4-D467), each case and its answer."""
+    cases = {}
+    for name in sorted(L0_FOLLOWUP_CASES):
+        cases[name] = L0_FOLLOWUP_CASES[name]()
+    return {
+        "what": "Layer L0's leftovers (lane BT3b, plan P4-D467; method G5.7a and G6.9): a column written as its "
+        "listed values meets its L0 bands' cut ranks first (G6.9 step 0), two invented chained columns' counts "
+        "at each value, and G5.7a's (P6) on a list that leaves a band no value, each with the answer this file "
+        "computes from the method's text.",
         "generated_by": "tools/reference/make_generation_reference_vectors.py",
         "method": "docs/spec/generation-method-v1.md",
         "never_imports": ["synthtwin", "numpy", "pandas"],
@@ -73861,7 +74670,7 @@ def main(argv=None, part=None):
     if part in (
         FIFTEENTH_BRANCH_PART, SIXTEENTH_BRANCH_PART, SEVENTEENTH_BRANCH_PART,
         EIGHTEENTH_BRANCH_PART, NINETEENTH_BRANCH_PART, TWENTIETH_BRANCH_PART,
-        TWENTY_EIGHTH_BRANCH_PART, THIRTY_FIRST_BRANCH_PART,
+        TWENTY_EIGHTH_BRANCH_PART, THIRTY_FIRST_BRANCH_PART, THIRTY_FOURTH_BRANCH_PART,
     ):
         # Whole numbers only, read by the pass and written by it: there is
         # no binary64 here for the proof layer to certify -- save, in the
@@ -73877,6 +74686,8 @@ def main(argv=None, part=None):
             # -- layer L0's rules (lane BT, plan P4-D429)
             TWENTY_EIGHTH_BRANCH_PART: l0_rule_document,
             THIRTY_FIRST_BRANCH_PART: l0_later_document,
+            # -- layer L0's leftovers (lane BT3b, plan P4-D467)
+            THIRTY_FOURTH_BRANCH_PART: l0_followups_document,
         }
         written_document = step_documents[part]()
         text = json.dumps(written_document, indent=2, sort_keys=True, allow_nan=False)

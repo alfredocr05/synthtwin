@@ -26,6 +26,26 @@ ways:
   them row by row, at a few thousand rows.
 * ``--one TABLE`` -- one table in this process (what ``--night`` runs in
   each child), its results written as JSON to ``--json``.
+* ``--beside-unswitched`` (with ``--kpi``; THE FIRST STAMP on a head whose
+  typed commands switch the chain on, LANE MU RULINGS 3 (2) item 6) --
+  the tier read a second time through route U of `tests/twin_routes.py`
+  (the same typed commands with `cli.main`'s internal unswitched
+  setting), each KPI's detail carrying that reading beside the stamped
+  route S one: the switch's effect is their difference, the route's
+  effect route U against the library path. On a head whose typed
+  commands do not switch, route U is route S.
+* ``--twins 0,1,2`` (with ``--kpi``; lane CHG's stamp, plan P4-D492, LANE
+  CHG RULINGS 1 (3) and (7)) -- the tier's tables and table seeds at these
+  twin seeds only (the tier's own are 0 to 4), each run kept under a name
+  that carries them. Every ``--kpi`` run also prints, in K-BC-01's and
+  K-BC-03's details, the readings G16.3's grouping gate is judged on:
+  ST5's share of pairs called associated at EACH table and twin seed,
+  with its median and its largest (`null_significant_share_most`; the
+  bar: median at most 8 per cent, every reading at most 15); the pooled
+  share inside on the reference pool ST1, ST3, ST4 and ST6 against the
+  midpoint of the replicate's and the shuffled twin's, per table seed and
+  per twin seed; and the invented clause on ST1, ST4 and ST6 per table
+  seed.
 
 ``--out`` names the folder the tables, descriptions and twins are
 written to (default: a temporary folder, removed after). Nothing is
@@ -109,11 +129,12 @@ NOT_PANEL = ("kpi_rules",)
 def panel_code_files() -> "list[pathlib.Path]":
     """Every file a table run's panels come from: src/, and each module under tests/ the battery loads.
 
-    The battery reaches the product's description through `kpi_shapes`,
-    which loads `fixtures` and `workbooks`. Loading it here loads that
-    whole chain, and every module then loaded from tests/ is read: a
-    digest of the kit, the tables and the battery alone let panels made
-    by an old helper be read back as current (Codex's review).
+    The battery reaches the product through `twin_routes` (the commands
+    a person types, lane MU) and, for K-BC-11's chain side, `fixtures`;
+    `kpi_shapes`, which loads `fixtures` and `workbooks`, is loaded here
+    as well, and every module then loaded from tests/ is read: a digest of
+    the kit, the tables and the battery alone let panels made by an old
+    helper be read back as current (Codex's review).
     """
     import kpi_shapes  # noqa: F401  (the chain the battery's description reaches)
 
@@ -137,32 +158,173 @@ def panel_code_digest() -> str:
     return digest.hexdigest()
 
 
-def run_kpi(folder: pathlib.Path) -> None:
-    """The 20,000-row tier, every table and seed in this process (or read back where kept, see the module)."""
-    started = time.perf_counter()
+def tier_runs(folder: pathlib.Path, unswitched: bool = False,
+              twins: "tuple[int, ...] | None" = None) -> "list[B.TableRun]":
+    """The 20,000-row tier's table runs, by route S (route U with ``unswitched``), each read back where kept.
+
+    ``twins`` (lane CHG's stamp) takes these twin seeds in place of the
+    tier's own; a run kept under it carries them in its name, so a run of
+    other twin seeds is never read back for it.
+    """
     kept = os.environ.get("SYNTHTWIN_ANALYST_RUNS")
     code = panel_code_digest()
     runs = []
+    twins = B.TIERS["slow"]["twins"] if twins is None else twins
+    mark = "-U" if unswitched else ""
+    if twins != B.TIERS["slow"]["twins"]:
+        mark += "-t" + "-".join(str(seed) for seed in twins)
     for table in B.TIERS["slow"]["tables"]:
         for seed in B.TIERS["slow"]["seeds"]:
-            saved = pathlib.Path(kept) / f"{table}-{seed}.json" if kept else None
+            saved = pathlib.Path(kept) / f"{table}-{seed}{mark}.json" if kept else None
             if saved is not None and saved.exists():
                 record = json.loads(saved.read_text(encoding="utf-8"))
                 if record.get("code") == code:
                     runs += [B.run_from_dict(record["run"])]
-                    print(f"{table} seed {seed}: read back from {saved}", flush=True)
+                    print(f"{table} seed {seed}{mark}: read back from {saved}", flush=True)
                     continue
-            run = B.run_table(table, B.TIERS["slow"]["rows"], seed, B.TIERS["slow"]["twins"], "slow",
-                              folder / f"{table}-{seed}", thin=True)
-            print(f"{table} seed {seed}: {run.seconds:.0f} s ({run.product_seconds:.0f} s in the product)",
+            run = B.run_table(table, B.TIERS["slow"]["rows"], seed, twins, "slow",
+                              folder / f"{table}-{seed}{mark}", thin=True, unswitched=unswitched)
+            print(f"{table} seed {seed}{mark}: {run.seconds:.0f} s ({run.product_seconds:.0f} s in the product)",
                   flush=True)
             if saved is not None:
                 saved.parent.mkdir(parents=True, exist_ok=True)
                 saved.write_text(json.dumps({"code": code, "run": B.run_to_dict(run)}), encoding="utf-8",
                                  newline="\n")
             runs += [run]
+    return runs
+
+
+def with_route_u(values: "dict[str, dict[str, object]]", beside: "dict[str, dict[str, object]]") -> None:
+    """Each KPI's detail gains route U's reading of its keys on the same head (the switch's effect is the difference)."""
+    for kpi, value in values.items():
+        other = {k: v for k, v in beside.get(kpi, {}).items() if not k.startswith("_")}
+        value["_detail"] = (f"{value.get('_detail', '')} | route U (the same commands, unswitched) on this head: "
+                            f"{json.dumps(B.finite(other), sort_keys=True)}")
+
+
+# G16.3's GROUPING GATE (lane CHG, plan P4-D492): the readings it is judged on. The null table's estimate; the
+# reference pool of K-BC-01's gain (the structured one-row tables, ST2's several rows a person and the null table
+# ST5 aside); the tables of K-BC-03's invented clause.
+NULL_SHARE = "ST5/null:significant_share"
+GAIN_POOL = ("ST1", "ST3", "ST4", "ST6")
+INVENTED_POOL = ("ST1", "ST4", "ST6")
+
+
+def _pooled_by_twin(runs: "list[B.TableRun]", side: str) -> "list[float | None]":
+    """K-BC-01's pooled share inside for each twin seed of ``side``, as `kpi_01` pools it (joint estimates and F8)."""
+    count = max((len(r.sides[side]) for r in runs), default=0)
+    out: "list[float | None]" = []
+    for k in range(count):
+        rows = [c for r in runs if k < len(r.sides[side]) for c in r.sides[side][k].compared if B._joint(c)]
+        rows += B._f8_rows(runs, side, k)
+        out += [B._share(rows)]
+    return out
+
+
+def _invented_by_twin(runs: "list[B.TableRun]", side: str) -> "list[float]":
+    """K-BC-03's share of the table's non-significant joint estimates ``side`` makes significant, per twin seed."""
+    count = max((len(r.sides[side]) for r in runs), default=0)
+    out: "list[float]" = []
+    for k in range(count):
+        rows = [c for r in runs if k < len(r.sides[side]) for c in r.sides[side][k].compared
+                if c.sig_real is not None and c.family != "F1" and B._joint(c) and not c.sig_real]
+        if rows:
+            out += [sum(1 for c in rows if c.sig_twin) / len(rows)]
+    return out
+
+
+def gate_readings(runs: "list[B.TableRun]", twins: "tuple[int, ...]", suffix: str) -> "dict[str, dict[str, object]]":
+    """The keys and detail lines G16.3's grouping gate is judged on (lane CHG), for K-BC-03 and K-BC-01."""
+    out: "dict[str, dict[str, object]]" = {"K-BC-03": {}, "K-BC-01": {}}
+    null = [(r.seed, twins[k] if k < len(twins) else k, s.panel.estimates[NULL_SHARE].value)
+            for r in runs if r.table == "ST5" for k, s in enumerate(r.sides["twin"]) if NULL_SHARE in s.panel.estimates]
+    fresh = [s.panel.estimates[NULL_SHARE].value for r in runs if r.table == "ST5" for s in r.sides["replicate"]
+             if NULL_SHARE in s.panel.estimates]
+    lines: "list[str]" = []
+    if null:
+        shares = [value for _seed, _twin, value in null]
+        out["K-BC-03"][f"null_significant_share_most{suffix}"] = round(max(shares), 3)
+        lines += ["ST5's share of pairs called associated, table seed/twin seed: "
+                  + ", ".join(f"{seed}/{twin} {value:.3f}" for seed, twin, value in null)
+                  + f"; median {B._median(shares):.3f}, largest {max(shares):.3f}"
+                  + (f"; the fresh replicate's median {B._median(fresh):.3f}" if fresh else "")]
+    invented = [r for r in runs if r.table in INVENTED_POOL]
+    for seed in sorted({r.seed for r in invented}) + [0]:
+        part = [r for r in invented if r.seed == seed] if seed else invented
+        if not part:
+            continue
+        twin, fresh = _invented_by_twin(part, "twin"), _invented_by_twin(part, "replicate")
+        got = B.kpi_03(part, "")
+        label = f"table seed {seed}" if seed else "every table seed"
+        lines += [f"invented on {', '.join(INVENTED_POOL)} at {label}: the twin {100.0 * B._median(twin):.1f} per cent "
+                  f"(twin seeds {', '.join(f'{100.0 * v:.1f}' for v in twin)}), the replicate "
+                  f"{100.0 * B._median(fresh):.1f}: {got['fabricated_points_above_replicate']:+.1f} points"]
+    out["K-BC-03"]["_detail"] = "; ".join(lines)
+    pool = [r for r in runs if r.table in GAIN_POOL]
+    lines = []
+    for seed in sorted({r.seed for r in pool}) + [0]:
+        part = [r for r in pool if r.seed == seed] if seed else pool
+        if not part:
+            continue
+        sides = {side: _pooled_by_twin(part, side) for side in ("twin", "replicate", "shuffled")}
+        medians = {side: B._median([v for v in got if v is not None]) for side, got in sides.items()}
+        middle = (medians["replicate"] + medians["shuffled"]) / 2.0
+        each = ", ".join(f"{twins[k] if k < len(twins) else k} {v:.3f}" for k, v in enumerate(sides["twin"])
+                         if v is not None)
+        label = f"table seed {seed}" if seed else "every table seed"
+        lines += [f"{', '.join(GAIN_POOL)} at {label}: twin {medians['twin']:.3f} (twin seeds {each}), replicate "
+                  f"{medians['replicate']:.3f}, shuffled {medians['shuffled']:.3f}, midpoint {middle:.3f}, "
+                  f"{100.0 * (medians['twin'] - middle):+.1f} points over it"]
+        if not seed:
+            out["K-BC-01"][f"pool_twin_share{suffix}"] = round(medians["twin"], 3)
+            out["K-BC-01"][f"pool_points_over_midpoint{suffix}"] = round(100.0 * (medians["twin"] - middle), 1)
+    out["K-BC-01"]["_detail"] = "; ".join(lines)
+    return out
+
+
+def with_gate_readings(values: "dict[str, dict[str, object]]", readings: "dict[str, dict[str, object]]") -> None:
+    """Each of K-BC-01's and K-BC-03's values gains the gate's keys, and its detail the gate's lines (lane CHG)."""
+    for kpi, extra in readings.items():
+        value = values.setdefault(kpi, {})
+        for key, got in extra.items():
+            if key == "_detail":
+                if got:
+                    value["_detail"] = f"{value.get('_detail', '')} | the grouping gate's readings: {got}"
+            else:
+                value[key] = got
+
+
+def run_kpi(folder: pathlib.Path, beside_unswitched: bool = False, twins: "tuple[int, ...] | None" = None) -> None:
+    """The 20,000-row tier, every table and seed in this process (or read back where kept, see the module).
+
+    ``beside_unswitched`` (THE FIRST STAMP on a head whose typed commands
+    switch the chain on, LANE MU RULINGS 3 (2) item 6): the tier is read a
+    second time through route U (the same commands with `cli.main`'s
+    internal unswitched setting), and each KPI's detail carries that
+    reading beside the stamped route S one, so that the switch's effect is
+    their difference and the route's effect route U against the library
+    path. On a head whose typed commands do not switch, route U is route S.
+    ``twins`` (lane CHG's stamp): these twin seeds in place of the tier's.
+    K-BC-01 and K-BC-03 carry the grouping gate's readings (`gate_readings`),
+    route U's in their details beside route S's where it is read.
+    """
+    started = time.perf_counter()
+    seeds = B.TIERS["slow"]["twins"] if twins is None else twins
+    runs = tier_runs(folder, twins=twins)
     values = B.kpi_values(runs, "_20k")
     values["K-BC-12"] = B.kpi_12(runs, "_20k")
+    with_gate_readings(values, gate_readings(runs, seeds, "_20k"))
+    if beside_unswitched:
+        others = tier_runs(folder, unswitched=True, twins=twins)
+        beside = B.kpi_values(others, "_20k")
+        beside["K-BC-12"] = B.kpi_12(others, "_20k")
+        unswitched = gate_readings(others, seeds, "_20k")
+        with_gate_readings(beside, {kpi: {k: v for k, v in got.items() if k != "_detail"}
+                                    for kpi, got in unswitched.items()})
+        with_route_u(values, beside)
+        for kpi, got in unswitched.items():
+            if got.get("_detail"):
+                values[kpi]["_detail"] = f"{values[kpi].get('_detail', '')} | route U's gate readings: {got['_detail']}"
     failing = B.controls_failing(values)
     values["K-BC-13"] = {
         "controls_failing_20k": len(failing),
@@ -216,6 +378,11 @@ def run_one(table: str, rows: int, folder: pathlib.Path, out: pathlib.Path) -> N
     record = {"run": B.run_to_dict(run), "seconds": round(time.perf_counter() - started, 1),
               "peak_mb": peak_mb()}
     out.write_text(json.dumps(record), encoding="utf-8", newline="\n")
+    if table == "ST5":
+        # The null table's reading at this size (lane CHG's one seed at 200,000 rows), beside its replicate's.
+        print(json.dumps({side: [s.panel.estimates[NULL_SHARE].value for s in run.sides[side]
+                                 if NULL_SHARE in s.panel.estimates] for side in ("twin", "replicate", "shuffled")}),
+              flush=True)
 
 
 def busy() -> "list[str]":
@@ -280,6 +447,9 @@ def run_night(folder: pathlib.Path) -> None:
 def main(argv: "list[str] | None" = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--kpi", action="store_true", help="the 20,000-row tier")
+    parser.add_argument("--beside-unswitched", action="store_true",
+                        help="with --kpi: route U's reading in each KPI's detail (the first stamp on a switched head)")
+    parser.add_argument("--twins", help="with --kpi: these twin seeds in place of the tier's, as 0,1,2 (lane CHG)")
     parser.add_argument("--selftest", action="store_true", help="K-BC-11's slow part: the chain's twin and the two reports")
     parser.add_argument("--night", action="store_true", help="the 200,000-row tier, a child per table")
     parser.add_argument("--one", metavar="TABLE", help="one table in this process (a night's child)")
@@ -295,7 +465,8 @@ def main(argv: "list[str] | None" = None) -> int:
         folder = pathlib.Path(args.out) if args.out else pathlib.Path(scratch)
         folder.mkdir(parents=True, exist_ok=True)
         if args.kpi:
-            run_kpi(folder / "slow")
+            twins = tuple(int(seed) for seed in args.twins.split(",")) if args.twins else None
+            run_kpi(folder / "slow", args.beside_unswitched, twins)
         if args.selftest:
             run_selftest(folder / "selftest")
         if args.night:

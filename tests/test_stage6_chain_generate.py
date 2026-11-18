@@ -164,10 +164,8 @@ def _switched(folder: pathlib.Path, name: str, text: str) -> _Switched:
     # measure the WALK, beside a repeating column too; no question is put here.
     chained = chain.describe(table, document, settings, chain.ChainSwitch(name, TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
-    written = dict(document)
-    relationships = dict(written["relationships"])  # type: ignore[call-overload]
-    relationships["statistical"] = chained.statistical
-    written["relationships"] = relationships
+    # Every writer of a switched description goes through `chain.with_rules` (LANE RO RULINGS 2 (4), plan P4-D464).
+    written = chain.with_rules(document, chained)
     on = fixtures.write_profile(folder, f"{name}-switched.json", written)
     off = fixtures.write_profile(folder, f"{name}-plain.json", document)
     return _Switched(
@@ -1080,7 +1078,13 @@ def test_a_column_made_without_its_band_totals_meets_g16_6_of_its_own_totals(b3:
     orchestrator's rule of 2026-10-26): the MUTANTS are source mutants run on the head outside the
     suite (plan P4-D435's repair round): the interface's grouping of such a column (the build's,
     M20), which missed its own target by 258 rows on the claims and 4 to 12 on the encounters; and
-    the moved notes dropped (M14)."""
+    the moved notes dropped (M14).
+
+    SINCE BATCH 4u'S CHECKS the encounters' two stamps, read at UTC, are read on the clock their rungs
+    are published on by the chain and by the generator alike (`parsing.moment_on_its_clock`), so (D2)
+    holds and both are laid out at their published band totals: no column of that shape is made without
+    them, no family is moved and none is named (on aa11cdd0, read on their local clock, both were made
+    without their band totals and both families moved; MUTANT: the local clock again, red)."""
     found = {kind: _against_g16_6(b3[kind], b3[kind].twin(0)) for kind in ("claims", "encounters")}
     # A STAMP WRITTEN INSIDE ITS GRAIN (lane BT2, plan P4-D448, closing the
     # seam batch 4m's merge named beside lane PS2's date floor): at 20,000
@@ -1091,7 +1095,7 @@ def test_a_column_made_without_its_band_totals_meets_g16_6_of_its_own_totals(b3:
     # a5702b71 where G16.6 asks 811 and 1,193 in its first parent cell).
     for kind, (off, moved, named) in found.items():
         without = {note.column for note in b3[kind].twin(0).deviations if note.fact == "band totals"}
-        assert without, kind + ": the shape makes a column without its band totals"
+        assert bool(without) == (kind == "claims"), (kind, sorted(without))
         assert named == moved, kind
     assert found["claims"][0] == [] and found["encounters"][0] == []
     assert any(column.time_grain is not None for column in b3["encounters"].loaded.columns)
@@ -1102,7 +1106,7 @@ def test_a_column_made_without_its_band_totals_meets_g16_6_of_its_own_totals(b3:
     # totals, its family takes G16.6's moved table (plan P4-D435's limit
     # (1), owner lane BT2), met exactly (`off` above) and named.
     assert found["claims"][1] == ["adjustment"]
-    assert found["encounters"][1] != []
+    assert found["encounters"] == ([], [], [])
 
 
 def _own_reading(role: str, text: str) -> "tuple[object, ...]":
@@ -1130,7 +1134,9 @@ def test_the_reader_s_bands_of_such_a_column_are_the_oracle_s(b3: "dict[str, _Sw
     and of the encounters' two stamps, taken where the walk takes it (`generation._reader_l0_bands`, on
     the twin's own cells at seed 0), equals the oracle's (`co.reader_bands`) on this file's own reading
     of each cell's text against the published rungs; the frozen case `reader_bands` stands beside its
-    mutant, the interface's `other` grouping."""
+    mutant, the interface's `other` grouping. Since batch 4u's checks the encounters' two stamps are
+    laid out at their published band totals (the case above), so the reader bands no cell of theirs and
+    `adjustment` is the shape's one column read here."""
     seen = _B3_SEEN
     for kind in ("claims", "encounters"):
         switched = b3[kind]
@@ -1157,7 +1163,7 @@ def test_the_reader_s_bands_of_such_a_column_are_the_oracle_s(b3: "dict[str, _Sw
             if block.get("time_grain") is not None:
                 cells = [(kind[0], kind[1] + 86400) if kind[0] == "value" else kind for kind in cells]  # type: ignore[operator]
             assert co.reader_bands(lad, cells, rungs) == product, name
-    assert set(seen) >= {"adjustment", "admit_ts", "discharge_ts"}
+    assert "adjustment" in seen and not set(seen) & {"admit_ts", "discharge_ts"}, sorted(seen)
     case = FROZEN["reader_bands"]
     assert case["twin_totals"] == [12, 31, 32] != FROZEN["reader_bands_mutant_interface_other"]["twin_totals"]
 
@@ -1231,10 +1237,8 @@ def test_a_workbook_cell_keeps_its_class_kind_and_date_through_the_walk(tmp_path
     document = profile.build_document(table, settings, [], [], [])
     chained = chain.describe(table, document, settings, chain.ChainSwitch("ward-book", TEST_KEY, rows_per_person=chain.ROWS_UNASKED))
     assert chained.statistical is not None, chained.notes
-    written = dict(document)
-    relationships = dict(written["relationships"])  # type: ignore[call-overload]
-    relationships["statistical"] = chained.statistical
-    written["relationships"] = relationships
+    # Every writer of a switched description goes through `chain.with_rules` (LANE RO RULINGS 2 (4), plan P4-D464).
+    written = chain.with_rules(document, chained)
     loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "ward-book.json", written)), chain=True)
     emptied = dataclasses.replace(loaded, relationships=dataclasses.replace(loaded.relationships, chain=()))
     alone = _book_pairs(generation.generate_held(emptied, 0))
@@ -1296,10 +1300,8 @@ def test_a_decimal_comma_column_made_without_its_band_totals_meets_its_family(tm
     chained = chain.describe(table, document, settings, chain.ChainSwitch("comma", b"01234567890123456789012345678901", rows_per_person=chain.ROWS_UNASKED),
                              forced_measurements=["value"], forced_decimal_commas=["value"])
     assert chained.statistical is not None, chained.notes
-    written = dict(document)
-    relationships = dict(written["relationships"])  # type: ignore[call-overload]
-    relationships["statistical"] = chained.statistical
-    written["relationships"] = relationships
+    # Every writer of a switched description goes through `chain.with_rules` (LANE RO RULINGS 2 (4), plan P4-D464).
+    written = chain.with_rules(document, chained)
     loaded = contract.load_profile(str(fixtures.write_profile(tmp_path, "comma.json", written)), chain=True)
     monkeypatch.setattr(generation, "_READ_BLOCK", 256)
     twin = generation.generate_held(loaded, 0)

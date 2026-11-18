@@ -9902,6 +9902,33 @@ def utc_moment(canonical: str, offset: str) -> "str | None":
     return "9999-12-31 23:59:59"
 
 
+def moment_on_its_clock(parsed: "tuple[str, str]", read_at: object, resolution: object) -> "str | None":
+    """A cell `parse_datetime` read, as (canonical, offset), on the clock its column's rungs are published on.
+
+    Contract 4.6b.2 cuts a `datetime` column's `L0` bands at the rungs of
+    its `date_percentiles`, and a column of date-times read at UTC
+    (``read_at`` "utc", ``resolution`` "datetime") publishes those rungs as
+    UTC instants (`utc_moment`, as the profile reads them). So wherever a
+    cell is cut at a rung -- the chain's describing and validating reader
+    (`chain.reading_of`) and the generator's (`generation.reader_reading`)
+    -- it is read at UTC too, and every other column keeps its canonical
+    text. Before batch 4u's checks both readers took the local wall clock,
+    so the bands of a column of stamps wearing two offsets were counted on
+    one clock and cut on the other: the twin, laid on the rungs, missed
+    the totals its own description published.
+
+    Guarantees: accepts a parsed pair and the column's two published
+    settings; returns the text compared with the rungs, or None where the
+    pair names no instant. Determinism: a function of the three. Raises
+    TypeError where the pair holds anything but text. No I/O of any kind.
+    """
+    if read_at == "utc" and resolution == "datetime":
+        return utc_moment(parsed[0], parsed[1])
+    if not isinstance(parsed[0], str):
+        raise TypeError(_NOT_TEXT)
+    return parsed[0]
+
+
 def instant_key(canonical: str, offset: str) -> "int | None":
     """The instant a canonical datetime names, in whole seconds.
 

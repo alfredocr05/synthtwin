@@ -562,7 +562,11 @@ def test_one_run_writes_the_six_files_into_one_folder(ran: "dict[str, typing.Any
     made, _screen = ran["B"]
     folder = ran["folder"]
     assert [step.command for step in made.steps] == [results.PROFILE, results.GENERATE, results.VALIDATE]
-    assert [one.kind for one in made.files] == [
+    # The private report of the switched profile step (plan P4-D464) is
+    # written outside the folder, and the six files are the folder's.
+    shared = [one for one in made.files if one.kind != results.FILE_PRIVATE_REPORT]
+    private = [one for one in made.files if one.kind == results.FILE_PRIVATE_REPORT]
+    assert [one.kind for one in shared] == [
         results.FILE_DESCRIPTION,
         results.FILE_SUMMARY,
         results.FILE_QUESTIONS,
@@ -570,8 +574,9 @@ def test_one_run_writes_the_six_files_into_one_folder(ran: "dict[str, typing.Any
         results.FILE_TWIN_REPORT,
         results.FILE_QUALITY_REPORT,
     ]
-    assert {pathlib.Path(one.path).parent for one in made.files} == {folder.resolve()}
-    assert sorted(ran["after_B"]) == sorted(pathlib.Path(one.path).name for one in made.files)
+    assert {pathlib.Path(one.path).parent for one in shared} == {folder.resolve()}
+    assert all(folder.resolve() not in pathlib.Path(one.path).parents for one in private)
+    assert sorted(ran["after_B"]) == sorted(pathlib.Path(one.path).name for one in shared)
     # The table's own folder holds the table and the twin's folder, and
     # no file of the run is beside the table.
     assert sorted(os.listdir(ran["home"])) == ["t-synthtwin", "t.csv"]
@@ -1214,7 +1219,8 @@ def test_the_ending_counts_the_files_the_steps_wrote(tmp_path: pathlib.Path) -> 
     os.symlink("t-profile.json", folder / "t-questions.json")
     five, screen = _library(["twin", "t.csv", "--replace", "--answers", "kept.json"], tmp_path)
     assert five.verdict in (results.NO_MISS, results.MISSED), five.refusal
-    assert len(five.files) == 5
+    # The private report is written outside the folder and never counted (plan P4-D464).
+    assert len([one for one in five.files if one.kind != results.FILE_PRIVATE_REPORT]) == 5
     assert "\nThe twin's five files are in:\n" in _text(screen)
 
 

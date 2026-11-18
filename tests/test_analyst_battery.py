@@ -36,7 +36,9 @@ mechanism biting rather than assume it:
 * the slow driver's cache reads every module the panels come from, and
   the driver runs where `resource` does not exist;
 * the report reading finds a block of family lines where one exists, so
-  K-BC-11's "no line exists" is a reading and not a constant.
+  K-BC-11's "no line exists" is a reading and not a constant;
+* the readings of G16.3's grouping gate (lane CHG, plan P4-D492) pool as
+  K-BC-01 and K-BC-03 pool them, per table seed and over every one.
 
 ST2 at 1,500 rows keeps most of the file to a few seconds; the swaps read
 the fast part's run (`analyst_battery.fast_run`, made once a process).
@@ -373,7 +375,9 @@ def test_the_battery_entries_bounds_can_fail_and_state_the_tiers_they_judge() ->
 
     ledger = json.loads(kpi_rules.LEDGER_PATH.read_text(encoding="utf-8"))
     entries = {e["id"]: e for e in ledger["entries"] if e["id"].startswith("K-BC-")}
-    assert len(entries) == 13
+    # K-BC-01 to K-BC-15: K-BC-14 the model-utility battery (plan P4-D485), entered at its first switched stamp in
+    # batch 4u's checks, and K-BC-15 the patient layer's statistics (plan P4-D491).
+    assert len(entries) == 15
     for kid, entry in entries.items():
         for key, bound in entry["expected"].items():
             if key.startswith("points_below_shuffled"):
@@ -573,3 +577,32 @@ def test_the_slow_driver_runs_where_resource_does_not_exist(monkeypatch: pytest.
     monkeypatch.setitem(sys.modules, "resource", None)  # type: ignore[arg-type]
     driver = _driver(monkeypatch)
     assert driver.peak_mb() is None  # type: ignore[attr-defined]
+
+
+def test_the_grouping_gate_s_readings_pool_as_the_kpis_pool(fast_runs: "list[B.TableRun]",
+                                                             monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane CHG's repair 1 (the statistics check's items 2 and 3; LANE CHG RULINGS 3 (2)): the readings K-BC-01's
+    gain and K-BC-03's invented clause are stamped on pool as the two KPIs pool them. On the reference pool's tables
+    of the run each side's share inside is `kpi_01`'s, twin seed by twin seed (the joint estimates and the trained
+    models' F8 together); the twin's invented share over the replicate's is `kpi_03`'s points (the rates and the
+    margins left out); and the driver gives both per table seed and over every table seed. Mutants, each red: the
+    trained models' F8 left out of the pool; the invented share read over every estimate the table tests,
+    significant there or not."""
+    driver = _driver(monkeypatch)
+    pool = [r for r in fast_runs if r.table in driver.GAIN_POOL]  # type: ignore[attr-defined]
+    invented = [r for r in fast_runs if r.table in driver.INVENTED_POOL]  # type: ignore[attr-defined]
+    assert pool and invented
+    k01 = B.kpi_01(pool, "")
+    for side in ("twin", "replicate", "shuffled"):
+        shares = [v for v in driver._pooled_by_twin(pool, side) if v is not None]  # type: ignore[attr-defined]
+        assert round(B._median(shares), 3) == k01[f"{side}_pooled_share"], side
+    twin = B._median(driver._invented_by_twin(invented, "twin"))  # type: ignore[attr-defined]
+    fresh = B._median(driver._invented_by_twin(invented, "replicate"))  # type: ignore[attr-defined]
+    assert round(100.0 * (twin - fresh), 1) == B.kpi_03(invented, "")["fabricated_points_above_replicate"]
+    readings = driver.gate_readings(fast_runs, (0,), "_t")  # type: ignore[attr-defined]
+    assert readings["K-BC-01"]["pool_twin_share_t"] == k01["twin_pooled_share"]
+    for seed in sorted({r.seed for r in pool}):
+        assert f"at table seed {seed}: twin" in readings["K-BC-01"]["_detail"]
+        assert f"at table seed {seed}: the twin" in readings["K-BC-03"]["_detail"]
+    assert "at every table seed: twin" in readings["K-BC-01"]["_detail"]
+    assert "at every table seed: the twin" in readings["K-BC-03"]["_detail"]

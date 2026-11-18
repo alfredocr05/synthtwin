@@ -3,8 +3,9 @@
 This is the THIRTY-FIRST entry point of one oracle, not a second oracle.
 It asks `make_generation_reference_vectors.py` for the cases A-P4-59's
 amendment for layer L0 adds to method section G14.3a (lane BT2, plan
-P4-D448): the cells of cases 5 and 8, the least move on today's strata of
-cases 3, 4, 14 and 15, case 17's room, case 7 (b)'s windows, the clock's
+P4-D448): the cells of cases 3 and 8 (case 3 made by the oracle's own number
+pipeline since lane BT3b, plan P4-D467), the least move on today's strata of
+cases 4, 5, 14 and 15, case 17's room, case 7 (b)'s windows, the clock's
 knots of case 9, the workbook's classes of case 12 and the interface of
 case 13 -- each frozen with the answer the method's text gives it.
 

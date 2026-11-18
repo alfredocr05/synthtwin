@@ -3,9 +3,11 @@
 The analyst battery (`tests/analyst_battery.py`) asks of a twin what a
 researcher would ask of the real table -- regressions, survival models,
 mixed models, a trained classifier -- and needs a fitter for each. The
-project adds no dependency for it: no statistics package is in the
-development lock, and the orchestrator's ruling of 2026-10-16 keeps
-numpy's linear algebra out of the tests as well. So every fit here is
+kit adds no dependency for it: when it was written no statistics package
+was in the development lock (statsmodels and scikit-learn entered it
+later as test-only libraries, plan P4-D409, and lane MU's battery,
+`tests/model_utility.py`, fits with them), and the orchestrator's ruling
+of 2026-10-16 keeps this kit plain. So every fit here is
 the standard library over Python lists, and every one of them is
 checked by `tests/test_analyst_kit.py` against a closed form it does not
 share code with -- a fitter that is its own witness proves nothing.

@@ -1,10 +1,9 @@
 """Order rules between columns, carried through their difference `D` (contract 4.6b.7; lane RO, plan P4-D459).
 
-NOT IN FORCE. Invariant S12 stands until the landing that ships stage 6:
-only a caller holding the chain's switch reaches this module, through
-`chain.describe`, which calls `infer_rules` once, before the chain is
-searched. Every shipped description, summary and twin stays byte for
-byte as it was.
+IN FORCE SINCE PLAN P4-D464 (lane CHON): every shipped profile run asks for
+the rule steps (`ChainSwitch.rules`, LANE RO RULINGS 2 (4)) and reaches
+this module through `chain.describe`, which calls `infer_rules` once,
+before the chain is searched.
 
 WHAT IT DOES. Lane MR's page (contract 4.6b.7, MR.1 to MR.13) exactly:
 
@@ -623,9 +622,24 @@ def computed_refused(block: "dict[str, object]", held: "set[str]", identifiers: 
 
     A Safe Harbor question put on `B` and still open holds it (it is in
     the switch's held columns); one answered `no` leaves none of these.
+    THE DATE HOLD BEFORE ANY READING OF `B` (batch 4u's outside review,
+    item 1): a block whose values that read as dates the description
+    holds as blank cells (plan P4-D446's remark), a block left empty by
+    such a hold (role `empty`), or one whose present count is withheld
+    (`n_present` null) is never computed back from another column. The
+    rule steps read a candidate `B` on the file's own cells, so on the
+    review's table at 20,000 rows (an amount and a column of the same
+    amounts plus a tenth to a day, five-figure day counts answered as
+    dates) an order rule made the held column again and the twin wrote
+    19,908 of its 20,000 cells equal to a real date count.
     """
     name = f"{_get(block, 'name')}"
     if name in identifiers or name in held or _get(block, "held") is True:
+        return True
+    if _get(block, "role") == taxonomy.ROLE_EMPTY or ("n_present" in block and block["n_present"] is None):
+        return True
+    remarks = _get(block, "remarks")
+    if isinstance(remarks, list) and taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ()) in remarks:
         return True
     if _get(block, "role") == "identifier" or _get(block, "structural_role") == "identifier":
         return True
@@ -1429,6 +1443,14 @@ def _not_worth_first(
     a_block = by_name[candidate.a]
     if _get(b_block, "role") in rules.LABEL_ROLES:
         return "B's own role is a label"
+    if _get(b_block, "few_values"):
+        # `B`'S OWN NUMBERS ARE LISTED (MR.7's item ADDED 2026-11-16, batch 4u's checks, the orchestrator's
+        # ruling on the zoo's survey export): a few-valued column with a wide gap among its numbers -- a
+        # scale beside its code -- publishes them (lane GG's `few_values`, plan P4-D440) and the twin writes
+        # exactly them; computed, it is written `A + D` at sums off its list, its code among the lost. Measured
+        # at 20,000 rows: a total of two scores, 2 to 10 beside its code 999, computed from the second score,
+        # was written on 421 different values against its ten, and no cell held 999.
+        return "B's own numbers are listed: computing it would write sums off its list"
     if b.present and fractions.Fraction(b.reads, b.present) < READ_LINE:
         return "fewer than 99 of 100 of B's present cells read under A's kind"
     if b.present and fractions.Fraction(candidate.b_without_a, b.present) > SHARE_LINE:

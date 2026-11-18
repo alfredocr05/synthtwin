@@ -70,6 +70,25 @@ from synthtwin import cli, contract, results
 
 ROWS = 20_000
 PEOPLE = 1_000
+
+
+def shell_words(line: str, windows: "bool | None" = None) -> "list[str]":
+    """A line the product printed for a person to type, split as the shell it was quoted for splits it.
+
+    POSIX quoting on a Mac or Linux (`shlex`); on Windows (``windows`` true,
+    or `cli._on_windows()` where it is None) PowerShell's single quotes, a
+    quote inside written twice, and a bare word as it stands, so a path's
+    backslashes stay. `shlex`'s POSIX reading takes them as escapes: on
+    GitHub's Windows runs of push 24 a bare path `C:\\Users\\...` became
+    `C:Users...` and named another file (four cases of
+    tests/test_keyboard_answers.py).
+    """
+    if not (windows or (windows is None and cli._on_windows())):
+        return shlex.split(line)
+    return [
+        word[1:-1].replace("''", "'") if word.startswith("'") else word
+        for word in re.findall(r"'(?:[^']|'')*'|\S+", line)
+    ]
 # A bare '1 people', never a count of 11 or 101 people.
 ONE_PEOPLE = re.compile(r"(?<![\d,])1 people")
 
@@ -626,11 +645,11 @@ def _repeated(
     if "TO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:" not in screen:
         return (not expected, "")
     lines = screen[screen.rindex("TO REPEAT THIS RUN WITHOUT THE QUESTIONS, add:"):].split("\n")
-    words = shlex.split(lines[1])
+    words = shell_words(lines[1])
     taken: "list[str]" = []
     for place in range(len(lines) - 1):
         if "take these out of the command you typed" in lines[place]:
-            taken = shlex.split(lines[place + 1])
+            taken = shell_words(lines[place + 1])
     kept = list(typed)
     pairs = [(taken[at], taken[at + 1]) for at in range(0, len(taken) - 1, 2)]
     if "--answers" in words and "--answers" in kept:

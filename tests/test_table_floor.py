@@ -313,10 +313,13 @@ def test_the_internal_parameter_is_keyword_only_and_on_by_default() -> None:
     names = [argument.arg for argument in function.args.kwonlyargs]
     # Lane MIN's `internal_smallest_group` beside it (plan P4-D426,
     # batch 4i's integration): both keyword only, each off by default.
-    assert names == ["small_tables_refused", "internal_smallest_group"]
+    # And the switch's internal off setting (plan P4-D464), False: every
+    # run reached from the command line is switched.
+    assert names == ["small_tables_refused", "internal_smallest_group", "unswitched"]
     defaults = function.args.kw_defaults
     assert isinstance(defaults[0], ast.Constant) and defaults[0].value is True
     assert isinstance(defaults[1], ast.Constant) and defaults[1].value is None
+    assert isinstance(defaults[2], ast.Constant) and defaults[2].value is False
 
 
 def test_no_command_line_reaches_the_internal_parameter() -> None:
@@ -627,8 +630,16 @@ _VALUES: "dict[str, list[str]]" = {
     "--smallest-group": ["20"],
     "--twelve-hour": ["age"],
     "--twin": ["@twin"],
+    # THE INSTALLATION'S FOUR (plan P4-D464; contract 4.6b.4).
+    "--name": ["clinic"],
+    "--replace-description": [],
+    "--new-key": [],
+    "--private-folder": ["@private"],
 }
 _STOPS_FIRST = ("-h", "--help", "--version")
+# Refused before the table is read, in 4.6b.4's words: a new key where this
+# computer's key stands (each test's data folder holds the fixed test key).
+_REFUSED_FIRST = {"--new-key": "--new-key makes a new private key only where"}
 
 
 def test_no_option_of_the_command_lets_a_small_table_through(
@@ -647,7 +658,12 @@ def test_no_option_of_the_command_lets_a_small_table_through(
     asked = _write(tmp_path / "q", ["subject_id,score"] + [f"S{index % 50:04d},{index % 97}" for index in range(150)])
     assert cli.main(["profile", f"{asked}"], small_tables_refused=False) == 0
     answers = tmp_path / "q" / "clinic-questions.json"
-    places = {"@answers": f"{answers}", "@out": f"{tmp_path / 'out'}", "@twin": f"{tmp_path / 'twin.csv'}"}
+    places = {
+        "@answers": f"{answers}",
+        "@out": f"{tmp_path / 'out'}",
+        "@twin": f"{tmp_path / 'twin.csv'}",
+        "@private": f"{tmp_path / 'private'}",
+    }
     for option in options:
         given = [places.get(value, value) for value in _VALUES.get(option, [])]
         try:
@@ -659,9 +675,10 @@ def test_no_option_of_the_command_lets_a_small_table_through(
             assert _written(tmp_path / "t") == ["clinic.csv"], option
             continue
         assert code == 1, option
-        assert "below its floor" in said.err, option
+        assert (_REFUSED_FIRST[option] if option in _REFUSED_FIRST else "below its floor") in said.err, option
         assert _written(tmp_path / "t") == ["clinic.csv"], option
         assert not (tmp_path / "out").exists(), option
+        assert not (tmp_path / "private").exists(), option
     for value in ("11", "50"):
         assert _profile(table, "--smallest-group", value) == 1
         assert "below its floor" in capsys.readouterr().err

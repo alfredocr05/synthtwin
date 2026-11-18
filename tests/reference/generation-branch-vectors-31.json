@@ -2018,29 +2018,31 @@
     },
     "l0_cells_case_3": {
       "answer": {
-        "signs": [
-          "positive",
-          "positive",
-          "positive",
-          "positive",
-          "positive",
-          "positive"
-        ],
-        "sizes": [
-          989,
-          1712,
-          567,
-          1233,
-          298,
-          201
-        ],
-        "values": [
-          250.0,
-          500.0,
-          750.0,
-          1000.0,
-          1500.0,
-          2000.0
+        "counts": [
+          [
+            "1000",
+            1233
+          ],
+          [
+            "1500",
+            298
+          ],
+          [
+            "2000",
+            201
+          ],
+          [
+            "250",
+            989
+          ],
+          [
+            "500",
+            1712
+          ],
+          [
+            "750",
+            567
+          ]
         ]
       },
       "bands": [
@@ -2341,42 +2343,21 @@
         "wide_runs": "none"
       },
       "rows": 5000,
-      "rule": "moved",
+      "rule": "cells",
       "seed": 0,
-      "today": {
-        "bands": [
-          "positive",
-          "positive",
-          "positive",
-          "positive",
-          "positive",
-          "positive"
-        ],
-        "figures": 0,
-        "sizes": [
-          951,
-          1750,
-          550,
-          1250,
-          299,
-          200
-        ],
-        "values": [
-          250.0,
-          500.0,
-          750.0,
-          1000.0,
-          1500.0,
-          2000.0
-        ]
-      },
       "totals": [
         0,
         989,
         2279,
         1732
       ],
-      "why": "G14.3a case 3: a dose on six levels, the commonest 35 per cent of the rows: the heap two equal rungs prove stands on every one of its rows."
+      "why": "G14.3a case 3: a dose on six levels, the commonest 35 per cent of the rows: the heap two equal rungs prove stands on every one of its rows.",
+      "words": [
+        "11749869230777074271",
+        "4976686463289251617",
+        "755828109848996024",
+        "304881062738325533"
+      ]
     },
     "l0_cells_case_4": {
       "answer": {
@@ -10460,9 +10441,9 @@
           320,
           480,
           200,
-          340,
+          299,
           460,
-          200,
+          241,
           200,
           360,
           240,
@@ -11671,5 +11652,5 @@
     "numpy",
     "pandas"
   ],
-  "what": "A-P4-59's amendment for layer L0 (lane BT2, plan P4-D448; method G14.3a): the cells of cases 5 and 8, the least move on today's strata of cases 3, 4, 14 and 15, case 17's room, case 7 (b)'s windows, the clock's knots of case 9, the workbook's classes of case 12 and the interface of case 13, and lane BT2's first repair's three (step 2b beside the next value's heap, step 4 beside an edge, a grained date held in its band and wearing its one mark), each with the answer this file computes from the method's text."
+  "what": "A-P4-59's amendment for layer L0 (lane BT2, plan P4-D448; method G14.3a): the cells of cases 3 and 8 (case 3 made by this file's own number pipeline since lane BT3b, plan P4-D467), the least move on today's strata of cases 4, 5, 14 and 15, case 17's room, case 7 (b)'s windows, the clock's knots of case 9, the workbook's classes of case 12 and the interface of case 13, and lane BT2's first repair's three (step 2b beside the next value's heap, step 4 beside an edge, a grained date held in its band and wearing its one mark), each with the answer this file computes from the method's text."
 }

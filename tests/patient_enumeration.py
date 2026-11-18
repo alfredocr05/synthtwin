@@ -375,8 +375,8 @@ def floor_size_checks(rows_at_least: int = 20000) -> "dict[str, int]":
             out["layer_counts_below_floor"] += len([one for one in counted if 0 < one < 11])
             if complete:
                 out["complete_follow_up_trends"] += len(chained.grain["trend"])
-            switched = json.loads(json.dumps(document))
-            switched["relationships"]["statistical"] = chained.statistical
+            # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+            switched = json.loads(json.dumps(chain.with_rules(document, chained)))
             switched["relationships"]["grain"] = chained.grain
             switched["columns"] = chained.columns
             if chained.columns is not None:
@@ -1089,8 +1089,8 @@ def st2_tables() -> "dict[str, int]":
             counted: "list[int]" = [cell for family in chained.statistical["chain"] for row in family["table"] for cell in row]  # type: ignore[union-attr, index, attr-defined]
             counted += [cell for family in chained.grain["rows"] for row in family["table"] for cell in row]  # type: ignore[union-attr, index, attr-defined]
             out["st2_counts_below_floor"] += len([one for one in counted if 0 < one < 11])
-            switched = json.loads(json.dumps(document))
-            switched["relationships"]["statistical"] = chained.statistical
+            # Through `chain.with_rules`, as every writer of a switched description (plan P4-D464).
+            switched = json.loads(json.dumps(chain.with_rules(document, chained)))
             switched["relationships"]["grain"] = chained.grain
             switched["columns"] = chained.columns
             written = fixtures.write_profile(pathlib.Path(folder), f"{name}-profile.json", switched)

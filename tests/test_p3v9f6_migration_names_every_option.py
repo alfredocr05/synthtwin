@@ -126,6 +126,22 @@ _NOT_ABOUT_THE_DESCRIPTION = {
     "--out-dir": "decides where this command's files go, not what they say",
     "--seed": "chooses which twin 'generate' builds; no description is made",
     "--replace": "lets a run write over names an earlier run left behind",
+    # THE INSTALLATION'S FOUR (contract 4.6b.4; plan P4-D464): this
+    # computer's private record, key and report, never the table's reading.
+    "--name": (
+        "names the table on this computer's private record (the chain's draws "
+        "are keyed by it); the record refuses the same table described under "
+        "another name and gives the name to use, so leaving it out publishes nothing"
+    ),
+    "--replace-description": (
+        "says an earlier description was never shared, so the run may write a "
+        "different one; nothing the description says moves with it"
+    ),
+    "--new-key": (
+        "makes this computer's key where its key file is lost; refused where a key "
+        "stands, and a run without it where the file is lost is refused and told to give it"
+    ),
+    "--private-folder": "decides where the private report goes, not what the description says",
 }
 
 

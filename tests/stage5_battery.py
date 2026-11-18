@@ -289,8 +289,11 @@ def build(name: str, folder: pathlib.Path, root: pathlib.Path) -> None:
     elif name == "lowered":
         _lowered_description(folder)
     elif name == "older":
-        document = _description(root)
-        document["relationships"]["statistical"] = None
+        # A description that publishes nothing between columns, written
+        # through `chain.with_rules` as every writer of one is (plan P4-D464).
+        from synthtwin import chain
+
+        document = chain.with_rules(_description(root), chain.Chained(None, (), {}, (), (), ""))
         fixtures.write_profile(folder, "t-profile.json", document)
     elif name == "zeros":
         document = _description(root)
@@ -524,7 +527,10 @@ _MADE_UP = (("record_no",), "not-carried", "made-up", "")
 _NOT_MODELED = ((), "not-carried", "not-modeled", "")
 _NEXT_GENERATE = ("synthtwin", "generate", f"{_FOLDER}/t-profile.json")
 _NEXT_VALIDATE = ("synthtwin", "validate", "t-profile.json", "--twin", f"{_FOLDER}/t-twin.csv")
-_PROFILE_FILES = ("description", "summary", "questions")
+# Since the landing that ships stage 6 (plan P4-D464) every profile run
+# writes its PRIVATE report too, outside the output folder, after the
+# description and its summary and before the questions file.
+_PROFILE_FILES = ("description", "summary", "private-report", "questions")
 _TWIN_FILES = ("twin", "twin-report")
 _QUALITY_FILES = ("quality-report",)
 
@@ -666,7 +672,10 @@ _MODE_COUNT = ("weight", "numeric.mode_count", "", "count")
 EXPECTED: "dict[str, Expect]" = {
     # Since lane SH (plan P4-D427), the weight (50 to 104) is put the Safe
     # Harbor question and top-coded while it is open: a caution.
-    "G1": _profiled("safe-harbor"),
+    # Since the landing that ships stage 6 (plan P4-D464) every profile run
+    # of this table, whose subject question is open, ends on the hold's
+    # one paragraph: a caution `chain`.
+    "G1": _profiled("safe-harbor", "chain"),
     "G2": _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
     "G3": _validated(),
     "G4": _validated(),
@@ -678,9 +687,9 @@ EXPECTED: "dict[str, Expect]" = {
     # so lane HX5's question holds the column until it is answered (plan
     # P4-D436), which G7's file does; the weight's Safe Harbor question,
     # answered in G7's file as in G6's, gives the one caution.
-    "G6": _profiled("withheld-until-answered", "safe-harbor", questions=_ASKED_BOTH),
+    "G6": _profiled("withheld-until-answered", "safe-harbor", "chain", questions=_ASKED_BOTH),
     # G6's file with the record number answered `identifier`.
-    "G7": _profiled("safe-harbor"),
+    "G7": _profiled("safe-harbor", "chain"),
     # The table floor (plan P4-D425) refuses the page's 150-row table.
     "G8": _refused("profile", "content"),
     # The floor of 11 is a minimum (plan P4-D426): 5 typed is unusable.
@@ -701,7 +710,7 @@ EXPECTED: "dict[str, Expect]" = {
     "O1.1": _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
     "O1.2": _validated(),
     # Its questions file is a link to the table, never written over.
-    "L1": _profiled("questions-would-replace", "safe-harbor", files=("description", "summary")),
+    "L1": _profiled("questions-would-replace", "safe-harbor", files=("description", "summary", "private-report")),
     "R1": _refused("profile", "input"),
     "R2": _refused("profile", "content"),
     "R5": _refused("generate", "input"),
@@ -830,7 +839,7 @@ _G1N_APPROXIMATE = tuple(entry for entry in _G1_APPROXIMATE if entry[0] != "weig
 _TWIN_T = ("twin", "t.csv", "--identifier", "record_no")
 # Each step's exit is its own command's: generate's miss exits 0.
 _TWIN_STEPS = (
-    dataclasses.replace(_profiled("safe-harbor"), exit=0),
+    dataclasses.replace(_profiled("safe-harbor", "chain"), exit=0),
     dataclasses.replace(
         _generated("missed", breaks=(_MODE_COUNT,), first_tier="count", every_tier="count"),
         next_words=_NEXT_VALIDATE_IN,
@@ -840,7 +849,7 @@ _TWIN_STEPS = (
 )
 _TWIN_MISSED = Expect(
     "missed", command="twin", files=_TWIN_FILES_ALL, exit=3, floor=11,
-    warnings=("safe-harbor", "made-up-columns"), next_words=_NEXT_ANSWERS,
+    warnings=("safe-harbor", "chain", "made-up-columns"), next_words=_NEXT_ANSWERS,
     next_purpose="answer-questions", questions=_ASKED_WEIGHT, steps=_TWIN_STEPS,
 )
 TWIN_CASES: "tuple[Case, ...]" = (
@@ -875,11 +884,11 @@ TWIN_CASES: "tuple[Case, ...]" = (
         "T7", _TWIN_T, build="no-weight", recorded=False,
         expect=Expect(
             "no-miss", command="twin", files=_TWIN_FILES_ALL, exit=0, floor=11,
-            warnings=("made-up-columns",), questions=(),
+            warnings=("chain", "made-up-columns"), questions=(),
             steps=(
                 Expect(
                     "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=11,
-                    next_words=_NEXT_GENERATE, next_purpose="generate",
+                    warnings=("chain",), next_words=_NEXT_GENERATE, next_purpose="generate",
                     carried=(_MADE_UP, _NOT_MODELED), questions=(), tally=_profile_tally(0, 3),
                 ),
                 Expect(
@@ -907,7 +916,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         recorded=False, internal=(("internal_smallest_group", 5),),
         expect=Expect(
             "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=5,
-            floor_lowered=True, warnings=("lowered-floor", "safe-harbor", "lowered-floor-reminder"),
+            floor_lowered=True, warnings=("lowered-floor", "safe-harbor", "chain", "lowered-floor-reminder"),
             next_words=_NEXT_GENERATE, next_purpose="generate",
             carried=(_MADE_UP, _NOT_MODELED), questions=_ASKED_WEIGHT,
             tally=_profile_tally(1),
@@ -939,7 +948,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         recorded=False,
         expect=Expect(
             "no-miss", command="profile", files=_PROFILE_FILES, exit=0, floor=11,
-            next_words=_NEXT_GENERATE, next_purpose="generate",
+            warnings=("chain",), next_words=_NEXT_GENERATE, next_purpose="generate",
             carried=(_MADE_UP, _NOT_MODELED), questions=(), tally=_profile_tally(0, 3),
         ),
     ),
@@ -963,7 +972,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         "I1", ("profile", "t.csv", "--identifier", "record_no"), build="table",
         recorded=False, fault="questions-unwritable",
         expect=Expect(
-            "no-miss", command="profile", files=("description", "summary"), exit=0,
+            "no-miss", command="profile", files=("description", "summary", "private-report"), exit=0,
             floor=11, warnings=("safe-harbor", "questions-not-written"),
             next_words=_NEXT_GENERATE, next_purpose="generate",
             carried=(_MADE_UP, _NOT_MODELED), questions=_ASKED_WEIGHT,

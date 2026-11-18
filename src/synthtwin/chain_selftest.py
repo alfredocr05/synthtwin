@@ -1,7 +1,7 @@
 """THE SELF-TEST L2b: a trial twin of the sample, judged at the whole table's precision (contract 4.6b.8; lane ST, plan P4-D458).
 
-NOT IN FORCE, AND ZONE P. Invariant S12 stands: only `synthtwin profile`'s
-switched branch reaches this module, through the ONE import site the
+ZONE P, IN FORCE SINCE PLAN P4-D464 (lane CHON): every shipped `synthtwin
+profile` run is switched and reaches this module, through the ONE import site the
 offline scanner's table names (`cli._private_report`), and nothing it
 computes enters the description, the questions file, the summary, the
 twin or the shared report. Its fits use platform floats (lane MDEP's

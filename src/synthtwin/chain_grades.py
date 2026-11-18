@@ -1,7 +1,8 @@
 """The analysis families' STRUCTURAL GRADES, as both reports print them (contract 4.6b.8; lane ST, plan P4-D458).
 
-NOT IN FORCE. Invariant S12 stands: only a description loaded with the
-chain's switch reaches these lines, and no shipped command loads one.
+IN FORCE SINCE PLAN P4-D464 (lane CHON): the shipped commands reach these
+lines on every description that publishes something between columns
+(contract 4.6b.8 as amended 2026-11-09).
 
 A structural grade is a function of the description alone: it is what
 the people the twin is shared with see. The SHARED report (the twin's
@@ -43,6 +44,15 @@ ONCE_LINE = (
 )
 
 MOVED = "moved in this twin"
+
+# THE DEGRADED CHAIN'S LINE (the size guard; lane CHON, plan P4-D464;
+# LANE CHON RULINGS 2 (2)): the columns the chain is not drawn over, named
+# as the description lists them (`ineligible` as `size`): a fact of the
+# description alone, no count and no reason drawn from a cell.
+SET_ASIDE = (
+    "Carried on their own, for this table's size (the chain is drawn over the columns whose pairs carry "
+    "the most dependence, so every relationship between these and any other column reads N, not carried)"
+)
 
 _APPROXIMATE = "A (approximate: as the chain implies)"
 

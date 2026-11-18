@@ -900,12 +900,26 @@ def _tail_lines(
     (`_withheld_because`). Every figure is one the description itself
     carries.
 
+    A COLUMN A CARRIED RULE COMPUTES (contract 4.6b.7; plan P4-D464, the
+    landing that turned the rule steps on in every `synthtwin profile`
+    run) publishes no value of its own: its block's other keys are
+    `null`, `{}` or `[]`, so both tails are empty and the page says that
+    in place of the boundaries it has none of.
+
     Guarantees: accepts one datetime or clock block, the tail unit's word
     and the clock clause; returns the lines. Determinism: a function of
     the three. Raises nothing. No I/O of any kind.
     """
     low = column["low_tail"]
     high = column["high_tail"]
+    if low == {} and high == {}:
+        return [
+            (
+                "    written in the twin by a rule this description carries, "
+                "from the column or columns the rule names; no value of this "
+                "column's own is published"
+            )
+        ]
     if not isinstance(low, dict) or not isinstance(high, dict):
         return [
             (
@@ -1153,13 +1167,20 @@ _MADE_UP_SPELLED_EVIDENCE = taxonomy.rendered(
 # place and role. Its words are lane ST's; here it is named and said to
 # publish nothing of its own.
 _EMPTIED_KEPT = ("name", "position", "role")
+# ...and a position-like block keeps the marks its list was read through
+# (`patient_rules.POSITION_MARKS` and the dated remark; lane GRb's repair 2,
+# Codex's item 6): none is a count, and the block is still emptied.
+_POSITION_MARKS = ("top_coded", "top_category_pooled", "top_category_people", "top_coded_year", "present_count_withheld")
 
 
 def _emptied_by_the_patient_layer(column: "dict[str, object]") -> bool:
-    """Whether a block holds no key but its name, place and role (a switched description's patient layer)."""
+    """Whether a block holds no key but its name, place and role, and a position-like column's marks (a switched description's patient layer)."""
     if "statistical_type" not in column or column["statistical_type"] is not None:
         return False
+    dated = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
     for key in column:
+        if key in _POSITION_MARKS or (key == "remarks" and column[key] == [dated]):
+            continue
         if key not in _EMPTIED_KEPT and column[key] not in (None, {}, []):
             return False
     return True
