@@ -1884,6 +1884,9 @@ def questions_and_splits_for(
             if reason == BECAUSE_PADDED and taxonomy.safe_harbor_reach(
                 shaped, False, frozenset([""]), settings.small_cell_floor,
                 False, True, said=taxonomy.named_as_an_age(name),
+                # ...and a name naming a measurement leaves it out, as the
+                # description reads it (lane RX-1, R3).
+                measured=taxonomy.named_as_a_measurement(name),
             ) == taxonomy.SAFE_HARBOR_AGES:
                 shaped = taxonomy.top_coded_cells(shaped)
             said = _shape_of(
@@ -2190,6 +2193,9 @@ def unit_questions(
             # plan P4-D486): a column named as an age never leaves the
             # reach by the units its cells write.
             said=taxonomy.named_as_an_age(name),
+            # ...and a name naming a measurement leaves it out of the age
+            # reach, as the description reads it (lane RX-1, R3).
+            measured=taxonomy.named_as_a_measurement(name),
         ):
             reached += [name]
             if name not in spoken:

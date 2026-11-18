@@ -417,6 +417,10 @@ _place(
         # people (lane HB2, plan P4-D477): each a value of its cells the
         # floor's people hold.
         "columns.[].top_coded_ends.[]",
+        # ...and the ages its two end bands are written as (lane RX-1): each
+        # band's people's mean age, a value the twin writes, over the floor's
+        # people or more (rule B).
+        "columns.[].top_coded_band_values.[]",
     ),
     VALUE,
 )

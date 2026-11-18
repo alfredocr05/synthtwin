@@ -80,7 +80,10 @@ from synthtwin import chain_rules as rules
 
 TEST_KEY = bytes(range(32))
 ROWS = 20_000
-COLUMNS = ["ward", "padded_code", "visit_count", "temp_c", "weight", "stay", "chol", "charge"]
+# (`visits_k` and `level_w` were named `visit_count` and `weight` before lane RX-1: a name that names a measurement is no
+# longer in the age reach (the fidelity plan's R3), and this gate reads columns the top-code changes, so they carry
+# neutral names, which stay in the reach until their question is answered.)
+COLUMNS = ["ward", "padded_code", "visits_k", "temp_c", "level_w", "stay", "chol", "charge"]
 
 
 def _installation(folder: pathlib.Path) -> pathlib.Path:
@@ -320,10 +323,10 @@ def test_the_clinic_table_keeps_its_chain(clinic):
 def test_the_described_columns_carry_the_marks_this_gate_reads(clinic):
     """The description top-coded four columns, pooled one top category, inferred one comma; the controls carry no mark."""
     blocks = _blocks(clinic["document"])
-    for name in ("padded_code", "visit_count", "weight", "stay"):
+    for name in ("padded_code", "visits_k", "level_w", "stay"):
         assert blocks[name]["top_coded"] == 90, name
         assert blocks[name]["top_category_pooled"] == 11, name
-    assert blocks["visit_count"]["n_missing"] == 2
+    assert blocks["visits_k"]["n_missing"] == 2
     held = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
     assert held in blocks["charge"]["remarks"]
     assert blocks["charge"]["n_missing"] == len([cell for cell in clinic["cells"]["charge"] if float(cell) >= 10000])
@@ -351,8 +354,8 @@ def test_each_starting_total_is_its_published_count(clinic):
 def test_each_column_is_read_as_the_description_read_it(clinic):
     """Each number column's rows a value as the chain reads them, against the rules' words applied here.
 
-    visit_count: 90 to 125 read 90, past 125 read 90 but the placeholder
-    spellings 222 and 333 set aside; weight: 90 or more read 90; stay: its
+    visits_k: 90 to 125 read 90, past 125 read 90 but the placeholder
+    spellings 222 and 333 set aside; level_w: 90 or more read 90; stay: its
     top category of 7 rows read as the largest value below 90; temp_c: the
     comma the decimal point; charge: its values of five figures held as
     day counts; chol (no mark): as written.
@@ -368,8 +371,8 @@ def test_each_column_is_read_as_the_description_read_it(clinic):
 
     below = _below_the_mark(cells["stay"])
     expected = {
-        "visit_count": _number_readings(cells["visit_count"], visits),
-        "weight": _number_readings(cells["weight"], lambda cell: min(float(cell), 90.0)),
+        "visits_k": _number_readings(cells["visits_k"], visits),
+        "level_w": _number_readings(cells["level_w"], lambda cell: min(float(cell), 90.0)),
         "stay": _number_readings(cells["stay"], lambda cell: below if float(cell) >= 90 else float(cell)),
         "temp_c": _number_readings(cells["temp_c"], lambda cell: float(cell.replace(",", "."))),
         "chol": _number_readings(cells["chol"], float),
@@ -385,7 +388,7 @@ def test_a_column_the_description_did_not_change_is_read_as_written(clinic):
     """The controls and the comma column are handed the file's own cells, the same list (byte for byte as before)."""
     for name in ("ward", "chol", "temp_c"):
         assert clinic["reads"][name][1], name
-    for name in ("padded_code", "visit_count", "weight", "stay", "charge"):
+    for name in ("padded_code", "visits_k", "level_w", "stay", "charge"):
         assert not clinic["reads"][name][1], name
     assert clinic["reads"]["temp_c"][3]["decimal_comma"]
     assert not clinic["reads"]["chol"][3]["decimal_comma"]

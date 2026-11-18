@@ -240,6 +240,21 @@ def polish_column(
                 number[number_codes[row]] * encoding[of_row[row]] for row in range(rows) if holding[row] and of_row[row] < len(encoding)
             )
             got = sxy / m - (sx / m) * (sy / m)
+        elif target.kind == "curve":
+            # A CURVE (lane CHG-b): the column's covariance with its feature over the rows holding both.
+            curve = target.table
+            partner_ranks = state.ranks[target.name]
+            partner_has = state.has[target.name]
+            shift = generation._POLISH_CURVE_SHIFT
+            sy = math.fsum(
+                curve[(partner_ranks[2 * row] | (partner_ranks[2 * row + 1] << 8)) >> shift]
+                for row in range(rows) if present[row] and partner_has[row]
+            )
+            sxy = math.fsum(
+                table[own[row]] * curve[(partner_ranks[2 * row] | (partner_ranks[2 * row + 1] << 8)) >> shift]
+                for row in range(rows) if present[row] and partner_has[row]
+            )
+            got = sxy / count - (whole_x / count) * (sy / count)
         else:
             encoding = target.encoding
             of_row = state.bands[(target.name, target.level)]
@@ -249,7 +264,7 @@ def polish_column(
             )
             got = sxy / count - (whole_x / count) * (sy / count)
         target.aim = target.aim + generation._POLISH_STEP * (target.goal - got) / target.slope
-        if target.kind != "within":
+        if target.kind not in ("within", "curve"):
             # A correlation, a binary's latent one too, aims at most at its
             # bound either way (`most`: `_POLISH_AIM_MOST`, or for a pair
             # half way from its goal to 1, repair 2): past it the score is

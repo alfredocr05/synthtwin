@@ -37139,9 +37139,42 @@ def _a_cell_saying_age(cell: str, comma: bool) -> bool:
     word anywhere in it (`_AGE_WORDS`, `AGE_UNIT_WORDS`); the age word, unit
     or affix `safe_harbor_number` reads around its number (`Age 72`,
     `72 yrs`, `72y`, `92 y/o`, and every form the vocabulary's readers come
-    to read); or a band's mark beside its first number (`>89`, `90+`,
-    `>= 90`). Guarantees: a fixed function of the two. Raises TypeError
-    for a cell that is not text. No I/O.
+    to read), as `_a_cell_naming_an_age` reads them; or a band's mark
+    beside its first number (`>89`, `90+`, `>= 90`). Guarantees: a fixed
+    function of the two. Raises TypeError for a cell that is not text. No
+    I/O.
+    """
+    if _a_cell_naming_an_age(cell, comma):
+        return True
+    plain = _in_small_letters(_age_plain(cell))
+    first = -1
+    for place in range(len(plain)):
+        if "0" <= plain[place] <= "9":
+            first = place
+            break
+    if first < 0:
+        return False
+    before = parsing.trimmed(plain[:first])
+    if before[-1:] in _AGE_BAND_OPENINGS:
+        return True
+    last = first
+    while last < len(plain) and (("0" <= plain[last] <= "9") or plain[last] in ".,"):
+        last = last + 1
+    return parsing.trimmed(plain[last:])[:1] == "+"
+
+
+def _a_cell_naming_an_age(cell: str, comma: bool) -> bool:
+    """Whether one cell carries a word, a unit or an affix of the age vocabulary (plan P4-D486, R; lane RX-1), its band marks aside.
+
+    An age word or a unit word or letter of `AGE_VOCABULARY` as a whole
+    word anywhere in it (`_AGE_WORDS`, `AGE_UNIT_WORDS`), each part between
+    slashes read whole too; an age's affix (`_age_affix_start`); or the age
+    word, unit or affix `safe_harbor_number` reads around its number (`Age
+    72`, `72 yrs`, `72y`, `92 y/o`). A band's mark beside a number (`>89`,
+    `90+`) is no age's word here: under a name that names a measurement it
+    is the measurement's qualifier (`<80`, `>100`), and `_a_cell_saying_age`
+    reads it beside this reader. Guarantees: a fixed function of the two.
+    Raises TypeError for a cell that is not text. No I/O.
     """
     plain = _in_small_letters(_age_plain(cell))
     word = ""
@@ -37163,23 +37196,32 @@ def _a_cell_saying_age(cell: str, comma: bool) -> bool:
         part = ""
     if _age_affix_start(parsing.trimmed(plain)) >= 0:
         return True
+    # ...AND A BAND THE BAND READER WRITES WITH ITS OWN YEARS UNIT (`18-44 años`, `65-89 jahre`; the outside review of
+    # batch 4v, item 1): an explicit age unit the band reader knows names an age whatever the column's name says.
+    if len(cell) <= _BAND_LONGEST and _holds_a_figure(cell):
+        band = a_band_cell(cell)
+        if band is not None and band.unit:
+            return True
     read = safe_harbor_number(cell, comma, True, True)
-    if read is not None and (read.word or _cell_age_unit(read) or _an_age_unit_letter(read)):
-        return True
-    first = -1
-    for place in range(len(plain)):
-        if "0" <= plain[place] <= "9":
-            first = place
-            break
-    if first < 0:
-        return False
-    before = parsing.trimmed(plain[:first])
-    if before[-1:] in _AGE_BAND_OPENINGS:
-        return True
-    last = first
-    while last < len(plain) and (("0" <= plain[last] <= "9") or plain[last] in ".,"):
-        last = last + 1
-    return parsing.trimmed(plain[last:])[:1] == "+"
+    return read is not None and bool(read.word or _cell_age_unit(read) or _an_age_unit_letter(read))
+
+
+def ages_named_in_cells(cells: "list[str]", comma: bool, absent: "frozenset[str]") -> bool:
+    """Whether one present cell of a column names an age by a word, a unit or an affix of the age vocabulary (`_a_cell_naming_an_age`; lane RX-1).
+
+    Each different cell read once (`_takes`'s memo); blank cells and those
+    of ``absent`` set aside. Guarantees: a fixed function of the three.
+    Raises TypeError for a cell that is not text. No I/O.
+    """
+    seen: "dict[str, bool]" = {}
+    for cell in cells:
+        if cell in absent or cell in seen or not parsing.trimmed(cell):
+            continue
+        if _a_cell_naming_an_age(cell, comma):
+            return True
+        if len(seen) < _SAFE_HARBOR_MEMO:
+            seen[cell] = False
+    return False
 
 
 def _past_89_with_no_unit_of_the_list(cell: str, comma: bool) -> bool:
@@ -37254,6 +37296,7 @@ def safe_harbor_reach(
     words: bool = True,
     genders: "bool | None" = None,
     said: bool = False,
+    measured: bool = False,
 ) -> str:
     """Which Safe Harbor reach a column's cells fall in: `ages`, `zips` or none (plan P4-D427).
 
@@ -37279,6 +37322,15 @@ def safe_harbor_reach(
     holds its name meanwhile (lane HB3-a2, plan P4-D486): only a column
     nothing says is ages, no cell either, leaves the reach by the units
     its cells write (`ages_set_out_by_units`, the reading rule R).
+    ``measured``: the column's name (or a key's) names a measurement no
+    age is (`named_as_a_measurement`; lane RX-1, the fidelity plan's R3,
+    under the owner's ruling of 2026-11-15: the age cap is for ages): such
+    a column is in no age reach, its numbers from 90 to 125 and its bands
+    a saturation's, a temperature's or a score's -- unless ``said`` or
+    ``named``, a unit of age its name or an answer states (``mark``), or
+    one of its cells naming an age by a word, a unit or an affix
+    (`ages_named_in_cells`: `age 91` among weights in kilograms stays an
+    age past 89, HIPAA first). The ZIP reach reads it as before.
 
     ``absent``: the spellings the column was read as holding no value,
     set aside; ``floor``: the rows a value outside the reach must hold
@@ -37418,6 +37470,10 @@ def safe_harbor_reach(
     # figure but no number) are strays: fewer than the floor's rows, or
     # at most one in `_STRAY_PARTS`.
     strays = present - age_aside - age_in
+    # ...AND A COLUMN WHOSE NAME NAMES A MEASUREMENT IS NO AGE (lane RX-1, R3):
+    # its cells read only where the name could decide (``measured``, nothing
+    # else saying age), and never where one of its cells names an age.
+    alone = measured and not (said or named) and mark == TOP_CODE
     if (
         age_in > 0
         and age_above
@@ -37428,6 +37484,7 @@ def safe_harbor_reach(
         # where neither its name, a unit named or answered (``said``,
         # ``named``, ``mark``) nor one of its cells says age.
         and (said or named or mark != TOP_CODE or not ages_set_out_by_units(cells, comma, absent))
+        and not (alone and not ages_named_in_cells(cells, comma, absent))
     ):
         return SAFE_HARBOR_AGES
     if (
@@ -37439,7 +37496,7 @@ def safe_harbor_reach(
     # ...AND AGES PAST 89 INSIDE BAND LABELS (plan P4-D472, lane CZ-E): a
     # column of age bands holding a band past 89 (`age_bands_past_89`), its
     # bands from 90 pooled by `top_coded_cells` into one band.
-    if age_bands_past_89(cells, absent, named, mark):
+    if age_bands_past_89(cells, absent, named, mark) and not (alone and not ages_named_in_cells(cells, comma, absent)):
         return SAFE_HARBOR_AGES
     return ""
 
@@ -38100,6 +38157,7 @@ def ages_whole_below_the_top_code(cells: "list[str]", comma: bool, absent: "froz
 def cells_within_the_ends(
     cells: "list[str]", comma: bool, absent: "frozenset[str]", low: int, high: int,
     mark: int = TOP_CODE, words: bool = True, genders: "bool | None" = None,
+    values: "tuple[int, int] | None" = None,
 ) -> "list[str]":
     """A top-coded age column's cells with every whole age below ``low`` written as ``low`` and above ``high`` as ``high``, each in its own form (plan P4-D477).
 
@@ -38111,9 +38169,13 @@ def cells_within_the_ends(
     of the column's ``mark``: each cell is compared in it
     (`age_in_the_columns_unit`) and written in its own unit
     (`age_in_its_own_unit`; lane HB2's repair 2: `360 months` below the
-    end 31 years is `372 months`). Guarantees: a fixed function of the
-    seven, the cells in their order. Raises TypeError for a cell that is
-    not text. No I/O.
+    end 31 years is `372 months`). WITH ``values`` (lane RX-1, the
+    fidelity plan; `top_coded_band_values`, `ends_band_values`): every
+    whole age at or below ``low`` is written as the first, its band's
+    rows' mean age, and at or above ``high`` as the second, so the ages'
+    effects keep their size where the edges compressed each band onto its
+    end. Guarantees: a fixed function of the eight, the cells in their
+    order. Raises TypeError for a cell that is not text. No I/O.
     """
     memo: "dict[str, str]" = {}
     written: "list[str]" = []
@@ -38131,9 +38193,16 @@ def cells_within_the_ends(
                 and not read.exponent
                 and not read.places
                 and 0 <= read.value <= age_mark(read, mark)
-                and not low <= age_in_the_columns_unit(read, mark) <= high
+                and (
+                    not low <= age_in_the_columns_unit(read, mark) <= high
+                    or (values is not None and age_in_the_columns_unit(read, mark) in (low, high))
+                )
             ):
-                figures = f"{age_in_its_own_unit(low if age_in_the_columns_unit(read, mark) < low else high, read, mark)}"
+                below = age_in_the_columns_unit(read, mark) <= low if values is not None else (
+                    age_in_the_columns_unit(read, mark) < low
+                )
+                band = (values[0] if below else values[1]) if values is not None else (low if below else high)
+                figures = f"{age_in_its_own_unit(band, read, mark)}"
                 if read.whole[:1] == "0" and len(read.whole) > len(figures):
                     figures = "0" * (len(read.whole) - len(figures)) + figures
                 coded = read.head + ("+" if read.plus else "") + figures + read.tail
@@ -38212,13 +38281,75 @@ def ages_as_read(
     return found
 
 
-def with_top_ends(column: ColumnProfile, low: int, high: int) -> ColumnProfile:
-    """A top-coded column described with its ends pooled in people (plan P4-D477): `top_coded_ends`, the two values the bands are written as, both published values each the floor's people hold. Raises nothing. No I/O."""
+def with_top_ends(column: ColumnProfile, low: int, high: int, values: "tuple[int, int] | None" = None) -> ColumnProfile:
+    """A top-coded column described with its ends pooled in people (plan P4-D477): `top_coded_ends`, the two values the bands are written as, both published values each the floor's people hold; with ``values`` (lane RX-1), `top_coded_band_values`, the mean ages of the two bands' rows each band is written as instead (`ends_band_values`). Raises nothing. No I/O."""
     details: "dict[str, object]" = {}
     for key in column.details:
         details[key] = column.details[key]
     details["top_coded_ends"] = [low, high]
+    if values is not None:
+        details["top_coded_band_values"] = [values[0], values[1]]
     return dataclasses.replace(column, details=details)
+
+
+def ends_band_values(
+    cells: "list[str]", comma: bool, absent: "frozenset[str]", low: int, high: int,
+    mark: int = TOP_CODE, words: bool = True, genders: "bool | None" = None,
+) -> "tuple[int, int]":
+    """The whole age each end band of a top-coded column is written as: the mean age of its rows, rounded half up (lane RX-1, the fidelity plan).
+
+    AGE BANDS WRITTEN AT THEIR OWN MEAN (P4-D486 (6)(e), the statistics
+    check's option, carried to this lane): the ends' rounds pool the ages
+    few people hold at each end into one band (`ends_pooled_in_people`),
+    and writing a band at its edge compressed it onto the edge -- at 1,000
+    people of 20 visits a band held a third of the people, the ages' SD
+    came out 0.4 to 0.7 of the real, and an outcome's slope on age as
+    published was 1.2 to 2.2 times the real one. Each band is written at
+    the mean of the whole ages in it instead (each cell read as
+    `cells_within_the_ends` reads it, in the unit of the column's
+    ``mark``): the low band every age at or below ``low``, the high band
+    every age at or above ``high``, the top code's 90 counted as 90, so the
+    second never passes the top code; a band no cell holds is written at its
+    edge. Each mean is over the band's rows (a row a cell, as the analyses
+    of the table read it), which belong to the floor's people or more by the
+    rounds' own rule, published whole (rule B, the owner's choice of
+    2026-11-02: a mean over 11 people or more, rounded), and implies no
+    count. Integer arithmetic alone: `(2 s + n) // (2 n)`. Guarantees: a
+    fixed function of the eight; the first at most ``low``, the second at
+    least ``high`` and at most the column's mark. Raises TypeError for a
+    cell that is not text. No I/O.
+    """
+    gendered = _genders_here(cells, absent, words, genders)
+    low_sum = low_count = high_sum = high_count = 0
+    memo: "dict[str, int]" = {}
+    for cell in cells:
+        if cell in memo:
+            age = memo[cell]
+        else:
+            age = -1
+            if cell not in absent and _holds_a_figure(cell):
+                read = safe_harbor_number(cell, comma, True, words, gendered)
+                if (
+                    read is not None
+                    and _an_age_form(read)
+                    and not read.exponent
+                    and not read.places
+                    and 0 <= read.value <= age_mark(read, mark)
+                ):
+                    age = age_in_the_columns_unit(read, mark)
+            if len(memo) < _SAFE_HARBOR_MEMO:
+                memo[cell] = age
+        if age < 0:
+            continue
+        if age <= low:
+            low_sum += age
+            low_count += 1
+        if age >= high:
+            high_sum += min(age, mark)
+            high_count += 1
+    first = (2 * low_sum + low_count) // (2 * low_count) if low_count else low
+    second = (2 * high_sum + high_count) // (2 * high_count) if high_count else high
+    return min(first, low), max(min(second, mark), high)
 
 
 def _free_below_the_top_code(
@@ -39720,6 +39851,62 @@ def named_as_an_age(name: str) -> bool:
             if word[: len(owner) + len(AGE_NAME_WORD)] == owner + AGE_NAME_WORD and (not rest or rest in AGE_GROUP_RUN_ONS):
                 return True
     return AGE_NAME_WORD in words or age_mark_named(name) != 0
+
+
+def named_as_a_measurement(name: str) -> bool:
+    """Whether a column's or a key's name names a measurement no age is, and no age (lane RX-1, the fidelity plan's R3).
+
+    THE AGE CAP IS FOR AGES (the owner's ruling of 2026-11-15: a rare or
+    large ordinary value is no reason to distort a column; the Safe Harbor
+    element is a person's age past 89): numbers from 0 to 125 with some
+    past 89 were read as ages whatever the column was, and a bare oxygen
+    saturation's twin was a constant 90 on 19,988 of 20,000 cells, a
+    Fahrenheit temperature's on all 20,000. A name one of whose words is a
+    word of `MEASUREMENT_NAME_WORDS` -- read on `name_words` and on the
+    name's runs of letters and figures in small letters (`SpO2` is `spo2`,
+    `O2Sat` is `o2sat`) -- names such a measurement, unless it names an age
+    too (`named_as_an_age`: `age_weight` is an age, HIPAA first). A closed
+    list: a neutral name (`value`, `result`, `v12`) names nothing, and its
+    column stays in the reach until its question is answered.
+    Guarantees: a fixed function of the name. Raises TypeError for a name
+    that is not text. No I/O.
+    """
+    if named_as_an_age(name):
+        return False
+    for word in name_words(name):
+        if word in MEASUREMENT_NAME_WORDS:
+            return True
+    run = ""
+    for character in _in_small_letters(name) + " ":
+        if _a_letter(character) or "0" <= character <= "9":
+            run += character
+            continue
+        if run in MEASUREMENT_NAME_WORDS:
+            return True
+        run = ""
+    return False
+
+
+# THE WORDS OF A NAME THAT NAME A MEASUREMENT NO AGE IS (`named_as_a_measurement`;
+# lane RX-1): vital signs and their abbreviations, scores, counts, a dose,
+# amounts and sizes, laboratory analytes, and units no age is written in
+# (those of `NO_AGE_UNITS` written as one word of letters).
+MEASUREMENT_NAME_WORDS = frozenset({
+    "saturation", "saturations", "sat", "sats", "spo2", "sao2", "o2sat", "o2sats", "oximetry",
+    "temperature", "temperatures", "temp", "temps", "tempf", "tempc",
+    "pulse", "hr", "heartrate", "rate", "rates", "respiratory", "resp", "rr", "respirations", "breaths",
+    "pressure", "pressures", "bp", "sbp", "dbp", "mbp", "systolic", "diastolic",
+    "weight", "weights", "wt",
+    "score", "scores", "scale", "count", "counts", "cnt", "total", "dose", "dosage",
+    "volume", "vol", "output", "intake", "flow", "amount",
+    "length", "size", "depth", "width", "diameter", "circumference", "duration",
+    "minutes", "mins", "seconds", "secs",
+    "percent", "percentage", "pct", "percentile", "centile", "ratio",
+    "glucose", "sodium", "potassium", "chloride", "creatinine", "urea", "hemoglobin", "haemoglobin",
+    "hematocrit", "haematocrit", "platelet", "platelets", "albumin", "calcium", "lactate", "bicarbonate",
+    "cholesterol", "triglycerides", "fio2", "etco2",
+    "kg", "lb", "lbs", "mg", "mcg", "ml", "mm", "cm", "dl", "iu", "oz", "mmhg", "bpm", "kpa", "mmol", "degc", "degf",
+})
 
 
 # The words of a group that `age` may run together with in a column's
@@ -41706,7 +41893,7 @@ _IDENTIFIER_WORD_ROLES = (
 
 
 def value_reader_hold(
-    role: str, cells: "list[str]", absent: "frozenset[str]", floor: int, dates: bool = True
+    role: str, cells: "list[str]", absent: "frozenset[str]", floor: int, dates: bool = True, aged: bool = False
 ) -> str:
     """Which of the value readers' holds reaches a column, one of `VALUE_READER_HOLDS`, or none (plan P4-D472).
 
@@ -41727,7 +41914,14 @@ def value_reader_hold(
     among labels was published), and one that holds an identifier in its
     words (`levels_holding_identifier_words`; ``dates`` False where the
     column's question about dates was answered: no month and a day is
-    read again). Guarantees: a fixed function of the five. Raises
+    read again). ``aged``: the column's name says it holds ages, or an
+    age word stands before its numbers (`named_as_an_age`,
+    `ages_written_with_words`), so the age reach reads it as the
+    description does, its strays past 125 never taking it out (lane RX-1,
+    the fidelity plan's R2: `Age 18` to `Age 105` beside `Age 126` to `Age
+    225` on a tenth of the rows were held whole as record numbers, every
+    age and every relation through the column lost, where the description
+    top-codes them). Guarantees: a fixed function of the six. Raises
     TypeError for a cell that is not text. No I/O.
     """
     present = 0
@@ -41776,7 +41970,7 @@ def value_reader_hold(
     if (
         worded
         and not beyond_ages
-        and safe_harbor_reach(cells, False, absent, floor) == SAFE_HARBOR_AGES
+        and safe_harbor_reach(cells, False, absent, floor, named=aged) == SAFE_HARBOR_AGES
         and not _ages_left_after_the_top_code(cells, absent, floor)
     ):
         # ...AN AGE THE TOP-CODE WRITES 90 IS THE TOP-CODE'S (lane CZ-G, plan
@@ -45452,7 +45646,10 @@ def safe_harbor_hold(
         return held_as_names
     # THE VALUE READERS, last (plan P4-D472, lane CZ-E): network addresses,
     # a coordinate pair in one cell, area codes, identifier words in levels.
-    return value_reader_hold(column.role, cells, absent, floor, not dates_answered)
+    # ...the age reach read as the description reads it: its name, or an
+    # age word before its numbers (lane RX-1, R2).
+    aged = named_as_an_age(name) or ages_written_with_words(cells, comma, absent)
+    return value_reader_hold(column.role, cells, absent, floor, not dates_answered, aged=aged)
 
 
 def with_dated_values_held(column: ColumnProfile) -> ColumnProfile:

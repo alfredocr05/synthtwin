@@ -25,6 +25,7 @@ from synthtwin import chain_moments
 from synthtwin import chain_rules
 from synthtwin import errors
 from synthtwin import patient_rules
+from synthtwin import patient_trajectory
 
 
 def _get(mapping: "dict[str, object]", key: str) -> object:
@@ -1022,6 +1023,19 @@ def _check_patients(document: "dict[str, object]", statistical: object, grain: o
     _recheck_rows(grain, blocks, schema, classes, census, cells, scales, row_scales, derived, floor, tabled, groups, row_groups)
     _recheck_trends(grain, blocks, families, scales, row_scales, cells, census, derived, floor, tabled)
     _recheck_fixed_rows(grain, families, scales, census, row_scales)
+    # S35, a patient's own trajectory (contract 4.6c.15; lane GRb2-c, plan
+    # P4-D491 part c): its entries' shape and bounds against the classes, the
+    # roles, the patient chain's bands and the counting process's columns.
+    roles = {name: f"{_get(blocks[name], 'role')}" for name in schema}
+    bands_at = {name: scales[name].counts for name in scales if name in classes and classes[name] == patient_rules.CLASS_FIXED}
+    counted: "set[str]" = set()
+    for key, fields in (("intervals", ("start", "stop")), ("switches", ("column",)), ("end_events", ("column",))):
+        listed = grain[key] if key in grain else []
+        for entry in listed if isinstance(listed, list) else []:
+            for field in fields:
+                if isinstance(entry, dict) and isinstance(_get(entry, field), str):
+                    counted = counted | {f"{entry[field]}"}
+    patient_trajectory.checked(grain, {name: f"{classes[name]}" for name in schema if name in classes}, roles, bands_at, counted)
 
 
 def _patient_scales(

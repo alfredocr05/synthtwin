@@ -985,6 +985,11 @@ _PATIENT_MODULES = (
     # rules read the start and stop readings exactly, its published edges are
     # rungs read exactly, and its person-time is an exact sum rounded.
     "synthtwin.patient_intervals",
+    # ...and a patient's own trajectory (lane GRb2-c, plan P4-D491 part c):
+    # its readings compare exactly, each published moment is rounded exactly
+    # from its binary64 value to a decimal text, and the loader reads those
+    # texts back exactly.
+    "synthtwin.patient_trajectory",
 )
 
 # `zlib` belongs to the module that holds the twin's finished columns

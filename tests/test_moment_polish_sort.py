@@ -95,7 +95,8 @@ def test_the_shipped_twin_is_the_tuple_sort_reference_s_byte_for_byte(tmp_path, 
     planned = generation._polish_plan(loaded)
     kinds = {target.kind for _name, targets in planned for target in targets}
     assert {name for name, _targets in planned} == {"pa", "pb", "lab", "dose", "flag"}, planned
-    assert kinds == {"pair", "within", "by", "share"}, kinds
+    # Lane CHG-b's curves join the kinds wherever a column's band means bend beyond chance.
+    assert {"pair", "within", "by", "share"} <= kinds <= {"pair", "within", "by", "share", "curve"}, kinds
     shipped_steps: "list[str]" = []
     reference_steps: "list[str]" = []
     inner = generation._polish_column

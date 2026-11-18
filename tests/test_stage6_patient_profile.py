@@ -113,7 +113,7 @@ def _described(
     settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=floor), person_columns=persons)
     table = reading.read_table(str(path), small_cell_floor=floor)
     document = profile.build_document(table, settings, list(persons), [], [], subjects=list(persons), top_code=top_code, unanswered=list(held) or None)
-    return document, chain.describe(table, document, settings, chain.ChainSwitch(name, key, held, rows_per_person=rows_per_person, held_by_person=held_by_person))
+    return document, chain.describe(table, document, settings, chain.ChainSwitch(name, key, held, rows_per_person=rows_per_person, held_by_person=held_by_person, trajectories=False))
 
 
 def _switched(document: "dict[str, object]", chained: chain.Chained) -> "dict[str, object]":
@@ -1109,7 +1109,7 @@ def test_a_date_declared_as_counts_on_a_repeated_column_keeps_the_patient_table_
     settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=FLOOR), person_columns=("pid",), forced_date_counts=(("when", "excel-1900"),))
     table = reading.read_table(str(path), small_cell_floor=FLOOR)
     document = profile.build_document(table, settings, ["pid"], [], [], subjects=["pid"])
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("served", TEST_KEY, rows_per_person=chain.ROWS_PERSON))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("served", TEST_KEY, rows_per_person=chain.ROWS_PERSON, trajectories=False))
     assert chained.grain is not None
     assert _class_of(chained, "when") in (patient_rules.CLASS_DEALT, patient_rules.CLASS_HELD)
 

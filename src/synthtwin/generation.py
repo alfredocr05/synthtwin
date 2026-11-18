@@ -76008,9 +76008,20 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
             for at in range(planned.intervals):
                 chain_walk.put(interval_words, at, int(block[at]))
             del block
+        # A patient's own trajectory's words (G16.20; lane GRb2-c, plan
+        # P4-D491 part c), after the counting process's: none drawn where no
+        # entry stands, so every other twin's words are the ones they were.
+        trajectory_words = chain_walk.packed(planned.trajectory, 8)
+        for start in range(0, planned.trajectory, 3 * chain_walk.BLOCK_ROWS):
+            size = min(3 * chain_walk.BLOCK_ROWS, planned.trajectory - start)
+            block = walking.integers(0, _WORD_CEILING, size=int(size), dtype="uint64", endpoint=True)
+            for at in range(size):
+                chain_walk.put(trajectory_words, start + at, int(block[at]))
+            del block
         return patient_walk.twin(
             profile, seed, rows_box, patients_made,
-            patient_walk.Draws(tuple(row_sums), tuple(patient_words), tuple(trend_words), 2 + planned.words, interval_words),
+            patient_walk.Draws(tuple(row_sums), tuple(patient_words), tuple(trend_words), 2 + planned.words, interval_words,
+                               trajectory_words),
         )
     plan = plan_generation(profile)
     generator = numpy.random.default_rng(seed)
@@ -79242,6 +79253,112 @@ _POLISH_GATE_Z = 3.0902
 # open (`_gate_keeps`).
 _POLISH_GATE_WHOLE = ("pair",)
 _POLISH_GATE_TESTED = ("within", "share", "by")
+# The kinds tested where they are made (lane CHG-b): a curve exists only
+# where its departure passes the same 0.001 point (`_curve_target`).
+_POLISH_GATE_MADE = ("curve",)
+# THE HELD FEATURES (lane CHG-b, plan P4-D492 part b; LANE CHG RULINGS 3 (1)): a
+# yes/no column the gate leaves with at least one target is still re-sorted
+# toward that target, and a re-sort toward one feature alone carries the
+# column toward every column that feature is tied to (a yes/no exposure
+# re-sorted toward high blood pressure took on age and glucose, and its
+# effect after adjusting fell to 0.78 of the table's). So each `by` and
+# `share` target the gate drops from such a column stays in its score as a
+# HELD feature: its goal is the measure the column holds with it when the
+# column's first round starts (the walk's own, a fresh draw's level, never
+# the published goal and never nought), and the rounds move its aim like
+# any aim. A test may set it False: the held features dropped (lane CHG's
+# polish). The kinds a held feature may be.
+_POLISH_HELD = True
+_POLISH_HELD_KINDS = ("by", "share")
+# THE CURVES (lane CHG-b, plan P4-D492 part b): a number is re-sorted on
+# its partners' rank scores in a straight line, so a curve finer than the
+# partner's bands was lost (a pressure rising with the square of age kept
+# a fifth to a half of its bend). Where the number's published means in
+# its partner's bands depart from the straight line through them beyond
+# chance (the departure's chi-square, each band weighted by its count over
+# its published spread, against the 0.001 point on `k - 2` degrees of
+# freedom, `k` the value bands holding a reading), the number gains a CURVE
+# target: its feature the partner's squared rank score and the bands'
+# residuals joined between their mean rank scores (`_bent_feature`), less
+# its straight part, its goal the feature's mean square. Published facts
+# alone. MEASURED AND NOT ADOPTED: on lane MU's ST9 (table seed 1, twin
+# seeds 0 to 2) they raised blood pressure's squared age term to 0.25 to
+# 0.29 (0.15 to 0.23 without them; the table 1.05, the rest the frame), but
+# on lane E0b's ST1 at table seed 2 one curve, of age on a censored
+# follow-up (its mean square 0.014), moved the yes/no event polished after
+# it off its ties: the estimates inside the half-split yardstick 0.537
+# against 0.669 without curves, the non-significant ones made significant
+# 41 against 23 per cent, the survival models' 15 estimates none inside
+# against 13. Its aim bounded at its goal moved it too (0.569 and 38 per
+# cent), and so did the curve held at an aim of nought (event's correlation
+# with diabetes 0.205 against the table's 0.100): the yes/no column's score
+# rests on a contrast of age's band with age's own order, which any re-sort
+# of age inside its bands moves. Off; the arithmetic stands, mirrored by
+# the oracle, for a design that keeps a yes/no column's score off such
+# contrasts.
+_POLISH_CURVES = False
+# THE SPREAD TEST (lane CHG-b, plan P4-D492 part b; LANE CHG RULINGS 2
+# (2)(c)): the gate reads a `within` target's band MEANS alone, so a number
+# whose spread differs between a grouping's bands and whose mean does not
+# was dropped whole (a temperature spread 0.25 in six wards and 0.9 in six:
+# the twin's spread ratio 1.02 against the table's 3.52). Such a target is
+# kept, as a HELD feature (its means held at the walk's level, its band
+# spreads aimed at), where its published band spreads differ beyond chance:
+# the weighted spread of the bands' log variances, each weighted by its
+# readings less one over two plus the column's published excess kurtosis
+# (the variance of a log variance under tails that heavy), against the
+# 0.001 point on `k - 1` degrees of freedom. Priced first on the invented
+# null: of 294 chance `within` entries of three null tables it keeps none
+# (the normal-theory spread chi-square kept 38: the skewed codes' heavy
+# tails). A column whose kurtosis is not published is not tested. A test
+# may set it False.
+_POLISH_SPREAD_TEST = True
+# THE WHOLE VECTOR (lane CHG-b, plan P4-D492 part b): a `within` or `share`
+# target is one covariance, with its band means read as ONE direction, so
+# on a grouping of three bands or more the twin met that direction and left
+# the others to the walk (a physical-status class of five levels: the
+# twin's death shares 0.152, 0.149, 0.268, 0.532 and 0.857 by class against
+# 0.089, 0.175, 0.305, 0.479 and 0.667, and the class's effect after
+# adjusting 0.13 against 0.40). Each such target the gate keeps on a
+# label's bands (from three to `_POLISH_WHOLE_MOST` bands holding a
+# reading) is aimed band by band: one target a band but the largest, its
+# encoding the band's indicator, its goal the band's share of the count
+# times its standardized mean's departure from their weighted mean (the
+# covariance of the column with the indicator the published means imply);
+# the first keeps the band spreads. A test may set it False.
+_POLISH_WHOLE = True
+_POLISH_WHOLE_MOST = 12
+# Curve targets a column keeps at most, the largest departures first.
+_POLISH_CURVE_MOST = 4
+# A number's curve is made only on a pair whose rows are every reading of
+# both columns and whose correlation's size is under this: past it the
+# cells' own order carries the shape, and a curve's small departures move a
+# near-straight pair off its correlation (an invented pair of 0.995 left its
+# bound by 0.0009 with them).
+_POLISH_CURVE_STRAIGHT = 0.9
+# A curve whose feature's mean square (in the column's variance) is under
+# this is not made: a bend that moves the column's conditional mean by less
+# than about a tenth of its spread changes no analysis, yet aimed at it
+# re-sorts the column against its other ties (on ST6 at 20,000 rows such
+# small curves, of age and of a censored follow-up, raised the table's
+# non-significant estimates made significant from 14 to 21 per cent).
+_POLISH_CURVE_LEAST = 0.01
+# A yes/no column's curves on its threshold's scale (`_binary_curve_target`):
+# MEASURED AND NOT ADOPTED. On lane E0b's ST1 at 20,000 rows (table seed 1,
+# twin seeds 0 to 2) they lowered the joint estimates inside the half-split
+# yardstick to 0.532 to 0.588 (0.575 to 0.612 without them) and raised the
+# table's non-significant estimates made significant to 30 to 38 per cent
+# (25 to 33 without), and on lane MU's ST9 they did not bring the death
+# model's squared age back (0.045 against 0.064 without; the table 0.131):
+# the band shares' quantiles read as a line in the band scores mix the
+# threshold's own curvature with the column's. Off; the arithmetic stands,
+# mirrored by the oracle, for a later design.
+_POLISH_BINARY_CURVES = False
+# A curve's feature is read on this many bins of the rank codes.
+_POLISH_CURVE_BINS = 4096
+_POLISH_CURVE_SHIFT = 4
+# The root of two pi, the binary64 nearest it (the normal density's divisor).
+_ROOT_TWO_PI = 2.5066282746310002
 
 
 @dataclasses.dataclass
@@ -79270,7 +79387,16 @@ class _PolishTarget:
     published spread over the pair's rows) and its factor (`scales[0]`),
     and its aim is bounded by `most`, the larger of `_POLISH_AIM_MOST` and
     half way from its goal to 1 (repair 2); every other aim but a
-    `within`'s by `_POLISH_AIM_MOST`.
+    `within`'s by `_POLISH_AIM_MOST`. `held` marks a HELD feature (lane
+    CHG-b): a `by` or `share` target the grouping gate dropped from a
+    yes/no column it still polishes, whose `goal` and `aim` are nought in
+    the plan and are set from the walk when the column's first round
+    starts (`_held_goals`). A `curve` target (lane CHG-b) of a number on
+    its partner `name`: `encoding` the departures of the published band
+    means from their straight line at the band scores `knots` (rising),
+    `table` the feature read at each bin of the partner's rank codes, its
+    goal the feature's variance. `counts` a `within`, `by` or `share`
+    target's published band counts (the whole vector reads them).
     """
 
     kind: str
@@ -79283,6 +79409,10 @@ class _PolishTarget:
     scales: "list[float]" = dataclasses.field(default_factory=list)
     slope: float = 1.0
     most: float = _POLISH_AIM_MOST
+    held: bool = False
+    knots: "tuple[float, ...]" = ()
+    table: "list[float]" = dataclasses.field(default_factory=list)
+    counts: "tuple[int, ...]" = ()
 
 
 # THE PSD PROJECTION (LANE MPg RULINGS 2 (2), repair 1): the published
@@ -79545,7 +79675,8 @@ def _within_target(entry: "contract.MomentColumn", within: "contract.MomentWithi
         return None
     goal = second / count - (first / count) * (first / count)
     return _PolishTarget(
-        kind, name, goal, tuple(encoding), goal, within.level, tuple(sds), [1.0 for _band in within.groups]
+        kind, name, goal, tuple(encoding), goal, within.level, tuple(sds), [1.0 for _band in within.groups],
+        counts=tuple(group.n for group in within.groups),
     )
 
 
@@ -79571,7 +79702,364 @@ def _share_target(entry: "contract.MomentColumn", within: "contract.MomentWithin
     if count <= 0:
         return None
     goal = second / count - (first / count) * (first / count)
-    return _PolishTarget("share", within.by, goal, tuple(encoding), goal, within.level)
+    return _PolishTarget("share", within.by, goal, tuple(encoding), goal, within.level,
+                         counts=tuple(group.n for group in within.groups))
+
+
+def _label_bands(entry: contract.LadderEntry) -> bool:
+    """Whether a ladder column's `L0` bands are levels of a label (none a range of rung keys)."""
+    return bool(entry.bands) and not any(
+        isinstance(part, tuple) and len(part) == 2 for band in entry.bands for part in band
+    )
+
+
+def _whole_vectors(targets: "list[_PolishTarget]", labels: "dict[str, bool] | set[str]") -> "list[_PolishTarget]":
+    """A plan's targets with each kept `within` or `share` target on a label's bands aimed band by band (lane CHG-b).
+
+    A target of three to `_POLISH_WHOLE_MOST` bands holding a reading (its
+    `counts`, the entry's published counts) becomes one target a band but the
+    largest (the first band of the largest count), in band order: its
+    encoding the band's indicator, its goal `p_g (e_g - sum p e)` (`p_g`
+    the band's share of the entry's count, `e_g` its standardized mean or
+    share), its aim the goal over the target's slope; the first of them
+    keeps the target's band spreads and factors. Every other target stands
+    as it was. A held feature is never split.
+    """
+    out: "list[_PolishTarget]" = []
+    for target in targets:
+        if target.held or target.kind not in ("within", "share") or target.name not in labels or not target.counts:
+            out += [target]
+            continue
+        live = [band for band in range(len(target.counts)) if target.counts[band] > 0]
+        if not 3 <= len(live) <= _POLISH_WHOLE_MOST:
+            out += [target]
+            continue
+        total = 0
+        for band in live:
+            total = total + target.counts[band]
+        middle = 0.0
+        for band in live:
+            middle = middle + (target.counts[band] / total) * target.encoding[band]
+        largest = live[0]
+        for band in live:
+            if target.counts[band] > target.counts[largest]:
+                largest = band
+        first = True
+        for band in live:
+            if band == largest:
+                continue
+            share = target.counts[band] / total
+            goal = share * (target.encoding[band] - middle)
+            indicator = tuple(1.0 if other == band else 0.0 for other in range(len(target.counts)))
+            out += [dataclasses.replace(
+                target, goal=goal, encoding=indicator, aim=goal / target.slope,
+                sds=target.sds if first else (), scales=list(target.scales) if first else [],
+            )]
+            first = False
+    return out
+
+
+def _curve_grid() -> "list[float]":
+    """The rank score at the middle of each of `_POLISH_CURVE_BINS` bins of the rank codes (a curve's feature is read there)."""
+    return [
+        chain_walk.normal_score((2 * ((bin_at << _POLISH_CURVE_SHIFT) | (1 << (_POLISH_CURVE_SHIFT - 1))) + 1) / (2 * _POLISH_RANK_STEPS))
+        for bin_at in range(_POLISH_CURVE_BINS)
+    ]
+
+
+def _curve_value(knots: "tuple[float, ...]", values: "tuple[float, ...]", z: float) -> float:
+    """The departures joined by straight pieces between the knots, flat past the ends, read at `z` (lane CHG-b)."""
+    if z <= knots[0]:
+        return values[0]
+    last = len(knots) - 1
+    if z >= knots[last]:
+        return values[last]
+    at = 1
+    while knots[at] < z:
+        at = at + 1
+    low = knots[at - 1]
+    return values[at - 1] + (values[at] - values[at - 1]) * ((z - low) / (knots[at] - low))
+
+
+def _band_mean_scores(entry: contract.LadderEntry, level: int) -> "list[tuple[float, float] | None]":
+    """Each band's MEAN rank score and mean SQUARED rank score at `level` (1 its `L1` bands, 2 its `L2` bands), None where it holds no value or no row.
+
+    A band holds values where every `L0` band it joins is a range of rung
+    keys; over those bands holding a row, the band of shares `(P_a, P_b)`
+    of the readings (their published totals in band order) has the mean
+    normal score `(phi(q_a) - phi(q_b)) / (P_b - P_a)` and the mean squared
+    one `1 + (q_a phi(q_a) - q_b phi(q_b)) / (P_b - P_a)`, `q` the normal
+    quantile (`chain_walk.normal_score`) and `phi` the density
+    (`chain_walk.exponential`), both terms nought at the shares 0 and 1.
+    Published facts alone.
+    """
+    joined = entry.l1 if level == 1 else entry.l2
+    if not joined:
+        return []
+    valued = [all(isinstance(part, tuple) and len(part) == 2 for part in band) for band in entry.bands]
+    totals: "list[int]" = []
+    holds: "list[bool]" = []
+    for members in joined:
+        totals += [sum(entry.totals[at] for at in members)]
+        holds += [all(valued[at] for at in members)]
+    count = 0
+    for band in range(len(joined)):
+        if holds[band] and totals[band] > 0:
+            count = count + totals[band]
+    if count <= 0:
+        return [None for _band in joined]
+
+    def edge(share: float) -> "tuple[float, float]":
+        if share <= 0.0 or share >= 1.0:
+            return 0.0, 0.0
+        q = chain_walk.normal_score(share)
+        density = chain_walk.exponential(-0.5 * q * q) / _ROOT_TWO_PI
+        return density, q * density
+
+    out: "list[tuple[float, float] | None]" = []
+    below = 0
+    for band in range(len(joined)):
+        if not holds[band] or totals[band] <= 0:
+            out += [None]
+            continue
+        low = below / count
+        high = (below + totals[band]) / count
+        first_low, second_low = edge(low)
+        first_high, second_high = edge(high)
+        width = high - low
+        out += [((first_low - first_high) / width, 1.0 + (second_low - second_high) / width)]
+        below = below + totals[band]
+    return out
+
+
+def _solved_three(rows: "list[tuple[float, float, float]]", values: "list[float]", weights: "list[float]") -> "list[float] | None":
+    """The weighted least squares of `values` on three columns: the normal equations (each sum in order) by Gauss-Jordan without exchanges; None where a pivot is nought."""
+    matrix = [[0.0, 0.0, 0.0, 0.0] for _a in range(3)]
+    for at in range(len(rows)):
+        for a in range(3):
+            for c in range(3):
+                matrix[a][c] = matrix[a][c] + weights[at] * rows[at][a] * rows[at][c]
+            matrix[a][3] = matrix[a][3] + weights[at] * rows[at][a] * values[at]
+    for a in range(3):
+        pivot = matrix[a][a]
+        if pivot == 0.0:
+            return None
+        for c in range(a, 4):
+            matrix[a][c] = matrix[a][c] / pivot
+        for other in range(3):
+            if other == a:
+                continue
+            factor = matrix[other][a]
+            for c in range(a, 4):
+                matrix[other][c] = matrix[other][c] - factor * matrix[a][c]
+    return [matrix[a][3] for a in range(3)]
+
+
+def _bent_feature(
+    knots: "list[float]", squares: "list[float]", values: "list[float]", weights: "list[float]", grid: "list[float]"
+) -> "tuple[float, list[float], list[float], float] | None":
+    """THE TEST AND THE FEATURE of a curve (lane CHG-b), from bands' mean rank scores `t`, mean squared ones `u`, values
+    `e` and weights `w` (at least three bands), or None where no bend shows beyond chance.
+
+    THE TEST: the weighted least-squares line `a + b t`, the departures `e
+    - a - b t` and their chi-square `sum w d ** 2` on `k - 2` degrees of
+    freedom, kept only above the 0.001 point (`_gate_point`). THE FEATURE,
+    finer than the bands: the weighted least squares of `e` on `1, t, u - 1`
+    (the SQUARED PARTNER SCORE, whose band means are the bands' `u`), its
+    squared term `c` read at each rank score `z` as `c (z z - 1)`, plus the
+    bands' residuals from it joined by straight pieces between the `t` (the
+    SPLINE, flat past the ends), less its mean and its straight part over
+    the bins' rank scores `grid` (so the correlation alone carries the
+    line). Returns the statistic, the residuals, the feature on the bins and
+    its mean square. Each operation binary64, rounded once in the order
+    written.
+    """
+    k = len(knots)
+    if k < 3:
+        return None
+    w_all = 0.0
+    w_t = 0.0
+    w_tt = 0.0
+    w_e = 0.0
+    w_te = 0.0
+    for at in range(k):
+        w_all = w_all + weights[at]
+        w_t = w_t + weights[at] * knots[at]
+        w_tt = w_tt + weights[at] * knots[at] * knots[at]
+        w_e = w_e + weights[at] * values[at]
+        w_te = w_te + weights[at] * knots[at] * values[at]
+    below = w_all * w_tt - w_t * w_t
+    if below <= 0.0:
+        return None
+    slope = (w_all * w_te - w_t * w_e) / below
+    level = (w_e - slope * w_t) / w_all
+    statistic = 0.0
+    for at in range(k):
+        departure = values[at] - level - slope * knots[at]
+        statistic = statistic + weights[at] * departure * departure
+    if not statistic > _gate_point(k - 2):
+        return None
+    fitted = _solved_three([(1.0, knots[at], squares[at] - 1.0) for at in range(k)], values, weights)
+    if fitted is None:
+        return None
+    bend = fitted[2]
+    residuals = [values[at] - fitted[0] - fitted[1] * knots[at] - bend * (squares[at] - 1.0) for at in range(k)]
+    read = [bend * (z * z - 1.0) + _curve_value(tuple(knots), tuple(residuals), z) for z in grid]
+    count = len(grid)
+    mean_z = math.fsum(grid) / count
+    mean_read = math.fsum(read) / count
+    var_z = math.fsum((z - mean_z) * (z - mean_z) for z in grid) / count
+    lean = math.fsum((z - mean_z) * (value - mean_read) for z, value in zip(grid, read)) / count / var_z
+    read = [value - mean_read - lean * (z - mean_z) for z, value in zip(grid, read)]
+    square = math.fsum(value * value for value in read) / count
+    if not square > 0.0:
+        return None
+    return statistic, residuals, read, square
+
+
+def _curve_target(
+    entry: "contract.MomentColumn", within: "contract.MomentWithin", partner: contract.LadderEntry, grid: "list[float]"
+) -> "tuple[_PolishTarget, float] | None":
+    """A number's CURVE target on a partner (lane CHG-b) and its departure statistic, or None where none shows beyond chance.
+
+    `within` holds the number's published means and spreads in the
+    partner's bands. Over the value bands holding a reading (at least
+    three), each band's mean standardized (`e = (mean - m) / sd`), its
+    weight `n / s ** 2` (`s` its published spread over the column's, 1
+    where none is published), its mean rank score and mean squared rank
+    score (`_band_mean_scores`), read by `_bent_feature`; the goal the
+    feature's mean square (the column's covariance with the feature where
+    its conditional mean bends as the bands show), None under
+    `_POLISH_CURVE_LEAST`. THE AIM STARTS AT
+    NOUGHT: the column's cells take the rows in their own order, so a
+    straight score already bends the column as far as its own scale does
+    (a column that is the partner itself gains nothing to aim at), and the
+    rounds raise the aim only by what the twin falls short of the goal.
+    """
+    scores = _band_mean_scores(partner, within.level)
+    if len(scores) != len(within.groups) or entry.sd <= 0.0:
+        return None
+    knots: "list[float]" = []
+    squares: "list[float]" = []
+    values: "list[float]" = []
+    weights: "list[float]" = []
+    for band in range(len(within.groups)):
+        group = within.groups[band]
+        score = scores[band]
+        if score is None or group.n <= 0:
+            continue
+        spread = group.sd / entry.sd if group.sd > 0.0 else 1.0
+        knots += [score[0]]
+        squares += [score[1]]
+        values += [(group.mean - entry.mean) / entry.sd]
+        weights += [group.n / (spread * spread)]
+    found = _bent_feature(knots, squares, values, weights, grid)
+    if found is None:
+        return None
+    statistic, residuals, read, goal = found
+    if goal < _POLISH_CURVE_LEAST:
+        return None
+    target = _PolishTarget(
+        "curve", within.by, goal, tuple(residuals), 0.0, within.level, knots=tuple(knots), table=read,
+    )
+    return target, statistic
+
+
+def _binary_curve_target(
+    entry: "contract.MomentColumn", within: "contract.MomentWithin", partner: contract.LadderEntry, grid: "list[float]"
+) -> "tuple[_PolishTarget, float] | None":
+    """A yes/no column's CURVE target on a number partner (lane CHG-b), read on the threshold's scale, or None.
+
+    `within` holds the column's published shares in the partner's bands. A
+    yes/no column is re-assigned by a latent score (its levels go to the
+    rows of highest score), so its bend is read where the latent lies: over
+    the value bands holding a reading whose share lies strictly between 0
+    and 1 (at least three), the band's normal quantile `q = normal_score(s)`
+    as its value, its weight `n phi(q) ** 2 / (s (1 - s))` (the inverse of
+    the quantile's variance), its mean rank score and mean squared rank
+    score, read by `_bent_feature`. The goal is the feature's mean square on
+    the latent's scale times the target's slope (the normal density at the
+    column's share over its spread, as a `share` target's): the column's
+    covariance with the feature where its threshold bends as the bands show;
+    the aim starts at nought, as a number's curve's does.
+    """
+    scores = _band_mean_scores(partner, within.level)
+    share = entry.share
+    if len(scores) != len(within.groups) or not 0.0 < share < 1.0:
+        return None
+    knots: "list[float]" = []
+    squares: "list[float]" = []
+    values: "list[float]" = []
+    weights: "list[float]" = []
+    for band in range(len(within.groups)):
+        group = within.groups[band]
+        score = scores[band]
+        if score is None or group.n <= 0 or not 0.0 < group.share < 1.0:
+            continue
+        q = chain_walk.normal_score(group.share)
+        density = chain_walk.exponential(-0.5 * q * q) / _ROOT_TWO_PI
+        knots += [score[0]]
+        squares += [score[1]]
+        values += [q]
+        weights += [group.n * density * density / (group.share * (1.0 - group.share))]
+    found = _bent_feature(knots, squares, values, weights, grid)
+    if found is None:
+        return None
+    statistic, residuals, read, square = found
+    slope = _normal_density(share) / math.sqrt(share * (1.0 - share))
+    target = _PolishTarget(
+        "curve", within.by, square * slope, tuple(residuals), 0.0, within.level, knots=tuple(knots), table=read,
+        slope=slope,
+    )
+    return target, statistic
+
+
+def _spreads_beyond_chance(target: _PolishTarget, kurtosis: "float | None") -> bool:
+    """Whether a number's `within` target's published band spreads differ beyond chance (G16.3's spread test, lane CHG-b).
+
+    The statistic `_spread_statistic` reads, kept only above the 0.001
+    point on `k - 1` degrees of freedom (`_gate_point`), `k` the bands it
+    reads. False where it reads none.
+    """
+    found = _spread_statistic(target, kurtosis)
+    return found is not None and found[0] > _gate_point(found[1] - 1)
+
+
+def _spread_statistic(target: _PolishTarget, kurtosis: "float | None") -> "tuple[float, int] | None":
+    """The spread test's statistic of a number's `within` target and the bands it reads, or None (lane CHG-b).
+
+    Over the bands holding at least two readings and a published spread
+    above nought (at least two such bands): `L = ln(s s)` by
+    `chain_walk.natural_log`, the weight `(n - 1) / (2 + x)`, `x` the
+    column's published kurtosis less 3 (nought where under 3), the weighted
+    mean of `L` and the statistic `sum w (L - mean) ** 2`. None where the
+    kurtosis is not published. Published facts alone; each operation
+    binary64, rounded once in the order written.
+    """
+    if kurtosis is None or target.kind != "within":
+        return None
+    excess = kurtosis - 3.0 if kurtosis > 3.0 else 0.0
+    logs: "list[float]" = []
+    weights: "list[float]" = []
+    for band in range(len(target.sds)):
+        count = target.counts[band] if band < len(target.counts) else 0
+        spread = target.sds[band]
+        if count < 2 or not spread > 0.0:
+            continue
+        logs += [chain_walk.natural_log(spread * spread)]
+        weights += [(count - 1) / (2.0 + excess)]
+    if len(logs) < 2:
+        return None
+    total = 0.0
+    weighted = 0.0
+    for at in range(len(logs)):
+        total = total + weights[at]
+        weighted = weighted + weights[at] * logs[at]
+    middle = weighted / total
+    statistic = 0.0
+    for at in range(len(logs)):
+        statistic = statistic + weights[at] * (logs[at] - middle) * (logs[at] - middle)
+    return statistic, len(logs)
 
 
 def _gate_point(df: int) -> float:
@@ -79622,7 +80110,7 @@ def _gate_keeps(name: str, target: _PolishTarget, entries: "dict[tuple[str, str,
     mutant). A target of any other kind is refused whatever the setting:
     a kind the gate has no test for is never aimed at by default.
     """
-    if target.kind in _POLISH_GATE_WHOLE:
+    if target.kind in _POLISH_GATE_WHOLE or target.kind in _POLISH_GATE_MADE:
         return True
     if target.kind not in _POLISH_GATE_TESTED:
         raise errors.ProfileError(
@@ -79705,6 +80193,9 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
     goals, moves, pair_spreads = _target_correlations(profile, names)
     values, counts, _spreads = _published_pairs(profile, names)
     place_of = {numbers[at].column: at for at in range(len(numbers))}
+    within_by = {(within.column, within.by): within for within in moments.within}
+    ladder_of = {entry.column: entry for entry in profile.relationships.ladder}
+    grid: "list[float]" = []
     for entry in moments.columns:
         if entry.column not in laddered:
             continue
@@ -79731,6 +80222,29 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
                     )
                 ]
             partners = {target.name: True for target in targets}
+            if _POLISH_CURVES and _POLISH_GATE and entry.sd > 0.0:
+                # THE CURVES (lane CHG-b): each partner whose published band
+                # means depart from their straight line beyond chance, the
+                # largest departures first, at most `_POLISH_CURVE_MOST`.
+                if not grid:
+                    grid = _curve_grid()
+                found_curves: "list[tuple[float, int, _PolishTarget]]" = []
+                for target in targets:
+                    key = (entry.column, target.name)
+                    within_of = within_by[key] if key in within_by else None
+                    if target.kind != "pair" or within_of is None or target.name not in ladder_of:
+                        continue
+                    # A pair whose rows are not every reading of both (its own
+                    # spreads carry it) or whose correlation is near one (the
+                    # cells' own order carries its shape) has no curve.
+                    other = place_of[target.name]
+                    if (counts[mine][other] != entry.n or counts[mine][other] != numbers[other].n
+                            or abs(target.goal) >= _POLISH_CURVE_STRAIGHT):
+                        continue
+                    made = _curve_target(entry, within_of, ladder_of[target.name], grid)
+                    if made is not None:
+                        found_curves += [(-made[1], len(found_curves), made[0])]
+                targets += [curve for _statistic, _at, curve in sorted(found_curves)[:_POLISH_CURVE_MOST]]
             if entry.sd > 0.0:
                 for within in moments.within:
                     if within.column != entry.column or within.by not in laddered:
@@ -79767,6 +80281,22 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
                     found.slope = density / spread
                     found.aim = found.goal / found.slope
                     targets += [found]
+            if _POLISH_CURVES and _POLISH_BINARY_CURVES and _POLISH_GATE:
+                # THE CURVES (lane CHG-b): each number the column splits whose
+                # bands' published shares bend on the threshold's scale beyond
+                # chance, the largest bends first, at most `_POLISH_CURVE_MOST`.
+                if not grid:
+                    grid = _curve_grid()
+                found_curves = []
+                for target in targets:
+                    key = (entry.column, target.name)
+                    within_of = within_by[key] if key in within_by else None
+                    if target.kind != "by" or within_of is None or target.name not in ladder_of:
+                        continue
+                    made = _binary_curve_target(entry, within_of, ladder_of[target.name], grid)
+                    if made is not None:
+                        found_curves += [(-made[1], len(found_curves), made[0])]
+                targets += [curve for _statistic, _at, curve in sorted(found_curves)[:_POLISH_CURVE_MOST]]
         if targets:
             plan += [(entry.column, targets)]
     # THE GROUPING GATE (lane CHG, plan P4-D492): each grouping target kept
@@ -79775,12 +80305,48 @@ def _polish_layout(profile: contract.Profile) -> _PolishLayout:
     # walk alone placing it. Applied to the whole plan, so a target of a kind
     # the gate has no test for is refused wherever it was made.
     entries = {(within.column, within.by, within.level): within for within in moments.within}
+    kurtosis_of: "dict[str, float]" = {}
+    for block in profile.columns:
+        facts = block.facts
+        if isinstance(facts, contract.NumericFacts) and facts.kurtosis is not None:
+            kurtosis_of[block.name] = facts.kurtosis
     gated: "list[tuple[str, list[_PolishTarget]]]" = []
     for name, targets in plan:
-        kept = [target for target in targets if _gate_keeps(name, target, entries)]
-        if kept:
-            gated += [(name, kept)]
+        decided = [_gate_keeps(name, target, entries) for target in targets]
+        if not any(decided) and not (
+            _POLISH_SPREAD_TEST and name in number_of and any(
+                _spreads_beyond_chance(target, kurtosis_of[name] if name in kurtosis_of else None) for target in targets)
+        ):
+            continue
+        if _POLISH_HELD and name not in number_of:
+            # THE HELD FEATURES (lane CHG-b): a yes/no column the gate still
+            # polishes keeps each `by` and `share` target it dropped, in plan
+            # order, as a held feature, its goal set from the walk when the
+            # column's first round starts (`_held_goals`).
+            gated += [(name, [
+                target if keep else dataclasses.replace(target, goal=0.0, aim=0.0, held=True)
+                for target, keep in zip(targets, decided)
+                if keep or target.kind in _POLISH_HELD_KINDS
+            ])]
+            continue
+        if _POLISH_SPREAD_TEST and name in number_of:
+            # THE SPREAD TEST (lane CHG-b): a dropped `within` target whose
+            # band spreads differ beyond chance stays, held at the walk's
+            # level on its means, its band spreads aimed at.
+            kurtosis = kurtosis_of[name] if name in kurtosis_of else None
+            gated += [(name, [
+                target if keep else dataclasses.replace(target, goal=0.0, aim=0.0, held=True)
+                for target, keep in zip(targets, decided)
+                if keep or _spreads_beyond_chance(target, kurtosis)
+            ])]
+            continue
+        gated += [(name, [target for target, keep in zip(targets, decided) if keep])]
     plan = gated
+    if _POLISH_WHOLE and _POLISH_GATE:
+        # THE WHOLE VECTOR (lane CHG-b): each kept `within` or `share` target
+        # on a label's bands aims at every band's mean or share.
+        labels = {entry.column for entry in profile.relationships.ladder if _label_bands(entry)}
+        plan = [(name, _whole_vectors(targets, labels)) for name, targets in plan]
     # THE ORDER OF A ROUND (repair 1): the numbers from the finest frame to
     # the coarsest (ties in schema order), then the binaries in schema order,
     # so the column with the most room in its frame re-sorts last and ends a
@@ -80007,11 +80573,80 @@ def _polish_round(state: _PolishState, walk: _Walk, at: int, sums: "chain_walk.P
         _binary_codes(state, walk, name)
     if name not in state.codes:
         return
+    if turn == 0 and any(target.held for target in targets):
+        _held_goals(state, name, targets)
     if turn + 1 < _POLISH_ROUNDS:
         _polish_column(column, name, targets, sums, state, walk, True)
         return
     for step in range(_POLISH_LAST_STEPS):
         _polish_column(column, name, targets, sums, state, walk, step + 1 < _POLISH_LAST_STEPS)
+
+
+def _held_goals(state: _PolishState, name: str, targets: "list[_PolishTarget]") -> None:
+    """Each HELD feature of the column `name` given its goal and aim from the rows as they stand (lane CHG-b).
+
+    Called once, when the column's first round starts (a yes/no column's
+    levels just read by `_binary_codes`), so the goal is the measure the
+    walk left: a `share` target's (and a number's `within` target the
+    spread test keeps) covariance of the column's standardized code with
+    the encoding of its band of the grouping column, over the column's rows;
+    a `by` target's covariance of the number's standardized code with the
+    encoding of its band of this column, over the number's rows -- each the
+    measure the rounds read for such a target, the same sums in the same
+    order. The aim is the goal over the target's slope, inside its bound.
+    A held feature that cannot be measured (fewer than two rows, a spread
+    of nought) leaves the column's targets, so no feature is ever aimed at
+    nought.
+    """
+    own = state.codes[name]
+    present = state.has[name]
+    rows = len(own)
+    gone: "list[int]" = []
+    for j in range(len(targets)):
+        target = targets[j]
+        if not target.held:
+            continue
+        got = None
+        if target.kind in ("share", "within"):
+            centre, spread = state.spreads[name]
+            count = 0
+            for row in range(rows):
+                count = count + present[row]
+            if spread > 0.0 and count >= 2:
+                table = [(code - centre) / spread for code in range(256)]
+                whole_x = math.fsum(table[own[row]] for row in range(rows) if present[row])
+                encoding = target.encoding
+                of_row = state.bands[(target.name, target.level)]
+                sy = math.fsum(encoding[of_row[row]] for row in range(rows) if present[row] and of_row[row] < len(encoding))
+                sxy = math.fsum(
+                    table[own[row]] * encoding[of_row[row]] for row in range(rows) if present[row] and of_row[row] < len(encoding)
+                )
+                got = sxy / count - (whole_x / count) * (sy / count)
+        elif target.kind == "by":
+            number_centre, number_spread = state.spreads[target.name]
+            holding = state.has[target.name]
+            m = 0
+            for row in range(rows):
+                if holding[row]:
+                    m = m + 1
+            if number_spread > 0.0 and m >= 2:
+                number = [(code - number_centre) / number_spread for code in range(256)]
+                number_codes = state.codes[target.name]
+                encoding = target.encoding
+                of_row = state.bands[(name, target.level)]
+                sx = math.fsum(number[number_codes[row]] for row in range(rows) if holding[row])
+                sy = math.fsum(encoding[of_row[row]] for row in range(rows) if holding[row] and of_row[row] < len(encoding))
+                sxy = math.fsum(
+                    number[number_codes[row]] * encoding[of_row[row]] for row in range(rows) if holding[row] and of_row[row] < len(encoding)
+                )
+                got = sxy / m - (sx / m) * (sy / m)
+        if got is None or target.slope == 0.0:
+            gone += [j]
+            continue
+        target.goal = got
+        target.aim = min(target.most, max(-target.most, got / target.slope))
+    for j in reversed(gone):
+        del targets[j]
 
 
 def _binary_codes(state: _PolishState, walk: _Walk, name: str) -> None:
@@ -80080,6 +80715,15 @@ def _feature(target: _PolishTarget, held: "list[int]", state: _PolishState) -> "
         ranks = state.ranks[target.name]
         present = state.has[target.name]
         return [normal[ranks[2 * row] | (ranks[2 * row + 1] << 8)] if present[row] else 0.0 for row in held]
+    if target.kind == "curve":
+        # A CURVE (lane CHG-b): the departures read at the partner's rank code's bin (0 where it holds none).
+        curve = target.table
+        ranks = state.ranks[target.name]
+        present = state.has[target.name]
+        return [
+            curve[(ranks[2 * row] | (ranks[2 * row + 1] << 8)) >> _POLISH_CURVE_SHIFT] if present[row] else 0.0
+            for row in held
+        ]
     encoding = target.encoding
     of_row = state.bands[(target.name, target.level)]
     return [encoding[of_row[row]] if of_row[row] < len(encoding) else 0.0 for row in held]
@@ -80465,6 +81109,21 @@ def _polish_column(
                 number[number_codes[row]] * encoding[of_row[row]] for row in range(rows) if holding[row] and of_row[row] < len(encoding)
             )
             got = sxy / m - (sx / m) * (sy / m)
+        elif target.kind == "curve":
+            # A CURVE (lane CHG-b): the column's covariance with its feature over the column's rows.
+            curve = target.table
+            partner_ranks = state.ranks[target.name]
+            partner_has = state.has[target.name]
+            shift = _POLISH_CURVE_SHIFT
+            sy = math.fsum(
+                curve[(partner_ranks[2 * row] | (partner_ranks[2 * row + 1] << 8)) >> shift]
+                for row in range(rows) if present[row] and partner_has[row]
+            )
+            sxy = math.fsum(
+                table[own[row]] * curve[(partner_ranks[2 * row] | (partner_ranks[2 * row + 1] << 8)) >> shift]
+                for row in range(rows) if present[row] and partner_has[row]
+            )
+            got = sxy / count - (whole_x / count) * (sy / count)
         else:
             encoding = target.encoding
             of_row = state.bands[(target.name, target.level)]
@@ -80474,7 +81133,7 @@ def _polish_column(
             )
             got = sxy / count - (whole_x / count) * (sy / count)
         target.aim = target.aim + _POLISH_STEP * (target.goal - got) / target.slope
-        if target.kind != "within":
+        if target.kind not in ("within", "curve"):
             # A correlation, a binary's latent one too, aims at most at its
             # bound either way (`most`: `_POLISH_AIM_MOST`, or for a pair
             # half way from its goal to 1, repair 2): past it the score is

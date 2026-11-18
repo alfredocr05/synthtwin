@@ -90,6 +90,10 @@ GRAIN_KEYS = (
 # part b): all four beside the twelve where an interval rule stands, else
 # none of them (S34).
 COUNTING_KEYS = ("end_events", "hazard", "intervals", "switches")
+# A patient's own trajectory's key (contract 4.6c.15; lane GRb2-c, plan
+# P4-D491 part c), present only where an entry stands (S35); the same text as
+# `patient_trajectory.TRAJECTORY_KEY`, which reads and checks what it holds.
+TRAJECTORY_KEY = "trajectory"
 # The interval rule's origin and its places at most (4.6c.14 (a)).
 ORIGIN_ZERO = "zero"
 INTERVAL_PLACES_MAX = 6
@@ -1111,7 +1115,11 @@ def check(document: "dict[str, object]", grain: "dict[str, object]", tabled: int
     person column and the patient count for `chain_check` to hold the
     patient chain to S23 to S28 over the patient table.
     """
-    if sorted(grain) != sorted(GRAIN_KEYS) and sorted(grain) != sorted(GRAIN_KEYS + COUNTING_KEYS):
+    # A PATIENT'S OWN TRAJECTORY (contract 4.6c.15; lane GRb2-c, plan P4-D491
+    # part c): its one key stands beside the others only where an entry
+    # stands, and S35 (`patient_trajectory.checked`) holds what it holds.
+    keys = sorted(key for key in grain if key != TRAJECTORY_KEY)
+    if keys != sorted(GRAIN_KEYS) and keys != sorted(GRAIN_KEYS + COUNTING_KEYS):
         raise broken("S29", "grain", "the patient layer holds exactly its twelve keys")
     columns = _get(document, "columns")
     blocks: "dict[str, dict[str, object]]" = {}

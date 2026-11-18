@@ -663,6 +663,7 @@ def test_the_plan_is_a_function_of_the_description(monkeypatch: pytest.MonkeyPat
     @dataclasses.dataclass
     class _Profile:
         relationships: contract.RelationshipManifest
+        columns: "tuple[object, ...]" = ()
 
     gated = generation._polish_plan(_Profile(relationships))  # type: ignore[arg-type]
     assert [(name, [(t.kind, t.name) for t in targets]) for name, targets in gated] == [
@@ -688,7 +689,8 @@ def test_the_plan_reads_partners_binaries_and_the_projected_goals(monkeypatch: p
     can hold (0.9, 0.9, -0.9) are the projected matrix's, the oracle's frozen bits; a round runs the
     numbers from the finest frame (most bands at the chain level) to the coarsest, then the binaries.
     Read with lane CHG's grouping gate off (plan P4-D492); with it on, `f`'s shares in `b`'s bands (group
-    chi-square 4.2 on one degree of freedom) leave the plan, `a`'s split by `f` (16.7) stays."""
+    chi-square 4.2 on one degree of freedom) are dropped and, `f` still polished, stay as a HELD feature (lane
+    CHG-b), `a`'s split by `f` (16.7) stays."""
     frozen = FROZEN["psd_projection"][0]
     moments = contract.RuleBMoments(
         (
@@ -715,9 +717,11 @@ def test_the_plan_reads_partners_binaries_and_the_projected_goals(monkeypatch: p
     @dataclasses.dataclass
     class _Profile:
         relationships: contract.RelationshipManifest
+        columns: "tuple[object, ...]" = ()
 
     gated = dict(generation._polish_plan(_Profile(relationships)))  # type: ignore[arg-type]
-    assert [(t.kind, t.name) for t in gated["f"]] == [("by", "a")] and [t.kind for t in gated["a"]] == ["pair", "pair", "within"]
+    assert [(t.kind, t.name, t.held) for t in gated["f"]] == [("by", "a", False), ("share", "b", True)]
+    assert [t.kind for t in gated["a"]] == ["pair", "pair", "within"]
     monkeypatch.setattr(generation, "_POLISH_GATE", False)
     ordered = generation._polish_plan(_Profile(relationships))  # type: ignore[arg-type]
     assert [name for name, _targets in ordered] == ["b", "c", "a", "f"]
@@ -845,6 +849,7 @@ def _goal_profile(columns: "list[tuple[str, int]]", pairs: "dict[tuple[int, int]
     @dataclasses.dataclass
     class _Profile:
         relationships: contract.RelationshipManifest
+        columns: "tuple[object, ...]" = ()
 
     return _Profile(relationships)
 
@@ -1008,11 +1013,33 @@ def test_k_s6_12_classes_each_moment_by_the_gated_plan(clinic, monkeypatch: pyte
     entries = {row[4] for row in found}
     assert kept < every <= entries, (sorted(every - entries), sorted(kept - every))
     splits = {("within", target.name, name, target.level) for name, targets in ungated for target in targets if target.kind == "by"}
-    kept_splits = {("within", target.name, name, target.level) for name, targets in gated for target in targets if target.kind == "by"}
+    kept_splits = {("within", target.name, name, target.level) for name, targets in gated for target in targets
+                   if target.kind == "by" and not target.held}
     assert kept_splits and splits - kept_splits and splits <= every
     classes = [row[4] for row in kpi.classed(found, kept, every)]
     assert {("kept",), ("dropped",), ("never",)} == set(classes)
     assert [row[:4] for row in kpi.classed(found, kept, every)] == [row[:4] for row in found]
+    # Lane CHG-b: the held features' entries are dropped ones the plan still holds, the curves' entries are read by
+    # no other target, and each is its own class.
+    held = kpi.aimed(gated, held=True) - kept
+    curves = kpi.aimed(gated, curve=True) - kept - held
+    assert held <= every - kept and not curves & every - (every - kept)
+    named = {row[4] for row in kpi.classed(found, kept, every, held, curves)}
+    assert named <= {(cls,) for cls in kpi.CLASSES} and (("held",) in named) == bool(held & entries)
+
+
+def test_k_s6_12_reads_its_floor_class_by_class(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Lane CHG-b (LANE CHG RULINGS 4 (1)): K-S6-12's floor is read class by class against the fresh samples, each
+    class's kind missing only where the twins' least count inside falls under the fresh samples' least by more than
+    twice a count's binomial standard deviation. On the figures of the lane CHG repair 1 stamp: the dropped band means
+    (737 to 747 of 769 against 734 to 744, an allowance of about 11) do not miss; the kept band spreads (159 to 160 of
+    184 against 168 to 172, an allowance of about 7) and the never-aimed band means (934 to 942 of 1,086 against
+    1,031 to 1,058, the walk's) do. MUTANT: the single floor (no class misses), red."""
+    kpi = _moment_polish_driver(monkeypatch)
+    assert not kpi.floor_misses([737, 747, 741], [744, 736, 734], 769)
+    assert kpi.floor_misses([159, 159, 160], [172, 172, 168], 184)
+    assert kpi.floor_misses([934, 942, 938], [1058, 1040, 1031], 1086)
+    assert not kpi.floor_misses([0], [0], 0)
 
 
 def test_a_moved_goal_is_disclosed_in_the_twin_s_report(clinic, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]

@@ -110,7 +110,8 @@ _SENTENCE_KEYS = ("detection_evidence", "remarks", "name", "negative_form", "gro
                   "quality_state", "structural_role", "role", "n_distinct_by_occurrences", "field_widths",
                   "missing_by_class", "missing_by_source", "numeric_styles", "layout_forms", "layout_prefixes",
                   "layout_exclusions", "shape_forms", "figure_openings", "top_coded")
-_VALUE_KEYS = ("percentiles", "percentiles_between", "mode", "mean", "top_coded_ends", "boundary", "values", "value")
+_VALUE_KEYS = ("percentiles", "percentiles_between", "mode", "mean", "top_coded_ends", "top_coded_band_values", "boundary",
+               "values", "value")
 _RUNG_NAME = re.compile(r"p\d\d")
 
 
@@ -383,7 +384,15 @@ def _as_read(cells: "list[str]", block: "dict[str, object]", divisor: float) -> 
             value = float(top)
         if isinstance(ends, list) and len(ends) == 2:
             years = value / divisor
-            if years < ends[0]:
+            # ...each band at the age it records where it records one
+            # (`top_coded_band_values`, lane RX-1).
+            band = block.get("top_coded_band_values")
+            if isinstance(band, list) and len(band) == 2:
+                if years <= ends[0]:
+                    value = float(band[0]) * divisor
+                elif years >= ends[1]:
+                    value = float(band[1]) * divisor
+            elif years < ends[0]:
                 value = float(ends[0]) * divisor
             elif years > ends[1]:
                 value = float(ends[1]) * divisor

@@ -401,14 +401,14 @@ def test_us_vitals_person_answered_over_two_rounds_is_one_rounds_twin(tmp_path: 
     # P4-D401) a blank to a question offering `identifier` holds the
     # column, so the zoo's person answers `keep` where it knows the column
     # as something else (batch 4d's integration, 2026-10-20).
-    # ...and `no` for temp_f, written `98.6 F`: a number from 0 to 125
-    # with a unit word, values of 90 or more among them, is put the Safe
-    # Harbor question (plan P4-D427), which the zoo's person answers `no`
-    # in the same round.
+    # ...and `measurement` for temp_f, written `98.6 F`: its name names a
+    # measurement, so it is in no age reach and is put no Safe Harbor question
+    # (lane RX-1, plan P4-D486); it is listed in round one's checklist, and the
+    # zoo's person answers `measurement`.
     assert [(one[0], one[1]) for one in rounds.given[0]] == [
         ("patient_id", asking.ANSWER_IDENTIFIER),
         ("weight", "keep"),
-        ("temp_f", asking.ANSWER_SAFE_HARBOR_NO),
+        ("temp_f", asking.ANSWER_MEASUREMENT),
     ]
     # ...and temp_f, read as numbers since lane UN-1b published a unit
     # column as the same numbers written bare (plan P4-D443; UN-1a had kept
@@ -416,7 +416,6 @@ def test_us_vitals_person_answered_over_two_rounds_is_one_rounds_twin(tmp_path: 
     # with the weight, and answered `measurement` there.
     assert [(one[0], one[1]) for one in rounds.given[1]] == [
         ("weight", asking.ANSWER_MEASUREMENT),
-        ("temp_f", asking.ANSWER_MEASUREMENT),
     ]
     assert rounds.lost == []
     assert differs == {"description": False, "summary": False, "questions": False, "twin": False}
@@ -1608,10 +1607,11 @@ def test_k_s3_66_counts_a_refusal_on_both_routes_apart(tmp_path: pathlib.Path, m
     table, answerer = zoo_table(tmp_path, "us_vitals")
     measure_table(table, answerer, found)
     assert found["twins_refused_on_both_routes"] == 1
-    # Four answers: patient_id, weight, temp_f's Safe Harbor `no` (plan
-    # P4-D427) and temp_f's `measurement`, read as numbers since lane UN-1b
-    # (plan P4-D443; UN-1a had kept its labels at these 600 rows).
-    assert found["answers"] == 4 and found["byte_differences"] == 0 and found["failed_runs"] == 0
+    # Three answers: patient_id, weight and temp_f's `measurement`, read as
+    # numbers since lane UN-1b (plan P4-D443; UN-1a had kept its labels at
+    # these 600 rows); temp_f's name names a measurement, so it is put no Safe
+    # Harbor question (lane RX-1, plan P4-D486).
+    assert found["answers"] == 3 and found["byte_differences"] == 0 and found["failed_runs"] == 0
 
 
 def test_mutant_judged_reading_refusals_as_twins_is_seen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:

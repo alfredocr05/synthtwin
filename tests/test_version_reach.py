@@ -979,7 +979,9 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # 77 AT BATCH 4u'S MERGE OF LANE MU (plan P4-D485; 2026-11-16, step 6): the
 # line's 76 and the lane's one above (68 on its branch, on the 67 of its
 # base `7be40594`), loaded once.
-FILES_LOADED_AS_MODULES = 77
+# 80 AT BATCH 4v'S MERGE (lane CHG-b's three gate files and the review round's: each loads the oracle or a driver by its
+# committed path under tools/ or tests/).
+FILES_LOADED_AS_MODULES = 80
 
 
 def _files() -> "list[pathlib.Path]":

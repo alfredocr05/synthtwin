@@ -59,7 +59,7 @@ def _switched(folder: pathlib.Path, name: str, header: "list[str]", rows: "list[
     settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=11), person_columns=(person,))
     table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(table, settings, [person], [], [], subjects=[person], top_code=True)
-    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, key, rows_per_person=chain.ROWS_PERSON))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, key, rows_per_person=chain.ROWS_PERSON, trajectories=False))
     assert chained.grain is not None and chained.statistical is not None and chained.columns is not None
     # G16.17 case 10, the floor gate, on every description this file generates (repair 1 of lane GRb, the first
     # skeptic's item 7): no published patient-level cell and no row family's cell holds 1 to f - 1.
@@ -520,7 +520,7 @@ def test_a_column_named_like_the_layer_s_own_labels_turns_the_layer_off_and_the_
     settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=11), person_columns=("pid",))
     table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(table, settings, ["pid"], [], [], subjects=["pid"], top_code=True)
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("names", KEY, rows_per_person=chain.ROWS_PERSON))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("names", KEY, rows_per_person=chain.ROWS_PERSON, trajectories=False))
     assert chained.grain is None
     assert patient_rules.internal_name(patient_rules.R_NAME) and patient_rules.internal_name("(own mean of value)")
     assert not patient_rules.internal_name("value") and not patient_rules.internal_name("(own mean")
@@ -950,7 +950,7 @@ def _workbook_twin_checked(folder: pathlib.Path, name: str, subjects: int, seed:
     settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=11), person_columns=("sid",))
     table = reading.read_table(str(book), small_cell_floor=11)
     document = profile.build_document(table, settings, ["sid"], [], [], subjects=["sid"], top_code=True)
-    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, KEY, rows_per_person=chain.ROWS_PERSON))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch(name, KEY, rows_per_person=chain.ROWS_PERSON, trajectories=False))
     assert chained.grain is not None and chained.statistical is not None and chained.columns is not None
     switched = json.loads(json.dumps(document))
     switched["relationships"]["statistical"] = chained.statistical
@@ -1049,7 +1049,7 @@ def test_a_position_list_read_through_a_top_code_validates_its_own_source(tmp_pa
     settings = dataclasses.replace(taxonomy.Settings(small_cell_floor=11), person_columns=("pid",))
     table = reading.read_table(str(path), small_cell_floor=11)
     document = profile.build_document(table, settings, ["pid"], [], ["age"], subjects=["pid"], top_code=True)
-    chained = chain.describe(table, document, settings, chain.ChainSwitch("pos", KEY, rows_per_person=chain.ROWS_PERSON))
+    chained = chain.describe(table, document, settings, chain.ChainSwitch("pos", KEY, rows_per_person=chain.ROWS_PERSON, trajectories=False))
     assert chained.grain is not None and chained.statistical is not None and chained.columns is not None
     assert chained.grain["positions"] == [{"column": "age", "values": ["90"] + [f"{age}" for age in range(80, 90)]}]
     assert [block for block in chained.columns if block["name"] == "age"][0]["top_coded"] == 90

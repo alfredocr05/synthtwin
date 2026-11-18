@@ -327,7 +327,7 @@ def test_a_month_and_a_day_answered_no_dates_frees_the_identifier_words(tmp_path
     assert held(["remark"]) != taxonomy.HELD_IDENTIFIER_WORDS
     real = taxonomy.value_reader_hold
     monkeypatch.setattr(taxonomy, "value_reader_hold",
-                        lambda role, cells, absent, floor, dates=True: real(role, cells, absent, floor, True))
+                        lambda role, cells, absent, floor, dates=True, aged=False: real(role, cells, absent, floor, True, aged=aged))
     assert held(["remark"]) == taxonomy.HELD_IDENTIFIER_WORDS
 
 
@@ -739,7 +739,7 @@ def test_each_kind_s_columns_are_named_for_the_command_to_hold(kind: str, tmp_pa
 
 def test_with_the_readers_away_no_value_column_is_named(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The mutant of the description: with `value_reader_hold` and the band reach away, the remarks, areas and addresses go unnamed. Since batch 4s's merge (step 9) a band among an age column's numbers is an age of the reach too, so the band reach is away with the band reader away (`a_band_cell`); and since batch 4t's merge of lane HB3-a (step 6) the reach's reader of an age's phrase reads a band's figures as ages too (`Age: 90-94` is 90 and 94, `taxonomy._phrase_age`, plan P4-D482), so it is away with them."""
-    monkeypatch.setattr(taxonomy, "value_reader_hold", lambda role, cells, absent, floor, dates=True: "")
+    monkeypatch.setattr(taxonomy, "value_reader_hold", lambda role, cells, absent, floor, dates=True, aged=False: "")
     monkeypatch.setattr(taxonomy, "age_bands_past_89", lambda cells, absent, named=False, mark=90: False)
     monkeypatch.setattr(taxonomy, "a_band_cell", lambda cell: None)
     monkeypatch.setattr(taxonomy, "_phrase_age", lambda head, rest, after, comma, genders=False: None)

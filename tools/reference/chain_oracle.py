@@ -1816,34 +1816,373 @@ def beyond_chance(counts, goal, z=None):
     return b64_mul(sum(live), goal) > gate_point(len(live) - 1, z)
 
 
+POLISH_HELD_KINDS = ("by", "share")
+
+
 def gated_plan(plan, counts_of, mutant=None):
     """G16.3's grouping gate over a plan (lane CHG): `plan` a list of `(column, targets)`, each target a dict with
     `kind`, `name`, `level` and `goal` (a pair also its count `n`); `counts_of` maps `(column, by, level)` to the
     `within` entry's group counts (a `by` target's entry is `(its name, the column, its level)`). Every pair is
     kept; a `within`, `share` or `by` target where `beyond_chance`; a column left with none leaves the plan; a
-    target of any other kind raises. MUTANTS: "off" keeps every target; "level_005" tests at the 0.05 point
-    (`z` the binary64 nearest 1.6449); "nought" keeps a dropped grouping target with its goal and aim nought;
-    "pairs" tests a correlation too, `n r r` on one degree of freedom against the 0.001 point."""
+    target of any other kind raises. THE HELD FEATURES (lane CHG-b): a yes/no column (one whose targets are `by`
+    and `share` targets) left with a target keeps each `by` and `share` target the gate dropped, in plan order,
+    marked `held` with its goal and aim nought until its first round sets them (`held_goals`). MUTANTS: "off"
+    keeps every target; "level_005" tests at the 0.05 point (`z` the binary64 nearest 1.6449); "nought" keeps a
+    dropped grouping target with its goal and aim nought (no feature held); "pairs" tests a correlation too, `n r
+    r` on one degree of freedom against the 0.001 point; "held_off" keeps no held feature (lane CHG's plan)."""
     z = b64(F("1.6449")) if mutant == "level_005" else None
     out = []
     for column, targets in plan:
         kept = []
+        decided = []
         for target in targets:
             kind = target["kind"]
+            if kind == "curve":
+                # A CURVE (lane CHG-b) was tested where it was made; the gate off makes none.
+                decided += [mutant != "off"]
+                if mutant != "off":
+                    kept += [target]
+                continue
             if kind in POLISH_GATE_WHOLE:
-                if mutant != "pairs" or b64_mul(b64_mul(target["n"], target["goal"]), target["goal"]) > gate_point(1):
+                keep = mutant != "pairs" or b64_mul(b64_mul(target["n"], target["goal"]), target["goal"]) > gate_point(1)
+                decided += [keep]
+                if keep:
                     kept += [target]
                 continue
             if kind not in POLISH_GATE_TESTED:
                 raise ValueError("a target of kind " + kind + " the gate has no test for")
             key = (target["name"], column, target["level"]) if kind == "by" else (column, target["name"], target["level"])
-            if mutant == "off" or beyond_chance(counts_of[key], target["goal"], z):
+            keep = mutant == "off" or beyond_chance(counts_of[key], target["goal"], z)
+            decided += [keep]
+            if keep:
                 kept += [target]
             elif mutant == "nought":
                 kept += [dict(target, goal=F(0), aim=F(0))]
+        if kept and mutant not in ("nought", "held_off") and any(t["kind"] in POLISH_HELD_KINDS for t in targets):
+            kept = [target if keep else dict(target, goal=F(0), aim=F(0), held=True)
+                    for target, keep in zip(targets, decided) if keep or target["kind"] in POLISH_HELD_KINDS]
         if kept:
             out += [(column, kept)]
     return out
+
+
+POLISH_WHOLE_MOST = 12
+
+
+def whole_vectors(plan, labels):
+    """THE WHOLE VECTOR (lane CHG-b): each kept `within` or `share` target (not held) on the bands of a column in
+    `labels`, with three to `POLISH_WHOLE_MOST` bands holding a reading (`counts`), aimed band by band: one target a
+    band but the largest (the first of the largest count), in band order, its encoding the band's indicator, its goal
+    `p (e - m)` (`p = n_g / N` one quotient of whole numbers, `m` the sum of `p e` in band order), its aim the goal over
+    its slope; the first keeps the target's band spreads and factors. Every other target as it was."""
+    out = []
+    for column, targets in plan:
+        made = []
+        for target in targets:
+            counts = target.get("counts") or []
+            live = [b for b in range(len(counts)) if counts[b] > 0]
+            if (target.get("held") or target["kind"] not in ("within", "share") or target["name"] not in labels
+                    or not 3 <= len(live) <= POLISH_WHOLE_MOST):
+                made += [target]
+                continue
+            total = sum(counts[b] for b in live)
+            middle = F(0)
+            for b in live:
+                middle = b64_add(middle, b64_mul(b64_div(counts[b], total), target["encoding"][b]))
+            largest = live[0]
+            for b in live:
+                if counts[b] > counts[largest]:
+                    largest = b
+            first = True
+            for b in live:
+                if b == largest:
+                    continue
+                goal = b64_mul(b64_div(counts[b], total), b64_sub(target["encoding"][b], middle))
+                one = dict(target, goal=goal, encoding=[F(1) if other == b else F(0) for other in range(len(counts))],
+                           aim=b64_div(goal, target.get("slope", F(1))))
+                if not first:
+                    one["sds"] = []
+                    one["scales"] = []
+                made += [one]
+                first = False
+        out += [(column, made)]
+    return out
+
+
+def spreads_beyond_chance(counts, sds, kurtosis):
+    """THE SPREAD TEST (lane CHG-b): over the bands holding at least two readings and a spread above nought (at least
+    two), `L = natural_log(s s)`, `w = (n - 1) / (2 + x)` (`x` the published kurtosis less 3, nought under 3), the
+    weighted mean `m` of `L` (sums in band order) and the statistic `sum (w (L - m)) (L - m)` against
+    `gate_point(k - 1)`; False where the kurtosis is not published (None). Returns (decision, statistic or None)."""
+    if kurtosis is None:
+        return False, None
+    excess = b64_sub(kurtosis, 3) if kurtosis > 3 else F(0)
+    logs, weights = [], []
+    for n, sd in zip(counts, sds):
+        if n < 2 or not sd > 0:
+            continue
+        logs += [natural_log(b64_mul(sd, sd))]
+        weights += [b64_div(n - 1, b64_add(2, excess))]
+    if len(logs) < 2:
+        return False, None
+    total = weighted = F(0)
+    for at in range(len(logs)):
+        total = b64_add(total, weights[at])
+        weighted = b64_add(weighted, b64_mul(weights[at], logs[at]))
+    middle = b64_div(weighted, total)
+    statistic = F(0)
+    for at in range(len(logs)):
+        statistic = b64_add(statistic, b64_mul(b64_mul(weights[at], b64_sub(logs[at], middle)), b64_sub(logs[at], middle)))
+    return statistic > gate_point(len(logs) - 1), statistic
+
+
+def held_goals(name, targets, state):
+    """THE HELD FEATURES' GOALS (lane CHG-b), set when the yes/no column `name`'s first round starts, from the rows as
+    they stand: a `share` target's covariance of the column's standardized level with the encoding of its band of
+    the grouping column over the column's rows, a `by` target's covariance of the number's standardized code with
+    the encoding of its band of this column over the number's rows (a number's `within` target the spread test keeps is read as a `share` target is, over the column's rows: batch 4v's outside review, item 6), each the measure `polish_column`'s adjust step
+    reads, every operation emulated; the aim the goal over the slope, inside the target's bound. A held target that
+    cannot be measured (under two rows, a spread of nought, a slope of nought) leaves `targets`."""
+    own = state["codes"][name]
+    present = state["has"][name]
+    n = state["rows"]
+    most = b64(F(_POLISH_AIM_MOST_TEXT))
+    gone = []
+    for j, target in enumerate(targets):
+        if not target.get("held"):
+            continue
+        got = None
+        if target["kind"] in ("share", "within"):
+            centre, spread = state["spreads"][name]
+            held = [r for r in range(n) if present[r]]
+            count = len(held)
+            if spread > 0 and count >= 2:
+                table = [b64_div(b64_sub(code, centre), spread) for code in range(256)]
+                whole_x = fsum([table[own[r]] for r in held])
+                encoding = target["encoding"]
+                of_row = state["bands"][(target["name"], target.get("level", 1))]
+                inside = [r for r in held if of_row[r] < len(encoding)]
+                sy = fsum([encoding[of_row[r]] for r in inside])
+                sxy = fsum([b64_mul(table[own[r]], encoding[of_row[r]]) for r in inside])
+                got = b64_sub(b64_div(sxy, count), b64_mul(b64_div(whole_x, count), b64_div(sy, count)))
+        elif target["kind"] == "by":
+            number_centre, number_spread = state["spreads"][target["name"]]
+            holding = [r for r in range(n) if state["has"][target["name"]][r]]
+            m = len(holding)
+            if number_spread > 0 and m >= 2:
+                number = [b64_div(b64_sub(code, number_centre), number_spread) for code in range(256)]
+                values = state["codes"][target["name"]]
+                encoding = target["encoding"]
+                of_row = state["bands"][(name, target.get("level", 1))]
+                inside = [r for r in holding if of_row[r] < len(encoding)]
+                sx = fsum([number[values[r]] for r in holding])
+                sy = fsum([encoding[of_row[r]] for r in inside])
+                sxy = fsum([b64_mul(number[values[r]], encoding[of_row[r]]) for r in inside])
+                got = b64_sub(b64_div(sxy, m), b64_mul(b64_div(sx, m), b64_div(sy, m)))
+        slope = target.get("slope", F(1))
+        if got is None or slope == 0:
+            gone += [j]
+            continue
+        bound = target.get("most", most)
+        target["goal"] = got
+        target["aim"] = min(bound, max(-bound, b64_div(got, slope)))
+    for j in reversed(gone):
+        del targets[j]
+
+
+# THE CURVES (lane CHG-b, plan P4-D492 part b): the bins a curve's feature is read on, the root of two pi.
+POLISH_CURVE_BINS = 4096
+POLISH_CURVE_SHIFT = 4
+POLISH_CURVE_MOST = 4
+# A number's curve whose feature's mean square is under this is not made (lane CHG-b).
+POLISH_CURVE_LEAST_TEXT = "0.01"
+
+
+def curve_grid():
+    """The rank score at the middle of each of the 4,096 bins of the rank codes: `normal_score((2 (16 k + 8) + 1) /
+    (2 65536))`, the quotient one rounding."""
+    middle = 1 << (POLISH_CURVE_SHIFT - 1)
+    return [normal_score(b64_div(2 * ((k << POLISH_CURVE_SHIFT) | middle) + 1, 2 * POLISH_RANK_STEPS))
+            for k in range(POLISH_CURVE_BINS)]
+
+
+def curve_value(knots, values, z):
+    """The departures joined by straight pieces between the knots (rising), flat past the ends, at `z`: `v_a + (v_b -
+    v_a) ((z - t_a) / (t_b - t_a))`, each operation emulated in that order."""
+    if z <= knots[0]:
+        return values[0]
+    last = len(knots) - 1
+    if z >= knots[last]:
+        return values[last]
+    at = 1
+    while knots[at] < z:
+        at += 1
+    low = knots[at - 1]
+    return b64_add(values[at - 1], b64_mul(b64_sub(values[at], values[at - 1]), b64_div(b64_sub(z, low), b64_sub(knots[at], low))))
+
+
+def band_mean_scores(valued, totals):
+    """Each band's MEAN rank score and mean SQUARED rank score from its published totals: over the value bands holding a
+    row, the band of shares `(P_a, P_b)` (each one quotient of whole numbers) scores `(phi(q_a) - phi(q_b)) / (P_b -
+    P_a)` and `1 + (q_a phi(q_a) - q_b phi(q_b)) / (P_b - P_a)`, `q` the quantile (`normal_score`), `phi(q) =
+    exponential((-1/2 q) q) / R`, both terms nought at the shares 0 and 1; None for a band holding no value or no row."""
+    count = sum(totals[b] for b in range(len(totals)) if valued[b] and totals[b] > 0)
+    if count <= 0:
+        return [None] * len(totals)
+
+    def edge(share):
+        if share <= 0 or share >= 1:
+            return F(0), F(0)
+        q = normal_score(share)
+        density = b64_div(exponential(b64_mul(b64_mul(b64(F(-1, 2)), q), q)), b64(F(_ROOT_TWO_PI_TEXT)))
+        return density, b64_mul(q, density)
+
+    out = []
+    below = 0
+    for b in range(len(totals)):
+        if not valued[b] or totals[b] <= 0:
+            out += [None]
+            continue
+        low = b64_div(below, count)
+        high = b64_div(below + totals[b], count)
+        first_low, second_low = edge(low)
+        first_high, second_high = edge(high)
+        width = b64_sub(high, low)
+        out += [(b64_div(b64_sub(first_low, first_high), width), b64_add(1, b64_div(b64_sub(second_low, second_high), width)))]
+        below += totals[b]
+    return out
+
+
+def solved_three(rows, values, weights):
+    """The weighted least squares of `values` on three columns: the normal equations, each sum in order (`(w x_a) x_c`
+    and `(w x_a) v`), by Gauss-Jordan without exchanges; None where a pivot is nought."""
+    matrix = [[F(0)] * 4 for _ in range(3)]
+    for at in range(len(rows)):
+        for a in range(3):
+            for c in range(3):
+                matrix[a][c] = b64_add(matrix[a][c], b64_mul(b64_mul(weights[at], rows[at][a]), rows[at][c]))
+            matrix[a][3] = b64_add(matrix[a][3], b64_mul(b64_mul(weights[at], rows[at][a]), values[at]))
+    for a in range(3):
+        pivot = matrix[a][a]
+        if pivot == 0:
+            return None
+        for c in range(a, 4):
+            matrix[a][c] = b64_div(matrix[a][c], pivot)
+        for other in range(3):
+            if other == a:
+                continue
+            factor = matrix[other][a]
+            for c in range(a, 4):
+                matrix[other][c] = b64_sub(matrix[other][c], b64_mul(factor, matrix[a][c]))
+    return [matrix[a][3] for a in range(3)]
+
+
+def bent_feature(knots, squares, values, weights, grid):
+    """THE TEST AND THE FEATURE of a curve as G16.3's amendment of lane CHG-b writes them (`curve_target`'s and
+    `binary_curve_target`'s shared part): the weighted line's sums in band order, `b = (W Wte - Wt We) / (W Wtt - Wt Wt)`,
+    `a = (We - b Wt) / W`, the statistic `sum (w d) d` with `d = (e - a) - b t`, kept only above `gate_point(k - 2)`;
+    the weighted least squares of `e` on `1, t, u - 1` (`solved_three`), at each bin's `z` the squared term times `(z z)
+    - 1` plus the residuals `((e - f0) - f1 t) - f2 (u - 1)` joined between the `t` (`curve_value`), less its mean and its
+    straight part (the bins' `fsum` means, variance and covariance in that order). Returns (statistic, residuals, the
+    feature on `grid`, its mean square), or None."""
+    k = len(knots)
+    if k < 3:
+        return None
+    w_all = w_t = w_tt = w_e = w_te = F(0)
+    for at in range(k):
+        w_all = b64_add(w_all, weights[at])
+        w_t = b64_add(w_t, b64_mul(weights[at], knots[at]))
+        w_tt = b64_add(w_tt, b64_mul(b64_mul(weights[at], knots[at]), knots[at]))
+        w_e = b64_add(w_e, b64_mul(weights[at], values[at]))
+        w_te = b64_add(w_te, b64_mul(b64_mul(weights[at], knots[at]), values[at]))
+    below = b64_sub(b64_mul(w_all, w_tt), b64_mul(w_t, w_t))
+    if below <= 0:
+        return None
+    slope = b64_div(b64_sub(b64_mul(w_all, w_te), b64_mul(w_t, w_e)), below)
+    level = b64_div(b64_sub(w_e, b64_mul(slope, w_t)), w_all)
+    statistic = F(0)
+    for at in range(k):
+        departure = b64_sub(b64_sub(values[at], level), b64_mul(slope, knots[at]))
+        statistic = b64_add(statistic, b64_mul(b64_mul(weights[at], departure), departure))
+    if not statistic > gate_point(k - 2):
+        return None
+    fitted = solved_three([(F(1), knots[at], b64_sub(squares[at], 1)) for at in range(k)], values, weights)
+    if fitted is None:
+        return None
+    bend = fitted[2]
+    residuals = [b64_sub(b64_sub(b64_sub(values[at], fitted[0]), b64_mul(fitted[1], knots[at])),
+                         b64_mul(bend, b64_sub(squares[at], 1))) for at in range(k)]
+    read = [b64_add(b64_mul(bend, b64_sub(b64_mul(z, z), 1)), curve_value(knots, residuals, z)) for z in grid]
+    count = len(grid)
+    mean_z = b64_div(fsum(grid), count)
+    mean_read = b64_div(fsum(read), count)
+    var_z = b64_div(fsum([b64_mul(b64_sub(z, mean_z), b64_sub(z, mean_z)) for z in grid]), count)
+    lean = b64_div(b64_div(fsum([b64_mul(b64_sub(z, mean_z), b64_sub(v, mean_read)) for z, v in zip(grid, read)]), count), var_z)
+    read = [b64_sub(b64_sub(v, mean_read), b64_mul(lean, b64_sub(z, mean_z))) for z, v in zip(grid, read)]
+    square = b64_div(fsum([b64_mul(v, v) for v in read]), count)
+    if not square > 0:
+        return None
+    return statistic, residuals, read, square
+
+
+def curve_target(groups, mean_units, sd_units, n, scores, grid):
+    """A number's CURVE target on a partner (lane CHG-b), from the published units of its `within` entry in the
+    partner's bands (`within_target`'s units) and the bands' mean and mean squared scores (`band_mean_scores`): over the
+    value bands holding a reading, `e = (m_g - mu) / sd`, `w = n_g / (s s)` (`s = sd_g / sd`, 1 where nought), read by
+    `bent_feature`; None where the goal (the feature's mean square) is under 0.01. Returns (knots, residuals, statistic,
+    the feature, the goal), or None."""
+    centre = b64_div(mean_units, moment_unit(10, n))
+    spread = b64_div(sd_units, moment_unit(1000, n))
+    knots, squares, values, weights = [], [], [], []
+    for band, group in enumerate(groups):
+        if scores[band] is None or len(group) < 3 or group[0] <= 0:
+            continue
+        mean_g = b64_div(group[1], moment_unit(10, group[0]))
+        sd_g = b64_div(group[2], moment_unit(10, group[0]))
+        own = b64_div(sd_g, spread) if sd_g > 0 else F(1)
+        knots += [scores[band][0]]
+        squares += [scores[band][1]]
+        values += [b64_div(b64_sub(mean_g, centre), spread)]
+        weights += [b64_div(group[0], b64_mul(own, own))]
+    found = bent_feature(knots, squares, values, weights, grid)
+    if found is None:
+        return None
+    statistic, residuals, read, goal = found
+    if goal < b64(F(POLISH_CURVE_LEAST_TEXT)):
+        return None
+    return knots, residuals, statistic, read, goal
+
+
+def binary_curve_target(groups, share_units, n, scores, grid):
+    """A yes/no column's CURVE target on a number partner (lane CHG-b), on the threshold's scale: from the published
+    units of its shares in the partner's bands (`share_target`'s units), over the value bands holding a reading whose
+    share lies strictly between 0 and 1, `q = normal_score(s)` and `w = (n phi(q)) phi(q) / (s (1 - s))` (`phi(q) =
+    exponential((-1/2 q) q) / R`), read by `bent_feature`; the slope the normal density at the column's share over its
+    spread (`normal_density`), the goal the feature's mean square times the slope, the aim nought (the rounds raise
+    it by what the twin falls short). Returns (knots, residuals, statistic, the feature, the goal, the aim, the
+    slope), or None."""
+    share = b64_div(share_units, moment_unit(10000, n))
+    if not 0 < share < 1:
+        return None
+    knots, squares, values, weights = [], [], [], []
+    for band, group in enumerate(groups):
+        if scores[band] is None or len(group) < 2 or group[0] <= 0:
+            continue
+        s = b64_div(group[1], moment_unit(10000, group[0]))
+        if not 0 < s < 1:
+            continue
+        q = normal_score(s)
+        density = b64_div(exponential(b64_mul(b64_mul(b64(F(-1, 2)), q), q)), b64(F(_ROOT_TWO_PI_TEXT)))
+        knots += [scores[band][0]]
+        squares += [scores[band][1]]
+        values += [q]
+        weights += [b64_div(b64_mul(b64_mul(group[0], density), density), b64_mul(s, b64_sub(1, s)))]
+    found = bent_feature(knots, squares, values, weights, grid)
+    if found is None:
+        return None
+    statistic, residuals, read, square = found
+    slope = b64_div(normal_density(share), b64_sqrt(b64_mul(share, b64_sub(1, share))))
+    return knots, residuals, statistic, read, b64_mul(square, slope), F(0), slope
 
 
 def rank_codes(values):
@@ -1881,6 +2220,10 @@ def polish_feature(target, held, state):
         ranks = state["ranks"][target["name"]]
         present = state["has"][target["name"]]
         return [rank_normal(ranks[r]) if present[r] else F(0) for r in held]
+    if target["kind"] == "curve":
+        ranks = state["ranks"][target["name"]]
+        present = state["has"][target["name"]]
+        return [target["table"][ranks[r] >> POLISH_CURVE_SHIFT] if present[r] else F(0) for r in held]
     encoding = target["encoding"]
     of_row = state["bands"][(target["name"], target.get("level", 1))]
     return [encoding[of_row[r]] if of_row[r] < len(encoding) else F(0) for r in held]
@@ -2092,6 +2435,14 @@ def polish_column(column, name, targets, sums, state, adjust, frame_l0=False, st
             sy = fsum([encoding[of_row[r]] for r in inside])
             sxy = fsum([b64_mul(number[values[r]], encoding[of_row[r]]) for r in inside])
             got = b64_sub(b64_div(sxy, m), b64_mul(b64_div(sx, m), b64_div(sy, m)))
+        elif target["kind"] == "curve":
+            # A CURVE (lane CHG-b): the column's covariance with its feature over the rows holding both.
+            ranks = state["ranks"][target["name"]]
+            both = [r for r in held if state["has"][target["name"]][r]]
+            curve = target["table"]
+            sy = fsum([curve[ranks[r] >> POLISH_CURVE_SHIFT] for r in both])
+            sxy = fsum([b64_mul(table[own[r]], curve[ranks[r] >> POLISH_CURVE_SHIFT]) for r in both])
+            got = b64_sub(b64_div(sxy, count), b64_mul(b64_div(whole_x, count), b64_div(sy, count)))
         else:
             encoding = target["encoding"]
             of_row = state["bands"][(target["name"], target.get("level", 1))]
@@ -2100,7 +2451,7 @@ def polish_column(column, name, targets, sums, state, adjust, frame_l0=False, st
             sxy = fsum([b64_mul(table[own[r]], encoding[of_row[r]]) for r in inside])
             got = b64_sub(b64_div(sxy, count), b64_mul(b64_div(whole_x, count), b64_div(sy, count)))
         target["aim"] = b64_add(target["aim"], b64_div(b64_mul(step, b64_sub(target["goal"], got)), target.get("slope", F(1))))
-        if target["kind"] != "within":
+        if target["kind"] not in ("within", "curve"):
             bound = target.get("most", most)
             target["aim"] = min(bound, max(-bound, target["aim"]))
         if spreads_on and target["kind"] == "pair" and target.get("scales"):

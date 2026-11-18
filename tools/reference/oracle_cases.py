@@ -11,6 +11,7 @@ of fixed seeds, computed in integers and written into the vectors).
 
 import hashlib
 import importlib.util
+import json
 import os
 
 # `pathlib` is not imported: on Python 3.11 it reaches `ntpath`, whose
@@ -547,6 +548,171 @@ def case_polish(frame_l0=False, adjust=True, stale=False, spreads_on=True, feasi
             "b_levels_kept": sum(state["codes"]["B"]) == 24}
 
 
+def held_trail_digest(trail, field):
+    """The sha256 of one field of a polish trail, each step `column:value value ...` and the steps `;`-joined (the
+    frozen file stays small: the held cases keep their digests and the held column's aims in full)."""
+    text = ";".join(step["column"] + ":" + " ".join(str(v) for v in step[field]) for step in trail)
+    return hashlib.sha256(text.encode("ascii")).hexdigest()
+
+
+def case_polish_held(held=True):
+    """THE HELD FEATURES (lane CHG-b, plan P4-D492 part b): `polish_setup`'s twin with the binary `B`'s share target
+    in `G`'s bands dropped by the grouping gate and HELD (its goal and aim nought in the plan, marked `held`): when
+    `B`'s first round starts its goal is set to the covariance `B` then holds with the share encoding and its aim to
+    the goal over its slope (`held_goals`), and the rounds move it like any aim; two rounds of each polished column
+    in plan order, the second the last, as `case_polish`. Recorded: the held goal and aim as set, `B`'s aims after
+    each of its re-sorts, and the sha256 (`held_trail_digest`) of every re-sort's places, aims and `X`'s `L1` bands.
+    MUTANT (`held` False): the dropped target leaves `B`'s targets (lane CHG's polish), another trail."""
+    n, columns, state, plan, sums = polish_setup()
+    for name, targets in plan:
+        if name == "B":
+            if held:
+                targets[1].update(goal=F(0), aim=F(0), held=True)
+            else:
+                del targets[1]
+    trail = []
+    set_goals = []
+    turn = 0
+    for rnd in range(2):
+        for name, targets in plan:
+            if rnd == 0 and any(t.get("held") for t in targets):
+                co.held_goals(name, targets, state)
+                set_goals += [[name, [[t["kind"], t["name"], co.b64_hex(t["goal"]), co.b64_hex(t["aim"])]
+                                      for t in targets if t.get("held")]]]
+            steps = co.POLISH_LAST_STEPS if rnd == 1 else 1
+            for step in range(steps):
+                moving = rnd == 0 or step + 1 < steps
+                co.polish_column(columns[name], name, targets, sums[turn], state, moving)
+                trail += [{"column": name, "index": list(columns[name]["index"]),
+                           "aims": [co.b64_hex(t["aim"]) for t in targets],
+                           "x_bands": list(state["bands"][("X", 1)])}]
+            turn += 1
+    return {"rows": n, "held_goals": set_goals, "steps": len(trail),
+            "b_aims": [step["aims"] for step in trail if step["column"] == "B"],
+            "index_sha256": held_trail_digest(trail, "index"), "aims_sha256": held_trail_digest(trail, "aims"),
+            "x_bands_sha256": held_trail_digest(trail, "x_bands"),
+            "multiset_kept": all(sorted(columns[c]["index"]) == list(range(n)) for c in columns),
+            "b_levels_kept": sum(state["codes"]["B"]) == 24}
+
+
+def polish_curve_inputs():
+    """`case_polish_curve`'s published-fact inputs (lane CHG-b): a number of 12,000 readings (mean 120.0, spread 30.000,
+    in the units contract 4.6d.0 (3) sets) in the five value bands of a partner whose `L1` totals are 2,400 rows each,
+    every band's spread 28.0: means 105.0, 112.0, 117.0, 124.0 and 142.0 (a bend: kept), 115.0, 117.0, 119.0, 122.5 and
+    129.0 (a bend past the point whose feature's mean square is under 0.01: dropped by the floor), 115.0, 117.5,
+    120.0, 122.5 and 125.0 (a straight line: dropped), and 116.0, 118.0, 119.5, 121.5 and 125.0 (a small bend under
+    the point on three degrees of freedom: dropped). Each as `(label, groups, column)`."""
+    column = [1200, 30000, 12000]
+    return [
+        ("bend", [[2400, m, 280] for m in (1050, 1120, 1170, 1240, 1420)], column),
+        ("bend_under_floor", [[2400, m, 280] for m in (1150, 1170, 1190, 1225, 1290)], column),
+        ("line", [[2400, m, 280] for m in (1150, 1175, 1200, 1225, 1250)], column),
+        ("small", [[2400, m, 280] for m in (1160, 1180, 1195, 1215, 1250)], column),
+    ]
+
+
+def polish_binary_curve_inputs():
+    """`case_polish_curve`'s yes/no inputs (lane CHG-b): a yes/no column of 12,000 readings in the same five bands of
+    2,400, its shares 0.0500, 0.0800, 0.1200, 0.2000 and 0.3500 (overall 0.1600; a bend on the threshold's scale: kept)
+    and 0.0778, 0.1232, 0.1587, 0.2002 and 0.2810 (overall 0.1682; near a straight probit: dropped), in
+    ten-thousandths. Each as `(label, groups, column)`."""
+    return [
+        ("binary_bend", [[2400, s] for s in (500, 800, 1200, 2000, 3500)], [1600, 12000]),
+        ("binary_line", [[2400, s] for s in (778, 1232, 1587, 2002, 2810)], [1682, 12000]),
+    ]
+
+
+def case_polish_curve(curve=True):
+    """THE CURVES (lane CHG-b, plan P4-D492 part b): each input of `polish_curve_inputs` read by `curve_target` over the
+    partner's band scores and squared scores (`band_mean_scores` on five value bands of 2,400 rows): its statistic,
+    decision and goal and the sha256 (hex, comma-joined) of its knots, its residuals from the squared partner score's
+    fit and its feature's 4,096 values, beside the sha256 of the band scores (each band's two in turn) and of the grid;
+    then each yes/no input of `polish_binary_curve_inputs` read by `binary_curve_target` (on the threshold's scale: its
+    aim and slope beside); then `polish_setup`'s twin with
+    `Y` given the kept bend as a curve target on `X` (its aim nought at the start), two rounds of each polished column as
+    `case_polish`: `Y`'s aims after each of its re-sorts and the digests (`held_trail_digest`) of every re-sort's places,
+    aims and `X`'s bands. MUTANT (`curve` False): `Y` without the curve target."""
+    grid = co.curve_grid()
+    scores = co.band_mean_scores([True] * 5, [2400] * 5)
+    read = {}
+    def digest(values):
+        return hashlib.sha256(",".join(co.b64_hex(v) for v in values).encode("ascii")).hexdigest()
+
+    out = {"scores_sha256": digest([v for pair in scores for v in pair]), "grid_sha256": digest(grid), "inputs": {}}
+    for label, groups, column in polish_curve_inputs():
+        made = co.curve_target(groups, column[0], column[1], column[2], scores, grid)
+        if made is None:
+            out["inputs"][label] = {"kept": False}
+            continue
+        knots, departures, statistic, values, goal = made
+        read[label] = made
+        out["inputs"][label] = {"kept": True, "knots_sha256": digest(knots), "departures_sha256": digest(departures),
+                                "statistic": co.b64_hex(statistic), "goal": co.b64_hex(goal), "table_sha256": digest(values)}
+    for label, groups, column in polish_binary_curve_inputs():
+        made = co.binary_curve_target(groups, column[0], column[1], scores, grid)
+        if made is None:
+            out["inputs"][label] = {"kept": False}
+            continue
+        knots, residuals, statistic, values, goal, aim, slope = made
+        out["inputs"][label] = {"kept": True, "knots_sha256": digest(knots), "departures_sha256": digest(residuals),
+                                "statistic": co.b64_hex(statistic), "goal": co.b64_hex(goal), "aim": co.b64_hex(aim),
+                                "slope": co.b64_hex(slope), "table_sha256": digest(values)}
+    n, columns, state, plan, sums = polish_setup()
+    if curve and "bend" in read:
+        knots, departures, _statistic, values, goal = read["bend"]
+        for name, targets in plan:
+            if name == "Y":
+                targets += [{"kind": "curve", "name": "X", "goal": goal, "aim": F(0), "slope": F(1), "level": 1,
+                             "encoding": departures, "knots": knots, "table": values}]
+    trail = []
+    turn = 0
+    for rnd in range(2):
+        for name, targets in plan:
+            steps = co.POLISH_LAST_STEPS if rnd == 1 else 1
+            for step in range(steps):
+                moving = rnd == 0 or step + 1 < steps
+                co.polish_column(columns[name], name, targets, sums[turn], state, moving)
+                trail += [{"column": name, "index": list(columns[name]["index"]),
+                           "aims": [co.b64_hex(t["aim"]) for t in targets],
+                           "x_bands": list(state["bands"][("X", 1)])}]
+            turn += 1
+    out.update({"steps": len(trail), "y_aims": [step["aims"] for step in trail if step["column"] == "Y"],
+                "index_sha256": held_trail_digest(trail, "index"), "aims_sha256": held_trail_digest(trail, "aims"),
+                "x_bands_sha256": held_trail_digest(trail, "x_bands"),
+                "multiset_kept": all(sorted(columns[c]["index"]) == list(range(n)) for c in columns)})
+    return out
+
+
+def polish_spread_inputs():
+    """`case_polish_spread`'s published-fact inputs (lane CHG-b): a number of 12,000 readings (mean 120.0, spread
+    30.000) in twelve bands of 1,000 readings, its band means flat at 120.0, its band spreads (in tenths) and its
+    published kurtosis: 17.0 and 60.0 in turn with a kurtosis of 5.2 (a spread by group: kept), 33.0 and 39.0 in turn
+    with a kurtosis of 29.0 (a skewed column's chance spreads: dropped), 30.0 flat with 3.0 (dropped), and the first
+    with no kurtosis published (not tested). Each as `(label, groups, column, kurtosis text or None)`."""
+    column = [1200, 30000, 12000]
+    return [
+        ("by_group", [[1000, 1200, 170 if g % 2 else 600] for g in range(12)], column, "5.2"),
+        ("skewed_chance", [[1000, 1200, 330 if g % 2 else 390] for g in range(12)], column, "29.0"),
+        ("flat", [[1000, 1200, 300] for _g in range(12)], column, "3.0"),
+        ("unpublished", [[1000, 1200, 170 if g % 2 else 600] for g in range(12)], column, None),
+    ]
+
+
+def case_polish_spread():
+    """THE SPREAD TEST (lane CHG-b, plan P4-D492 part b): each input of `polish_spread_inputs` read as G16.3's spread
+    test reads a `within` target (its band spreads from `within_target`, its counts, the column's kurtosis): the
+    decision and the statistic (None where not tested), and the means' own decision (`beyond_chance` on the target's
+    goal: dropped on every input, the means flat)."""
+    out = {}
+    for label, groups, column, kurtosis in polish_spread_inputs():
+        _encoding, sds, goal = co.within_target(groups, column[0], column[1], column[2])
+        counts = [g[0] for g in groups]
+        kept, statistic = co.spreads_beyond_chance(counts, sds, None if kurtosis is None else co.b64(F(kurtosis)))
+        out[label] = {"kept": kept, "statistic": None if statistic is None else co.b64_hex(statistic),
+                      "means_kept": co.beyond_chance(counts, goal)}
+    return out
+
+
 def case_psd_projection():
     """G16.3's PSD projection (LANE MPg RULINGS 2 (2)) on three matrices: a 3 x 3 whose correlations no data can
     hold (0.9, 0.9, -0.9), a 4 x 4 with one refused pair read as 0 and an impossible triple, and the probe's near
@@ -696,21 +862,30 @@ def _gate_targets(columns, pairs, entries):
         mean, sd, n = columns[name]
         for column, by, groups in entries:
             if column == name:
-                _encoding, _sds, goal = co.within_target(groups, mean, sd, n)
-                targets += [{"kind": "within", "name": by, "level": 1, "goal": goal}]
+                encoding, _sds, goal = co.within_target(groups, mean, sd, n)
+                targets += [{"kind": "within", "name": by, "level": 1, "goal": goal, "encoding": encoding,
+                             "counts": [group[0] for group in groups]}]
         plan += [(name, targets)]
     targets = []
     for column, by, groups in entries:
         if by == "F" and column in numbers:
             mean, sd, n = columns[column]
-            _encoding, _sds, goal = co.within_target(groups, mean, sd, n)
-            targets += [{"kind": "by", "name": column, "level": 1, "goal": goal}]
+            encoding, _sds, goal = co.within_target(groups, mean, sd, n)
+            targets += [{"kind": "by", "name": column, "level": 1, "goal": goal, "encoding": encoding,
+                         "counts": [group[0] for group in groups]}]
     for column, by, groups in entries:
         if column == "F":
-            _encoding, goal = co.share_target(groups, columns["F"][0], columns["F"][1])
-            targets += [{"kind": "share", "name": by, "level": 1, "goal": goal}]
+            encoding, goal = co.share_target(groups, columns["F"][0], columns["F"][1])
+            targets += [{"kind": "share", "name": by, "level": 1, "goal": goal, "encoding": encoding,
+                         "counts": [group[0] for group in groups]}]
     plan += [("F", targets)]
     return plan
+
+
+def plan_digest(listing):
+    """The sha256 of a plan's listing (`{column: [[kind, name, goal or "held"], ...]}`), its JSON with sorted keys and
+    no spaces: three of `case_polish_gate`'s mutant plans are frozen so, the file kept under its size bound."""
+    return hashlib.sha256(json.dumps(listing, sort_keys=True, separators=(",", ":")).encode("ascii")).hexdigest()
 
 
 def case_polish_gate():
@@ -718,9 +893,14 @@ def case_polish_gate():
     Hilferty's cube on eleven counts of degrees of freedom from 1 to 1,000 (and the 0.05 point, the level's mutant);
     each published-fact input of `polish_gate_edges` (two with empty bands among them) with its goal, statistic,
     degrees of freedom and both decisions; and the plan of `polish_gate_plan`'s
-    description kept by the gate, beside its four MUTANTS: the gate off (every target kept), the level 0.05, a
-    dropped target kept with a goal of nought, and the correlations gated too. Each kept target is
-    `[kind, name, goal]` in plan order, a column left with none absent."""
+    description kept by the gate, beside its six MUTANTS (the level 0.05's, no feature held's and no whole vector's as
+    `plan_digest`s): the gate off (every target kept), the level 0.05, a
+    dropped target kept with a goal of nought, the correlations gated too, no feature held (lane CHG's plan), no
+    and no whole vector (lane CHG-b: `A`'s kept means in the twelve bands of the label `G` aimed band by band, eleven
+    targets).
+    Each kept target is `[kind, name, goal]` in plan order, a held feature `[kind, name, "held"]` (lane CHG-b: the
+    yes/no column `F` keeps the `by` and `share` targets the gate dropped, their goals set from the walk), a column
+    left with none absent."""
     degrees = [1, 2, 3, 4, 5, 10, 11, 20, 50, 100, 1000]
     z005 = co.b64(F("1.6449"))
     edges = {}
@@ -737,20 +917,27 @@ def case_polish_gate():
     columns, pairs, entries = polish_gate_plan()
     counts_of = {(column, by, 1): [group[0] for group in groups] for column, by, groups in entries}
     plan = _gate_targets(columns, pairs, entries)
-
+    # A yes/no column's curves (lane CHG-b) are measured and not adopted (G16.3's `_POLISH_BINARY_CURVES` off), so
+    # the description's yes/no column `F` gains none; no number of it holds a partner's bands.
+    curved = plan
     def listed(gated):
-        return {column: [[t["kind"], t["name"], co.b64_hex(t["goal"])] for t in targets] for column, targets in gated}
+        return {column: [[t["kind"], t["name"], "held" if t.get("held") else co.b64_hex(t["goal"])] for t in targets]
+                for column, targets in gated}
 
     return {
         "points": {f"{df}": co.b64_hex(co.gate_point(df)) for df in degrees},
         "points_005": {f"{df}": co.b64_hex(co.gate_point(df, z005)) for df in degrees},
         "edges": edges,
         "plan_ungated": listed(plan),
-        "plan": listed(co.gated_plan(plan, counts_of)),
-        "plan_mutant_off": listed(co.gated_plan(plan, counts_of, "off")),
-        "plan_mutant_level_005": listed(co.gated_plan(plan, counts_of, "level_005")),
-        "plan_mutant_nought": listed(co.gated_plan(plan, counts_of, "nought")),
-        "plan_mutant_pairs": listed(co.gated_plan(plan, counts_of, "pairs")),
+        "plan": listed(co.whole_vectors(co.gated_plan(curved, counts_of), {"G", "F"})),
+        "plan_mutant_off": listed(co.gated_plan(curved, counts_of, "off")),
+        "plan_mutant_level_005_sha256": plan_digest(listed(co.whole_vectors(co.gated_plan(curved, counts_of, "level_005"),
+                                                                            {"G", "F"}))),
+        "plan_mutant_nought": listed(co.gated_plan(curved, counts_of, "nought")),
+        "plan_mutant_pairs": listed(co.gated_plan(curved, counts_of, "pairs")),
+        "plan_mutant_held_off_sha256": plan_digest(listed(co.whole_vectors(co.gated_plan(curved, counts_of, "held_off"),
+                                                                           {"G", "F"}))),
+        "plan_mutant_whole_off_sha256": plan_digest(listed(co.gated_plan(curved, counts_of))),
     }
 
 
@@ -1948,6 +2135,11 @@ def chain_cases():
         "psd_projection": case_psd_projection(),
         "polish_targets": case_polish_targets(),
         "polish_gate": case_polish_gate(),
+        "polish_held": case_polish_held(),
+        "polish_held_mutant_dropped": case_polish_held(held=False),
+        "polish_curve": case_polish_curve(),
+        "polish_curve_mutant_none": case_polish_curve(curve=False),
+        "polish_spread": case_polish_spread(),
         "implied_nofit": case_implied_nofit(),
         "implied_nofit_floor": case_implied_nofit(10000),
         "empty_and_absent": case_empty_and_absent(),

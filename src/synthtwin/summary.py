@@ -1414,7 +1414,18 @@ def _column_lines(column: dict[str, object], floor: int) -> list[str]:
     # ...and its ends pooled in people where the description says so (lane
     # HB2, plan P4-D477): the two values each end's band is read as.
     ends = column["top_coded_ends"] if "top_coded_ends" in column else None
-    if "top_coded" in column and isinstance(ends, list) and len(ends) == 2:
+    # ...each band at the mean age of its rows where the description says so
+    # (`top_coded_band_values`, lane RX-1).
+    band = column["top_coded_band_values"] if "top_coded_band_values" in column else None
+    if "top_coded" in column and isinstance(ends, list) and len(ends) == 2 and isinstance(band, list) and len(band) == 2:
+        lines += [
+            f"    ages at its ends: every age up to {_count_of(ends[0])} is read as "
+            f"{_count_of(band[0])}, the mean age of those rows, and every age from "
+            f"{_count_of(ends[1])} as {_count_of(band[1])}, theirs, here and in the "
+            f"twin, so each end is held by the smallest group size's people or "
+            f"more; this loses less of the ages' spread than writing each end at its edge, and the variation inside each end is still lost"
+        ]
+    elif "top_coded" in column and isinstance(ends, list) and len(ends) == 2:
         lines += [
             f"    ages at its ends: every age below {_count_of(ends[0])} is read as "
             f"{_count_of(ends[0])} and every age above {_count_of(ends[1])} as "

@@ -377,9 +377,13 @@ def test_at_the_owner_floor_a_visit_tables_ages_are_pooled_at_their_ends_in_peop
     assert block["role"] == taxonomy.ROLE_COUNT and block["top_coded"] == 90
     low, high = block["top_coded_ends"]
     assert 25 < low < high < 90
+    # ...each band written at the mean age of its rows where the block records
+    # it (`top_coded_band_values`, lane RX-1), else at its edge.
+    first, second = block.get("top_coded_band_values", [low, high])
     patients_of: "dict[int, set[str]]" = {}
     for row in rows:
-        patients_of.setdefault(min(max(int(row[2]), low), high), set()).add(row[0])
+        age = int(row[2])
+        patients_of.setdefault(first if age <= low else second if age >= high else age, set()).add(row[0])
     for number in profile._published_in(block, True).numbers:
         if number == int(number) and int(number) in patients_of:
             assert len(patients_of[int(number)]) >= FLOOR, (number, block)
@@ -392,8 +396,9 @@ def test_at_the_owner_floor_a_visit_tables_ages_are_pooled_at_their_ends_in_peop
     assert classes["age"] == "patient_fixed"
     published = next(one for one in chained.columns if one["name"] == "age")
     assert published.get("top_coded_ends") == [low, high], published
+    assert published.get("top_coded_band_values", [low, high]) == [first, second], published
     points = list(published["percentiles"].values()) + list(published.get("percentiles_between") or []) + [published.get("mode")]
-    assert [point for point in points if isinstance(point, (int, float)) and not low <= point <= high] == [], published
+    assert [point for point in points if isinstance(point, (int, float)) and not first <= point <= second] == [], published
 
 
 def test_at_the_owner_floor_the_ends_take_a_remainder_few_people_hold(tmp_path: pathlib.Path) -> None:

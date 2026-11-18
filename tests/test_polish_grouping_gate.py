@@ -83,6 +83,7 @@ def _within(column: str, by: str, groups: "list[list[int]]") -> contract.MomentW
 @dataclasses.dataclass
 class _Profile:
     relationships: contract.RelationshipManifest
+    columns: "tuple[object, ...]" = ()
 
 
 def _gate_profile() -> _Profile:
@@ -127,8 +128,16 @@ def _gate_profile() -> _Profile:
     return _Profile(dataclasses.replace(contract.RelationshipManifest(slots=()), ladder=ladder, moments=moments))
 
 
+def _digest(listing: "dict[str, list[list[str]]]") -> str:
+    """A plan listing's sha256 as the oracle freezes three of its mutant plans (`oracle_cases.plan_digest`)."""
+    import hashlib
+
+    return hashlib.sha256(json.dumps(listing, sort_keys=True, separators=(",", ":")).encode("ascii")).hexdigest()
+
+
 def _listed(plan: "list[tuple[str, list[generation._PolishTarget]]]") -> "dict[str, list[list[str]]]":
-    return {name: [[t.kind, t.name, t.goal.hex()] for t in targets] for name, targets in plan}
+    """Each column's targets as the oracle lists them: `[kind, name, goal]`, a held feature `[kind, name, "held"]`."""
+    return {name: [[t.kind, t.name, "held" if t.held else t.goal.hex()] for t in targets] for name, targets in plan}
 
 
 # -- THE POINT AND ITS ARITHMETIC ------------------------------------------------------------------------------
@@ -200,28 +209,57 @@ def test_the_gate_decides_at_both_sides_of_its_level_on_published_facts(monkeypa
 def test_the_plan_keeps_every_correlation_and_only_the_grouping_targets_beyond_chance(monkeypatch: pytest.MonkeyPatch) -> None:
     """The gated plan of the oracle's description is the oracle's (each column's targets, kinds, names and goals);
     every correlation of the ungated plan is in it field for field; each grouping target in it passes the test and
-    none holds a goal of nought; the gate off and the level 0.05 give the oracle's mutant plans, and the plans of
-    the other two mutants (a dropped target kept at nought, the correlations gated too) differ from it."""
+    none holds a goal of nought but the yes/no column's HELD features (lane CHG-b: the three `by` and `share` targets
+    the gate drops from `F`, which it still polishes, marked held, their goals set later from the walk); `A`'s kept
+    means in the twelve bands of the label `G` stand as the WHOLE VECTOR (lane CHG-b), eleven targets each the
+    indicator of a band but the largest; the gate off, the level 0.05, no feature held and no whole vector give the
+    oracle's mutant plans, and the plans of the other two mutants (a dropped target kept at nought, the correlations
+    gated too) differ from it."""
     described = _gate_profile()
     gated = generation._polish_layout(described).plan  # type: ignore[arg-type]
     assert _listed(gated) == GATE["plan"]
     entries = {(w.column, w.by, w.level): w for w in described.relationships.moments.within}  # type: ignore[union-attr]
-    for name, targets in gated:
-        for target in targets:
-            if target.kind != "pair":
-                key = (target.name, name, 1) if target.kind == "by" else (name, target.name, 1)
-                assert target.goal > 0.0 and generation._beyond_chance(entries[key], target.goal), (name, target.kind)
+    ungated_goals = {}
     with monkeypatch.context() as local:
         local.setattr(generation, "_POLISH_GATE", False)
         ungated = generation._polish_layout(described).plan  # type: ignore[arg-type]
+        ungated_goals = {(name, t.kind, t.name): t.goal for name, targets in ungated for t in targets}
+    held = 0
+    whole = 0
+    for name, targets in gated:
+        for target in targets:
+            if target.kind == "pair":
+                continue
+            assert target.kind != "curve", (name, target.name)  # no number holds a partner's bands; yes/no curves off
+            key = (target.name, name, 1) if target.kind == "by" else (name, target.name, 1)
+            published = ungated_goals[(name, target.kind, target.name)]
+            if target.held:
+                # A HELD FEATURE (lane CHG-b): a `by` or `share` target the gate dropped from the yes/no column it
+                # still polishes, its goal and aim nought until the column's first round sets them from the walk.
+                held += 1
+                assert name == "F" and target.kind in ("by", "share") and target.goal == target.aim == 0.0
+                assert not generation._beyond_chance(entries[key], published), (name, target.kind, target.name)
+                continue
+            if sorted(target.encoding) == [0.0] * (len(target.encoding) - 1) + [1.0]:
+                # THE WHOLE VECTOR (lane CHG-b): a kept target on a label's bands aimed band by band, each the band's
+                # indicator, kept because the entry passes on its published goal.
+                whole += 1
+                assert generation._beyond_chance(entries[key], published), (name, target.kind, target.name)
+                continue
+            assert target.goal > 0.0 and generation._beyond_chance(entries[key], target.goal), (name, target.kind)
+    assert held == 3 and whole == 11
     assert _listed(ungated) == GATE["plan_ungated"] == GATE["plan_mutant_off"]
     kept_pairs = {(name, t.name): t for name, targets in gated for t in targets if t.kind == "pair"}
     head_pairs = {(name, t.name): t for name, targets in ungated for t in targets if t.kind == "pair"}
     assert kept_pairs == head_pairs and len(head_pairs) == 6
-    with monkeypatch.context() as local:
-        local.setattr(generation, "_POLISH_GATE_Z", Z_005)
-        assert _listed(generation._polish_layout(described).plan) == GATE["plan_mutant_level_005"]  # type: ignore[arg-type]
-    for mutant in ("plan_mutant_off", "plan_mutant_level_005", "plan_mutant_nought", "plan_mutant_pairs"):
+    for setting, value, frozen in (("_POLISH_GATE_Z", Z_005, "plan_mutant_level_005_sha256"),
+                                   ("_POLISH_HELD", False, "plan_mutant_held_off_sha256"),
+                                   ("_POLISH_WHOLE", False, "plan_mutant_whole_off_sha256")):
+        with monkeypatch.context() as local:
+            local.setattr(generation, setting, value)
+            assert _digest(_listed(generation._polish_layout(described).plan)) == GATE[frozen], setting  # type: ignore[arg-type]
+        assert GATE[frozen] != _digest(GATE["plan"]), frozen
+    for mutant in ("plan_mutant_off", "plan_mutant_nought", "plan_mutant_pairs"):
         assert GATE[mutant] != GATE["plan"], mutant
     assert any(goal == (0.0).hex() for targets in GATE["plan_mutant_nought"].values() for _k, _n, goal in targets)
     assert all(kind != "pair" or name in ("B", "A") for targets in GATE["plan_mutant_pairs"].values()

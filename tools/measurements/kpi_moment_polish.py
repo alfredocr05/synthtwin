@@ -41,13 +41,22 @@ samples of each table's population (the battery's replicate seeds 1100 to
   the published r and the pair's bound (`collinear`);
 - G16.3's GROUPING GATE (lane CHG, plan P4-D492): each moment's entry is
   CLASSED by the polish's plan: `kept` where a target of the gated plan
-  aims at it, `dropped` where only the plan with the gate off does (left
-  to the walk), `never` where neither does (a column's own moments, a
-  correlation no plan holds, an entry no target reads); `by_class` counts
-  each kind in each class as `by_kind` does, beside a shipped twin made
-  with the gate off at twin seed 0 (`ungated0`, the polish of lane MPg
-  alone), and `kinds_below_fresh_by_class` names each class's kinds whose
-  twins stand under the fresh samples.
+  aims at it, `held` where a held feature holds it at the walk's level and
+  `curve` where a curve target reads it (lane CHG-b), `dropped` where only
+  the plan with the gate off aims at it (left to the walk), `never` where
+  none does (a column's own moments, a correlation no plan holds, an entry
+  no target reads); `by_class` counts each kind in each class as `by_kind`
+  does, beside a shipped twin made with the gate off at twin seed 0
+  (`ungated0`, the polish of lane MPg alone), and
+  `kinds_below_fresh_by_class` names each class's kinds whose twins stand
+  under the fresh samples;
+- THE CLASS-BY-CLASS FLOOR (lane CHG-b; LANE CHG RULINGS 4 (1)): a class's
+  kind misses where the shipped twins' least count inside falls under the
+  fresh samples' least by more than twice a count's binomial standard
+  deviation at the fresh share (`floor_misses`); `class_floor_misses`
+  counts the misses of the kept, held, curve and dropped classes,
+  `never_floor_misses` the never-aimed class's (the walk's, stated apart),
+  and `floor_misses_named` names each.
 
     PYTHONPATH=src:tests python tools/measurements/kpi_moment_polish.py --kpi
 
@@ -178,11 +187,14 @@ def inside(found: "list[tuple[str, float, float, float, tuple[object, ...]]]", t
     return [(kind, gap <= half + times * se) for kind, gap, half, se, _entry in found]
 
 
-def aimed(plan: "list[tuple[str, list[generation._PolishTarget]]]") -> "set[tuple[object, ...]]":
-    """The entries a polish plan's targets aim at, named as `moments_on` names them (lane CHG)."""
+def aimed(plan: "list[tuple[str, list[generation._PolishTarget]]]", held: bool = False, curve: bool = False) -> "set[tuple[object, ...]]":
+    """The entries a polish plan's targets aim at, named as `moments_on` names them (lane CHG); with `held` those of its
+    HELD features alone, with `curve` those its CURVE targets read (lane CHG-b), else those of every other target."""
     out: "set[tuple[object, ...]]" = set()
     for name, targets in plan:
         for target in targets:
+            if bool(getattr(target, "held", False)) != held or (target.kind == "curve") != curve:
+                continue
             if target.kind == "pair":
                 out.add(("pair",) + tuple(sorted((name, target.name))))
             elif target.kind == "by":
@@ -192,11 +204,38 @@ def aimed(plan: "list[tuple[str, list[generation._PolishTarget]]]") -> "set[tupl
     return out
 
 
+CLASSES = ("kept", "held", "curve", "dropped", "never")
+
+
 def classed(found: "list[tuple[str, float, float, float, tuple[object, ...]]]", kept: "set[tuple[object, ...]]",
-            ungated: "set[tuple[object, ...]]") -> "list[tuple[str, float, float, float, tuple[object, ...]]]":
-    """Each moment with its entry replaced by its CLASS: kept, dropped (aimed at only with the gate off) or never."""
-    return [(kind, gap, half, se, ("kept",) if entry in kept else ("dropped",) if entry in ungated else ("never",))
-            for kind, gap, half, se, entry in found]
+            ungated: "set[tuple[object, ...]]", held: "set[tuple[object, ...]] | None" = None,
+            curves: "set[tuple[object, ...]] | None" = None) -> "list[tuple[str, float, float, float, tuple[object, ...]]]":
+    """Each moment with its entry replaced by its CLASS: kept, held (a dropped target held at the walk's level, lane
+    CHG-b), curve (an entry a curve target reads), dropped (aimed at only with the gate off) or never."""
+    held = held or set()
+    curves = curves or set()
+
+    def of(entry: "tuple[object, ...]") -> "tuple[str]":
+        if entry in kept:
+            return ("kept",)
+        if entry in held:
+            return ("held",)
+        if entry in curves:
+            return ("curve",)
+        return ("dropped",) if entry in ungated else ("never",)
+
+    return [(kind, gap, half, se, of(entry)) for kind, gap, half, se, entry in found]
+
+
+def floor_misses(twin: "list[int]", fresh: "list[int]", judged: int) -> bool:
+    """THE CLASS-BY-CLASS FLOOR (lane CHG-b; LANE CHG RULINGS 4 (1)): a class's kind misses where the twins' least count
+    inside falls under the fresh samples' least by more than twice the binomial standard deviation of a count of
+    `judged` moments at the fresh samples' mean share (the spread one more fresh sample would show)."""
+    if judged <= 0:
+        return False
+    share = sum(fresh) / (len(fresh) * judged)
+    allowance = 2.0 * math.sqrt(judged * share * (1.0 - share))
+    return min(twin) < min(fresh) - allowance
 
 
 def collinear_pairs(table: object, document: "dict[str, object]", statistical: "dict[str, object]") -> "dict[str, list[float]]":
@@ -285,13 +324,17 @@ def measure_table(name: str, folder: pathlib.Path) -> "dict[str, object]":
     polished = [column for column, _targets in generation._polish_plan(loaded)]
     out["polished"] = len(polished)
     # THE GROUPING GATE (lane CHG): the entries the gated plan aims at, and those only the plan with the gate off does.
-    kept_entries = aimed(generation._polish_plan(loaded))
+    planned = generation._polish_plan(loaded)
+    kept_entries = aimed(planned)
+    held_entries = aimed(planned, held=True) - kept_entries
+    curve_entries = aimed(planned, curve=True) - kept_entries - held_entries
     generation._POLISH_GATE = False
     try:
         ungated_entries = aimed(generation._polish_plan(loaded))
     finally:
         generation._POLISH_GATE = True
-    out["aimed"] = {"kept": len(kept_entries), "dropped": len(ungated_entries - kept_entries)}
+    out["aimed"] = {"kept": len(kept_entries), "held": len(held_entries), "curve": len(curve_entries),
+                    "dropped": len(ungated_entries - kept_entries - held_entries - curve_entries)}
     found: "dict[str, list[tuple[str, float, float, float]]]" = {}
     # THE FRESH SAMPLES: the same population at other seeds, cut to the real table's rows.
     lines = path.read_text(encoding="utf-8").count("\n")
@@ -363,7 +406,7 @@ def measure_table(name: str, folder: pathlib.Path) -> "dict[str, object]":
         exact["family_tables_off"] += sum(1 for a, b in zip(tables["shipped"], tables["implied"]) if a != b)
     out.update(exact)
     out["rows_resorted"] = resorted
-    out["found"] = {key: classed(rows, kept_entries, ungated_entries) for key, rows in found.items()}
+    out["found"] = {key: classed(rows, kept_entries, ungated_entries, held_entries, curve_entries) for key, rows in found.items()}
     out["seconds"] = seconds
     out["collinear"] = pairs
     path.unlink()
@@ -386,7 +429,7 @@ def measure() -> "dict[str, object]":
     files = [f"fresh{seed}" for seed in FRESH_SEEDS] + ["walk0"] + [f"implied{seed}" for seed in TWIN_SEEDS]
     files += [f"shipped{seed}" for seed in TWIN_SEEDS] + [f"ungated{TWIN_SEEDS[0]}"]
     found: "dict[str, list[tuple[str, float, float, float, tuple[object, ...]]]]" = {key: [] for key in files}
-    aimed_counts = {"kept": 0, "dropped": 0}
+    aimed_counts = {"kept": 0, "held": 0, "curve": 0, "dropped": 0}
     polished = 0
     seconds: "dict[str, float]" = {}
     tables = 0
@@ -440,7 +483,8 @@ def measure() -> "dict[str, object]":
     # the shipped twin made with the gate off; the class's kinds whose twins stand under the fresh samples.
     by_class: "dict[str, dict[str, object]]" = {}
     below_by_class: "list[str]" = []
-    for cls in ("kept", "dropped", "never"):
+    misses: "list[str]" = []
+    for cls in CLASSES:
         rows_of = {key: _shares([(kind, good) for (kind, good), row in zip(judged[key], found[key]) if row[4] == (cls,)])
                    for key in files}
         held: "dict[str, object]" = {}
@@ -451,7 +495,14 @@ def measure() -> "dict[str, object]":
                           rows_of[f"ungated{TWIN_SEEDS[0]}"].get(kind, [0, 0])[1]]
             if sum(twin) / len(twin) < sum(fresh) / len(fresh):
                 below_by_class += [f"{cls} {kind}"]
+            if floor_misses(twin, fresh, rows_of["shipped0"][kind][0]):
+                misses += [f"{cls} {kind}"]
         by_class[cls] = held
+    # THE CLASS-BY-CLASS FLOOR (lane CHG-b): the classes the polish aims at, holds or reads keep their kinds at the
+    # fresh samples' floor; the never-aimed class's misses are the walk's, stated apart.
+    value["class_floor_misses"] = len([m for m in misses if not m.startswith("never ")])
+    value["never_floor_misses"] = len([m for m in misses if m.startswith("never ")])
+    value["floor_misses_named"] = misses
     value["by_class"] = by_class
     value["by_class_fields"] = "judged, shipped twins inside, fresh samples inside, walk0 inside, ungated0 inside"
     value["kinds_below_fresh_by_class"] = below_by_class

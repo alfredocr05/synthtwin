@@ -83,7 +83,7 @@ def held_table(n_rows: int) -> str:
     `random.Random` and its `random()` stream alone.
     """
     stream = random.Random(4600)
-    rows = ["record_no,zip,born,weight,ward,folio,patient,stamp,stature,clock"]
+    rows = ["record_no,zip,born,item_w,ward,folio,patient,stamp,stature,clock"]
     for index in range(n_rows):
         zip_five = 40001 + 2 * int(stream.random() * 4400)
         year = 1921 + int(stream.random() * 70)
@@ -596,38 +596,24 @@ def test_the_verdict_and_the_exit_status_are_the_most_severe_step_s(ran: "dict[s
 
 
 def test_a_question_still_open_after_the_screen_is_taught_its_command(ran: "dict[str, typing.Any]") -> None:
-    """B: the record number answered on screen, the weight's Safe Harbor question is still open, so its command is taught.
+    """B: the record number answered on screen leaves no question open, so no command is taught.
 
-    Lane TT's repair 2 (the orchestrator's LANE TT RULINGS 3 (1)): the
-    answers line and its command (`answer-questions`) are taught wherever
-    a question is still open, whoever was at the keyboard; on cd7b7851 a
-    run with somebody at the keyboard taught none, so a person who
-    pressed Enter was never told how to answer what Enter left open. The
-    one question open here is answered in the questions file alone, so
-    the line sends the person to that file, then to the command. SINCE
-    LANE EZ-a (plan P4-D479) that question is put on screen after the
-    files are written -- the run's lines end there, so it stays open -- and
-    the line says every open question can be answered on screen.
+    Lane TT's repair 2 taught the answers line and its command wherever a
+    question was still open. Batch 4v: Step 0's weight is a measurement no
+    age reach reads (lane RX-1, plan P4-D486), so it is put no Safe Harbor
+    question and only listed in the checklist; with the record number
+    answered nothing is open, so no answers line or command is taught (the
+    case where one is, on the held table, is `test_the_safe_harbor_questions_are_put_after_the_files_and_enter_answers_none`).
     """
     made, screen = ran["B"]
-    folder = pathlib.Path(made.files[0].path).parent
     still_open = [
         one.column
         for one in made.questions
         if one.section in (results.SECTION_ABOUT_FILE, results.SECTION_ASKED)
     ]
-    assert still_open == ["weight"]
-    assert made.next_command == results.NextCommand(
-        (
-            "synthtwin", "twin", "t.csv", "--out-dir", f"{folder}",
-            "--answers", f"{folder / 't-questions.json'}", "--replace",
-        ),
-        results.PURPOSE_ANSWER_QUESTIONS,
-    )
-    shown = _text(screen)
-    assert "\n1 question(s) are still open, so each of their columns kept the reading" in shown
-    assert "1 of them can be answered on screen" in shown and "Nobody was at the keyboard" not in shown
-    assert "You ended the questions here." in shown
+    assert still_open == []
+    assert made.next_command is None
+    assert "question(s) are still open" not in _text(screen)
 
 
 def test_a_second_run_asks_nothing_and_writes_the_same_six_files(ran: "dict[str, typing.Any]") -> None:

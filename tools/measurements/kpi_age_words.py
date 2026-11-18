@@ -218,7 +218,8 @@ _SENTENCE_KEYS = ("detection_evidence", "remarks", "name", "negative_form", "gro
                   "quality_state", "structural_role", "role", "n_distinct_by_occurrences", "field_widths",
                   "missing_by_class", "missing_by_source", "numeric_styles", "layout_forms", "layout_prefixes",
                   "layout_exclusions", "shape_forms", "figure_openings")
-_VALUE_KEYS = ("percentiles", "percentiles_between", "mode", "mean", "top_coded_ends", "boundary", "values", "value")
+_VALUE_KEYS = ("percentiles", "percentiles_between", "mode", "mean", "top_coded_ends", "top_coded_band_values", "boundary",
+               "values", "value")
 # A rung's own name (`p95`) is no value.
 _RUNG_NAME = re.compile(r"p\d\d")
 
@@ -403,13 +404,17 @@ def _words(scratch: pathlib.Path, value: "dict[str, object]", lines: "list[str]"
         shutil.rmtree(folder, ignore_errors=True)
 
 
-def _people_by_age(rows: "list[list[str]]", ends: "object", subject: int = 0, age: int = 2) -> "list[tuple[int, str]]":
-    """Each row's whole age, the ends drawn as the description reads them, and its person, in row order."""
+def _people_by_age(rows: "list[list[str]]", ends: "object", subject: int = 0, age: int = 2,
+                   band: "object" = None) -> "list[tuple[int, str]]":
+    """Each row's whole age, the ends drawn as the description reads them (each band at the age it records, `top_coded_band_values`, where it records one; lane RX-1), and its person, in row order."""
     found: "list[tuple[int, str]]" = []
     for row in rows:
         read = int(row[age])
         if isinstance(ends, list) and len(ends) == 2:
-            read = min(max(read, ends[0]), ends[1])
+            if isinstance(band, list) and len(band) == 2:
+                read = band[0] if read <= ends[0] else band[1] if read >= ends[1] else read
+            else:
+                read = min(max(read, ends[0]), ends[1])
         found += [(read, row[subject])]
     return found
 
@@ -439,7 +444,7 @@ def _st2age(scratch: pathlib.Path, value: "dict[str, object]", lines: "list[str]
                                  chain.ChainSwitch("st2age", bytes(range(32)), rows_per_person=chain.ROWS_PERSON))
         classes = {entry["column"]: entry["class"] for entry in chained.grain["classes"]} if chained.grain else {}  # type: ignore[index]
         ends = block.get("top_coded_ends")
-        below = _below_floor(block, _people_by_age(rows, ends))
+        below = _below_floor(block, _people_by_age(rows, ends, band=block.get("top_coded_band_values")))
         # ...and the twin patients holding two ages or more, as the default
         # command writes them (the patient walk is lane GRb's, not on this line).
         twin = run["twin"]
@@ -521,7 +526,7 @@ def _draws(value: "dict[str, object]", lines: "list[str]", scratch: pathlib.Path
             print(lines[-1], flush=True)
             continue
         ends = block.get("top_coded_ends")
-        below += _below_floor(block, _people_by_age(rows, ends, 0, 1))
+        below += _below_floor(block, _people_by_age(rows, ends, 0, 1, block.get("top_coded_band_values")))
         if isinstance(ends, list):
             lows += [ends[0]]
             highs += [ends[1]]

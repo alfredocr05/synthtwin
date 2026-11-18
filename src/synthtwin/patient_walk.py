@@ -46,7 +46,7 @@ import dataclasses
 import fractions
 import math
 
-from synthtwin import chain_rules, chain_walk, contract, dialect, errors, generation, patient_intervals, patient_rules, twinstore
+from synthtwin import chain_rules, chain_walk, contract, dialect, errors, generation, patient_intervals, patient_rules, patient_trajectory, twinstore
 
 # The grid of the patient weight `omega` (G16.15): 0, 0.005, ..., 0.995.
 OMEGA_STEPS = 200
@@ -116,6 +116,9 @@ class DrawPlan:
     # The counting process's words (G16.19; lane GRb2-b, plan P4-D491 part
     # b), drawn after the trend's: none where no interval rule stands.
     intervals: int = 0
+    # A patient's own trajectory's words (G16.20; lane GRb2-c, plan P4-D491
+    # part c), drawn after the counting process's: none where no entry stands.
+    trajectory: int = 0
 
 
 @dataclasses.dataclass(frozen=True)
@@ -127,6 +130,7 @@ class Draws:
     trend_words: "tuple[chain_walk.Packed, ...]"
     words_drawn: int
     interval_words: "chain_walk.Packed | None" = None
+    trajectory_words: "chain_walk.Packed | None" = None
 
 
 def _own_mean_of(grain: contract.PatientGrain, source: str) -> "contract.DerivedColumn | None":
@@ -155,8 +159,9 @@ def draw_plan(profile: contract.Profile) -> DrawPlan:
                 held += _cell_patients(grain, cell)
         trend += [2 * TREND_PROPOSALS * held]
     intervals = patient_intervals.words_needed(grain, rows, patients)
-    words = 3 * rows * len(families) + 4 * patients * len([one for one in families if one]) + sum(trend) + intervals
-    return DrawPlan(rows, patients, tuple(families), tuple(trend), words, intervals)
+    trajectory = patient_trajectory.words_needed(len(grain.trajectory), patients, rows)
+    words = 3 * rows * len(families) + 4 * patients * len([one for one in families if one]) + sum(trend) + intervals + trajectory
+    return DrawPlan(rows, patients, tuple(families), tuple(trend), words, intervals, trajectory)
 
 
 # -- step 1: the patient table ---------------------------------------------------
@@ -1868,12 +1873,43 @@ def _write_positions(rows: _Rows, grain: contract.PatientGrain) -> None:
             continue
         cells = twinstore.column_cells(rows.cells[name])
         stand_in = cells[0] if cells else ""
+        run = _whole_run(values)
         out: "list[str]" = []
         for row in range(len(rows.position)):
             j = rows.position[row]
             listed = values[j - 1] if j - 1 < len(values) else None
+            if listed is None and run is not None and j > len(values):
+                # A WHOLE-NUMBER RUN GOES ON PAST ITS LIST (G16.20; lane GRb2-c,
+                # plan P4-D491 part c): a visit number whose list reads 1, 2,
+                # ..., L writes L + 1, L + 2, ... at the twin's own later
+                # positions, so a patient's later rows keep their order and a
+                # time axis an analysis reads (no published fact reads them;
+                # V12.7 reads the listed positions alone).
+                listed = f"{run[0] + run[1] * (j - len(values))}"
             out += [listed if listed is not None else stand_in]
         rows.cells[name] = twinstore.held_column(out)
+
+
+def _whole_run(values: "tuple[str | None, ...]") -> "tuple[int, int] | None":
+    """A position list's last value and its step where every entry is a whole number written plainly and the steps are equal and not nought, else None."""
+    numbers: "list[int]" = []
+    for value in values:
+        if not isinstance(value, str) or not value:
+            return None
+        negative = value[0] == "-"
+        figures = value[1:] if negative else value
+        if not figures or not all("0" <= character <= "9" for character in figures):
+            return None
+        whole = int(figures)
+        if figures != f"{whole}":
+            return None
+        numbers += [-whole if negative else whole]
+    if len(numbers) < 2:
+        return None
+    step = numbers[1] - numbers[0]
+    if step == 0 or any(numbers[at + 1] - numbers[at] != step for at in range(len(numbers) - 1)):
+        return None
+    return numbers[-1], step
 
 
 def _deviation(column: str, fact: str, published: str, achieved: str, note: str) -> "generation.Deviation":
@@ -1953,8 +1989,30 @@ def twin(profile: contract.Profile, seed: int, rows_box: "list[generation.Twin]"
     grids: "dict[str, _Grid]" = {}
     for name, u, low, top in grain.grid:
         grids[name] = _Grid(u, low, _whole_text(top))
-    # -- step 4: the row families, in `grain.rows` order --
-    for at in range(len(grain.rows)):
+    trajectories: "dict[str, tuple[int, patient_trajectory.Trajectory]]" = {}
+    for place in range(len(grain.trajectory)):
+        trajectories[grain.trajectory[place].column] = (place, grain.trajectory[place])
+    # A PATIENT'S OWN TRAJECTORY ON THE YEARS AXIS (G16.20; lane GRb2-c, plan
+    # P4-D491 part c): the position column's dates are made first and sorted
+    # inside each patient, so every entry read in years reads the twin's own
+    # dates. Each family is dealt on its own words, so the order of the deals
+    # moves no family's cells but through these times.
+    position_name = grain.position
+    yearly = position_name is not None and any(entry.axis == patient_trajectory.AXIS_YEARS for entry in grain.trajectory)
+    families_dealt = {family.child for family in grain.rows}
+    order = list(range(len(grain.rows)))
+    times: "list[float] | None" = None
+    redealt_first: "set[str]" = set()
+    if yearly and position_name is not None:
+        order = [at for at in order if grain.rows[at].child == position_name] + [at for at in order if grain.rows[at].child != position_name]
+        if position_name not in families_dealt and position_name in rows.cells and position_name in row_entries:
+            if position_name in trajectories:
+                _redeal(profile, rows, row_entries, by_name, position_name, _trajectory_scores(trajectories[position_name], patients, entries, r_values, draws, None))
+                redealt_first = {position_name}
+            _one_sorted(profile, rows, row_entries, by_name, patients, position_name)
+            times = _times_of(profile, rows, row_entries, by_name, patients, position_name)
+    # -- step 4: the row families, in `grain.rows` order (the position column's first where an entry reads years) --
+    for at in order:
         family = grain.rows[at]
         child = family.child
         if child not in rows.cells or child not in row_entries:
@@ -1964,11 +2022,21 @@ def twin(profile: contract.Profile, seed: int, rows_box: "list[generation.Twin]"
         sums = draws.row_sums[at]
         latent = [chain_walk.hidden_score(chain_walk.item(sums, row)) for row in range(tabled)]
         own = _own_mean_of(grain, child)
-        if own is not None and any(name == own.name for name, _level in family.parents):
-            latent = _with_patient_term(family, own, child, latent, patients, entries, row_entries, draws.patient_words[at], patient_of_row)
+        owned = own is not None and any(name == own.name for name, _level in family.parents)
         reading = _reading_of(profile, by_name[child], row_entries[child])
         child_cells = twinstore.column_cells(rows.cells[child])
-        if child in grids and any(cell.column == child for cell in grain.trend):
+        if child in trajectories:
+            # A PATIENT'S OWN TRAJECTORY (G16.20; lane GRb2-c, plan P4-D491
+            # part c): the rows are dealt in the order of their scores under
+            # the column's entry, the own-mean score standing for the level's
+            # where an own-mean column parents the family, so every published
+            # cell of the family stands as before.
+            owned_scores = _own_scores(own, patients, entries, draws.patient_words[at]) if owned and own is not None else None
+            latent = _trajectory_scores(trajectories[child], patients, entries, r_values, draws, owned_scores, times)
+            dealt, moved = _deal_family(child_cells, reading, row_entries[child], family.level, parent_of_row, parent_count, latent, family.table)
+        elif child in grids and any(cell.column == child for cell in grain.trend):
+            if owned and own is not None:
+                latent = _with_patient_term(family, own, child, latent, patients, entries, row_entries, draws.patient_words[at], patient_of_row)
             targets, _published = _trend_targets(grain, child, float(fractions.Fraction(grids[child].u)), patients, entries)
             spread = _robust_scale(by_name[child])
             gamma = 1.0 / spread if spread > 0 else 1.0
@@ -1981,11 +2049,16 @@ def twin(profile: contract.Profile, seed: int, rows_box: "list[generation.Twin]"
             dealt, moved = _deal_family(child_cells, reading, row_entries[child], family.level, parent_of_row, parent_count,
                                         _with_trend(latent, targets, gamma, rows, r_values), family.table)
         else:
+            if owned and own is not None:
+                latent = _with_patient_term(family, own, child, latent, patients, entries, row_entries, draws.patient_words[at], patient_of_row)
             dealt, moved = _deal_family(child_cells, reading, row_entries[child], family.level, parent_of_row, parent_count, latent, family.table)
         child_cells = []
         latent = []
         rows.cells[child] = twinstore.held_column(dealt)
         dealt = []
+        if yearly and child == position_name:
+            _one_sorted(profile, rows, row_entries, by_name, patients, child)
+            times = _times_of(profile, rows, row_entries, by_name, patients, child)
         if moved:
             deviations += [_deviation(
                 child, "grain.rows", "the row family's published table", "a moved table",
@@ -2006,6 +2079,15 @@ def twin(profile: contract.Profile, seed: int, rows_box: "list[generation.Twin]"
                 f"{written.lengthened} patient(s) lengthened to hold their rows",
                 "A patient's follow-up, drawn forward from the origin, that is shorter than its rows (or than its switch time and one unit) can hold is lengthened so.",
             )]
+    # -- step 4'': A PATIENT'S OWN TRAJECTORY ON A COLUMN NO ROW FAMILY DEALS
+    # (G16.20; lane GRb2-c, plan P4-D491 part c): its cells, the same cells,
+    # dealt again to its rows in the order of their scores (no published cell
+    # of any family reads which row holds them), before the dates are sorted
+    # within each patient, so a date column's entry sets each patient's span.
+    for name in trajectories:
+        if name in families_dealt or name in redealt_first or name not in rows.cells or name not in row_entries:
+            continue
+        _redeal(profile, rows, row_entries, by_name, name, _trajectory_scores(trajectories[name], patients, entries, r_values, draws, None, times))
     # -- step 5: dealt dates sorted within each patient; position-like columns from their lists --
     _dates_sorted(profile, grain, rows, row_entries, patients)
     _write_positions(rows, grain)
@@ -2117,15 +2199,84 @@ def _with_patient_term(
         for b in range(child_bands):
             pooled[parts[own_place]][b] += family.table[line_at][b]
     omega = omega_of(pooled, shares)
+    scores = _own_scores(own, patients, entries, words)
+    noise = math.sqrt(1.0 - omega * omega)
+    return [omega * scores[patient_of_row[row]] + noise * latent[row] for row in range(len(latent))]
+
+
+def _own_scores(own: contract.DerivedColumn, patients: _Patients, entries: "dict[str, contract.LadderEntry]", words: chain_walk.Packed) -> "list[float]":
+    """Each patient's own-mean score `z_p` (G16.15): inside its own-mean band at the band's PUBLISHED level, from its four words."""
     sums: "list[int]" = []
     places: "list[int]" = []
     for patient in range(patients.count):
         sums += [chain_walk.hidden_sum(chain_walk.item(words, 4 * patient), chain_walk.item(words, 4 * patient + 1), chain_walk.item(words, 4 * patient + 2))]
         places += [chain_walk.item(words, 4 * patient + 3)]
     published_maps = _level_map(entries[own.name], 0)
-    scores = patient_scores(sums, places, [published_maps[code] for code in patients.codes[own.name]])
-    noise = math.sqrt(1.0 - omega * omega)
-    return [omega * scores[patient_of_row[row]] + noise * latent[row] for row in range(len(latent))]
+    return patient_scores(sums, places, [published_maps[code] for code in patients.codes[own.name]])
+
+
+def _redeal(profile: contract.Profile, rows: _Rows, row_entries: "dict[str, contract.LadderEntry]", by_name: "dict[str, contract.ColumnBlock]", name: str, latent: "list[float]") -> None:
+    """A column no row family deals, its cells dealt again in the order of `latent` (G16.20): a number by its reading, a date by its place in time."""
+    reading = _reading_of(profile, by_name[name], row_entries[name])
+    cells = twinstore.column_cells(rows.cells[name])
+    values: "list[fractions.Fraction | float | None]" = []
+    for cell in cells:
+        value = _read(reading, cell)[1]
+        if isinstance(value, str):
+            values += [patient_trajectory.date_order(value)]
+        else:
+            values += [value if isinstance(value, float) else None]
+    rows.cells[name] = twinstore.held_column(patient_trajectory.redealt(cells, values, latent))
+
+
+def _one_sorted(profile: contract.Profile, rows: _Rows, row_entries: "dict[str, contract.LadderEntry]", by_name: "dict[str, contract.ColumnBlock]", patients: _Patients, name: str) -> None:
+    """One dealt date column's dates sorted inside each patient (G16.13 step 5, for this column alone and early)."""
+    if name in rows.cells and name in row_entries:
+        cells = twinstore.column_cells(rows.cells[name])
+        rows.cells[name] = twinstore.held_column(_sorted_within(cells, _reading_of(profile, by_name[name], row_entries[name]), patients))
+
+
+def _times_of(profile: contract.Profile, rows: _Rows, row_entries: "dict[str, contract.LadderEntry]", by_name: "dict[str, contract.ColumnBlock]", patients: _Patients, name: str) -> "list[float]":
+    """Each tabled row's years since its patient's first dated row on the position column (G16.20); a row holding no date takes the time of the row before it."""
+    reading = _reading_of(profile, by_name[name], row_entries[name])
+    cells = twinstore.column_cells(rows.cells[name])
+    out: "list[float]" = []
+    for patient in range(patients.count):
+        first: "fractions.Fraction | None" = None
+        last = 0.0
+        for j in range(patients.r[patient]):
+            value = _read(reading, cells[patients.start[patient] + j])[1]
+            moment = patient_trajectory.date_order(value) if isinstance(value, str) else None
+            if moment is not None and first is None:
+                first = moment
+            if moment is not None and first is not None:
+                last = float(moment - first) / patient_trajectory.SECONDS_A_YEAR
+            out += [last]
+    return out
+
+
+def _trajectory_scores(
+    found: "tuple[int, patient_trajectory.Trajectory]",
+    patients: _Patients,
+    entries: "dict[str, contract.LadderEntry]",
+    r_values: "list[int]",
+    draws: Draws,
+    own: "list[float] | None",
+    times: "list[float] | None" = None,
+) -> "list[float]":
+    """Each tabled row's score under a column's trajectory entry (G16.20): its grouping columns' bands at the levels it reads, off the patient table; its words the entry's; its times the years where it reads them."""
+    place, entry = found
+    if draws.trajectory_words is None:
+        raise _internal("was handed no words for a patient's own trajectory")
+    bands: "dict[str, list[int]]" = {}
+    for group in entry.by:
+        if group.column not in patients.codes or group.column not in entries:
+            raise _internal("read a trajectory's grouping column the patient table does not hold")
+        maps = _level_map(entries[group.column], group.level)
+        bands[group.column] = [maps[code] for code in patients.codes[group.column]]
+    first = place * (patient_trajectory.PATIENT_WORDS * patients.count + patient_trajectory.ROW_WORDS * sum(r_values))
+    reads_years = entry.axis == patient_trajectory.AXIS_YEARS and times is not None
+    return patient_trajectory.scores(entry, r_values, bands, draws.trajectory_words, first, own, times if reads_years else None)
 
 
 def _dates_sorted(profile: contract.Profile, grain: contract.PatientGrain, rows: _Rows, row_entries: "dict[str, contract.LadderEntry]", patients: _Patients) -> None:

@@ -56,13 +56,14 @@ from synthtwin import chain
 from synthtwin import chain_moments
 from synthtwin import chain_rules
 from synthtwin import parsing, profile, reading, taxonomy
-from synthtwin import patient_intervals, patient_rules
+from synthtwin import patient_intervals, patient_rules, patient_trajectory
 
 # The modules under the short names this module reads them by.
 moments = chain_moments
 rules = chain_rules
 pr = patient_rules
 pi = patient_intervals
+pt = patient_trajectory
 
 # The reasons the layer is off although the switch is on, each told in the
 # private notes only (4.6c.3 (e); inventory row 15a).
@@ -254,6 +255,22 @@ def _reading(role: str, value: object, block: "dict[str, object]") -> "fractions
 
 
 # -- THE CLASSES (4.6c.5, 4.6c.6) -----------------------------------------
+
+
+def _skewed(block: "dict[str, object]") -> bool:
+    """Whether a number column's published quantile skew `(p90 + p10 - 2 p50) / (p90 - p10)` is at least 1/5 in size
+    (`chain_moments.SKEW_CUT`), read exactly; a column whose p10, p50 and p90 are not all published reads skewed."""
+    points = rules.rung_ladder(block)
+    if points is None:
+        return True
+    role = f"{_get(block, 'role')}"
+    p10 = moments.ordinal(role, _get(points, "p10"), block)
+    p50 = moments.ordinal(role, _get(points, "p50"), block)
+    p90 = moments.ordinal(role, _get(points, "p90"), block)
+    if p10 is None or p50 is None or p90 is None or p10 == p90:
+        return True
+    skew = (p90 + p10 - 2 * p50) / (p90 - p10)
+    return skew >= moments.SKEW_CUT or -skew >= moments.SKEW_CUT
 
 
 def _threshold(census: pr.Census, floor: int) -> "tuple[int, int | None]":
@@ -949,7 +966,7 @@ PERSON_COUNTED_FORMS = ("n_all_digits", "n_code_alphabet")
 # the patient table's own cells could find the marker again.
 SAFE_HARBOR_MARKS = (
     "top_coded", "top_category_pooled", "top_category_people", "top_coded_words", "top_coded_ends",
-    "top_coded_year", "top_coded_bands",
+    "top_coded_year", "top_coded_bands", "top_coded_band_values",
 )
 
 
@@ -1250,7 +1267,7 @@ COUNTERS = (
     "witness_refusals", "split_steps", "splits_tried", "splits_failed", "split_bound_hit", "trend_cells",
     "trend_published", "trend_refused_swing", "trend_refused_total", "derived", "fixed_rows",
     "tables_counted", "candidates", "floor_refusals", "w1_refusals", "we_refusals", "eligible_options",
-    "options_left_unread", "tie_refusals",
+    "options_left_unread", "tie_refusals", "trajectories",
 )
 
 
@@ -1383,6 +1400,9 @@ def describe(
     # The cells, as described, of each column offered to the counting
     # process although the layer leaves it ineligible (repair 1, item 4).
     offered: "dict[str, list[str]]" = {}
+    # Each dealt date column's canonical texts on the tabled rows, for a
+    # patient's own trajectory's years axis (lane GRb2-c, plan P4-D491 part c).
+    date_texts: "dict[str, list[str | None]]" = {}
     for place in range(len(blocks)):
         block = blocks[place]
         name = names[place]
@@ -1441,9 +1461,13 @@ def describe(
             continue
         if not readings:
             meaning = chain.reading_of(block, values, settings, declared, storage)
+            canonical: "list[str | None]" = []
             for text in texts:
                 kind, value = meaning[text] if text in meaning else ("missing", None)
                 readings += [_reading(role, value, block) if kind == "value" else None]
+                canonical += [value if kind == "value" and isinstance(value, str) else None]
+            if role == rules.ROLE_DATETIME:
+                date_texts[name] = canonical
         key_read = pr.key_read(block)
         groups = rules.small_group_bands(block, read.start, ladder, floor) | chain.value_run_bands(block, read.start, ladder, floor, read.readings)
         row_columns[name] = _RowColumn(name, place, block, ladder, _codes_three(ladder, first), frozenset(groups), texts, readings, moments.fine(block), key_read)
@@ -1646,6 +1670,59 @@ def describe(
         )
     if counted is not None:
         interval_columns = pi.columns_of(counted)
+    # -- (f'') A PATIENT'S OWN TRAJECTORY (contract 4.6c.15; lane GRb2-c, plan
+    # P4-D491 part c), measured before the derived columns: each repeated
+    # number column and each dealt date column outside the counting process,
+    # its level, slope and serial term over a patient's positions as rounded
+    # moments of rule B on its normal-score scale (a date's: its day order),
+    # grouped by the patient-fixed columns of the patient chain, each at the
+    # finest of its published levels whose bands hold enough patients. An entry stands only where enough patients
+    # hold the rows it reads, and it publishes no count of people or rows. A
+    # column whose entry stands is offered no own-mean column below: its
+    # level is the entry's, and two descriptions of one level would pull the
+    # twin two ways (lane GRb2's RULINGS 17 (2), the walked sources skipped).
+    groupings = [one for name in fixed_names if name in scales for one in pt.grouping_levels(name, codes_of[name], scales[name].counts)]
+    # The years axis: each tabled row's years since its patient's first dated
+    # row on the position column, where that column is a dealt date (None for
+    # a row it holds no date on); a table without one reads positions.
+    years: "list[float | None] | None" = None
+    if position is not None and position in date_texts:
+        moments_of = [pt.date_order(text) if text is not None else None for text in date_texts[position]]
+        years = [None for _row in tabled]
+        for rows in patients.rows:
+            first_moment: "fractions.Fraction | None" = None
+            for k in rows:
+                if moments_of[k] is not None:
+                    first_moment = moments_of[k]
+                    break
+            if first_moment is None:
+                continue
+            for k in rows:
+                moment = moments_of[k]
+                if moment is not None:
+                    years[k] = float(moment - first_moment) / pt.SECONDS_A_YEAR
+    trajectory: "list[dict[str, object]]" = []
+    walked: "set[str]" = set()
+    for name in names:
+        if not switch.trajectories or name not in row_columns or name in interval_columns:
+            continue
+        role_read = f"{_get(row_columns[name].block, 'role')}"
+        if not (classes[name] == pr.CLASS_REPEATED and role_read in rules.NUMBER_ROLES) and not (
+            classes[name] == pr.CLASS_DEALT and role_read == rules.ROLE_DATETIME
+        ):
+            continue
+        # The scale (a date's and an unskewed number's linear, a skewed number's
+        # normal) and, beside a dated position column, the axis on which each
+        # patient's own line leaves less (`patient_trajectory.chosen`).
+        linear = role_read == rules.ROLE_DATETIME or not _skewed(row_columns[name].block)
+        if classes[name] == pr.CLASS_REPEATED and years is not None:
+            found_trajectory = pt.measured_on_both(name, row_columns[name].readings, patients.rows, groupings, floor, years, linear)
+        else:
+            found_trajectory = pt.measured(name, row_columns[name].readings, patients.rows, groupings, floor, None, linear)
+        if found_trajectory is not None:
+            trajectory += [found_trajectory]
+            walked = walked | {name}
+    counts["trajectories"] = len(trajectory)
     # -- (f') the derived columns (4.6c.2), drawn after the rest of the chain
     # (departure (3) of P4-D449): a level is eligible where its bands hold
     # the floor and a keyed family can hold the column (r, and every member
@@ -1665,6 +1742,8 @@ def describe(
         if classes[name] == pr.CLASS_DEALT:
             label = f"(first date of {name})"
             kind = pr.FIRST_DATE
+            if name in walked:
+                continue
             found_first = _first_date(row, patients, floor)
             if found_first is not None:
                 level, first_of, totals = found_first
@@ -1673,7 +1752,7 @@ def describe(
             label = f"(own mean of {name})"
             kind = pr.OWN_MEAN
             grid = pr.grid_of(row.block) if row.fine else None
-            if grid is None or _get(row.block, "n_missing") != blank_rows:
+            if grid is None or _get(row.block, "n_missing") != blank_rows or name in walked:
                 continue
             grids[name] = grid
             found_mean = _own_mean(row, patients, grid, floor)
@@ -1847,6 +1926,12 @@ def describe(
         "rows": rows_written,
         "trend": trend,
     }
+    # An entry stands beside a column the layer still describes in rows (a
+    # column drawn HELD after its entry was measured publishes none).
+    trajectory = [entry for entry in trajectory if classes[f"{entry['column']}"] in (pr.CLASS_REPEATED, pr.CLASS_DEALT)]
+    counts["trajectories"] = len(trajectory)
+    if trajectory:
+        grain_written[pt.TRAJECTORY_KEY] = trajectory
     if counted is not None:
         for written_key in counted:
             grain_written[written_key] = counted[written_key]

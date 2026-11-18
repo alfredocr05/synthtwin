@@ -88,6 +88,10 @@ INELIGIBLE_REASONS = (
     # 6.3k): not one distribution, its key column a label candidate.
     "keyed",
     "size",
+    # A column whose recount disagrees with its published counts (lane RX-1,
+    # the fidelity plan's R1; contract 4.6b.1 amended 2026-11-17): left out
+    # alone, where it once turned the whole chain off.
+    "recount",
 )
 
 # The settings of 4.6b.14 recorded in `procedure` (4.6b.5).

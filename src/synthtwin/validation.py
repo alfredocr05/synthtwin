@@ -4190,7 +4190,7 @@ class _Rewrite:
     declared: "tuple[str, ...]" = ()
     missing: "tuple[str, ...]" = ()
     words: "list[str] | None" = None
-    ends: "dict[str, tuple[int, int]] | None" = None
+    ends: "dict[str, tuple[int, ...]] | None" = None
     banded: "frozenset[str]" = frozenset()
     grained: "dict[str, grains.Grain]" = dataclasses.field(default_factory=dict)
     description: "contract.Profile | None" = None
@@ -6476,12 +6476,13 @@ def _top_words_here(
 
 def _top_ends_here(
     description: contract.Profile, table: reading.Table
-) -> "dict[str, tuple[int, int]]":
-    """The top-coded columns whose description records the ends their ages were pooled into in people (`top_coded_ends`, P4-D477)."""
-    found: "dict[str, tuple[int, int]]" = {}
+) -> "dict[str, tuple[int, ...]]":
+    """The top-coded columns whose description records the ends their ages were pooled into in people (`top_coded_ends`, P4-D477), each with the ages its bands are written as where it records them too (`top_coded_band_values`, lane RX-1): four whole numbers then, two otherwise."""
+    found: "dict[str, tuple[int, ...]]" = {}
     for block in description.columns:
         if block.top_coded and block.top_coded_ends is not None and block.name in table.column_names:
-            found[block.name] = block.top_coded_ends
+            values = block.top_coded_band_values
+            found[block.name] = block.top_coded_ends + (values if values is not None else ())
     return found
 
 
@@ -6502,7 +6503,7 @@ def _top_coded_table(
     declared: "tuple[str, ...]",
     missing: "tuple[str, ...]",
     words: "list[str] | None" = None,
-    ends: "dict[str, tuple[int, int]] | None" = None,
+    ends: "dict[str, tuple[int, ...]] | None" = None,
     banded: "frozenset[str]" = frozenset(),
 ) -> reading.Table:
     """The checked table with each top-coded column's values from 90 to 125 read as 90 (P4-D427).
@@ -6600,6 +6601,7 @@ def _top_coded_table(
             coded = taxonomy.cells_within_the_ends(
                 coded, name in commas, frozenset(absent), ends[name][0], ends[name][1],
                 top_coded[name], worded,
+                values=(ends[name][2], ends[name][3]) if len(ends[name]) == 4 else None,
             )
         columns += [coded]
         changed = True

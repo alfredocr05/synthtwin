@@ -178,7 +178,7 @@ def test_enter_keeps_the_reading_of_codes_against_measurements(
     """The unit question and the 12-hour question, which hold nothing: Enter keeps the reading nobody's run keeps, column by column."""
     pressed = {one["name"]: one for one in json.loads(entered_ran["E_enter_description"])["columns"]}
     nobody = {one["name"]: one for one in json.loads(held_ran["E_description"])["columns"]}
-    for name in ("stature", "clock", "ward", "weight"):
+    for name in ("stature", "clock", "ward", "item_w"):
         assert pressed[name] == nobody[name], name
     result, _screen = entered_ran["E_enter"]
     put = {one.column for one in result.steps[0].questions if one.put}
@@ -205,7 +205,7 @@ def test_the_safe_harbor_questions_are_put_after_the_files_and_enter_answers_non
         for one in records
         if one.reason in asking.SAFE_HARBOR_REASONS + asking.SH2_SAFE_HARBOR_REASONS
     ]
-    assert {one.column for one in harbor} >= {"born", "weight"}
+    assert {one.column for one in harbor} >= {"born", "item_w"}
     assert [one for one in harbor if not one.put] == []
     # A later round heads each question with the number the questions file
     # gives it, its place in the round after it (lane EZ-a's repair, LANE EZ

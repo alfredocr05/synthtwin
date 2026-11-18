@@ -334,7 +334,10 @@ def test_w1_ages_capped_at_89_beside_a_declared_person_are_described_with_their_
     assert age["top_coded"] == 90
     low, high = age["top_coded_ends"]  # type: ignore[misc]
     assert 25 <= low < high <= 89, (low, high)
-    values = [float(min(max(int(row[1]), low), high)) for row in rows]
+    # ...each band written at the mean age of its rows where the block records
+    # it (`top_coded_band_values`, lane RX-1), else at its edge.
+    first, second = age.get("top_coded_band_values", [low, high])  # type: ignore[misc]
+    values = [float(first if int(row[1]) <= low else second if int(row[1]) >= high else int(row[1])) for row in rows]
     people = [row[0] for row in rows]
     by_value: "dict[float, set[str]]" = {}
     for value, person in zip(values, people):

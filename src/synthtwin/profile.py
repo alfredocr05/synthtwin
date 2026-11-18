@@ -1923,6 +1923,10 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     # each a value the floor's people hold.
     ("columns", _EACH, "top_coded_ends"): _ARRAY,
     ("columns", _EACH, "top_coded_ends", _EACH): _NUMBER,
+    # ...and the ages its two end bands are written as, the mean age of each
+    # mean age (lane RX-1; `taxonomy.ends_band_values`).
+    ("columns", _EACH, "top_coded_band_values"): _ARRAY,
+    ("columns", _EACH, "top_coded_band_values", _EACH): _NUMBER,
     # ...and that its bands of ages past 89 were written as one band (plan
     # P4-D472; the orchestrator's LANE CZ-E RULINGS 6 (3)).
     ("columns", _EACH, "top_coded_bands"): _FLAG_TRUE,
@@ -4499,6 +4503,7 @@ def _reach_here(
     mark: int = taxonomy.TOP_CODE,
     named: bool = False,
     said: bool = False,
+    measured: bool = False,
 ) -> str:
     """A column's Safe Harbor reach (`taxonomy.safe_harbor_reach`), read on its cells as written (plan P4-D446).
 
@@ -4513,12 +4518,18 @@ def _reach_here(
     answer says it holds ages (`taxonomy.safe_harbor_reach`, lane SH3);
     ``said`` where its name or an answer says so whatever holds its name
     meanwhile, so the units its cells write never take it out of the reach
-    (lane HB3-a2, plan P4-D486, R).
+    (lane HB3-a2, plan P4-D486, R); ``measured`` where its name names a
+    measurement no age is, so no age reach reads it unless a cell names an
+    age (lane RX-1, R3; `taxonomy.named_as_a_measurement`).
     """
-    reach = taxonomy.safe_harbor_reach(cells, comma, absent, floor, levels, padded, mark, named, said=said)
+    reach = taxonomy.safe_harbor_reach(
+        cells, comma, absent, floor, levels, padded, mark, named, said=said, measured=measured
+    )
     if reach or dated is None:
         return reach
-    if taxonomy.safe_harbor_reach(dated, comma, absent, floor, levels, padded, mark, named, said=said) == taxonomy.SAFE_HARBOR_AGES:
+    if taxonomy.safe_harbor_reach(
+        dated, comma, absent, floor, levels, padded, mark, named, said=said, measured=measured
+    ) == taxonomy.SAFE_HARBOR_AGES:
         return taxonomy.SAFE_HARBOR_AGES
     return reach
 
@@ -6385,7 +6396,7 @@ def build_document(
     names_published: "list[str] | None" = None,
     names_checked_only: "tuple[str, ...] | None" = None,
     top_words_only: "list[str] | None" = None,
-    top_ends_only: "dict[str, tuple[int, int]] | None" = None,
+    top_ends_only: "dict[str, tuple[int, ...]] | None" = None,
     described_text: "list[str] | None" = None,
     made_up_held: "list[str] | None" = None,
     counts_held_for_dates: "tuple[str, ...]" = (),
@@ -7288,6 +7299,10 @@ def build_document(
         # ...and the ends its ages were pooled into in people, where they were
         # (plan P4-D477), with the cells as they stood before.
         ends_here: "tuple[int, int] | None" = None
+        # ...and the ages each end band is written as, the mean age of its rows
+        # (lane RX-1, `taxonomy.ends_band_values`), where they keep every
+        # count in people the edges kept; None writes each band at its edge.
+        band_values_here: "tuple[int, int] | None" = None
         cells_before_ends: "list[str]" = []
         top_coded_here = False
         top_pool_floor = -1
@@ -7361,6 +7376,14 @@ def build_document(
             # the reach by the units its cells write (lane HB3-a2, plan
             # P4-D486, the reading rule R).
             said_age = taxonomy.named_as_an_age(name) or bool(unit_answered)
+            # ...AND A NAME THAT NAMES A MEASUREMENT NO AGE IS keeps the
+            # column out of the age reach (lane RX-1, the fidelity plan's R3,
+            # under the owner's ruling of 2026-11-15: the age cap is for
+            # ages): `oxygen_saturation`, `temp_f`, `pulse`, `pain_score`,
+            # a key named so in a long table. Read where the name is read
+            # (never a column an open question holds), and never where a
+            # unit of age is named or answered or a cell names an age.
+            measured_name = name_read and not named_mark and taxonomy.named_as_a_measurement(name)
             reach = _reach_here(
                 cells_as_written,
                 dated_cells,
@@ -7386,6 +7409,7 @@ def build_document(
                 mark_here,
                 age_named or words_named,
                 said_age,
+                measured_name,
             )
             reached_by_name = (
                 reach == taxonomy.SAFE_HARBOR_AGES
@@ -7605,8 +7629,10 @@ def build_document(
                 # description checked again reads the ends it records.
                 cells_before_ends = coded
                 if forced_top:
-                    ends_here = (
-                        top_ends_only[name] if top_ends_only is not None and name in top_ends_only else None
+                    recorded = top_ends_only[name] if top_ends_only is not None and name in top_ends_only else None
+                    ends_here = (recorded[0], recorded[1]) if recorded is not None else None
+                    band_values_here = (
+                        (recorded[2], recorded[3]) if recorded is not None and len(recorded) == 4 else None
                     )
                 elif pool_floor > 0 and not reached_by_name:
                     # ...DESCRIBED AGAIN AND COUNTED IN PEOPLE AGAIN, at most
@@ -7675,6 +7701,32 @@ def build_document(
                             ends_few = _groups_few(ends_candidate, ends_ages, ends_people, settings.small_cell_floor)
                             if not ends_few:
                                 ends_here = ends_drawn
+                                # ...EACH BAND WRITTEN AT THE MEAN AGE OF ITS ROWS
+                                # (lane RX-1; P4-D486 (6)(e)), where the column
+                                # so written keeps every count in people the
+                                # edges kept; else at its edges, as before.
+                                values_drawn = taxonomy.ends_band_values(
+                                    coded, name in declared_commas, frozenset(described.absent_spellings),
+                                    ends_drawn[0], ends_drawn[1], mark_here, words_here,
+                                )
+                                if values_drawn != ends_drawn:
+                                    values_cells = taxonomy.cells_within_the_ends(
+                                        coded, name in declared_commas, frozenset(described.absent_spellings),
+                                        ends_drawn[0], ends_drawn[1], mark_here, words_here, values=values_drawn,
+                                    )
+                                    values_candidate = taxonomy.with_top_ends(
+                                        taxonomy.with_top_code(
+                                            described_from(values_cells, None, read_as_labels_here=held_as_labels),
+                                            mark_here, top_pool_floor, top_pool_people, words_recorded,
+                                        ),
+                                        ends_drawn[0], ends_drawn[1], values_drawn,
+                                    )
+                                    if _band_values_keep_the_floor(
+                                        values_candidate, values_cells, name in declared_commas,
+                                        frozenset(described.absent_spellings), mark_here, words_here,
+                                        ends_people, ends_enough, settings.small_cell_floor,
+                                    ):
+                                        band_values_here = values_drawn
                                 break
                         else:
                             ends_few = _published_few(ends_candidate, ends_ages, ends_people, settings.small_cell_floor)
@@ -7692,7 +7744,7 @@ def build_document(
                 if ends_here is not None:
                     coded = taxonomy.cells_within_the_ends(
                         coded, name in declared_commas, frozenset(described.absent_spellings),
-                        ends_here[0], ends_here[1], mark_here, words_here,
+                        ends_here[0], ends_here[1], mark_here, words_here, values=band_values_here,
                     )
                     recoded = described_from(coded, None, read_as_labels_here=held_as_labels)
                 cells = coded
@@ -7702,7 +7754,7 @@ def build_document(
                     words_recorded, top_banded,
                 )
                 if ends_here is not None:
-                    described = taxonomy.with_top_ends(described, ends_here[0], ends_here[1])
+                    described = taxonomy.with_top_ends(described, ends_here[0], ends_here[1], band_values_here)
                 if dated_here:
                     described = taxonomy.with_dated_values_held(described)
                 top_coded_here = True
@@ -10944,6 +10996,31 @@ def _groups_few(
                     for whole in values[at] if at in values else {}:
                         few[whole] = True
     return sorted(few)
+
+
+def _band_values_keep_the_floor(
+    candidate: taxonomy.ColumnProfile,
+    written: "list[str]",
+    comma: bool,
+    absent: "frozenset[str]",
+    mark: int,
+    words: bool,
+    people: "list[list[str]]",
+    enough: "list[bool] | None",
+    floor: int,
+) -> bool:
+    """Whether a top-coded column whose end bands are written at the mean age of their rows (`taxonomy.ends_band_values`) publishes no value, remainder or bin group 1 to ``floor`` - 1 people hold (lane RX-1, the fidelity plan; P4-D486 (6)(e)).
+
+    The checks the ends' rounds made of the column with its bands at their
+    edges (`_counted_in_subjects`, `_groups_few`), made again of
+    ``candidate``, the column described from ``written``, its bands at their
+    means: the bands hold the same people, and only where every count in
+    people the edges kept still holds is the column written so. Guarantees:
+    a fixed function of its arguments. Raises nothing of its own. No I/O.
+    """
+    if _counted_in_subjects(candidate, written, people, floor, enough, _plain_reading(candidate, comma)):
+        return False
+    return not _groups_few(candidate, taxonomy.ages_as_read(written, comma, absent, mark, words), people, floor)
 
 
 def _held_from(

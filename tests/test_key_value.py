@@ -1499,22 +1499,24 @@ def test_a_declared_measurement_frees_a_key_block_the_fixed_width_question_holds
 
 
 def test_the_summary_names_each_measurement_held_and_each_written_90_from_90(tmp_path: pathlib.Path) -> None:
-    """THE STATISTICS CHECK'S ITEM 2 (d) (LANE KV RULINGS 4 (1)): the page names each held key block and each top-coded one in the person's words (the names of common keys are published already), so no analysis of them is run on the twin unawares."""
+    """THE STATISTICS CHECK'S ITEM 2 (d) (LANE KV RULINGS 4 (1)): the page names each held key block and each top-coded one in the person's words (the names of common keys are published already), so no analysis of them is run on the twin unawares. Since lane RX-1 (the fidelity plan's R3) a key whose name names a measurement (`Chloride`) is no age and keeps its values from 90 up; a key whose name says nothing (`Panel K`) is top-coded until its question is answered, and the page names it."""
     draw = random.Random(3)
     rows: "list[list[str]]" = []
     for place in range(300):
         for _draw in range(3):
             for test, middle, spread, places in (("Sodium", 139, 3, 0), ("Potassium", 4.2, 0.4, 1), ("Chloride", 103, 3, 0),
-                                                  ("Hemoglobin", 13.5, 1.5, 1), ("Glucose", 110, 25, 0), ("Creatinine", 1.0, 0.3, 2)):
+                                                  ("Hemoglobin", 13.5, 1.5, 1), ("Glucose", 110, 25, 0), ("Creatinine", 1.0, 0.3, 2),
+                                                  ("Panel K", 103, 3, 0)):
                 rows += [[f"Q{place}", test, f"{draw.gauss(middle, spread):.{places}f}"]]
     document = _described(_long(tmp_path, "lab-said", rows, "result"), [], safe_harbor_no=["result"])
     blocks = _key_blocks(document, "result")
-    assert blocks["sodium"]["role"] == taxonomy.ROLE_IDENTIFIER and "top_coded" in blocks["chloride"]
+    assert blocks["sodium"]["role"] == taxonomy.ROLE_IDENTIFIER and "top_coded" in blocks["panel k"]
+    assert "top_coded" not in blocks["chloride"]
 
     def said() -> None:
         page = summary.render(document, "Read as UTF-8.")
         assert "measurements held, their values made up in the twin: Sodium" in page
-        assert "measurements whose every value from 90 up is written as 90 (the rule for an age over 89): Chloride" in page
+        assert "measurements whose every value from 90 up is written as 90 (the rule for an age over 89): Panel K" in page
 
     _red(said, summary, "_names_in_a_list", lambda names: "")
 

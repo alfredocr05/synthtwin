@@ -2,7 +2,7 @@
  "what": "The KPI ledger: one entry per thing a phase or stage delivered, stated as a value and a rule. Single record; the owner's board and tools/measurements/kpi_run.py read it; tests/kpi_rules.py judges every value; tests/test_kpi_ledger_integrity.py keeps it honest.",
  "schema": 1,
  "base_commit": "caf3079",
- "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 190 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying its tree and, in its value_at's measured_by, the run that took it, and test_kpi_ledger_integrity.py holds this note's names to that set; a clause's earlier trees are the lane's own commits before the stamp. TWENTY OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, the repair pass of the mean-only landing; K-P4-20 on 3f6cd9f, landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND THREE STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), one quiet run, seconds judged. Three moved with their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds (governance item 9), and K-S3-05 is measured over the 1,800-row population it tests and a node bounding the 900-row refusal (item 6). AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352): K-S3-16, a value no earlier tree gives, which 2bc1418 and 47f20ef read the same. AND ONE STANDS OFF 67ba1de, the band searched a half at a time (plan P4-D359), after the whole suite passed there: K-S3-34, the owner's accepted limit of 2026-09-30, new, which 82b1f1a gives back too. AND TWO STAND OFF a47108a, the weekday guards dropped (plan P4-D365) and repaired at its review: K-S3-32, floor-only now, its certificate's verifier deleted (it had stood off e689072); and K-S3-39, its drawn-hole node asking the count pass on its census emptied (it had stood off 3168f65). AND ONE STANDS OFF de0acce, the second repair of that drop: K-S3-35, new at a47108a, the few-dates and room rules, the room rule asked again beside placeholder and declared days (it had stood off a47108a); the entry that counted the certificate's cost is retired with it. AND SEVEN STAND OFF e43a540, the tail-withholding drop and the end floor (plan P4-D375), re-based: K-S3-13, K-S3-15, K-S3-19, K-S3-23, K-S3-24, K-S3-25 and K-S3-30. AND FIVE STAND OFF 0abbd35, the same product, re-based by each driver: K-S3-11, K-S3-17, K-S3-18, K-S3-20 and K-S3-21. AND ONE STANDS OFF 8b41373, the same product with the evenly spaced columns its driver gained at the review of landing 3b.G1: K-S3-50, its other keys as they were (it had stood off 74cb50e). AND ONE STANDS OFF 6701c68, the second repair round of landing T1 (plan P4-D370), at a load average of 13.4: K-S3-52, new, over more pinned cases than its earlier trees. AND ONE STANDS OFF 784ef3e, landing R0 (plan P4-D380) after its Codex review, every pinned node passing, at a load average of 46, so no seconds judged: K-S3-54, new, which earlier trees gave at the same counts over fewer nodes; its readings take half the big-number steps 3827f20's did. AND ONE STANDS OFF fbbfeb2, the same code with the residual of that review's item 2, every pinned node passing, at a load average of 10.3: K-S3-55, new, which earlier trees gave at the same counts over fewer nodes, before a run of spaces or declared points was read once. AND ONE STANDS OFF e8c6651, the repair of the two items left open in the review of lane R1 (plan P4-D381), the tree clean, at a load average of 6.6: K-S3-56, which bounds not_described at nought, where earlier trees read the same counts over fewer nodes and cases. AND ONE STANDS OFF 3821405, the third pass over item 3 of Codex's review of the typed workbook cells (plan P4-D382), at a load average near ten: K-S3-57, where earlier trees read the same over fewer nodes and cases. AND ONE STANDS OFF 6eed1e8, lane G3 at the fix of its Codex review, the count pass's paid merge kept between attempts (plan P4-D376): K-S3-51, new at the lane's repair round, reading 110cb46's pass, 311cf30's pool and 5f28017's files of ranks beside it, where earlier trees read the same before the entry counted the moves. AND ONE STANDS OFF 8f20979, landing 3b.5's second step after its Codex round's verification (plan P4-D374), by kpi_run.py --slow with the clock columns' driver beside it and --print-values at a one-minute load average of 10.7, so no seconds were judged (that driver stood there too, M3 compared off the heaps): K-S3-49, route 1's stand-in times repeated below the floor, one hundred and eleven pinned (it had stood off 7b39fd6 over one hundred and nine, before that off cdd739c, the merge of the route-2 correction into round 2 of landing 3b.5's review stream, over one hundred and seven, which 82bb46b read the same over one hundred and seven, 82e4858 over one hundred and five and 144ebcd over ninety-four, 9dc86d2, 2fe77b1, 42186cc and 126f32d over sixty-nine, 5888a44 over sixty-seven, 014d977 over sixty, 25c96ec over forty-two, 20c709b over twenty-eight and the lane's commit before it over twelve). AND ONE STANDS OFF b5532ee, stage 4's packing walk reading the counts together (plan P4-D389): K-S4-04, new and open, with the walk as 493f6f8 shipped it measured beside it on the same twins and questions, where earlier trees gave the same counts. AND ONE STANDS OFF 01264bd, the subtraction guard dropped and the stand-in walk's bound lifted (plan P4-D390): K-2B-28, its pooled label's count of one read off the pool where the base read it as n_missing. AND ONE STANDS OFF 51a48ca, lane L1, codes written as the source wrote them, its Codex repair round (plan P4-D390; it stood off 921d549, the Codex fix round, and 7e604ea, the repair round): K-S3-61, repaired, where d5ac43f read the limit the review of plan P4-D390 states, a form of a code read as a number by its exponent filling. AND ONE STANDS OFF ca9d612, the last repair of the Codex review of plan P4-D390, the tree clean, at a load average near twenty: K-S3-12, whose evidence says what the counts of one to ten and the roles do block by block against 493f6f8, at the counts 01264bd gave (it had stood off earlier trees of that review, and before them off 3587709, the repair pass of landing 3.5, whose seeded battery it counts). AND ONE STANDS OFF 9383c71, landing 3b.2-H's hour census (plan P4-D371) as the repair of its Codex review's verification left it, at a load average of 16.9: K-S3-40, new, over the review's clauses and its verification's (it had stood off 0bfbe4a, and before it d0e1808). AND TWO STAND OFF 6be684f, batch 4d's merged head before its records, restamped there because their stamps stood on a J3 tree short of J3's final 05887b85 (push critic 8's MINOR 6), by kpi_run.py --only K-S3-41 --only K-S3-62 --print-values, at a load average of 4.3, so no seconds were judged, each value as before: K-S3-41, the accepted class widened to minutes and seconds; and K-S3-62, lane J's (they had stood off 4bbddb5, lane J3's tree after its Codex review on lane J2's merge of landing 3b.4, and before it b989692, 34788b3, 1484c52, b747d4e, c45bb07, 9c3881d, 9c3881d and 493d9c8). AND ONE STANDS OFF 7e9caa6, the Codex review of batch 3b part 2d's integration (plans P4-D374, P4-D378), at a load average near 16, so no seconds were judged: K-S3-48, two fewer minute censuses as M3 asks the fine table, the clinic's withheld (it had stood off 8f20979). AND TWO STAND OFF 2c53bbf, that review's fix stream merged into batch 3b part 2f (its commits after the owner's authorship rule carried one by one), at a load average of 14.6, so no seconds were judged: K-S3-38, its seconds alone (it had stood off the fix stream's own item 3 commit, 7e9caa6, c0fb24c, 9383c71 and b989692); and K-S3-31, its values equal to its stamp on 6b167c4 (the sixth push's critic, minor 6); the other five of that run held their stamps. AND ONE STANDS OFF 4d17225, the weekday census of a column of moments (plan P4-D367) after Codex's review of the landing, every item fixed: K-S3-37, new at the lane's first commit, an accepted limit stated by status alone (the two had stood off the lane's earlier trees; the other, stamped there beside it, stands off lane D4s's commit since, below). AND ONE STANDS OFF 5de77e8, G5.5's sign repairs without the square of the strata (plan P4-D387), their walks begun again where nought stops being held, their growth taken on counted values with ordering comparisons counted too: K-S4-05, new, whose tests take the measure of 564c61a's function too (it had stood off the lane's earlier trees). AND ONE STANDS OFF b64aa6b, lane SH2's repair 1 (plan P4-D434), by kpi_run.py --slow --print-values with the lane's ids and landing R4's named by --only, under floor311, loaded, so no seconds were judged: K-S3-60, restated to the Safe Harbor holds of numbers that are dates, a count of days typed on the command line freeing no ZIP hold and births showing an age over eighty-nine held (it had stood off 1f3d9af, landing R4 (plan P4-D384) as the verification of Codex's review left it, at a load average of 4 to eleven, every value as 02dd9b3 read it over eighty-seven and 290 before that verification pinned four clauses more, a1a34bc before the offline scan's repair, b3bc82b over sixty-six nodes and 137 cases before Codex's review pinned twenty-one more, c31329a over thirty-two before the review added seven keys (the heap at 10,000 rows, NF113's names, the figures of COARSE, the writers, a days-since-1840 twin's halves), c7ae131 over forty-eight before the repair's second pass added an eighth (the columns of COARSE Q3 asks), c7b2690 over forty-nine before the second review added a ninth (the stated limits) and widened the heap to two placeholders at one end and every system offered, and 0ce697d over sixty-one nodes and one hundred and sixteen cases before its verification pinned five clauses more). AND TWO STAND OFF 6d5a86c, the records pass after the push critic of 2026-10-09, the tree clean: K-2B-26 and K-2B-52, each re-stamped after plan P4-D390 took its ruling-5 node, their rule unchanged. AND TWO STAND OFF 48f71d5, the day-of-month census (plan P4-D368) after its Codex review, and its own commit, by kpi_run.py --only K-S3-43 --print-values and kpi_run.py --slow --only K-S3-44 --print-values: K-S3-43, new, where 6efe103 read it over twenty-six nodes, 1b38df7 over twenty-two and bdf0566 over eighteen; and K-S3-44, new, where 1b38df7 read it before the review. AND ONE STANDS OFF 2dfa4d7, the count pass splitting the two tails' ranks first (lane D4s, plan P4-D369 part one; first on d618ee5) and its Codex review's texts, by kpi_run.py --print-values with its two ids each named by --only: K-S3-59, re-based there over its thirty-four pinned nodes. Before it K-S3-59 stood off f53ec9e, landing 3b.D1b after the orchestrator's rulings of 2026-10-07 and 2026-10-08 (plan P4-D388), where earlier trees read the same over fewer nodes and cases. AND TWO STAND OFF b6eca79, the dates that stand out (plan P4-D369) at their Codex review's fix, by kpi_run.py --slow --print-values with the lane's ids each named by --only: K-S3-46 and K-S3-47, where 3197634 read them alike under the orchestrator's rulings of 2026-10-13; 81bff8c read K-S3-46's lists_given_way 2, listed_off 76 and count_missed 0, and e34b853 count_missed 2 and listed_off 0. AND TWO STAND OFF 865b61f, batch 3b's first part merged with a tail date alone in its stratum traded (the Codex review of landing I3b1), by kpi_run.py --only K-S3-36 --only K-S3-45 --print-values: K-S3-36 over its thirty-seven nodes, where 2dfa4d7 read thirty-two, and K-S3-45 over thirty-nine, where 6620a31 read thirty-eight, b6eca79 thirty-six, 0ab4e5d twenty-nine, 3197634 twenty-five, 81bff8c twenty-one and e34b853 twenty. AND TWO STAND OFF d46be94, stage 4 lane S4c's report in pieces and dense tail (plans P4-D390 and P4-D377) after Codex's review of the lane and its verifier, by kpi_run.py --print-values with the lane's ids named by --only: K-S4-06 and K-S4-07, new, where 059f273 read the same but two lines fewer of the placement at a million strata. AND ONE STANDS OFF 808af08, batch 4a's merge of lanes S4b-num, S4c, R6, L2 and J3 (plans P4-D377, P4-D387, P4-D390, P4-D391 and P4-D392), by kpi_run.py --slow --print-values with five ids named by --only, at a load average of 4.2 to 5.3, so no seconds were judged: K-S3-42, its seconds alone (it had stood off 2c53bbf); the other four of that run held their stamps. AND ONE STANDS OFF 5e42f38, lane TI's install and first run (plan P4-D397) after its repair 2, by kpi_run.py --only 'K-S8-*' --print-values: K-S8-04, new. AND ONE STANDS OFF 4cb74e1, batch 4b's records head, by kpi_run.py --only K-S4-15 --print-values: K-S4-15, new, lane S4b-num's work counts given a KPI by the orchestrator's decision on push critic 7's item 4, under the id the December plan gives them (the ids before it are reserved there; the entry stood under one of them off 529aa98 until Codex's review of batch 4b's integration fixes), its ratios judged unrounded since that review. AND THREE STAND OFF 8df78b6, batch 4b's records head, by one kpi_run.py --slow run of every id but the whole suite's own (push critic 7, item 3), at a load average of 3.1 to 10.1, so no seconds were judged; restamped are the slow entries whose counts moved, and only those: K-2B-14, fewer calls, questions and steps than caf3079's; K-S3-58, its two scale ratios moved a hundredth or a few (it had stood off d09a966, the Codex review of batch 3's first integration); K-S4-02, fewer survey bytes a row than c5d34b8, its tier 2a, read. The same run held every other stamp but three drops older than this batch, each read the same on 3d893032, and the seconds of the four time entries of the scale and validate drivers, whose quiet stamps stand. AND ONE STANDS OFF bb42a22, lane H1's repair 1 (plan P4-D402), by kpi_run.py --only K-S4-16: K-S4-16, new. AND ONE STANDS OFF 167a609, its driver, by kpi_run.py --slow --only K-S4-17 in its window, loaded, no seconds judged: K-S4-17, new. AND ONE STANDS OFF 1df4ca4, lane H2's packing walk reading the counts of one margin together (plan P4-D403), by kpi_run.py --only K-S4-18 --print-values: K-S4-18, new. AND ONE STANDS OFF e170a24, lane H2's second repair, whose sweep counts only the twins that ended inside the driver's limit (Codex's review), by kpi_run.py --slow --only K-S4-19 --print-values at a load average of 18.1, so no seconds were judged: K-S4-19, new. AND SIX STAND OFF 830a099, batch 4c's merged head (lanes M5, E0a, H1 and H2 on batch 4b), by one kpi_run.py --print-values run of every id (push critic 8's MINOR 7), at a load average of 9.4 to 83, so no seconds were judged; restamped are the fast entries whose counts had drifted from their stamps, and only those: K-P2-01, more cases and cells as the suite grew (it had stood off 6b167c4); K-P3-02, ten and twenty-two more cells held; K-P4-23, more mutants over the same 2 uncovered branches; K-S2-02, its shares in the fourth figure; K-S4-03, its growth ratio a hundredth lower (it had stood off 01264bd, and 256a3bc and d943f6f before); K-S4-08, fewer bytes a row (it had stood off c13c350). The two whose drift is seconds and memory taken under load wait for a quiet window with the four time entries. AND ONE STANDS OFF 68fba33, batch 4c's driver for K-2B-42, by kpi_run.py --slow --only K-2B-42 --print-values: K-2B-42, its count bound replaced by a share bound, a changed policy (it had stood off 2f03adc). AND ONE STANDS OFF 9109683, lane E0b's analyst battery after its second review (plan P4-D398), new, by kpi_run.py --slow --print-values with the lane's ids named by --only, on a loaded machine, so no seconds were judged: K-BC-10 through the 20,000-row driver, where fc26d5d read it before the second review, 2a92bea by the rules before the first and f2b2a2c the same. AND ONE STANDS OFF 2a92bea, the same lane's build, by its night's kpi_run.py --slow --only K-BC-13: K-BC-13. AND ONE STANDS OFF 2c031ff, lane XW's workbook twin written as a stream (plan P4-D411) at its repair 2, by kpi_run.py --slow --only K-S4-22 --print-values: K-S4-22, new (it had stood off 8bb691c and 34a9fd5). AND ONE STANDS OFF 3735e47, lane G2T's KPI commit: K-S4-21, new, by kpi_run.py --slow --only K-S4-21 --print-values in a measurement window, G2's dense tail at 1,000,000 rows (plan P4-D405). AND ONE STANDS OFF bf16b29, lane G2T's second repair: K-S4-20, new, by kpi_run.py --only K-S4-20 --print-values, the number tail's range and spread over the gate's fixtures, its three recorded keys given ceilings there (Codex's review of the repair; it had stood off 17ec8f4). AND ONE STANDS OFF 589f3d7, batch 4k's pushed head, in the orchestrator's night window of 2026-10-27 under floor311 (Python 3.11) with a metadata-only dist-info, three hash seeds, by kpi_run.py --slow --print-values with the night's two ids of the describe's memory named by --only over an extracted copy, the machine loaded after about seven in the morning, so machine kinds were reported and never judged; written in at batch 4l's records: K-S4-11, recorded (it had stood off 8a02faa, batch 4d's pushed head, in the night window of 2026-10-21, and before it 2ab12d9, lane SR's, lane SR-A writing the same run in on its branch, the person-column run lane H3's; the entry stamped with it there stands off 820d55c since batch 4s's seal). AND FOUR STAND OFF 8e69e4a, batch 4e's merge of lane HX2, by one kpi_run.py --slow --print-values run with its ids named by --only over an extracted copy under floor311, the machine loaded, so no seconds were judged: K-P0-09, its rule naming the four runtime libraries since batch 4d (the tenth push critic's MAJOR 1; it stood on the base); and lane G2T's spread entries re-run on the merged head, K-P3-03 (off 1fc2ec1), K-S3-22 and K-P2-07 (both off 8df78b6). AND FIVE STAND OFF 4682d6a, batch 4e's records, in the orchestrator's night window of 2026-10-23, by kpi_run.py --slow --print-values with the six ids named by --only over an extracted copy under floor311, a pytest over lane HX4's whole tests folder beside its step 1 (pid 31250, 00:14 to 00:36; corrected at batch 4h's records), the PASS verdicts standing by the orchestrator's ruling of that morning (bounds met while disturbed): five of that run's six entries, the time entries and those owed with them since batch 4b, K-P3-12, K-S1-01, K-S1-05, K-S1-06 and K-S1-07 (each had stood off 8a02faa under the repository's venv; the sixth stands off a later tree since batch 4t's seal). AND ONE STANDS OFF 8ef2d7b, batch 4g's merge of lane ZR-a, every lane of the batch merged, by two kpi_run.py --slow --print-values runs with their ids named by --only over an extracted copy under floor311, the machine loaded, so no seconds were judged, each value as its earlier tree read it: K-P4-06, both its pinned nodes passing under the ceiling its entry states (off d90d16b, batch 4e's integrated head). AND ONE STANDS OFF 5976b41, lane SG's generate holding the twin once (plan P4-D415), by kpi_run.py --slow --only K-S4-12 --print-values at its day sizes, on a loaded machine, so no seconds were judged: K-S4-12, new. AND ONE STANDS OFF 6735eec, batch 4j's merge of lane CODES-3, by kpi_run.py --only K-HZ-04 --print-values over an extracted copy under floor311: K-HZ-04, the zoo's identifier cells out of pattern (plan P4-D428). AND ONE STANDS OFF 320bd11, batch 4k's records part 1 (lanes SH and CHv merged on batch 4j), by kpi_run.py --slow --print-values with its id named by --only over an extracted copy under floor311, the machine loaded, so no seconds were judged: K-S6-10, lane CHv's (it had stood off 3ac36f1, its repair 2). Batch 4j's records head ccebc947 had no fast run of its own (its index tree 267b0131 was measured, src identical), which push critic 14 accepted. AND THREE STAND OFF a5702b7, batch 4m's merged code (lanes UN-1a, CODES-1, GG and CHb on batch 4l part b's pushed head, plans P4-D438, P4-D439, P4-D440 and P4-D435; its src is the final head's), over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside other lanes' runs, so no seconds were judged: K-HZ-10 and K-HZ-11 (off d4ee8c1, lane CODES-1's repair 2 head) and K-HZ-12 (off 0617329, lane GG's repair 2) by one kpi_run.py --slow --print-values run with those named by --only. AND TWO STAND OFF 11f7d90, batch 4m's fully merged head (lanes SH2 and UN-1b beside the four above, plans P4-D434 and P4-D443), over an extracted copy by the same means: K-HZ-08 and K-HZ-09. AND ONE STANDS OFF 3355025, batch 4o's merged head with the orchestrator's four-line fix of the unanswered identifiers driver's helper (tests only; its src is c47a6ae's, byte for byte), by the same means: K-S3-66, one run (off 11f7d90; the goldens recorded again in the batch's records); the fix rounds' goldens recorder reproduces every record on fcd0116 and on 4324ace, and K-S3-66's exact test is green in the whole suite on 4324ace. AND ONE STANDS OFF 0c3a806, lane CHs's build head (the chain's describe at scale behind the switch, plan P4-D462, restated at its repair 1), by tools/measurements/kpi_chain_describe_scale.py run, each size a process of its own under guard.sh over extracted copies of that source, floor311, the machine loaded, so no seconds were judged, every value at the owner's size projected from the two largest sizes measured: K-S6-15, new; not run on batch 4q's merged head or on batch 4r's reviewed head, its run on the merged line owed, by hand, to a later records round or lane SX's nights. AND ONE STANDS OFF 58aae33, lane SPD2's repair-2 head before its records (plan P4-D461: the suite's largest cases of four files moved into a slow driver, the shard weights measured whole, and the floor-size legs of the hold routes kept in the suite, six since repair 2; its src is 2af926ce's, byte for byte), over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside other lanes' runs, so no seconds were judged: K-P0-10, restated by its dated amendment, its collected count by pytest --collect-only and its shard seconds the earlier measurement its value_at names, unresolved for this head. AND TWO STAND OFF b93f128, batch 4q's merged head (lanes ARR-a, TT, RO, ST, ID-ROOM2, CZ-A, CHs and SPD2 on batch 4p's fix-round head ba87102, with batch 4p's final head f0ce1e0 and the batch's owed records; plans P4-D445, P4-D457 to P4-D462 and P4-D466), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, eight runners side by side, the machine loaded beside other lanes' runs, so no seconds were judged: K-HZ-21, the merged lane SPD2's own (off 58aae33, that lane's head); and by the seal step's kpi_run.py --only K-P0-01 --print-values by the same means, alone, on a quiet machine: K-P0-01 (off 0f7ada2, lane ARR-a's); the others its runs stamped there stand off 820d55c and 59267e6, batch 4r's heads. AND SEVEN STAND OFF 820d55c, batch 4r's reviewed head (lanes SR2a, PRT-a and BT3a merged on batch 4q's final head a391424, whose tree is the public head 97a28db's; plans P4-D463, P4-D467 and P4-D468), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, nine runners side by side, the machine loaded beside other lanes' runs, so no seconds were judged: K-BC-11, which had stood off c22837e, batch 4q's fix head; K-S6-08, K-S6-05, K-S6-14, K-S6-04 and K-S6-06, each of which had stood off b93f128, batch 4q's merged head (batch 4r's fix round follows 820d55c on its sealed line, 40479c5 and 59267e6, tools and tests only, and git diff of the two heads over src is empty, so these stand for batch 4r's sealed head; batch 4s's merges changed the chain's and the patient layer's code after them, and these chain entries were not run on batch 4s's heads); and K-S4-09, the full driver tools/measurements/kpi_describe_groups.py by kpi_run.py --slow --only K-S4-09 --print-values in the same runner group, finished after batch 4r's push and stamped at batch 4s's seal (it had stood off 589f3d7, batch 4k's pushed head). AND TWO STAND OFF 59267e6, batch 4r's fix head (the reviewed head 820d55c with the fix round's two commits: clause (x)'s scan reads the private report decoded, word by word, and its driver hands the chain every argument the command gives; tools and tests only), by kpi_run.py --slow --print-values with both ids named by --only, one run alone in its runner, by the same means: K-S6-02 (off 6d21a2a, lane BT3a's head, which batch 4r's merge kept beside the published coverage bounds; its run on the reviewed head stopped at clause (x), whose wrapper this head fixes, and stamps nothing) and K-S6-03 (off b93f128, batch 4q's merged head). AND ONE STANDS OFF f0111ce, lane DST's repair-2 code head (plan P4-D474: offsets that follow the date), kpi_run.py under floor311 with a metadata-only dist-info: K-S3-53 by --only K-S3-53 --print-values over its thirty-one nodes, re-measured on the lane's change to the shared clock's offsets (it had stood off 891ebd3, the lane's repair-1 head, and before that off d9f09d4, landing 3b.7's shared clock and joint member after its Codex fix, and before that off b27ba1e, adbbe45, f0092e6, 9abca34, 98c823b and 057702e over fewer nodes); the entry stamped beside it there stands off 85eb675 since batch 4s's seal. AND ONE STANDS OFF e59d5c1, lane SV's head (plan P4-D476: validate reads a large checked twin in groups of columns), by kpi_run.py --slow --only K-S4-23 --print-values over an extracted copy in one guarded slot under floor311 with a metadata-only dist-info and the driver's night sizes, the machine loaded, so no seconds or peaks were judged: K-S4-23, new. AND ONE STANDS OFF 9545ede, batch 4r's sealed head, read by tools/measurements/kpi_suite_shards.py --kpi at batch 4s's seal from that head's final whole suite (its five shards at once through the suite runner under floor311, every shard exiting 0) against its collection by pytest --collect-only, the machine loaded beside other runs, so no seconds were judged: K-P0-11, registered from this run (plan P4-D461); the suite cost entry beside it, read from the same run and not stamped, stands where its own clause names it. AND THIRTY-THREE STAND OFF 34e9a21, the code head of batch 4t's first seal (lanes EZ-a, WIN, HB3-b's part a, CZ-G, CZ-G-b, HB3-a, HB3-a2, NOTES, ID-ROOM4, ID-ROOM3 and KV merged one a step on batch 4s's sealed head 03c8f8d, whose tree is the public head 7804872's, the owes step's commit, and the fix round's sixteen commits in three code rounds on the reviewed head 9846781, code and tests; plans P4-D479, P4-D481 to P4-D483, P4-D486 to P4-D490, P4-D493 and P4-D494), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, nine runners, the machine loaded beside other runs at the start of every step but K-HZ-38's, which bounds no second, so no seconds were judged: K-HZ-06, K-HZ-07 with K-HZ-15 (one run), K-HZ-14, K-HZ-16, K-HZ-19, K-HZ-20, K-S3-64, K-S3-65, K-HZ-01, K-HZ-02 and K-HZ-05 (one run of four entries), K-S8-01, K-S8-03, K-S8-05, K-S5-01 and K-S5-02 (one run), K-HZ-22, K-HZ-24, K-HZ-25, K-HZ-26, K-HZ-27 and K-HZ-28, each of which had stood off 85eb675, batch 4s's fix head; and the batch's lanes' own, each of which had stood off its lane's code: K-HZ-41 (fedc292), K-HZ-30 (5e03d3c), K-HZ-42 (253a72f), K-HZ-35 (73e7c7c), K-HZ-29 and K-HZ-36 (7e058f0), K-HZ-34 (dd5a512), K-HZ-38 (8e193e0) and K-HZ-23 (9750461); the nine proof groups of batch 4t's second seal read each of these thirty-two again, by the same means, on its final code head 9594f66 (this head with fix rounds 4 and 5, six commits, code and tests), equal key for key, so each stamp stands; and K-2B-38, by kpi_run.py --slow --only K-2B-38 --print-values over an extracted copy by the same means at batch 4t's first seal, one run started on the quiet reference machine, whose peak memory its evidence judges (it had stood off 4682d6a; not run again at the second seal). AND EIGHT STAND OFF 9594f66, batch 4t's final code head (the code head of its first seal, 34e9a21, with fix rounds 4 and 5, six commits, code and tests, merged into the line at its second seal; plan P4-D494), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, in the nine proof groups that read the other thirty-two equal, the machine loaded beside other runs at the start of every step but K-HZ-39's, which bounds no second, so no seconds were judged: K-HZ-03 (in one run with three entries that stay on 34e9a21), K-HZ-13, K-HZ-17, K-HZ-31, K-HZ-32, K-HZ-37, K-HZ-39 and K-HZ-40, each of which had stood off 34e9a21 and moved on machine readings alone (seconds, processor seconds, peak memory and ratios of two timings). AND ONE STANDS OFF fde2f26, lane CHON's head with the guard sized by the whole run (it stood off 7eb5f49 and 897876b before it on the lane's branch; plan P4-D464: the switch on, the landing that ships stage 6), by kpi_run.py --slow --print-values with its ids named by --only inside one guarded slot under floor311 with a metadata-only dist-info, the machine loaded, so no seconds were judged: K-S6-16, new. AND ONE STANDS OFF 1ecf70b, lane GRb2-b's repair 2 code (plan P4-D491 part b), by kpi_patient_intervals.py --kpi in one guarded slot, the machine loaded: K-BC-15, new (it had stood off 8c73e35, the lane's repair 1 head). AND ONE STANDS OFF 7a10666, lane CHG's repair 1 (plan P4-D492, G16.3's grouping gate; the product's bytes those of the lane's build head 85e29bb on lane CHON's build head 875b1b9), each by its driver over an extracted copy under floor311 with a metadata-only dist-info inside one guarded slot, the machine loaded, so no seconds were judged: K-S6-13 (it had stood off 820d55c, batch 4r's reviewed head, on the integration line, and off b93f128 on the lane's base). AND FOURTEEN STAND OFF 9ee0138, batch 4u's checked head (lanes BT3b, CHON, GRb, GRb2-b, CHG, MU and RU-a merged on the public head 218eb50, every shipped run switched, and the checks' seven commits, code and tests), by kpi_run.py --slow --only K-RU-01 --print-values over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, alone in its slot, so no seconds were judged: K-RU-01, its first switched stamp (it had stood off f409b09, lane RU-a's head, the product of the public head before the switch); and K-BC-14, new, by tools/measurements/kpi_model_utility.py --kpi by the same means, its first switched stamp, as lane MU's ruling enters it, its expected values set from this stamp by the battery's own ledger_entry and its headline owed while the board's cap is full; K-BC-01, K-BC-02, K-BC-03, K-BC-04, K-BC-05, K-BC-06, K-BC-07, K-BC-08, K-BC-09 and K-BC-12 by tools/measurements/kpi_analyst_battery.py --kpi --beside-unswitched by the same means (route S, route U's readings in each detail) and, for the first nine, their fast keys by one kpi_run.py --print-values run with those named by --only (K-BC-01 and K-BC-03 had stood off 7a10666, K-BC-12 off a5702b7, the rest off 9109683); and K-S6-01 and K-S6-12 by one kpi_run.py --slow --print-values run with those named by --only (K-S6-01 had stood off 820d55c, K-S6-12 off 7a10666). EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
+ "measurement_note": "Every value_at was measured on the product of caf3079 (the integrated tree of 2026-09-19) by one run of tools/measurements/kpi_run.py --slow --print-values on the QUIET reference machine -- load average 1.54 to 1.91, so seconds were judged -- and written in unchanged, except where this note names another tree below. Seconds and peak memory are judged only where kpi_rules.seconds_judged_here says so; elsewhere they are RECORDED, and one that breaks its rule under load is marked RED in its evidence. 190 ENTRIES STAND OFF THE BASE COMMIT in all, each carrying its tree and, in its value_at's measured_by, the run that took it, and test_kpi_ledger_integrity.py holds this note's names to that set; a clause's earlier trees are the lane's own commits before the stamp. TWENTY OF THEM ARE THESE, and the later trees are named after them: K-P0-05 on 05e7d89, the round-2 ledger pass of 2026-09-19; K-2B-19 on 230fc89, the repair pass of the mean-only landing; K-P4-20 on 3f6cd9f, landing 3.1's own commit, where the default smallest group was raised (plan P4-D316); K-S3-03, K-S3-04, K-S3-06, K-S3-07, K-S3-08, K-S3-09, K-S3-10 on 0317f5d, landing 3.3's own commit; K-2B-03, K-2B-05, K-2B-16, K-2B-49, K-2B-50, K-2B-51, K-P2-08, K-P2-09, K-P4-07, K-P4-22 on 1fc2ec1, THE INTEGRATION OF STAGE 3'S FIVE LANDINGS, where the numeric tail rule moved what the other four had measured and every one of these was re-measured. Every other value_at is caf3079's. AND ONE MORE STANDS OFF 27eecbe, stage 3's GATE: K-S3-14, the owner's accepted limit of 2026-09-23 that the disclosure floor counts rows and not people (plan P4-D348). AND ONE STANDS OFF a3c0cd1, the close of stage 3 (plans P4-D346 and P4-D347): K-2B-47, which gains `read_floor_refused`. AND THREE STAND OFF a7bbc21, THE CLOSE OF STAGE 3'S REVIEW (2026-09-24), one quiet run, seconds judged. Three moved with their MEASUREMENT: K-S3-01 and K-S3-02 record pinned_nodes_failing, which their rule bounds (governance item 9), and K-S3-05 is measured over the 1,800-row population it tests and a node bounding the 900-row refusal (item 6). AND ONE STANDS OFF f934876, a census of marks that is only a pool (plan P4-D352): K-S3-16, a value no earlier tree gives, which 2bc1418 and 47f20ef read the same. AND ONE STANDS OFF 67ba1de, the band searched a half at a time (plan P4-D359), after the whole suite passed there: K-S3-34, the owner's accepted limit of 2026-09-30, new, which 82b1f1a gives back too. AND TWO STAND OFF a47108a, the weekday guards dropped (plan P4-D365) and repaired at its review: K-S3-32, floor-only now, its certificate's verifier deleted (it had stood off e689072); and K-S3-39, its drawn-hole node asking the count pass on its census emptied (it had stood off 3168f65). AND ONE STANDS OFF de0acce, the second repair of that drop: K-S3-35, new at a47108a, the few-dates and room rules, the room rule asked again beside placeholder and declared days (it had stood off a47108a); the entry that counted the certificate's cost is retired with it. AND SEVEN STAND OFF e43a540, the tail-withholding drop and the end floor (plan P4-D375), re-based: K-S3-13, K-S3-15, K-S3-19, K-S3-23, K-S3-24, K-S3-25 and K-S3-30. AND FIVE STAND OFF 0abbd35, the same product, re-based by each driver: K-S3-11, K-S3-17, K-S3-18, K-S3-20 and K-S3-21. AND ONE STANDS OFF 8b41373, the same product with the evenly spaced columns its driver gained at the review of landing 3b.G1: K-S3-50, its other keys as they were (it had stood off 74cb50e). AND ONE STANDS OFF 6701c68, the second repair round of landing T1 (plan P4-D370), at a load average of 13.4: K-S3-52, new, over more pinned cases than its earlier trees. AND ONE STANDS OFF 784ef3e, landing R0 (plan P4-D380) after its Codex review, every pinned node passing, at a load average of 46, so no seconds judged: K-S3-54, new, which earlier trees gave at the same counts over fewer nodes; its readings take half the big-number steps 3827f20's did. AND ONE STANDS OFF fbbfeb2, the same code with the residual of that review's item 2, every pinned node passing, at a load average of 10.3: K-S3-55, new, which earlier trees gave at the same counts over fewer nodes, before a run of spaces or declared points was read once. AND ONE STANDS OFF e8c6651, the repair of the two items left open in the review of lane R1 (plan P4-D381), the tree clean, at a load average of 6.6: K-S3-56, which bounds not_described at nought, where earlier trees read the same counts over fewer nodes and cases. AND ONE STANDS OFF 3821405, the third pass over item 3 of Codex's review of the typed workbook cells (plan P4-D382), at a load average near ten: K-S3-57, where earlier trees read the same over fewer nodes and cases. AND ONE STANDS OFF 6eed1e8, lane G3 at the fix of its Codex review, the count pass's paid merge kept between attempts (plan P4-D376): K-S3-51, new at the lane's repair round, reading 110cb46's pass, 311cf30's pool and 5f28017's files of ranks beside it, where earlier trees read the same before the entry counted the moves. AND ONE STANDS OFF 8f20979, landing 3b.5's second step after its Codex round's verification (plan P4-D374), by kpi_run.py --slow with the clock columns' driver beside it and --print-values at a one-minute load average of 10.7, so no seconds were judged (that driver stood there too, M3 compared off the heaps): K-S3-49, route 1's stand-in times repeated below the floor, one hundred and eleven pinned (it had stood off 7b39fd6 over one hundred and nine, before that off cdd739c, the merge of the route-2 correction into round 2 of landing 3b.5's review stream, over one hundred and seven, which 82bb46b read the same over one hundred and seven, 82e4858 over one hundred and five and 144ebcd over ninety-four, 9dc86d2, 2fe77b1, 42186cc and 126f32d over sixty-nine, 5888a44 over sixty-seven, 014d977 over sixty, 25c96ec over forty-two, 20c709b over twenty-eight and the lane's commit before it over twelve). AND ONE STANDS OFF b5532ee, stage 4's packing walk reading the counts together (plan P4-D389): K-S4-04, new and open, with the walk as 493f6f8 shipped it measured beside it on the same twins and questions, where earlier trees gave the same counts. AND ONE STANDS OFF 01264bd, the subtraction guard dropped and the stand-in walk's bound lifted (plan P4-D390): K-2B-28, its pooled label's count of one read off the pool where the base read it as n_missing. AND ONE STANDS OFF 51a48ca, lane L1, codes written as the source wrote them, its Codex repair round (plan P4-D390; it stood off 921d549, the Codex fix round, and 7e604ea, the repair round): K-S3-61, repaired, where d5ac43f read the limit the review of plan P4-D390 states, a form of a code read as a number by its exponent filling. AND ONE STANDS OFF ca9d612, the last repair of the Codex review of plan P4-D390, the tree clean, at a load average near twenty: K-S3-12, whose evidence says what the counts of one to ten and the roles do block by block against 493f6f8, at the counts 01264bd gave (it had stood off earlier trees of that review, and before them off 3587709, the repair pass of landing 3.5, whose seeded battery it counts). AND ONE STANDS OFF 9383c71, landing 3b.2-H's hour census (plan P4-D371) as the repair of its Codex review's verification left it, at a load average of 16.9: K-S3-40, new, over the review's clauses and its verification's (it had stood off 0bfbe4a, and before it d0e1808). AND TWO STAND OFF 6be684f, batch 4d's merged head before its records, restamped there because their stamps stood on a J3 tree short of J3's final 05887b85 (push critic 8's MINOR 6), by kpi_run.py --only K-S3-41 --only K-S3-62 --print-values, at a load average of 4.3, so no seconds were judged, each value as before: K-S3-41, the accepted class widened to minutes and seconds; and K-S3-62, lane J's (they had stood off 4bbddb5, lane J3's tree after its Codex review on lane J2's merge of landing 3b.4, and before it b989692, 34788b3, 1484c52, b747d4e, c45bb07, 9c3881d, 9c3881d and 493d9c8). AND ONE STANDS OFF 7e9caa6, the Codex review of batch 3b part 2d's integration (plans P4-D374, P4-D378), at a load average near 16, so no seconds were judged: K-S3-48, two fewer minute censuses as M3 asks the fine table, the clinic's withheld (it had stood off 8f20979). AND TWO STAND OFF 2c53bbf, that review's fix stream merged into batch 3b part 2f (its commits after the owner's authorship rule carried one by one), at a load average of 14.6, so no seconds were judged: K-S3-38, its seconds alone (it had stood off the fix stream's own item 3 commit, 7e9caa6, c0fb24c, 9383c71 and b989692); and K-S3-31, its values equal to its stamp on 6b167c4 (the sixth push's critic, minor 6); the other five of that run held their stamps. AND ONE STANDS OFF 4d17225, the weekday census of a column of moments (plan P4-D367) after Codex's review of the landing, every item fixed: K-S3-37, new at the lane's first commit, an accepted limit stated by status alone (the two had stood off the lane's earlier trees; the other, stamped there beside it, stands off lane D4s's commit since, below). AND ONE STANDS OFF 5de77e8, G5.5's sign repairs without the square of the strata (plan P4-D387), their walks begun again where nought stops being held, their growth taken on counted values with ordering comparisons counted too: K-S4-05, new, whose tests take the measure of 564c61a's function too (it had stood off the lane's earlier trees). AND ONE STANDS OFF b64aa6b, lane SH2's repair 1 (plan P4-D434), by kpi_run.py --slow --print-values with the lane's ids and landing R4's named by --only, under floor311, loaded, so no seconds were judged: K-S3-60, restated to the Safe Harbor holds of numbers that are dates, a count of days typed on the command line freeing no ZIP hold and births showing an age over eighty-nine held (it had stood off 1f3d9af, landing R4 (plan P4-D384) as the verification of Codex's review left it, at a load average of 4 to eleven, every value as 02dd9b3 read it over eighty-seven and 290 before that verification pinned four clauses more, a1a34bc before the offline scan's repair, b3bc82b over sixty-six nodes and 137 cases before Codex's review pinned twenty-one more, c31329a over thirty-two before the review added seven keys (the heap at 10,000 rows, NF113's names, the figures of COARSE, the writers, a days-since-1840 twin's halves), c7ae131 over forty-eight before the repair's second pass added an eighth (the columns of COARSE Q3 asks), c7b2690 over forty-nine before the second review added a ninth (the stated limits) and widened the heap to two placeholders at one end and every system offered, and 0ce697d over sixty-one nodes and one hundred and sixteen cases before its verification pinned five clauses more). AND TWO STAND OFF 6d5a86c, the records pass after the push critic of 2026-10-09, the tree clean: K-2B-26 and K-2B-52, each re-stamped after plan P4-D390 took its ruling-5 node, their rule unchanged. AND TWO STAND OFF 48f71d5, the day-of-month census (plan P4-D368) after its Codex review, and its own commit, by kpi_run.py --only K-S3-43 --print-values and kpi_run.py --slow --only K-S3-44 --print-values: K-S3-43, new, where 6efe103 read it over twenty-six nodes, 1b38df7 over twenty-two and bdf0566 over eighteen; and K-S3-44, new, where 1b38df7 read it before the review. AND ONE STANDS OFF 2dfa4d7, the count pass splitting the two tails' ranks first (lane D4s, plan P4-D369 part one; first on d618ee5) and its Codex review's texts, by kpi_run.py --print-values with its two ids each named by --only: K-S3-59, re-based there over its thirty-four pinned nodes. Before it K-S3-59 stood off f53ec9e, landing 3b.D1b after the orchestrator's rulings of 2026-10-07 and 2026-10-08 (plan P4-D388), where earlier trees read the same over fewer nodes and cases. AND TWO STAND OFF b6eca79, the dates that stand out (plan P4-D369) at their Codex review's fix, by kpi_run.py --slow --print-values with the lane's ids each named by --only: K-S3-46 and K-S3-47, where 3197634 read them alike under the orchestrator's rulings of 2026-10-13; 81bff8c read K-S3-46's lists_given_way 2, listed_off 76 and count_missed 0, and e34b853 count_missed 2 and listed_off 0. AND TWO STAND OFF 865b61f, batch 3b's first part merged with a tail date alone in its stratum traded (the Codex review of landing I3b1), by kpi_run.py --only K-S3-36 --only K-S3-45 --print-values: K-S3-36 over its thirty-seven nodes, where 2dfa4d7 read thirty-two, and K-S3-45 over thirty-nine, where 6620a31 read thirty-eight, b6eca79 thirty-six, 0ab4e5d twenty-nine, 3197634 twenty-five, 81bff8c twenty-one and e34b853 twenty. AND TWO STAND OFF d46be94, stage 4 lane S4c's report in pieces and dense tail (plans P4-D390 and P4-D377) after Codex's review of the lane and its verifier, by kpi_run.py --print-values with the lane's ids named by --only: K-S4-06 and K-S4-07, new, where 059f273 read the same but two lines fewer of the placement at a million strata. AND ONE STANDS OFF 808af08, batch 4a's merge of lanes S4b-num, S4c, R6, L2 and J3 (plans P4-D377, P4-D387, P4-D390, P4-D391 and P4-D392), by kpi_run.py --slow --print-values with five ids named by --only, at a load average of 4.2 to 5.3, so no seconds were judged: K-S3-42, its seconds alone (it had stood off 2c53bbf); the other four of that run held their stamps. AND ONE STANDS OFF 5e42f38, lane TI's install and first run (plan P4-D397) after its repair 2, by kpi_run.py --only 'K-S8-*' --print-values: K-S8-04, new. AND ONE STANDS OFF 4cb74e1, batch 4b's records head, by kpi_run.py --only K-S4-15 --print-values: K-S4-15, new, lane S4b-num's work counts given a KPI by the orchestrator's decision on push critic 7's item 4, under the id the December plan gives them (the ids before it are reserved there; the entry stood under one of them off 529aa98 until Codex's review of batch 4b's integration fixes), its ratios judged unrounded since that review. AND THREE STAND OFF 8df78b6, batch 4b's records head, by one kpi_run.py --slow run of every id but the whole suite's own (push critic 7, item 3), at a load average of 3.1 to 10.1, so no seconds were judged; restamped are the slow entries whose counts moved, and only those: K-2B-14, fewer calls, questions and steps than caf3079's; K-S3-58, its two scale ratios moved a hundredth or a few (it had stood off d09a966, the Codex review of batch 3's first integration); K-S4-02, fewer survey bytes a row than c5d34b8, its tier 2a, read. The same run held every other stamp but three drops older than this batch, each read the same on 3d893032, and the seconds of the four time entries of the scale and validate drivers, whose quiet stamps stand. AND ONE STANDS OFF bb42a22, lane H1's repair 1 (plan P4-D402), by kpi_run.py --only K-S4-16: K-S4-16, new. AND ONE STANDS OFF 167a609, its driver, by kpi_run.py --slow --only K-S4-17 in its window, loaded, no seconds judged: K-S4-17, new. AND ONE STANDS OFF 1df4ca4, lane H2's packing walk reading the counts of one margin together (plan P4-D403), by kpi_run.py --only K-S4-18 --print-values: K-S4-18, new. AND ONE STANDS OFF e170a24, lane H2's second repair, whose sweep counts only the twins that ended inside the driver's limit (Codex's review), by kpi_run.py --slow --only K-S4-19 --print-values at a load average of 18.1, so no seconds were judged: K-S4-19, new. AND SIX STAND OFF 830a099, batch 4c's merged head (lanes M5, E0a, H1 and H2 on batch 4b), by one kpi_run.py --print-values run of every id (push critic 8's MINOR 7), at a load average of 9.4 to 83, so no seconds were judged; restamped are the fast entries whose counts had drifted from their stamps, and only those: K-P2-01, more cases and cells as the suite grew (it had stood off 6b167c4); K-P3-02, ten and twenty-two more cells held; K-P4-23, more mutants over the same 2 uncovered branches; K-S2-02, its shares in the fourth figure; K-S4-03, its growth ratio a hundredth lower (it had stood off 01264bd, and 256a3bc and d943f6f before); K-S4-08, fewer bytes a row (it had stood off c13c350). The two whose drift is seconds and memory taken under load wait for a quiet window with the four time entries. AND ONE STANDS OFF 68fba33, batch 4c's driver for K-2B-42, by kpi_run.py --slow --only K-2B-42 --print-values: K-2B-42, its count bound replaced by a share bound, a changed policy (it had stood off 2f03adc). AND ONE STANDS OFF 9109683, lane E0b's analyst battery after its second review (plan P4-D398), new, by kpi_run.py --slow --print-values with the lane's ids named by --only, on a loaded machine, so no seconds were judged: K-BC-10 through the 20,000-row driver, where fc26d5d read it before the second review, 2a92bea by the rules before the first and f2b2a2c the same. AND ONE STANDS OFF 2a92bea, the same lane's build, by its night's kpi_run.py --slow --only K-BC-13: K-BC-13. AND ONE STANDS OFF 2c031ff, lane XW's workbook twin written as a stream (plan P4-D411) at its repair 2, by kpi_run.py --slow --only K-S4-22 --print-values: K-S4-22, new (it had stood off 8bb691c and 34a9fd5). AND ONE STANDS OFF 3735e47, lane G2T's KPI commit: K-S4-21, new, by kpi_run.py --slow --only K-S4-21 --print-values in a measurement window, G2's dense tail at 1,000,000 rows (plan P4-D405). AND ONE STANDS OFF bf16b29, lane G2T's second repair: K-S4-20, new, by kpi_run.py --only K-S4-20 --print-values, the number tail's range and spread over the gate's fixtures, its three recorded keys given ceilings there (Codex's review of the repair; it had stood off 17ec8f4). AND ONE STANDS OFF 589f3d7, batch 4k's pushed head, in the orchestrator's night window of 2026-10-27 under floor311 (Python 3.11) with a metadata-only dist-info, three hash seeds, by kpi_run.py --slow --print-values with the night's two ids of the describe's memory named by --only over an extracted copy, the machine loaded after about seven in the morning, so machine kinds were reported and never judged; written in at batch 4l's records: K-S4-11, recorded (it had stood off 8a02faa, batch 4d's pushed head, in the night window of 2026-10-21, and before it 2ab12d9, lane SR's, lane SR-A writing the same run in on its branch, the person-column run lane H3's; the entry stamped with it there stands off 820d55c since batch 4s's seal). AND FOUR STAND OFF 8e69e4a, batch 4e's merge of lane HX2, by one kpi_run.py --slow --print-values run with its ids named by --only over an extracted copy under floor311, the machine loaded, so no seconds were judged: K-P0-09, its rule naming the four runtime libraries since batch 4d (the tenth push critic's MAJOR 1; it stood on the base); and lane G2T's spread entries re-run on the merged head, K-P3-03 (off 1fc2ec1), K-S3-22 and K-P2-07 (both off 8df78b6). AND FIVE STAND OFF 4682d6a, batch 4e's records, in the orchestrator's night window of 2026-10-23, by kpi_run.py --slow --print-values with the six ids named by --only over an extracted copy under floor311, a pytest over lane HX4's whole tests folder beside its step 1 (pid 31250, 00:14 to 00:36; corrected at batch 4h's records), the PASS verdicts standing by the orchestrator's ruling of that morning (bounds met while disturbed): five of that run's six entries, the time entries and those owed with them since batch 4b, K-P3-12, K-S1-01, K-S1-05, K-S1-06 and K-S1-07 (each had stood off 8a02faa under the repository's venv; the sixth stands off a later tree since batch 4t's seal). AND ONE STANDS OFF 8ef2d7b, batch 4g's merge of lane ZR-a, every lane of the batch merged, by two kpi_run.py --slow --print-values runs with their ids named by --only over an extracted copy under floor311, the machine loaded, so no seconds were judged, each value as its earlier tree read it: K-P4-06, both its pinned nodes passing under the ceiling its entry states (off d90d16b, batch 4e's integrated head). AND ONE STANDS OFF 5976b41, lane SG's generate holding the twin once (plan P4-D415), by kpi_run.py --slow --only K-S4-12 --print-values at its day sizes, on a loaded machine, so no seconds were judged: K-S4-12, new. AND ONE STANDS OFF 6735eec, batch 4j's merge of lane CODES-3, by kpi_run.py --only K-HZ-04 --print-values over an extracted copy under floor311: K-HZ-04, the zoo's identifier cells out of pattern (plan P4-D428). AND ONE STANDS OFF 320bd11, batch 4k's records part 1 (lanes SH and CHv merged on batch 4j), by kpi_run.py --slow --print-values with its id named by --only over an extracted copy under floor311, the machine loaded, so no seconds were judged: K-S6-10, lane CHv's (it had stood off 3ac36f1, its repair 2). Batch 4j's records head ccebc947 had no fast run of its own (its index tree 267b0131 was measured, src identical), which push critic 14 accepted. AND THREE STAND OFF a5702b7, batch 4m's merged code (lanes UN-1a, CODES-1, GG and CHb on batch 4l part b's pushed head, plans P4-D438, P4-D439, P4-D440 and P4-D435; its src is the final head's), over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside other lanes' runs, so no seconds were judged: K-HZ-10 and K-HZ-11 (off d4ee8c1, lane CODES-1's repair 2 head) and K-HZ-12 (off 0617329, lane GG's repair 2) by one kpi_run.py --slow --print-values run with those named by --only. AND TWO STAND OFF 11f7d90, batch 4m's fully merged head (lanes SH2 and UN-1b beside the four above, plans P4-D434 and P4-D443), over an extracted copy by the same means: K-HZ-08 and K-HZ-09. AND ONE STANDS OFF 3355025, batch 4o's merged head with the orchestrator's four-line fix of the unanswered identifiers driver's helper (tests only; its src is c47a6ae's, byte for byte), by the same means: K-S3-66, one run (off 11f7d90; the goldens recorded again in the batch's records); the fix rounds' goldens recorder reproduces every record on fcd0116 and on 4324ace, and K-S3-66's exact test is green in the whole suite on 4324ace. AND ONE STANDS OFF 0c3a806, lane CHs's build head (the chain's describe at scale behind the switch, plan P4-D462, restated at its repair 1), by tools/measurements/kpi_chain_describe_scale.py run, each size a process of its own under guard.sh over extracted copies of that source, floor311, the machine loaded, so no seconds were judged, every value at the owner's size projected from the two largest sizes measured: K-S6-15, new; not run on batch 4q's merged head or on batch 4r's reviewed head, its run on the merged line owed, by hand, to a later records round or lane SX's nights. AND ONE STANDS OFF 58aae33, lane SPD2's repair-2 head before its records (plan P4-D461: the suite's largest cases of four files moved into a slow driver, the shard weights measured whole, and the floor-size legs of the hold routes kept in the suite, six since repair 2; its src is 2af926ce's, byte for byte), over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside other lanes' runs, so no seconds were judged: K-P0-10, restated by its dated amendment, its collected count by pytest --collect-only and its shard seconds the earlier measurement its value_at names, unresolved for this head. AND TWO STAND OFF b93f128, batch 4q's merged head (lanes ARR-a, TT, RO, ST, ID-ROOM2, CZ-A, CHs and SPD2 on batch 4p's fix-round head ba87102, with batch 4p's final head f0ce1e0 and the batch's owed records; plans P4-D445, P4-D457 to P4-D462 and P4-D466), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, eight runners side by side, the machine loaded beside other lanes' runs, so no seconds were judged: K-HZ-21, the merged lane SPD2's own (off 58aae33, that lane's head); and by the seal step's kpi_run.py --only K-P0-01 --print-values by the same means, alone, on a quiet machine: K-P0-01 (off 0f7ada2, lane ARR-a's); the others its runs stamped there stand off 820d55c and 59267e6, batch 4r's heads. AND SEVEN STAND OFF 820d55c, batch 4r's reviewed head (lanes SR2a, PRT-a and BT3a merged on batch 4q's final head a391424, whose tree is the public head 97a28db's; plans P4-D463, P4-D467 and P4-D468), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, nine runners side by side, the machine loaded beside other lanes' runs, so no seconds were judged: K-BC-11, which had stood off c22837e, batch 4q's fix head; K-S6-08, K-S6-05, K-S6-14, K-S6-04 and K-S6-06, each of which had stood off b93f128, batch 4q's merged head (batch 4r's fix round follows 820d55c on its sealed line, 40479c5 and 59267e6, tools and tests only, and git diff of the two heads over src is empty, so these stand for batch 4r's sealed head; batch 4s's merges changed the chain's and the patient layer's code after them, and these chain entries were not run on batch 4s's heads); and K-S4-09, the full driver tools/measurements/kpi_describe_groups.py by kpi_run.py --slow --only K-S4-09 --print-values in the same runner group, finished after batch 4r's push and stamped at batch 4s's seal (it had stood off 589f3d7, batch 4k's pushed head). AND TWO STAND OFF 59267e6, batch 4r's fix head (the reviewed head 820d55c with the fix round's two commits: clause (x)'s scan reads the private report decoded, word by word, and its driver hands the chain every argument the command gives; tools and tests only), by kpi_run.py --slow --print-values with both ids named by --only, one run alone in its runner, by the same means: K-S6-02 (off 6d21a2a, lane BT3a's head, which batch 4r's merge kept beside the published coverage bounds; its run on the reviewed head stopped at clause (x), whose wrapper this head fixes, and stamps nothing) and K-S6-03 (off b93f128, batch 4q's merged head). AND ONE STANDS OFF f0111ce, lane DST's repair-2 code head (plan P4-D474: offsets that follow the date), kpi_run.py under floor311 with a metadata-only dist-info: K-S3-53 by --only K-S3-53 --print-values over its thirty-one nodes, re-measured on the lane's change to the shared clock's offsets (it had stood off 891ebd3, the lane's repair-1 head, and before that off d9f09d4, landing 3b.7's shared clock and joint member after its Codex fix, and before that off b27ba1e, adbbe45, f0092e6, 9abca34, 98c823b and 057702e over fewer nodes); the entry stamped beside it there stands off 85eb675 since batch 4s's seal. AND ONE STANDS OFF e59d5c1, lane SV's head (plan P4-D476: validate reads a large checked twin in groups of columns), by kpi_run.py --slow --only K-S4-23 --print-values over an extracted copy in one guarded slot under floor311 with a metadata-only dist-info and the driver's night sizes, the machine loaded, so no seconds or peaks were judged: K-S4-23, new. AND ONE STANDS OFF 9545ede, batch 4r's sealed head, read by tools/measurements/kpi_suite_shards.py --kpi at batch 4s's seal from that head's final whole suite (its five shards at once through the suite runner under floor311, every shard exiting 0) against its collection by pytest --collect-only, the machine loaded beside other runs, so no seconds were judged: K-P0-11, registered from this run (plan P4-D461); the suite cost entry beside it, read from the same run and not stamped, stands where its own clause names it. AND THIRTY-TWO STAND OFF 34e9a21, the code head of batch 4t's first seal (lanes EZ-a, WIN, HB3-b's part a, CZ-G, CZ-G-b, HB3-a, HB3-a2, NOTES, ID-ROOM4, ID-ROOM3 and KV merged one a step on batch 4s's sealed head 03c8f8d, whose tree is the public head 7804872's, the owes step's commit, and the fix round's sixteen commits in three code rounds on the reviewed head 9846781, code and tests; plans P4-D479, P4-D481 to P4-D483, P4-D486 to P4-D490, P4-D493 and P4-D494), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, nine runners, the machine loaded beside other runs at the start of every step but K-HZ-38's, which bounds no second, so no seconds were judged: K-HZ-06, K-HZ-07 with K-HZ-15 (one run), K-HZ-14, K-HZ-16, K-HZ-19, K-HZ-20, K-S3-64, K-S3-65, K-HZ-01, K-HZ-02 and K-HZ-05 (one run of four entries), K-S8-01, K-S8-03, K-S8-05, K-S5-01 and K-S5-02 (one run), K-HZ-22, K-HZ-24, K-HZ-25, K-HZ-26, K-HZ-27 and K-HZ-28, each of which had stood off 85eb675, batch 4s's fix head; and the batch's lanes' own, each of which had stood off its lane's code: K-HZ-41 (fedc292), K-HZ-30 (5e03d3c), K-HZ-42 (253a72f), K-HZ-35 (73e7c7c), K-HZ-36 (7e058f0), K-HZ-34 (dd5a512), K-HZ-38 (8e193e0) and K-HZ-23 (9750461); the nine proof groups of batch 4t's second seal read each of these thirty-one again, by the same means, on its final code head 9594f66 (this head with fix rounds 4 and 5, six commits, code and tests), equal key for key, so each stamp stands; and K-2B-38, by kpi_run.py --slow --only K-2B-38 --print-values over an extracted copy by the same means at batch 4t's first seal, one run started on the quiet reference machine, whose peak memory its evidence judges (it had stood off 4682d6a; not run again at the second seal). AND SEVEN STAND OFF 9594f66, batch 4t's final code head (the code head of its first seal, 34e9a21, with fix rounds 4 and 5, six commits, code and tests, merged into the line at its second seal; plan P4-D494), each by kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, in the nine proof groups that read the other thirty-two equal, the machine loaded beside other runs at the start of every step but K-HZ-39's, which bounds no second, so no seconds were judged: K-HZ-03 (in one run with three entries that stay on 34e9a21), K-HZ-13, K-HZ-17, K-HZ-31, K-HZ-32, K-HZ-39 and K-HZ-40, each of which had stood off 34e9a21 and moved on machine readings alone (seconds, processor seconds, peak memory and ratios of two timings). AND ONE STANDS OFF fde2f26, lane CHON's head with the guard sized by the whole run (it stood off 7eb5f49 and 897876b before it on the lane's branch; plan P4-D464: the switch on, the landing that ships stage 6), by kpi_run.py --slow --print-values with its ids named by --only inside one guarded slot under floor311 with a metadata-only dist-info, the machine loaded, so no seconds were judged: K-S6-16, new. AND ONE STANDS OFF 1ecf70b, lane GRb2-b's repair 2 code (plan P4-D491 part b), by kpi_patient_intervals.py --kpi in one guarded slot, the machine loaded: K-BC-15, new (it had stood off 8c73e35, the lane's repair 1 head). AND ONE STANDS OFF 7a10666, lane CHG's repair 1 (plan P4-D492, G16.3's grouping gate; the product's bytes those of the lane's build head 85e29bb on lane CHON's build head 875b1b9), each by its driver over an extracted copy under floor311 with a metadata-only dist-info inside one guarded slot, the machine loaded, so no seconds were judged: K-S6-13 (it had stood off 820d55c, batch 4r's reviewed head, on the integration line, and off b93f128 on the lane's base). AND ELEVEN STAND OFF 9ee0138, batch 4u's checked head (lanes BT3b, CHON, GRb, GRb2-b, CHG, MU and RU-a merged on the public head 218eb50, every shipped run switched, and the checks' seven commits, code and tests), by the means named below, the machine loaded, so no seconds were judged: K-BC-01, K-BC-02, K-BC-03, K-BC-04, K-BC-05, K-BC-06, K-BC-07, K-BC-08, K-BC-09 and K-BC-12 by tools/measurements/kpi_analyst_battery.py --kpi --beside-unswitched by the same means (route S, route U's readings in each detail) and, for the first nine, their fast keys by one kpi_run.py --print-values run with those named by --only (K-BC-01 and K-BC-03 had stood off 7a10666, K-BC-12 off a5702b7, the rest off 9109683); and K-S6-01 by one kpi_run.py --slow --print-values run with it named by --only (it had stood off 820d55c). AND FIVE STAND OFF 0622469, batch 4v's merged line (lanes RX-1, GRb2-c and CHG-b merged in three steps on batch 4u's sealed head, whose tree is the public head's; plans P4-D486, P4-D491 part c and P4-D492 part b), each by its driver over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, one at a time, the machine loaded beside the whole suite, so no seconds were judged: K-HZ-29 and K-HZ-37 by kpi_run.py --slow --print-values with their ids named by --only; K-RU-01 by kpi_run.py --slow --only K-RU-01 --print-values; K-BC-14 by tools/measurements/kpi_model_utility.py --kpi, its expected values set again from this stamp by the battery's own ledger_entry; and K-S6-12 by kpi_run.py --slow --print-values with its id named by --only. EACH VALUE IS READ FROM ITS ENTRY'S value_at AND NEVER RESTATED HERE.",
  "reference_machine": {
   "name": "Apple M4, 10 cores",
   "platform_machine": "arm64",
@@ -7062,69 +7062,119 @@
    "measured_on": "tools/measurements/kpi_moment_polish.py: tests/analyst_tables.py's six tables and tests/moment_polish_tables.py's invented table of two near pairs, at 20,000 rows, seed 1, the ledger's fixed test key; the walk at twin seed 0, the implied slope and the shipped twin at twin seeds 0, 1 and 2; three fresh samples a table (seeds 1100 to 1102)",
    "evidence": "RE-STAMPED AT LANE CHG'S REPAIR 1 (2026-11-13, 7a10666; plan P4-D492), RED: the twins' least share inside 0.9013 under the floor 0.924 set on the ungated polish (0.9253), which copied the moments the gate now drops; by class (by_class: kept, dropped, never aimed at) the dropped moments are met at a fresh sample's rate (band means 737 to 747 of 769 against 734 to 744) and the band spread joins the band mean under the fresh samples; every exact key 0; the floor is the orchestrator's to move or keep. RE-STAMPED ON BATCH 4r'S REVIEWED HEAD (2026-11-09, 820d55c): OPEN-held, every key as on b93f128 but its seconds (machine kinds), its named pair as before. RE-STAMPED ON BATCH 4q'S MERGED HEAD (2026-11-07, b93f128): OPEN-held, every key as on f397dbd but its seconds (machine kinds), its named pair as before. RE-STAMPED ON BATCH 4p'S MERGED HEAD WITH ITS DRIVER FIXED (2026-11-06, f397dbd: the driver passes `chain_check._ladder_of` the description's own `L2` record, the argument lane CHa2's merge made required; its run on fc01f09 stopped at that call before it printed a value): OPEN-held, every bound met, its two named gaps as before (band means under the fresh samples' share; the invented 0.95 pair outside its bound at 20,000 rows, 0.9411 to 0.9491 against 0.9719, the 0.995 pair inside). Against lane MPg's b479de0, on the same 5,836 moments over 63 polished columns, every exact key at 0 and the fresh samples' figures equal: the shipped twins' share inside 0.9253 to 0.9267 (0.9291 to 0.9308; bound 0.924), their least count of correlations inside 105 (106; bound 104). The seven tables' switched descriptions, described on six trees (planning-notes wave3/merge-4p/s4), are byte for byte lane MPg's head's on batch 4o's merged head and at lanes BT2's and GRa's merges, and move at lane CHa2's alone: `w_te` nought and `l2_cut` in the procedure record of all seven, one more `L2` band on ST3's `censor_date` (RULE ONE_BAND), ST1's and ST6's families drawn anew; lane CHa2's merge accounts for the moves. Lane MPg's build and repair 1 (plan P4-D456). The battery's estimates on the same steps are the plan decision's, measured by the lane's harness over lane E0b's own functions (K-BC-01 and K-BC-02 measure the default twin, which this lane leaves byte for byte). STATED GAPS, kept OPEN: band means under the fresh samples' share (the price of reading no number's means in a correlated partner's bands), and the invented table's 0.95 pair outside its bound at 20,000 rows, where one member's chain level is L0 and its family's parents exclude the column it is correlated with (plan P4-D456, its stated limits). LANE MPg'S REPAIR 2 (2026-11-04, plan P4-D456), on lane MPp's finer grid of z: the goals projected only inside a common row set, an incomplete pair's own spreads aimed at and judged (88 of them on the seven tables: the twins hold 86 to 88, the fresh samples 73 to 82), at most 24 partners a number (the seven tables hold at most 17 numbers, so the cap moves none of their bytes), a pair's aim bounded half way from its goal to 1: 5,836 moments judged, the shipped twins 0.9291, 0.9308 and 0.9299 against fresh 0.9383, 0.9273 and 0.9267; correlations 106 of 109 on each twin; band means still under the fresh share (1,890 to 1,903 of 2,039 against 1,947 to 1,985). The 0.95 pair stays outside its bound (0.9411 to 0.9493 against 0.9719; LANE MPg RULINGS 8 (1): the cause unchanged by the grid), the 0.995 pair inside (0.997816 to 0.997907 against 0.997851, bound 0.000086).",
    "value_at": {
-    "commit": "9ee0138",
-    "date": "2026-11-17",
+    "commit": "0622469",
+    "date": "2026-11-18",
     "value": {
      "aimed_entries": {
-      "dropped": 419,
+      "curve": 0,
+      "dropped": 276,
+      "held": 143,
       "kept": 296
      },
      "blanks_moved": 0,
      "by_class": {
+      "curve": {},
       "dropped": {
        "band mean": [
-        769,
+        687,
         [
-         737,
-         747,
-         741
+         662,
+         671,
+         669
         ],
         [
-         744,
-         736,
-         734
+         663,
+         657,
+         656
         ],
-        748,
-        767
+        667,
+        685
        ],
        "band share": [
-        1035,
+        572,
         [
-         999,
-         1003,
-         991
+         563,
+         560,
+         559
         ],
         [
-         993,
-         993,
-         994
+         549,
+         549,
+         552
         ],
-        1004,
-        1034
+        557,
+        572
        ],
        "band spread": [
-        769,
+        687,
         [
-         671,
-         681,
-         682
+         598,
+         606,
+         612
         ],
         [
-         673,
-         665,
-         662
+         608,
+         599,
+         598
         ],
-        677,
-        763
+        603,
+        685
+       ]
+      },
+      "held": {
+       "band mean": [
+        82,
+        [
+         82,
+         80,
+         80
+        ],
+        [
+         81,
+         79,
+         78
+        ],
+        81,
+        82
+       ],
+       "band share": [
+        463,
+        [
+         440,
+         443,
+         448
+        ],
+        [
+         444,
+         444,
+         442
+        ],
+        447,
+        462
+       ],
+       "band spread": [
+        82,
+        [
+         74,
+         78,
+         75
+        ],
+        [
+         65,
+         66,
+         64
+        ],
+        74,
+        78
        ]
       },
       "kept": {
        "band mean": [
         184,
         [
-         177,
-         176,
-         175
+         181,
+         181,
+         180
         ],
         [
          183,
@@ -7137,8 +7187,8 @@
        "band share": [
         425,
         [
-         406,
-         399,
+         408,
+         400,
          406
         ],
         [
@@ -7153,8 +7203,8 @@
         184,
         [
          159,
-         159,
-         160
+         156,
+         158
         ],
         [
          172,
@@ -7199,9 +7249,9 @@
        "band mean": [
         1086,
         [
-         934,
-         942,
-         938
+         931,
+         940,
+         936
         ],
         [
          1058,
@@ -7214,9 +7264,9 @@
        "band spread": [
         1086,
         [
-         883,
-         889,
-         877
+         886,
+         884,
+         871
         ],
         [
          962,
@@ -7284,9 +7334,9 @@
        "implied0": 1686,
        "judged": 2039,
        "shipped": [
-        1848,
-        1865,
-        1854
+        1856,
+        1872,
+        1865
        ],
        "ungated0": 1876,
        "walk0": 1560
@@ -7300,9 +7350,9 @@
        "implied0": 1311,
        "judged": 1460,
        "shipped": [
-        1405,
-        1402,
-        1397
+        1411,
+        1403,
+        1413
        ],
        "ungated0": 1440,
        "walk0": 1305
@@ -7316,9 +7366,9 @@
        "implied0": 1545,
        "judged": 2039,
        "shipped": [
-        1713,
-        1729,
-        1719
+        1717,
+        1724,
+        1716
        ],
        "ungated0": 1791,
        "walk0": 1471
@@ -7404,39 +7454,40 @@
        "walk0": 79
       }
      },
+     "class_floor_misses": 1,
      "collinear": {
       "0": {
        "pa~pb": [
-        0.942837,
+        0.942015,
         0.9719,
         0.001111
        ],
        "qa~qb": [
-        0.997887,
+        0.997892,
         0.997851,
         8.6e-05
        ]
       },
       "1": {
        "pa~pb": [
-        0.941109,
+        0.939942,
         0.9719,
         0.001111
        ],
        "qa~qb": [
-        0.997839,
+        0.997836,
         0.997851,
         8.6e-05
        ]
       },
       "2": {
        "pa~pb": [
-        0.949092,
+        0.948233,
         0.9719,
         0.001111
        ],
        "qa~qb": [
-        0.997819,
+        0.997821,
         0.997851,
         8.6e-05
        ]
@@ -7444,16 +7495,21 @@
      },
      "correlations_inside_least": 106,
      "family_tables_off": 0,
+     "floor_misses_named": [
+      "kept band spread",
+      "never band mean",
+      "never band spread"
+     ],
      "fresh_share_mean": 0.9308,
      "generate_seconds": {
-      "implied 0": 59.1,
-      "implied 1": 58.1,
-      "implied 2": 57.1,
-      "shipped 0": 179.2,
-      "shipped 1": 181.7,
-      "shipped 2": 172.9,
-      "ungated 0": 239.1,
-      "walk 0": 60.4
+      "implied 0": 44.3,
+      "implied 1": 44.2,
+      "implied 2": 43.9,
+      "shipped 0": 142.0,
+      "shipped 1": 142.3,
+      "shipped 2": 141.9,
+      "ungated 0": 177.7,
+      "walk 0": 43.8
      },
      "kinds_below_fresh": [
       "band mean",
@@ -7469,9 +7525,10 @@
      "l0_totals_off": 0,
      "moments_judged": 5836,
      "multisets_off": 0,
+     "never_floor_misses": 2,
      "polished_columns": 52,
      "rows_resorted": 3,
-     "seconds": 1400.5,
+     "seconds": 1068.0,
      "share_inside": {
       "fresh1100": 0.9383,
       "fresh1101": 0.9273,
@@ -7479,9 +7536,9 @@
       "implied0": 0.8201,
       "implied1": 0.8257,
       "implied2": 0.8203,
-      "shipped0": 0.9013,
-      "shipped1": 0.9064,
-      "shipped2": 0.9018,
+      "shipped0": 0.9044,
+      "shipped1": 0.907,
+      "shipped2": 0.9059,
       "ungated0": 0.9253,
       "walk0": 0.7817
      },
@@ -7492,17 +7549,17 @@
       "implied0": 0.7329,
       "implied1": 0.7399,
       "implied2": 0.7418,
-      "shipped0": 0.8266,
-      "shipped1": 0.8336,
-      "shipped2": 0.8204,
+      "shipped0": 0.829,
+      "shipped1": 0.8352,
+      "shipped2": 0.8278,
       "ungated0": 0.8763,
       "walk0": 0.7008
      },
-     "shipped_share_least": 0.9013,
+     "shipped_share_least": 0.9044,
      "tables": 7,
      "unpolished_changed": 0
     },
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-S6-01 --only K-S6-12 --print-values over an extracted copy of 9ee0138b (batch 4u's checked head, every shipped run switched) under floor311 (Python 3.11.15) with a metadata-only dist-info, through guard.sh, alone in its slot, so no seconds were judged; 1,413 s wall."
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values with its id named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside the whole suite, so no seconds were judged"
    },
    "target_stage": "stage 6 (the polish's frame and rounds; lane MPg and the validator's next lane, V13's printed lines)",
    "target": {
@@ -11232,14 +11289,14 @@
    "rule": "over the 25 tables of the health data zoo (tests/health_zoo.py) at 600 rows, each profiled and answered by the zoo's general answerer in the file each run writes until a round answers nothing new, and over the gate's twelve answered cases (a table raising nine kinds of question answered over three rounds cut three ways; codes in a column of dates read either way answered after the order of day and month; its declarations typed in round one and the file handed back; an earlier answer changed in the kept section, on the command line and where the next file asks again; the two runs the refusal of a reading answer beside column answers asks for; a measurement beside its comma; a comma beside counted dates; a typed default; a column named like a file question): an answer an earlier round gave, replaced by no later one, that the file a later round writes does not keep is lost; the description, its summary, the questions file and the twin at seed 0 the rounds end with are compared byte for byte with what the same answers give in one round (each in the first file where it asks it, typed where it does not); a twin is compared only where both routes wrote one: a table whose twin both routes refuse is counted under twins_refused_on_both_routes, never as identical bytes, a twin on one route only is a differing file, and an exit 0 with no twin a failed run; lost answers, differing files, failed runs and twins refused on both routes stay nought; answers no single round can give stay at most 5 tables, those whose answer code -- or, since lane SH2 (plan P4-D434), a serial date's count of days or a century reading birth dates that early -- opens the Safe Harbor question in the next run, which no option types (the Safe Harbor question's second round (45 CFR 164.514(b)(2)(i)); by design: lane SH's third repair, plan P4-D427, the orchestrator's ruling R1 of 2026-10-25); the tables, those answered over two rounds or more, the answers and the cases may not fall (restated by lane SH2, plan P4-D434, to its measured values: the Safe Harbor question's second round: an excel-1900 serial date answered in round one (perioperative.case_date_serial) and two-figure-year birth dates read in the 1900s (registry_extract.dob_short) are put that question in the next run, so two more tables are not answerable in one round and their answers leave the count; held by HIPAA's Safe Harbor rule; by design: lane SH2's holds (plan P4-D434, 45 CFR 164.514(b)(2)(i)(B), (C) and (M)), the zoo answering the Safe Harbor question truthfully)",
    "rule_kind": "exact",
    "expected": {
-    "answers": 101,
+    "answers": 100,
     "answers_lost": 0,
     "byte_differences": 0,
     "cases": 12,
     "failed_runs": 0,
     "not_in_one_round": 5,
     "tables": 25,
-    "tables_answered_over_rounds": 10,
+    "tables_answered_over_rounds": 9,
     "twins_refused_on_both_routes": 0
    },
    "key_kinds": {
@@ -11256,7 +11313,7 @@
    "driver": null,
    "pin_strength": "NONE",
    "measured_on": "the 25 zoo tables at 600 rows (seed 20261016) through the real profile and generate, and the twelve cases of tests/test_answers_across_rounds.py at 200 to 600 rows; machine-free counts",
-   "evidence": "On fa89ed59, lane HX's close, the same measure read 4 tables answered over rounds, 100 answers, 14 lost, 21 files differing and one run failing (wave6/AQ/r1-measure-fa89ed59-final-harness.log; the build's 20 was read before the gate gained its case of codes in dates): titled_report's answer about the row of the names was lost in round two, so its record-number answer named a column the table read without names did not have; the nine-question table lost the order of day and month, the point between thousands, the column of dates and the codes standing for a missing date, and its twin moved; and in the refusal's two runs the second read the table the old way and put the record-number answer on the subject codes. Lane E0a measured the loss on 68dae22f (plan P4-D399), where HX's P4-D401 had not yet kept the answers to questions offering identifier. Third round (Codex's review of lane AQ, 2026-10-20): the comparison now requires a twin on both routes; on bbdf0f88 it read 0 twins refused on both routes over the zoo (wave6/AQ/r3-kpi-zoo-bbdf0f88.log), so the earlier stamp was not met by refusals, and 5 cases failing, the third round's four and the legal pair (r3-kpi-full-bbdf0f88.log). Since P4-D420 prescriptions' rxnorm, a route-four column, is answered `code` in round one: 4 tables over rounds, none lost, no byte differs. RESTATED 2026-10-25 BY LANE SH'S THIRD REPAIR (plan P4-D427; the orchestrator's ruling R1, HIPAA first): a column answered code whose numbers the Safe Harbor reach takes stays held and is put the Safe Harbor question in the next run, so the patients' ZIP codes (zip5 and zip4, answered yes), the immunizations' CVX codes and the risk-adjustment APC payment codes (each answered no) need that second round, which no single round can give: on 391b82b 100 answers (108 on c7237e1, at least 102 before), 3 tables not answerable in one round, 8 answered over rounds (wave6/SH/r3/k66.log, k66-tables.log); the bounds are those values, the Safe Harbor question's second round (45 CFR 164.514(b)(2)(i)); by design. CORRECTED AT BATCH 4K'S RECORDS (lane SH's verify 3, item 1): of the three tables, the patients' ZIP codes and the APC codes are held under ruling R1, the CVX codes TOP-CODED under ruling R2, each until its Safe Harbor question is answered no; restamped on the merged code, 320bd11. BATCH 4m (2026-10-30) re-stamped it once on its merged code a5702b7 (lanes UN-1a, CODES-1, GG and CHb on batch 4l part b's 591b356f): 106 answers, 101 on 591b356f, 102 after lane UN-1a's merge (its Q-UNIT kept across rounds, the orchestrator's UN-1a RULINGS 1 (2) and (3)), 102 after lane CODES-1's, 106 on the merged code (lane GG's Safe Harbor question put to four more of the zoo's columns), each step read by this driver (planning-notes wave3/merge-4m/s366-*.guard.log); the at-least bound follows to 106. RESTATED 2026-10-29 BY LANE SH2'S CLOSE ROUND (plan P4-D434; the orchestrator's LANE SH2 RULINGS 2 (2)): the age reach sets aside only values written as placeholders are, so the risk-adjustment clinical classes (127, 205 and 651 on 114 of 600 rows, strays past one in twenty) are no longer top-coded and no Safe Harbor question follows their `code`: on 8b6029d 98 answers, 4 tables not answerable in one round, 9 answered over rounds; by design. RESTATED AGAIN 2026-10-29 BY LANE SH2'S CLOSE ROUND 2 (plan P4-D434; the orchestrator's LANE SH2 RULINGS 4 (1), which restores lane SH's ADDENDUM 2 (1)): the age reach again sets aside the up to three values past 125 that the floor's rows repeat, whatever their share, so the risk-adjustment clinical classes (127, 205 and 651 on 114 of 600 rows) are top-coded again and the Safe Harbor question follows their `code` answer, as before the close round: on 06b6347 94 answers, 5 tables not answerable in one round, 10 answered over rounds, nothing lost, no byte differing; held by HIPAA's Safe Harbor rule; by design. On the fully merged 11f7d90: 106 and 3 before lane SH2, 100 and 5 at its merge (af77873), the Safe Harbor question's second round as this rule states, by design; lane UN-1b's merge adds one answer, 101.",
+   "evidence": "On fa89ed59, lane HX's close, the same measure read 4 tables answered over rounds, 100 answers, 14 lost, 21 files differing and one run failing (wave6/AQ/r1-measure-fa89ed59-final-harness.log; the build's 20 was read before the gate gained its case of codes in dates): titled_report's answer about the row of the names was lost in round two, so its record-number answer named a column the table read without names did not have; the nine-question table lost the order of day and month, the point between thousands, the column of dates and the codes standing for a missing date, and its twin moved; and in the refusal's two runs the second read the table the old way and put the record-number answer on the subject codes. Lane E0a measured the loss on 68dae22f (plan P4-D399), where HX's P4-D401 had not yet kept the answers to questions offering identifier. Third round (Codex's review of lane AQ, 2026-10-20): the comparison now requires a twin on both routes; on bbdf0f88 it read 0 twins refused on both routes over the zoo (wave6/AQ/r3-kpi-zoo-bbdf0f88.log), so the earlier stamp was not met by refusals, and 5 cases failing, the third round's four and the legal pair (r3-kpi-full-bbdf0f88.log). Since P4-D420 prescriptions' rxnorm, a route-four column, is answered `code` in round one: 4 tables over rounds, none lost, no byte differs. RESTATED 2026-10-25 BY LANE SH'S THIRD REPAIR (plan P4-D427; the orchestrator's ruling R1, HIPAA first): a column answered code whose numbers the Safe Harbor reach takes stays held and is put the Safe Harbor question in the next run, so the patients' ZIP codes (zip5 and zip4, answered yes), the immunizations' CVX codes and the risk-adjustment APC payment codes (each answered no) need that second round, which no single round can give: on 391b82b 100 answers (108 on c7237e1, at least 102 before), 3 tables not answerable in one round, 8 answered over rounds (wave6/SH/r3/k66.log, k66-tables.log); the bounds are those values, the Safe Harbor question's second round (45 CFR 164.514(b)(2)(i)); by design. CORRECTED AT BATCH 4K'S RECORDS (lane SH's verify 3, item 1): of the three tables, the patients' ZIP codes and the APC codes are held under ruling R1, the CVX codes TOP-CODED under ruling R2, each until its Safe Harbor question is answered no; restamped on the merged code, 320bd11. BATCH 4m (2026-10-30) re-stamped it once on its merged code a5702b7 (lanes UN-1a, CODES-1, GG and CHb on batch 4l part b's 591b356f): 106 answers, 101 on 591b356f, 102 after lane UN-1a's merge (its Q-UNIT kept across rounds, the orchestrator's UN-1a RULINGS 1 (2) and (3)), 102 after lane CODES-1's, 106 on the merged code (lane GG's Safe Harbor question put to four more of the zoo's columns), each step read by this driver (planning-notes wave3/merge-4m/s366-*.guard.log); the at-least bound follows to 106. RESTATED 2026-10-29 BY LANE SH2'S CLOSE ROUND (plan P4-D434; the orchestrator's LANE SH2 RULINGS 2 (2)): the age reach sets aside only values written as placeholders are, so the risk-adjustment clinical classes (127, 205 and 651 on 114 of 600 rows, strays past one in twenty) are no longer top-coded and no Safe Harbor question follows their `code`: on 8b6029d 98 answers, 4 tables not answerable in one round, 9 answered over rounds; by design. RESTATED AGAIN 2026-10-29 BY LANE SH2'S CLOSE ROUND 2 (plan P4-D434; the orchestrator's LANE SH2 RULINGS 4 (1), which restores lane SH's ADDENDUM 2 (1)): the age reach again sets aside the up to three values past 125 that the floor's rows repeat, whatever their share, so the risk-adjustment clinical classes (127, 205 and 651 on 114 of 600 rows) are top-coded again and the Safe Harbor question follows their `code` answer, as before the close round: on 06b6347 94 answers, 5 tables not answerable in one round, 10 answered over rounds, nothing lost, no byte differing; held by HIPAA's Safe Harbor rule; by design. On the fully merged 11f7d90: 106 and 3 before lane SH2, 100 and 5 at its merge (af77873), the Safe Harbor question's second round as this rule states, by design; lane UN-1b's merge adds one answer, 101. RESTATED 2026-11-18 BY LANE RX-1 (plan P4-D486, batch 4v): a column whose name names a measurement (a temperature, a weight, a saturation) is in no age reach and is put no Safe Harbor question, so one answer leaves the count and one table is no longer answered over rounds: 100 answers and 9 tables answered over rounds, nothing lost, no byte differing; by design (the owner's ruling of 2026-11-15).",
    "value_at": {
     "commit": "3355025",
     "date": "2026-11-05",
@@ -15163,11 +15220,11 @@
    "evidence": "RE-STAMPED ON BATCH 4t'S FIRST SEAL'S CODE HEAD (2026-11-15, 34e9a21; read again equal key for key on batch 4t's final code head 9594f66 by proof group J, 2026-11-16): OPEN-WORSE, RED AT THE STAMP ON ONE KEY, `ages_past_89_written` 0 to 10,950 against exact 0: every one a made-up record number of a column held whole, the strayed words' leg (`Age 18` to `Age 105` beside 2,000 `Age 126` to `Age 225`, 2,190 under each of five headings), 0 real past-89 spellings among them; the column is held whole since lane CZ-G's merge at batch 4t's step 4 (`621fe8e1`; step 3's head top-codes it, 73 levels, 0 written, as the public tree does), read so on 9846781 and through the fix round; the driver's headings counter counts made-up cells where its families counter counts real spellings only (the orchestrator's LANE I4m RULINGS 21 (1)): its restatement is a tools change, owner the orchestrator, and the fidelity cost of the column held whole is lane CZ-H's. `st2age_capped89_held` 0, inside the bound the merge kept (at most 0; the line's 85eb675 read 5); every other key as on 7e058f0. BATCH 4t'S MERGE OF LANE HB3-a2 (2026-11-14): the lane's stamp on 7e058f0 (its repair-1 head, 2026-11-13) kept with the lane's bound on st2age_capped89_held (at most 0, where its capped ages are described with their ends pooled in people, P4-D486 (2)) until the batch's proofs re-take it on the merged head; the fix head's re-stamp, older, read every key as on a245c77, st2age_capped89_held 5 among them, which breaks that bound. RE-STAMPED ON BATCH 4s'S FIX HEAD (2026-11-12, 85eb675): OPEN-held, every key as on a245c77 (taken on the lane's head before lane CZ-E's join; the merged line reads it the same). NEW ON LANE HB2 (2026-11-10), STAMPED ON ITS REPAIR 2: OPEN-held, every key at its expected value. Repair 2 adds Age (NN) years, Age [NN] years and Age .NNe2, strayed words under five headings (headings_asked), ages in every unit (units_not_loaded) and the signed and decimal pools; on 3f542bc9 these published and wrote ages past 89, or wrote a description the loader refused. On the base 820d55c3 the ten word families put no question, showed 5 spellings past 89 (15, 103) and wrote 1,360 twin cells past 89 (3,280, 2,960); ST2-AGE was held, validate exit 3; the vitals twin wrote 4 weights past 90; each pool after no printed its rare value and wrote it on 20 cells. Its twin patients holding two ages are written per row on the default path (lane GRb2, with CHON's switch); with lane GRb's walk, not on this line, they fall from 300, 299 and 288 to 0 on seeds 21 to 23, but K-BC-06 clause 6 is MISSED at 20,000 rows (old by visit -2.1, -2.2, -6.1 per cent of the real) and clauses 1 and 4 regress on two of three seeds (ICC 0.039 and 0.039 against 0.720 and 0.727; trend cells 0 and 0): the chain makes age its root family; owner GRb2. Capped at 89 the ages are no top-coded column, held as before (HB3-a2). The gate is tests/test_safe_harbor_age_words.py and tests/test_safe_harbor_ends_and_bounds.py.",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "34e9a21",
-    "date": "2026-11-15",
+    "commit": "0622469",
+    "date": "2026-11-18",
     "value": {
      "ages_past_89_shown": 0,
-     "ages_past_89_written": 10950,
+     "ages_past_89_written": 0,
      "bands_below_floor": 0,
      "counters_blind": 0,
      "exits_not_0_or_3": 0,
@@ -15188,7 +15245,7 @@
      "units_not_loaded": 0,
      "zoo_columns_newly_reached": 0
     },
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-HZ-29 --print-values over an extracted copy of 34e9a218 (batch 4t's final code head: the eleven merge steps of lanes EZ-a, WIN, HB3-b's part a, CZ-G, CZ-G-b, HB3-a, HB3-a2, NOTES, ID-ROOM4, ID-ROOM3 and KV on batch 4s's sealed head 03c8f8dc, whose tree is the public head 7804872f's, the owes step's commit, which made the reviewed head 98467814, and the fix round's sixteen commits in three code rounds on it, code and tests) under floor311 (Python 3.11.15) with a metadata-only dist-info, through guard.sh, proof group J, step kpi-K-HZ-29, second in its group, one of nine proof groups on this head; the driver exits 1 on the key its evidence names, the machine loaded beside other runs (one-minute load average 29.9 at its start), so no seconds were judged; 804 s wall, 213 MB peak"
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside the whole suite, so no seconds were judged"
    },
    "status_note": "",
    "target_stage": "lane GRb2 (the patient walk): the twin patients holding two ages on ST2-AGE at the table floor, read with the walk beside the class this driver reads",
@@ -16025,8 +16082,8 @@
    "target": "every key 0: the HIPAA and validate keys stay 0; the bars' failing and void keys, the held and top-coded number keys and the off-the-list cells where every name is refused reach 0 with lane KV-b",
    "nodes_min_collected": 0,
    "value_at": {
-    "commit": "9594f66",
-    "date": "2026-11-16",
+    "commit": "0622469",
+    "date": "2026-11-18",
     "value": {
      "ages_past_89_published_or_written_20000_rows": 0,
      "careless_no_identifiers_20000_rows": "0 in every class",
@@ -16034,7 +16091,7 @@
      "category_keys_failing_tvd_20000_rows": 42,
      "category_keys_with_a_void_tvd_bar_20000_rows": 18,
      "control_runs_passing_the_bars_20000_rows": 0,
-     "cpu_seconds_profile_generate_validate_mode_n_20000_rows": "fs 23/17/4, fsn 24/17/4, qa 20/3/2, lab 14/6/5, zf 30/4/1, qp 30/4/2, sp 22/4/4, qpc 33/4/3, hf 28/19/5",
+     "cpu_seconds_profile_generate_validate_mode_n_20000_rows": "fs 29/21/6, fsn 30/21/5, qa 25/4/3, lab 18/7/6, zf 40/6/2, qp 40/4/3, sp 28/5/5, qpc 41/4/3, hf 32/22/6",
      "identifier_values_published_or_written_unanswered_or_truthful_20000_rows": 0,
      "key_blocks_of_rare_keys_20000_rows": 0,
      "key_cells_off_the_list_after_no_20000_rows": 0,
@@ -16043,12 +16100,12 @@
      "level_counts_of_1_to_10_people_20000_rows": 0,
      "names_a_screen_reads_named_20000_rows": 0,
      "names_or_values_of_a_pool_of_one_key_or_few_people_20000_rows": 0,
-     "numeric_keys_failing_ks_20000_rows": 88,
-     "numeric_keys_failing_mean_20000_rows": 84,
-     "numeric_keys_failing_range_20000_rows": 150,
-     "numeric_keys_failing_spread_20000_rows": 111,
-     "numeric_keys_held_20000_rows": 55,
-     "numeric_keys_top_coded_20000_rows": 58,
+     "numeric_keys_failing_ks_20000_rows": 66,
+     "numeric_keys_failing_mean_20000_rows": 62,
+     "numeric_keys_failing_range_20000_rows": 145,
+     "numeric_keys_failing_spread_20000_rows": 89,
+     "numeric_keys_held_20000_rows": 52,
+     "numeric_keys_top_coded_20000_rows": 47,
      "numeric_keys_with_a_void_ks_bar_20000_rows": 192,
      "published_key_counts_not_exact_20000_rows": 0,
      "rare_keys_named_after_yes_20000_rows": 0,
@@ -16057,7 +16114,7 @@
      "twin_cells_equal_a_rare_only_value_20000_rows": 0,
      "zoo_key_value_kinds_20000_rows": "dates_as_results: passes; key_value_answers: analyst: 2 failing; KV-b; values_typed_by_key: analyst: 2 failing; KV-b"
     },
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-HZ-37 --print-values over an extracted copy of 9594f661 (batch 4t's final code head: the first seal's code head 34e9a218 with fix rounds 4 and 5, six commits, code and tests) under floor311 (Python 3.11.15) with a metadata-only dist-info, through guard.sh, proof group E, step kpi-K-HZ-37, first in its group, one of nine proof groups on this head, the machine loaded beside other runs (one-minute load average 5.3 at its start), so no seconds were judged; 1,067 s wall, 264 MB peak"
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside the whole suite, so no seconds were judged"
    }
   },
   {
@@ -16907,7 +16964,7 @@
    "expected": {
     "controls_hold_20k": true,
     "supported_estimates_20k": 890,
-    "pooled_points_below_replicate_20k": 41.9,
+    "pooled_points_below_replicate_20k": 40.7,
     "strong_sign_flips_20k": 117.3,
     "stops_20k": 0
    },
@@ -16928,13 +16985,13 @@
     "supported_estimates_20k": "at_least"
    },
    "value_at": {
-    "commit": "9ee0138",
-    "date": "2026-11-17",
+    "commit": "0622469",
+    "date": "2026-11-18",
     "value": {
-     "alpha_ratio_20k": 1.583,
+     "alpha_ratio_20k": 1.584,
      "ate_20k": [
-      0.04,
-      -0.26
+      0.2,
+      -0.06
      ],
      "controls_hold_20k": true,
      "curve_retained_20k": [
@@ -16942,7 +16999,7 @@
       0.44
      ],
      "decisions_20k": [
-      0.7,
+      0.698,
       0.979,
       0.103,
       0.19
@@ -16961,31 +17018,31 @@
        72
       ],
       "F13": [
-       1.0,
+       0.952,
        0.667,
        0.0,
        21
       ],
       "F14": [
-       0.604,
+       0.625,
        0.917,
        0.208,
        48
       ],
       "F15": [
-       0.423,
+       0.442,
        0.712,
        0.048,
        104
       ],
       "F16": [
-       0.622,
+       0.659,
        0.83,
        0.089,
        135
       ],
       "F17": [
-       0.627,
+       0.647,
        0.784,
        0.137,
        51
@@ -17003,7 +17060,7 @@
        72
       ],
       "F20": [
-       0.806,
+       0.887,
        0.823,
        0.113,
        62
@@ -17028,13 +17085,13 @@
       ]
      },
      "families_control_void_20k": [],
-     "fmi_ratio_20k": 1.342,
+     "fmi_ratio_20k": 1.549,
      "mixture_20k": [
       0.0,
-      0.726,
+      0.742,
       0.977
      ],
-     "pooled_points_below_replicate_20k": 31.2,
+     "pooled_points_below_replicate_20k": 30.0,
      "rare_share_gap_20k": 0.0,
      "route_20k": {
       "ST10": "S",
@@ -17048,31 +17105,31 @@
       0.523,
       1.0
      ],
-     "seconds_20k": 3103.2,
+     "seconds_20k": 3221.1,
      "selection_20k": [
-      0.9,
+      0.833,
       0.9
      ],
-     "smd_after_weighting_max_20k": 0.007,
+     "smd_after_weighting_max_20k": 0.008,
      "stops_20k": 0,
      "strong_sign_flips_20k": 89,
      "supported_estimates_20k": 890,
      "tstr_20k": [
       0.761,
       0.763,
-      1.022,
-      0.019,
-      0.986
+      1.018,
+      0.004,
+      0.981
      ],
      "varcomp_20k": [
       55990.751,
       0.756,
-      0.756,
+      0.755,
       0.839
      ],
      "worst_family_points_below_replicate_20k": 88.9
     },
-    "measured_by": "tools/measurements/kpi_model_utility.py --kpi over an extracted copy of 9ee0138b (batch 4u's checked head, every shipped run switched), floor311 (Python 3.11.15) with a metadata-only dist-info, through guard.sh, alone in its slot, so no seconds were judged; 3,105 s wall, 403 MB peak footprint. The first switched stamp (lane MU, plan P4-D485), its expected values set from it by the battery's own ledger_entry; its headline is owed while the board's cap of 37 is full (the orchestrator's call: a demotion or the cap raised)."
+    "measured_by": "tools/measurements/kpi_model_utility.py --kpi over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside the whole suite, so no seconds were judged"
    },
    "target_stage": "the release candidate of 2026-12-11",
    "target": {
@@ -17333,8 +17390,8 @@
    "measured_on": "tests/reliability_tables.py's seven tables at 20,000 rows (the orders: the cohort's patients), table seeds 1 to 3, twin seeds 0 to 2; the twin by synthtwin profile, the truthful answers round by round and synthtwin generate, in-process with the table floor on",
    "evidence": "The owner's direction of 2026-11-15: analysis code written on the twin runs unchanged on the real table close to every time, and regressions and more advanced statistical tests give reliable results on the twin. tests/test_reliability_battery.py shows every clause of the pass rule failing on its own case, the tables' seeded truths recovered on the generator's own draws, every analysis file running on its real table, and the fresh sample passing where the shuffled table fails.",
    "value_at": {
-    "commit": "9ee0138",
-    "date": "2026-11-17",
+    "commit": "0622469",
+    "date": "2026-11-18",
     "value": {
      "F0_from_20k": "K-HZ-01 on 34e9a21",
      "F0_kinds_20k": 98,
@@ -17370,14 +17427,14 @@
        "replicate": 1.0,
        "runs": 1.0,
        "shuffled": 0.0,
-       "twin": 0.6667
+       "twin": 0.5556
       },
       "F13": {
        "n": 18,
        "replicate": 0.8889,
        "runs": 1.0,
        "shuffled": 0.0,
-       "twin": 0.0
+       "twin": 0.0556
       },
       "F2": {
        "n": 54,
@@ -17412,12 +17469,12 @@
        "replicate": 0.9259,
        "runs": 1.0,
        "shuffled": 0.0,
-       "twin": 0.4444
+       "twin": 0.5556
       },
       "F7": {
        "n": 54,
        "replicate": 0.8889,
-       "runs": 0.7593,
+       "runs": 0.7222,
        "shuffled": 0.0,
        "twin": 0.0
       },
@@ -17436,14 +17493,14 @@
        "twin": 0.0
       }
      },
-     "invented_points_20k": 9.33,
+     "invented_points_20k": 10.67,
      "null_pairs_share_20k": 0.0444,
      "null_pairs_share_max_20k": 0.1556,
      "null_replicate_share_20k": 0.0444,
      "relations_drawn_20k": 0.25,
-     "runs_20k": 0.9457,
-     "same_20k": 0.2398,
-     "same_rel_20k": 0.2671,
+     "runs_20k": 0.9407,
+     "same_20k": 0.2485,
+     "same_rel_20k": 0.2768,
      "same_replicate_20k": 0.8977,
      "same_shuffled_20k": 0.1316,
      "script_runs_20k": 405,
@@ -17454,7 +17511,7 @@
       "F3"
      ]
     },
-    "measured_by": "tools/measurements/kpi_run.py --slow --only K-RU-01 --print-values over an extracted copy of 9ee0138b (batch 4u's checked head: every shipped run switched, lanes BT3b, CHON, GRb, GRb2-b, CHG, MU and RU-a merged on the public head 218eb506, and the checks' seven commits), under floor311 (Python 3.11.15) with a metadata-only dist-info, through guard.sh, alone in its slot, so no seconds were judged; 1,908 s wall, 547 MB peak footprint. F0 is read from K-HZ-01's stamp on 34e9a21 (the public head's product): the switched zoo's own stamp is owed, its 302-column export passing this machine's memory guard switched."
+    "measured_by": "tools/measurements/kpi_run.py --slow --print-values with its ids named by --only over an extracted copy under floor311 with a metadata-only dist-info, through guard.sh, the machine loaded beside the whole suite, so no seconds were judged"
    },
    "status_note": "FIRST STAMP (lane RU-a, 2026-11-16): the baseline on the public head's product, whose typed commands draw no relation between columns, so every analysis relating two columns reads the shuffled table's answer; the batch that switches relations on must raise it. Families F1 and F3 are void at this stamp (their fresh sample passes under 80 per cent over nine draws) and named in the value. The accounts table is not twinned: a second identifier column answered as one makes profile count people by the two columns together, under the 1,000-people floor, so its file does not run. At this size the dates of the one-row-a-patient cohort and the cases' starts are published at a coarser grain, so the weekday and time-of-day files do not reach the real conclusions."
   }

@@ -93,6 +93,7 @@ import math
 import pathlib
 
 from synthtwin import calendar_clock, calendar_rules, canonical, chain_check, chain_moments, dialect, errors, parsing
+from synthtwin import patient_trajectory
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module that imports `parsing` alone.
 from synthtwin import date_counts, grains, offset_rules
@@ -3290,6 +3291,9 @@ class PatientGrain:
     switches: "tuple[SwitchRule, ...]" = ()
     end_events: "tuple[EndRule, ...]" = ()
     hazard: "HazardMoments | None" = None
+    # A PATIENT'S OWN TRAJECTORY (contract 4.6c.15; lane GRb2-c, plan P4-D491
+    # part c): one entry a repeated number column, empty where none stands.
+    trajectory: "tuple[patient_trajectory.Trajectory, ...]" = ()
 
 
 def _texts_of(value: object) -> "tuple[str, ...]":
@@ -3480,6 +3484,7 @@ def patient_grain(document: "dict[str, object]") -> "PatientGrain | None":
         switches=switches,
         end_events=end_events,
         hazard=hazard,
+        trajectory=patient_trajectory.entries_of(grain),
     )
 
 
@@ -4810,6 +4815,10 @@ class ColumnBlock:
     # its block writes as `top_coded_ends`; None elsewhere, a block with no
     # such key read with no ends pooled, as it was made.
     top_coded_ends: "tuple[int, int] | None" = None
+    # ...AND THE AGES ITS TWO END BANDS ARE WRITTEN AS (lane RX-1, the
+    # fidelity plan): the mean age of each band's rows, which its block writes as
+    # `top_coded_band_values`; None elsewhere, each band written at its edge.
+    top_coded_band_values: "tuple[int, int] | None" = None
     # THE BAND READING OF THE TOP-CODE (plan P4-D472): True where the
     # top-code wrote a band of ages as the column's one band past 89, the
     # block carrying `top_coded_bands`; a top-coded block without it was
@@ -9132,6 +9141,31 @@ def _column(
             if key != "top_coded_ends":
                 kept_ends[key] = mapping[key]
         mapping = kept_ends
+    # ...AND THE AGES ITS END BANDS ARE WRITTEN AS (lane RX-1, the fidelity
+    # plan): two whole numbers, only beside `top_coded_ends`, the first from 0
+    # to the low end, the second from the high end to the top code.
+    top_coded_band_values: "tuple[int, int] | None" = None
+    if "top_coded_band_values" in mapping:
+        band_value = mapping["top_coded_band_values"]
+        if top_coded_ends is None:
+            raise _unknown("top_coded_band_values", where)
+        if (
+            not isinstance(band_value, list)
+            or len(band_value) != 2
+            or any(isinstance(one, bool) or not isinstance(one, int) for one in band_value)
+            or not 0 <= band_value[0] <= top_coded_ends[0]
+            or not top_coded_ends[1] <= band_value[1] <= top_coded
+        ):
+            raise _out_of_range(
+                "top_coded_band_values", where, "another value",
+                "two whole numbers, the first from 0 to the low end, the second from the high end to the top code",
+            )
+        top_coded_band_values = (band_value[0], band_value[1])
+        kept_values: "dict[str, object]" = {}
+        for key in mapping:
+            if key != "top_coded_band_values":
+                kept_values[key] = mapping[key]
+        mapping = kept_values
     # ...AND ITS BAND READING (plan P4-D472; the orchestrator's LANE CZ-E
     # RULINGS 6 (3)): `true`, only beside `top_coded`, where the top-code
     # wrote a band of ages as the column's one band past 89.
@@ -9475,6 +9509,7 @@ def _column(
         top_category_people=top_category_people,
         top_coded_words=top_coded_words,
         top_coded_ends=top_coded_ends,
+        top_coded_band_values=top_coded_band_values,
         top_coded_bands=top_coded_bands,
         keyed=_keyed_name(keyed_value, where),
         keyed_by=keyed_by,

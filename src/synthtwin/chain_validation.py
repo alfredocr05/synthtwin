@@ -60,6 +60,7 @@ GATE_CLOSED = validation.CHAIN_GATE_CLOSED
 NO_SUCH_COLUMN = "the checked file has no column of this name, so its bands cannot be counted"
 ANOTHER_ROLE = "the checked file reads this column under another role, so its published bands do not apply"
 A_MEMBER_NOT_CHECKABLE = "a column of this family is not checkable in the checked file"
+TRAJECTORY_NOT_CHECKABLE = "the moments of a patient's own trajectory are not recounted by this check, so no verdict stands"
 COUNTED_IN_PEOPLE = (
     "the checked file repeats a value of a column the descriptions read as record numbers, so its own "
     "description counts every value in people and publishes no family, and no band published here applies to it"
@@ -1679,6 +1680,14 @@ def patient_lines(
                 extra += [validation.PatientLine(kind, subject, verdict, reason)]
         else:
             extra += [validation.PatientLine("intervals", f"{start_name} to {stop_name}", "", NO_SUCH_COLUMN)]
+    # -- A PATIENT'S OWN TRAJECTORY (contract 4.6c.15; lane GRb2-c, plan P4-D491 part c): ACCOUNTED FOR, NEVER SILENT --
+    # Each entry is a line of its own, `not checkable` in words (batch 4v's outside review, item 4): a published
+    # moment of a patient's trajectory is no count this check can recount in the checked file, so no verdict stands
+    # and none is passed as held.
+    trajectory = _get(grain, "trajectory")
+    for entry in trajectory if isinstance(trajectory, list) else []:
+        if isinstance(entry, dict):
+            extra += [validation.PatientLine("trajectory", f"{entry['column']}", "", TRAJECTORY_NOT_CHECKABLE)]
     counted_lines: "dict[str, int]" = {validation.HELD: 0, validation.MISSED: 0, validation.WITHHELD: 0, "": 0}
     for total_line in totals:
         counted_lines[total_line.verdict] += 1

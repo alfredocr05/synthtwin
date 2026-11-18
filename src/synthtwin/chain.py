@@ -86,6 +86,10 @@ ROWS_ONE = "one row each"
 ROWS_UNNAMED = "several rows, no column names the person"
 ROWS_PERSON = "the settings' person column identifies the person"
 OFF_RECOUNT = "a column's recount disagreed with its published counts"
+# ...since lane RX-1 (the fidelity plan's R1) one column's recount leaves that
+# column out, `ineligible` naming it so; OFF_RECOUNT stays for the rows set
+# aside as blank records, a fact of the whole table.
+REASON_RECOUNT = "recount"
 OFF_FEW = "fewer than two eligible columns"
 OFF_ROOT = "the root step drew no family"
 # THE PATIENT LAYER'S SUB-SWITCH (lane CHON, plan P4-D464; LANE CHON RULINGS
@@ -407,6 +411,11 @@ class ChainSwitch:
     # 24 largest, `chain_moments.PARTNERS`).
     columns_at_most: int = 0
     every_partner: bool = False
+    # A PATIENT'S OWN TRAJECTORY (contract 4.6c.15; lane GRb2-c, plan P4-D491
+    # part c): on, every run's; a caller that measures the layer's derived
+    # columns and trends as they stood before it (their own gate files) turns
+    # it off, and the layer is then described byte for byte as before.
+    trajectories: bool = True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -971,7 +980,15 @@ def described_cells(
         # ...and its ends pooled in people where its block records them
         # (`top_coded_ends`, lane HB2, plan P4-D477).
         if isinstance(ends, list) and len(ends) == 2 and all(isinstance(end, int) for end in ends):
-            ended = taxonomy.cells_within_the_ends(coded, comma, absent, ends[0], ends[1], mark, words)
+            # ...each band at the mean age of its rows where the block records it
+            # (`top_coded_band_values`, lane RX-1).
+            band = _get(block, "top_coded_band_values")
+            band_values = (
+                (band[0], band[1])
+                if isinstance(band, list) and len(band) == 2 and all(isinstance(one, int) for one in band)
+                else None
+            )
+            ended = taxonomy.cells_within_the_ends(coded, comma, absent, ends[0], ends[1], mark, words, values=band_values)
             pooled_here = pooled_here or ended != coded
             coded = ended
         image = coded
@@ -3633,8 +3650,24 @@ def describe(
         del handed, _cells
         _probed("read column", counts)
         if read is None or not read.agrees:
-            notes += [f"the recount of column {name} disagreed with its published counts"]
-            return _off(OFF_RECOUNT, counts, notes, content)
+            # ONE COLUMN WHOSE RECOUNT DISAGREES IS LEFT OUT, NEVER THE CHAIN
+            # (lane RX-1, the fidelity plan's R1, under the owner's ruling of
+            # 2026-11-15: a hold never takes every relation of a table): the
+            # column takes no part -- no level, band, moment or rule of it is
+            # published -- and is carried on its own, named in the notes; the
+            # chain is drawn over the rest, whose counts never read it.
+            notes += [
+                f"the recount of column {name} disagreed with its published counts: left out of the chain, "
+                "carried on its own"
+            ]
+            ineligible += [{"column": name, "reason": REASON_RECOUNT}]
+            # ...AND ITS READINGS ARE LET GO (batch 4v's outside review, item 5): read before the recount was
+            # judged, they would still feed a rule of the search, derived edges and a joint table of a column this
+            # branch says is carried alone.
+            if gathered is not None:
+                chain_order.let_go(gathered, name)
+            counts["recounts_left_out"] = (counts["recounts_left_out"] if "recounts_left_out" in counts else 0) + 1
+            continue
         start_codes = _tabled(read.codes, excluded)
         starting_totals = _count_codes(start_codes, len(read.start.names))
         ladder = rules.merge_ladder(name, read.start, starting_totals, floor)

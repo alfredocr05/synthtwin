@@ -1387,9 +1387,13 @@ def test_every_driver_that_runs_the_shipped_profile_names_a_data_folder() -> Non
 # one column fewer is polished (138,556 words drawn and planned, against
 # 174,556); the description is the same bytes, and with the gate off the twin
 # is the earlier golden byte for byte (`GOLDEN_TWIN_UNGATED`,
-# tests/test_polish_grouping_gate.py).
+# tests/test_polish_grouping_gate.py). THE TWIN RE-RECORDED by lane CHG-b
+# (plan P4-D492 part b): the fixture's kept targets on a label's bands are
+# aimed band by band (the whole vector; its numbers' bends all lie under the
+# curves' floor, so no curve is made); the description is the same bytes and
+# the words drawn are the words planned (no column is added).
 GOLDEN_DESCRIPTION = "c08571aa6b37aae4d52d458a5c68c319680be10d6439b762885da8ecdb305265"
-GOLDEN_TWIN = "c25a9c62f98d9e36c37fbefe5c4a6f6d1e7555092521fdaaf72149a65050f72e"
+GOLDEN_TWIN = "13980411fe1adb3c973873fe9c34b94bf9031266be7d026160aceaf292364cdd"
 GOLDEN_TWIN_UNGATED = "4638074c25d7ee13deba5506a981fd006a4aa49d277b1f6d81ab69c2e23f9f01"
 
 
