@@ -18,6 +18,12 @@
 # Maintainer-private material (defense in depth; lives outside the repo)
 planning-notes/
 
+# An inside record describes a real table and stays on the computer it
+# was made on (plan P4-D495); CI also fails on any file that starts with
+# its marker (tools/hooks/check_inside_records.py).
+*.synthtwin-inside
+*.synthtwin-inside.new
+
 # Python
 __pycache__/
 *.pyc

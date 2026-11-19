@@ -44991,6 +44991,9 @@ def _an_ordinary_family_name(text: str) -> bool:
     return True
 
 
+an_ordinary_family_name = _an_ordinary_family_name  # read by twin_checks.a_listed_detail (batch 4w review, item 3)
+
+
 # The words of a column's name that say it holds a person's name (plan
 # P4-D478, the orchestrator's LANE CZ-F RULINGS 1 (2)), read whole
 # (`name_words`): a word naming a part of a name...

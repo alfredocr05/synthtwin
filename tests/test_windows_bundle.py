@@ -155,7 +155,7 @@ def test_the_visual_cpp_runtime_must_be_carried_by_the_folder(tmp_path: pathlib.
     assert "where Windows does not look for it" in " ".join(_closure(tmp_path / "three", elsewhere)["missing"])
     assert not PE.is_system("VCRUNTIME140.dll") and not PE.is_system("vcomp140.dll")
     assert PE.is_system("KERNEL32.dll") and PE.is_system("api-ms-win-core-path-l1-1-0.dll")
-    assert len(PE.SYSTEM_DLLS) == 51, "the list's own comment says 51 names, written before run 1"
+    assert len(PE.SYSTEM_DLLS) == 52, "the list's own comment says 51 names before run 1, and webservices.dll after"
 
 
 def test_a_dll_counts_only_where_windows_looks_when_the_file_loads(tmp_path: pathlib.Path) -> None:
@@ -196,6 +196,15 @@ def test_the_runtime_never_counts_as_windows_own_even_where_listed(monkeypatch) 
     monkeypatch.setattr(PE, "SYSTEM_DLLS", PE.SYSTEM_DLLS | {"msvcp140.dll", "vcruntime140_1.dll", "concrt140.dll"})
     for name in ("MSVCP140.dll", "vcruntime140_1.dll", "CONCRT140.dll"):
         assert not PE.is_system(name), name
+
+
+def test_the_web_services_dll_a_run_named_counts_as_windows_own(tmp_path: pathlib.Path) -> None:
+    """A Windows run refused the folder for pyarrow's arrow.dll, which imports webservices.dll (Windows' own Web Services API)."""
+    needing = {"python/lib/pyarrow/arrow.dll": _pe(["webservices.dll", "KERNEL32.dll"])}
+    report = _closure(tmp_path, needing)
+    assert report["missing"] == [], report["missing"]
+    assert PE.is_system("webservices.dll") and PE.is_system("WebServices.dll")
+    assert PE.main([str(tmp_path / "ready")]) == 0
 
 
 def test_a_delayed_import_is_reported_and_a_damaged_file_refused(tmp_path: pathlib.Path) -> None:

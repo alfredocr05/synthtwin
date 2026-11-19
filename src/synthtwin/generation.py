@@ -76777,6 +76777,163 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
     )
 
 
+# The note a column drawn from the inside record carries in the twin's report (lane IN-2, plan P4-D496).
+INSIDE_DRAWN_SUBJECT = "drawn from the inside record"
+INSIDE_DRAWN_NOTE = (
+    "This column's cells were drawn from the inside record kept on this computer: the real table's own shape for "
+    "the column and its relations to the columns before it, fitted inside. The description's published facts for "
+    "it are not what the twin was built from, so none is checked against it here."
+)
+
+
+def _names_under_by(found: object) -> "set[str]":
+    """Every text a dates zone holds under a key `by`: the label columns its clocks and gaps depend on.
+
+    Read by subscript and set union alone, so the offline audit traces every
+    value it touches (no method is called on a value read from the record).
+    """
+    names: "set[str]" = set()
+    if isinstance(found, dict):
+        for key in found:
+            value = found[key]
+            if key == "by" and isinstance(value, str) and value:
+                names = names | {value}
+            else:
+                names = names | _names_under_by(value)
+    elif isinstance(found, list):
+        for value in found:
+            names = names | _names_under_by(value)
+    return names
+
+
+def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed: int) -> Twin:
+    """Build the twin from the inside record (lane IN-2, plan P4-D496): the description's twin, its modelled columns drawn anew.
+
+    Guarantees:
+
+    - Inputs: one description loaded by `contract.load_profile`, the
+      inside record written beside it (`inside.load_record`), and one
+      whole number from 0 to 2**64 - 1; nothing else. The real table is
+      never read: the record is a model of it (its relations zone holds
+      quantile functions, published spellings and fitted coefficients).
+    - What it builds: the twin `generate_held` builds from the
+      description at the first seed this seed's stream gives, with every
+      column the record's relations zone models drawn again from the
+      zone at the second (`inside_relations.draw_columns`): each column
+      in the table's order from its fitted response on the columns drawn
+      before it. Every other column -- identifiers, dates, clocks, free
+      text, keyed values, held columns -- is the description's twin's,
+      made by every rule it keeps, Safe Harbor's among them; a drawn
+      label writes only spellings the description publishes and fills the
+      rest from the description's twin's own cells.
+    - The record of how well it matches: a drawn column's outcome is
+      recounted from its cells and carries one remark (`INSIDE_DRAWN_NOTE`)
+      in place of the description's deviations and approximations, which
+      no longer describe it.
+    - Determinism: a fixed function of the description, the record and
+      the seed. Errors: `errors.ProfileError` for a seed out of range;
+      `inside_relations.RelationsError` where the record does not fit the
+      description. Nothing is written.
+    """
+    from synthtwin import inside_relations
+
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise errors.ProfileError(_seed_out_of_range(0))
+    if seed < 0 or seed > _WORD_CEILING:
+        raise errors.ProfileError(_seed_out_of_range(seed))
+    zone = inside_relations.zone_of(record)
+    streams = numpy.random.default_rng(seed)
+    seeds = [int(word) for word in streams.integers(0, _WORD_CEILING, size=2, dtype="uint64", endpoint=True)]
+    strict = generate_held(profile, seeds[0])
+    held = strict.held_columns
+    if held is None or strict.sheet_dealt:
+        raise inside_relations.RelationsError(
+            "The inside record draws a delimited twin; this description's twin is written as a workbook.")
+    places: "dict[str, int]" = {}
+    for place in range(len(profile.columns)):
+        places[profile.columns[place].name] = place
+    names = inside_relations.modelled_names(zone)
+    person = inside_relations.person_of(zone)
+    kept: "dict[str, twinstore.HeldColumn]" = {}
+    for name in names + ([person] if person else []):
+        if name not in places:
+            raise inside_relations.RelationsError(
+                "The inside record's relations zone names a column this description does not hold.")
+        kept[name] = held[places[name]]
+    drawn = inside_relations.draw_columns(zone, profile, kept, seeds[1])
+    kept = {}
+    finished = [column for column in held]
+    outcomes = [outcome for outcome in strict.outcomes]
+    added: "list[Remark]" = []
+    for name in names:
+        place = places[name]
+        finished[place] = drawn[name]
+        cells = twinstore.column_cells(drawn[name])
+        present, absent, different, folded = _recounted(cells, ())
+        remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DRAWN_NOTE)
+        added += [remark]
+        old = outcomes[place]
+        outcomes[place] = dataclasses.replace(
+            old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
+            deviations=(), approximations=(), remarks=(remark,),
+        )
+        del cells
+    # THE DATES ZONE (lane IN-5, plan P4-D497): each date column's cells made
+    # from the zone's census, the day of the month made up, over the twin's
+    # persons and labels; a column the description's twin holds blank stays so.
+    zones = record["zones"] if "zones" in record else {}
+    dated: "set[str]" = set()
+    if isinstance(zones, dict) and "dates" in zones:
+        from synthtwin import inside_dates
+
+        # The zone's cells are made first and every column replaced only once
+        # all of them are: a zone that cannot be read leaves every date column
+        # the description's twin's, its outcome and its remarks with it.
+        made: "list[tuple[int, str, list[str]]]" = []
+        try:
+            people_cells = (twinstore.column_cells(finished[places[person]]) if person and person in places
+                            else None)
+            dzone = typing.cast("dict[str, object]", zones["dates"])
+            given_cells: "dict[str, list[str]]" = {}
+            for each in _names_under_by(dzone):
+                if each in places:
+                    given_cells[each] = twinstore.column_cells(finished[places[each]])
+            written = inside_dates.write_dates(dzone, profile.n_rows, people_cells, given_cells, None, None,
+                                               seeds[1])
+            for name in written:
+                if name not in places or name in names:
+                    continue
+                if not any(cell != "" for cell in twinstore.column_cells(finished[places[name]])):
+                    continue
+                made += [(places[name], name, written[name])]
+            del written
+        except (inside_dates.DatesError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
+            made = []
+        for place, name, cells in made:
+            finished[place] = twinstore.held_column(cells)
+            present, absent, different, folded = _recounted(cells, ())
+            remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DRAWN_NOTE)
+            added += [remark]
+            old = outcomes[place]
+            outcomes[place] = dataclasses.replace(
+                old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
+                deviations=(), approximations=(), remarks=(remark,),
+            )
+            dated = dated | {name}
+        del made
+    replaced = set(names) | dated
+    return dataclasses.replace(
+        strict,
+        outcomes=tuple(outcomes),
+        deviations=tuple([each for each in strict.deviations if each.column not in replaced]),
+        approximations=tuple([each for each in strict.approximations if each.column not in replaced]),
+        remarks=tuple([each for each in strict.remarks if each.column not in replaced] + added),
+        words_drawn=strict.words_drawn + 2,
+        seed=seed,
+        held_columns=tuple(finished),
+    )
+
+
 # -- values typed by a key (method G8.3f; lane KV, plan P4-D487) ---------
 
 

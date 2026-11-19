@@ -46,8 +46,10 @@ import sys
 # DLLs every Windows 10 and 11 x64 holds in its system folder: 51 names
 # written from the libraries' known imports before run 1; run 1's printed
 # names confirm or prune them, and a name is added after that only when a
-# run names it and a reviewer confirms it ships with Windows itself. The
-# Visual C++ runtime is never here (NEVER_SYSTEM).
+# run names it and a reviewer confirms it ships with Windows itself. Added
+# so: webservices.dll (the Windows Web Services API, in the system folder
+# since Windows 7), which pyarrow's arrow.dll imports. The Visual C++
+# runtime is never here (NEVER_SYSTEM).
 SYSTEM_DLLS = frozenset(
     {
         "advapi32.dll",
@@ -92,6 +94,7 @@ SYSTEM_DLLS = frozenset(
         "userenv.dll",
         "uxtheme.dll",
         "version.dll",
+        "webservices.dll",
         "winhttp.dll",
         "wininet.dll",
         "winmm.dll",

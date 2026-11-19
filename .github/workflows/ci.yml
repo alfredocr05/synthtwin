@@ -809,6 +809,10 @@ jobs:
           wheel required synthtwin/asking.py
           wheel required synthtwin/generation.py
           wheel required synthtwin/grains.py
+          wheel required synthtwin/inside.py
+          wheel required synthtwin/inside_relations.py
+          wheel required synthtwin/inside_dates.py
+          wheel required synthtwin/inside_trajectories.py
           wheel required synthtwin/installation.py
           wheel required synthtwin/offset_rules.py
           wheel required synthtwin/parsing.py
@@ -828,6 +832,7 @@ jobs:
           wheel required synthtwin/sheetwriting.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
+          wheel required synthtwin/twin_checks.py
           wheel required synthtwin/twinstore.py
           wheel required synthtwin/validation.py
           wheel required synthtwin/workbook.py
@@ -868,6 +873,10 @@ jobs:
           sdist required ROOT/src/synthtwin/asking.py
           sdist required ROOT/src/synthtwin/generation.py
           sdist required ROOT/src/synthtwin/grains.py
+          sdist required ROOT/src/synthtwin/inside.py
+          sdist required ROOT/src/synthtwin/inside_relations.py
+          sdist required ROOT/src/synthtwin/inside_dates.py
+          sdist required ROOT/src/synthtwin/inside_trajectories.py
           sdist required ROOT/src/synthtwin/installation.py
           sdist required ROOT/src/synthtwin/offset_rules.py
           sdist required ROOT/src/synthtwin/parsing.py
@@ -887,6 +896,7 @@ jobs:
           sdist required ROOT/src/synthtwin/sheetwriting.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
+          sdist required ROOT/src/synthtwin/twin_checks.py
           sdist required ROOT/src/synthtwin/twinstore.py
           sdist required ROOT/src/synthtwin/validation.py
           sdist required ROOT/src/synthtwin/workbook.py
@@ -1503,8 +1513,10 @@ jobs:
     # own machinery must work: when the diff against the base commit
     # cannot be produced, the job goes red instead of silently
     # reporting nothing (review R2-B10). On a push there is no base to
-    # compare, so the report is produced on pull requests only. The
-    # job keeps the default read-only token.
+    # compare, so the report is produced on pull requests only. One
+    # step fails the job on every event: a file of the repository that
+    # starts with the inside record's protected marker (plan P4-D495).
+    # The job keeps the default read-only token.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1512,6 +1524,13 @@ jobs:
           # Full history so the pull request's base commit is present to
           # diff against.
           fetch-depth: 0
+      - name: Refuse an inside record anywhere in the repository
+        # Plan P4-D495 (lane IN-0): a file that starts with the inside
+        # record's protected marker describes a real table and never
+        # enters the repository. This step runs on every event, pushes
+        # included, prints the path of such a file and never its
+        # content, and fails the job.
+        run: python3 tools/hooks/check_inside_records.py .
       - name: Surface changes under .github/workflows/ or tools/
         env:
           EVENT_NAME: ${{ github.event_name }}

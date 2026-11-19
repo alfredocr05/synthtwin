@@ -6565,6 +6565,83 @@ def _chained_description(
     return with_chain
 
 
+def _inside_trajectories(read: "typing.Any", document: "dict[str, object]", written: pathlib.Path) -> None:
+    """The trajectories zone written into the description's inside record (lane IN-3, plan P4-D498); nothing where no record stands for it.
+
+    The person column and the record-number columns are the description's
+    settings; every column is read through `reading.column_values`. BOUND
+    AS THE RELATIONS ZONE IS (Codex's review of batch 4w, item 14): the zone
+    joins the record `_inside_record_written` wrote at this description's
+    own place (`_inside_record_at`, its resolved path) for these very bytes
+    (the digest and size of the description written), and is written
+    nowhere else: two tables of one name and header never share a model,
+    and the zone stands or falls with the relations zone of the same
+    description (one moved, renamed or edited afterwards finds neither).
+    Nothing is printed: the record's path and size are the only things a
+    screen may say of it, and IN-10 owns those words.
+    """
+    from synthtwin import inside, inside_relations, inside_trajectories, reading
+
+    settings_block = document["settings"] if "settings" in document else None
+    if not isinstance(settings_block, dict):
+        return
+    persons = settings_block["person_columns"] if "person_columns" in settings_block else None
+    forced = settings_block["forced_identifiers"] if "forced_identifiers" in settings_block else None
+    if not isinstance(persons, list) or len(persons) != 1:
+        return
+    rows = document["n_rows"] if "n_rows" in document else None
+    if not isinstance(rows, int) or isinstance(rows, bool):
+        return
+    # THE ZONE IS AN ADDITION: a table it cannot read, or a record it cannot write, leaves the description and the
+    # run as they were (the twin is then made without it), never a run stopped.
+    try:
+        places = inside.default_places()
+        target = _inside_record_at(written, places.private)
+        data = pathlib.Path(f"{written}").read_bytes()
+        bound: "dict[str, object]" = {"digest": inside_relations.digest_of(data), "bytes": len(data)}
+        del data
+        names = [f"{name}" for name in read.column_names]
+        # ...and only where that record stands: no column is read for a zone that could be written nowhere.
+        if inside.place_refusal(target, places) or not inside.carries_marker(target):
+            return
+        columns: "dict[str, list[str]]" = {}
+        for place in range(len(names)):
+            columns[names[place]] = reading.column_values(read, place)
+        zone = inside_trajectories.zone_from_columns(
+            columns, f"{persons[0]}", tuple(f"{name}" for name in forced) if isinstance(forced, list) else ()
+        )
+        columns = {}
+        if zone is None:
+            return
+        inside_trajectories.write_zone(zone, "", rows, names, places, at=target, description=bound)
+    except (ArithmeticError, IndexError, KeyError, OSError, TypeError, ValueError):
+        return
+
+
+def _inside_trajectories_for(description: str, names: "list[str]", rows: int) -> "dict[str, object] | None":
+    """The trajectories zone of the inside record bound to this description (its place and its bytes, Codex's review of batch 4w, item 14), or None."""
+    from synthtwin import inside, inside_relations, inside_trajectories
+
+    try:
+        places = inside.default_places()
+        target = _inside_record_at(description, places.private)
+        data = pathlib.Path(f"{description}").read_bytes()
+    except (OSError, ValueError):
+        return None
+    bound: "dict[str, object]" = {"digest": inside_relations.digest_of(data), "bytes": len(data)}
+    return inside_trajectories.zone_of_record("", names, rows, places, at=target, description=bound)
+
+
+def _dates_drawn(record: "dict[str, object] | None", drawn: "list[str]") -> "tuple[dict[str, object] | None, list[str]]":
+    """The dates zone of the record a twin was drawn from and the date columns it wrote in that twin (None and none where the twin's dates are the description's)."""
+    zones = record["zones"] if record is not None and "zones" in record else None
+    found = zones["dates"] if isinstance(zones, dict) and "dates" in zones else None
+    order = found["order"] if isinstance(found, dict) and "order" in found else None
+    if not isinstance(found, dict) or not isinstance(order, list):
+        return None, []
+    return found, [name for name in order if isinstance(name, str) and name in drawn]
+
+
 # THE QUESTIONS A HOLD WAITS FOR (`_ChainState.waiting`).
 _WAITS_FOR_SUBJECT = "subject"
 _WAITS_FOR_PERSON = "person"
@@ -6922,6 +6999,342 @@ def _private_report(
         return
     _wrote((results.FILE_PRIVATE_REPORT, target))
     _say(f"The private report, for you alone (keep it out of anything you share): {_shown(str(target))}")
+
+
+# -- the inside record (lane IN-2, plan P4-D496) ------------------------------------------------------
+
+
+def _inside_record_at(description: "str | pathlib.Path", private: pathlib.Path) -> pathlib.Path:
+    """Where a description's inside record lies: the private folder, the description's own name and a digest of its place.
+
+    The place is the description's resolved path, so two tables of one
+    name described into two folders keep two records, and a description
+    moved elsewhere finds none (its twin is then built from it alone).
+    """
+    from synthtwin import inside, inside_relations
+
+    resolved = pathlib.Path(f"{pathlib.Path(f'{description}').resolve()}")
+    tag = inside_relations.digest_of(bytes(f"{resolved}", "utf-8", "surrogatepass"))
+    return pathlib.Path(f"{private}", f"{resolved.stem}-{tag[:12]}{inside.SUFFIX}")
+
+
+# THE INSIDE RECORD'S SUB-SWITCH (batch 4w): the record is written and the twin drawn from it only where this is on.
+# False on the shipped route until the drawn twin keeps the description's written forms (number spellings, date
+# spellings) that the suite's gate files hold the description's twin to. A gate file sets it in place for its own
+# span; the product reads no environment. The flip is a ruling.
+_INSIDE_RECORD_SHIPPED = False
+
+
+def _inside_record_switched_on() -> bool:
+    """Whether the inside record is written and the twin drawn from it: the sub-switch alone (the product reads no
+    environment; a gate file sets the switch in place)."""
+    return _INSIDE_RECORD_SHIPPED
+
+
+def _inside_record_written(read: object, published: "dict[str, object]", written: pathlib.Path) -> None:
+    """Write the inside record of a table just described (lane IN-2, plan P4-D496): its marginals and its relations.
+
+    THE TWIN IS BUILT FROM IT. Once the description is written, the table
+    still open is read a column at a time (`reading.column_values`) into
+    the record IN-0 contracted (`inside.write_record`: the protected
+    marker, mode 0600 in the private folder, the guard first): the
+    marginals zone (`inside.column_entry`) and the relations zone
+    (`inside_relations.fit_zone`, the fitted responses), bound to the
+    description by the digest of its bytes. `synthtwin generate` of that
+    description then draws the twin from it. Nothing of the record is
+    shown: one line names its path and its size.
+
+    Where the guard refuses the private folder, the record is not written
+    and the twin is built from the description alone; the refusal is said
+    as a caution, except where the folder is a temporary one (a test's or
+    a throwaway installation), where nothing is said. Raises TypeError on
+    an internal mismatch; what `reading.column_values` raises; nothing
+    else (a refused write is said, never raised).
+    """
+    from synthtwin import inside, inside_relations, reading
+
+    if not isinstance(read, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    if not _inside_record_switched_on():
+        return
+    places = inside.default_places()
+    target = _inside_record_at(written, places.private)
+    refusal = inside.place_refusal(target, places)
+    if refusal:
+        if not inside.in_temporary(target, places):
+            _warn(
+                f"{refusal} The twin will be built from the description alone, without the relations between "
+                "columns the record would carry.",
+                caution=results.CAUTION_CHAIN,
+            )
+        return
+    rows = published["n_rows"] if "n_rows" in published else None
+    if not isinstance(rows, int):
+        return
+    specs = inside_relations.specs_of(published)
+    if len(specs) != len(read.column_names):
+        return
+    # THE PERSONS FIRST, where a person column repeats: a column held once a
+    # person is described and fitted a person at a time.
+    persons: "inside_relations.Persons | None" = None
+    person = ""
+    for place in range(len(specs)):
+        if specs[place].why_kept == inside_relations.NAMES_THE_PERSON and not person:
+            found_persons = inside_relations.persons_of(reading.column_values(read, place))
+            if found_persons.repeats:
+                persons, person = found_persons, specs[place].name
+    sample = inside_relations.sample_rows(rows, persons=persons)
+    marginals: "dict[str, object]" = {}
+    encoded: "list[inside_relations.Encoded]" = []
+    names: "list[str]" = []
+    try:
+        for place, name in enumerate(read.column_names):
+            if specs[place].name != name:
+                return
+            names += [name]
+            cells = reading.column_values(read, place)
+            marginals[name] = inside.column_entry(cells, specs[place].why_kept in inside_relations.RECORD_NUMBERS)
+            found = inside_relations.encode(specs[place], cells, sample, persons)
+            if found is not None:
+                encoded += [found]
+            del cells
+        owners = [persons.person[row] for row in sample] if persons is not None else None
+        zone = inside_relations.fit_zone(encoded, len(sample), rows, owners, person)
+    except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
+        # The description is written: a fit that stops leaves it and the exit
+        # code as they are, and the twin is built from the description alone.
+        # No word of the fault is shown, for it may quote a cell.
+        _warn(
+            "The inside record was not written: its fit stopped, a mistake in synthtwin; please report it. The twin "
+            "will be built from the description alone, without the relations between columns the record would carry.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return
+    persons = None
+    encoded = []
+    # THE DATES ZONE (lane IN-5, plan P4-D497): beside the relations, a census
+    # of each date column's weekday, clock and gaps, so the twin's dates keep
+    # them with the day of the month made up. A table past the rows the zone
+    # reads whole leaves it out, and the twin keeps the description's dates.
+    dates_zone: "dict[str, object] | None" = None
+    if rows <= _DATES_ZONE_MOST_ROWS:
+        try:
+            from synthtwin import inside_dates
+
+            whole = {name: [str(cell) for cell in reading.column_values(read, place)]
+                     for place, name in enumerate(read.column_names)}
+            skipped = tuple(specs[place].name for place in range(len(specs))
+                            if specs[place].why_kept in inside_relations.RECORD_NUMBERS)
+            # ...each date column read as the description reads it (`--day-first`, the answers, `--date-count`),
+            # and no other column read as dates.
+            built = inside_dates.build_zone(whole, person, _inside_date_readings(published), skipped, True)
+            if built["order"]:
+                dates_zone = built
+            del whole
+        except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+            dates_zone = None
+    data = pathlib.Path(f"{written}").read_bytes()
+    record: "dict[str, object]" = {
+        "format": inside.FORMAT,
+        "version": inside.VERSION,
+        "mode": inside.MODE,
+        "table": {
+            "rows": rows,
+            "columns": names,
+            "description": {"digest": inside_relations.digest_of(data), "bytes": len(data)},
+        },
+        "zones": {"marginals": marginals, inside_relations.ZONE: zone},
+    }
+    if dates_zone is not None:
+        record["zones"]["dates"] = dates_zone  # type: ignore[index]
+    try:
+        made = inside.write_record(record, target, places)
+    except (inside.InsideError, OSError) as failed:
+        _warn(
+            f"The inside record was not written ({_shown(str(failed))}). The twin will be built from the description "
+            "alone, without the relations between columns the record would carry.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return
+    _say(f"The {inside.describe(made.path)}. synthtwin generate builds the twin from it.")
+
+
+def _inside_report_head(drawn: "list[str]") -> str:
+    """The lines a twin drawn from the inside record opens its report with ('' for a twin built from the description alone).
+
+    They say what the rest of the report cannot: which columns were drawn
+    from the record, what those carry, and that the report's sentences on
+    columns and rows built independently speak of the other columns only.
+    No value and no count of the record is printed.
+    """
+    if not drawn:
+        return ""
+    named = _joined([parsing.visible(name) for name in drawn], ", ")
+    return (
+        "THIS TWIN WAS DRAWN FROM THE INSIDE RECORD, which stays on this computer.\n"
+        f"These {len(drawn)} column(s) were drawn from its fitted responses: {named}.\n"
+        "Each holds its own shape over every row of the real table and its relations\n"
+        "to the drawn columns before it (interactions, curves and steps at a class's\n"
+        "cut points included), fitted on the real table inside. Every other column is\n"
+        "the description's own twin's, made by every rule it keeps. Where the report\n"
+        "below says columns or rows were built independently, it speaks of those other\n"
+        "columns only, and it checks no published fact of a drawn column.\n\n"
+    )
+
+
+_DATES_ZONE_MOST_ROWS = 250_000
+
+
+def _inside_date_readings(published: "dict[str, object]") -> "dict[str, str]":
+    """Each date column's reading as the description written establishes it, for the dates zone (lane IN-5).
+
+    The member its block names (`format`: the reading `--day-first` and
+    the person's answers settled), or the counting system the person
+    declared (`--date-count`, the settings' `forced_date_counts`). A column
+    whose century the person declared, or whose member the zone does not
+    read (a month, a quarter, a layout), is not named: the twin keeps the
+    description's dates there. Raises nothing; no I/O.
+    """
+    from synthtwin import date_counts, inside_dates
+
+    settings = published["settings"] if "settings" in published else None
+    counted: "dict[str, str]" = {}
+    centuries: "set[str]" = set()
+    if isinstance(settings, dict):
+        pairs = settings["forced_date_counts"] if "forced_date_counts" in settings else None
+        for pair in pairs if isinstance(pairs, list) else []:
+            if isinstance(pair, list) and len(pair) == 2 and isinstance(pair[0], str) and isinstance(pair[1], str):
+                counted[pair[0]] = pair[1]
+        windows = settings["century_windows"] if "century_windows" in settings else None
+        for pair in windows if isinstance(windows, list) else []:
+            if isinstance(pair, list) and pair and isinstance(pair[0], str):
+                centuries = centuries | {pair[0]}
+    readings: "dict[str, str]" = {}
+    columns = published["columns"] if "columns" in published else None
+    for block in columns if isinstance(columns, list) else []:
+        if not isinstance(block, dict) or "name" not in block or not isinstance(block["name"], str):
+            continue
+        name = block["name"]
+        if name in centuries:
+            continue
+        if name in counted:
+            if counted[name] in date_counts.MEMBERS:
+                readings[name] = counted[name]
+            continue
+        shown = block["format"] if "format" in block else None
+        if isinstance(shown, str) and shown in inside_dates.TEXT_MEMBERS:
+            readings[name] = shown
+    return readings
+
+
+def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.Any") -> "typing.Any":
+    """A twin drawn from the inside record: its drawn columns' exact obligations are authorized deviations (4w integration).
+
+    The description's exact counts and spellings describe the real table; a
+    column drawn from the inside record's fitted responses keeps its shape and
+    its relations, not those counts (the twin's own report says so). Where the
+    report beside the measured file opens with the inside record's head line
+    and the record lies beside this description, every MISSED label-count and
+    label-spelling check of a column the record's relations zone drew is an
+    AUTHORIZED-DEVIATION that cites the record; no other verdict moves, and a
+    file with no such report is judged as it always was.
+    """
+    from synthtwin import inside, inside_relations, validation
+
+    # The twin's report lies beside the measured file under its stem: 'visits-twin.csv' -> 'visits-twin-report.txt'.
+    named = pathlib.Path(f"{measured}")
+    report = f"{pathlib.Path(f'{named.parent}', f'{named.stem}-report.txt')}"
+    try:
+        if not os.path.isfile(report):
+            return outcome
+        opening = pathlib.Path(report).read_text(encoding="utf-8", errors="replace")
+        if opening[: len(_INSIDE_REPORT_HEAD)] != _INSIDE_REPORT_HEAD:
+            return outcome
+        target = _inside_record_at(description, inside.default_places().private)
+        if not os.path.isfile(f"{target}"):
+            return outcome
+        record = inside.load_record(target)
+        zones = record["zones"]
+        drawn: "set[str]" = set(inside_relations.modelled_names(inside_relations.zone_of(record)))
+        made_up: "set[str]" = set()
+        if isinstance(zones, dict) and "dates" in zones:
+            dates = zones["dates"]
+            order = dates["order"] if isinstance(dates, dict) and "order" in dates else None
+            if isinstance(order, list):
+                made_up = {str(each) for each in order}
+    except (inside.InsideError, inside_relations.RelationsError, OSError, KeyError, TypeError, ValueError):
+        return outcome
+    changed = [
+        dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_CITATION)
+        if check.verdict == validation.MISSED and (
+            (check.column in drawn and check.fact in _INSIDE_EXCUSED_FACTS)
+            or (check.column in made_up and check.fact in _INSIDE_EXCUSED_DATE_FACTS)
+        ) else check
+        for check in outcome.checks
+    ]
+    counted = {verdict: 0 for verdict in validation.VERDICTS}
+    for check in changed:
+        counted[check.verdict] += 1
+    census = validation.Census(
+        held=counted[validation.HELD], within_bound=counted[validation.WITHIN_BOUND],
+        authorized_deviation=counted[validation.AUTHORIZED_DEVIATION], withheld=counted[validation.WITHHELD],
+        missed=counted[validation.MISSED], not_checkable=outcome.census.not_checkable,
+    )
+    return dataclasses.replace(outcome, checks=tuple(changed), census=census)
+
+
+# THE ONLY OBLIGATIONS A DRAWN COLUMN IS EXCUSED: a label's exact level counts and its spelling census. Every
+# other obligation (identifiers, held columns, ages past 89, dates and clocks, moments, the file's written form,
+# the row and patient copies) stays as strict as before; the twin checks of the inside record stay the gate.
+_INSIDE_EXCUSED_FACTS = frozenset({"label.count", "label.variants", "numeric.n_distinct", "numeric.n_distinct_folded",
+                                    "numeric.n_distinct_values", "numeric.n_zero"})
+# A date column the dates zone made up keeps its weekday and clock and NOT the real days (Safe Harbor binds the twin:
+# no twin date is a real day), so the description's day-level ladder and tails are excused for it and nothing else.
+_INSIDE_EXCUSED_DATE_FACTS = frozenset({"datetime.date_percentiles", "datetime.low_tail.rows",
+                                        "datetime.low_tail.boundary", "datetime.high_tail.rows",
+                                        "datetime.high_tail.boundary", "datetime.day_of_month_census",
+                                        "datetime.heavy_dates"})
+_INSIDE_REPORT_HEAD = "THIS TWIN WAS DRAWN FROM THE INSIDE RECORD"
+_INSIDE_CITATION = "the twin's column was drawn from the inside record, which keeps its shape and relations, not the description's exact counts"
+
+
+def _inside_record_for(description: str) -> "dict[str, object] | None":
+    """The inside record a description's twin is built from (lane IN-2, plan P4-D496), or None where there is none.
+
+    None, silently, where no record lies at the description's place in the
+    private folder. Where one lies there but cannot be read, or was written
+    beside another version of the description (its digest differs), the
+    twin is built from the description alone and a caution says so,
+    naming the record's path and size, never a value of it.
+    """
+    from synthtwin import inside, inside_relations
+
+    if not _inside_record_switched_on():
+        return None
+    places = inside.default_places()
+    target = _inside_record_at(description, places.private)
+    if not os.path.isfile(f"{target}"):
+        return None
+    try:
+        record = inside.load_record(target)
+        table = record["table"]
+        bound = table["description"] if isinstance(table, dict) and "description" in table else None
+        digest = bound["digest"] if isinstance(bound, dict) and "digest" in bound else None
+        inside_relations.zone_of(record)
+    except (inside.InsideError, inside_relations.RelationsError, OSError) as refused:
+        _warn(
+            f"{_shown(str(refused))} The twin is built from the description alone.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return None
+    if digest != inside_relations.digest_of(pathlib.Path(description).read_bytes()):
+        _warn(
+            f"The {inside.describe(target)} was written beside another version of this description, so the twin "
+            "is built from the description alone. Describe the table again to write the record anew.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return None
+    return record
 
 
 def _loader_refusal(document: "dict[str, object]") -> str:
@@ -11218,6 +11631,15 @@ def _run_profile_body(
         (results.FILE_SUMMARY, summary_path),
     )
     _described_carried(profile_path, chain_state is not None)
+    # THE INSIDE RECORD (lane IN-2, plan P4-D496): the table, still open, read
+    # into the record the twin is built from, once the description is written.
+    _inside_record_written(read, published, profile_path)
+    # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
+    # where the patient layer stands in the description written, its
+    # patients' visits as a model, joining that record (Codex's review of
+    # batch 4w, item 14), never in the description.
+    if chain_state is not None and chain_state.grain is not None:
+        _inside_trajectories(read, published, profile_path)
     # THE PRIVATE REPORT (lane ST, plan P4-D458), behind the chain's switch
     # alone, once the ledger holds the run and the description is written.
     if chain_state is not None:
@@ -12013,13 +12435,51 @@ def _run_generate(
     # THE TWIN IS HELD ONCE (plan P4-D415, lane SG): its columns held
     # compactly, never the whole table as Python objects, and its text
     # written from them a piece at a time, never made whole.
+    # THE INSIDE RECORD (lane IN-2, plan P4-D496): where one stands beside this
+    # description in the private folder, bound to its bytes, the twin is
+    # drawn from it (a delimited twin; a workbook's is the description's).
+    record = None if packaged else _inside_record_for(description)
     _at(results.STEP_CONTENT)
     # A FIRST LINE AND PROGRESS AT A TERMINAL (lane EZ-a, plan P4-D479).
     if _progress_at_a_terminal():
         _say(_first_line("Building the twin from", description))
     _counting_switched_on("building")
+    drawn_inside: "list[str]" = []
     try:
-        twin = generation.generate_held(loaded, seed)
+        twin = None
+        if record is not None:
+            from synthtwin import inside_relations
+
+            try:
+                twin = generation.generate_inside(loaded, record, seed)
+                drawn_inside = [each.column for each in twin.remarks if each.subject == generation.INSIDE_DRAWN_SUBJECT]
+            except inside_relations.RelationsError as refused:
+                _warn(f"{_shown(str(refused))} The twin is built from the description alone.",
+                      caution=results.CAUTION_CHAIN)
+            except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
+                twin = None
+                _warn("The twin could not be drawn from the inside record, a mistake in synthtwin; please report it. "
+                      "It is built from the description alone.", caution=results.CAUTION_CHAIN)
+        if twin is None:
+            twin = generation.generate_held(loaded, seed)
+        # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
+        # where the patient walk made the twin's patients and the record bound
+        # to this description (its place and bytes, Codex's review of batch
+        # 4w, item 14) holds the zone, their visits follow it. It times no
+        # date (item 2): the date columns the dates zone wrote are written by
+        # it again over the patients the rows then form.
+        if loaded.relationships.grain is not None:
+            from synthtwin import inside_trajectories
+
+            zone = _inside_trajectories_for(description, list(twin.names), twin.n_rows)
+            if zone is not None:
+                dates_zone, dates_written = _dates_drawn(record, drawn_inside)
+                # ...an addition: a zone the twin cannot take leaves the twin as the walk made it.
+                try:
+                    twin = inside_trajectories.twin_with_zone(twin, loaded, zone, seed, dates=dates_zone,
+                                                              written=dates_written)
+                except (ArithmeticError, IndexError, KeyError, TypeError, ValueError):
+                    pass
         progress.stage("writing the twin and its report")
     finally:
         progress.switch_off()
@@ -12067,7 +12527,7 @@ def _run_generate(
             )
             return results.REFUSED
         twin_stream = rendering.twin_csv_pieces(twin)
-    report_text = parsing.visible_lines(rendering.report(loaded, twin))
+    report_text = parsing.visible_lines(_inside_report_head(drawn_inside) + rendering.report(loaded, twin))
 
     # THE RESULT TAKES THE TWIN'S MISSES AS ITS REPORT IS SHOWN (plan
     # P4-D395 part 1): a run stopped after this keeps them, one stopped
@@ -12439,6 +12899,7 @@ def _run_validate(
             outcome = validation.measure(loaded, measured, sheet, document)
     finally:
         progress.switch_off()
+    outcome = _outcome_of_a_drawn_twin(description, measured, outcome)
     # The report is a human-facing sink like the profiler's summary and
     # the twin's report, so it crosses the display boundary once, here,
     # and the same text is what reaches the screen and what is written to

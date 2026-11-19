@@ -981,7 +981,11 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # base `7be40594`), loaded once.
 # 80 AT BATCH 4v'S MERGE (lane CHG-b's three gate files and the review round's: each loads the oracle or a driver by its
 # committed path under tools/ or tests/).
-FILES_LOADED_AS_MODULES = 80
+# 81 AT LANE IN-0 (plan P4-D495): tests/test_inside_export.py loads the repository's inside-record checker,
+# tools/hooks/check_inside_records.py, by its committed path.
+# 82 AT BATCH 4w'S LANDING (the outside review's fix round, worker A): tests/test_review_4w_a.py loads the offline
+# scanner, tools/offline_scan/scan_imports.py, by its committed path.
+FILES_LOADED_AS_MODULES = 82
 
 
 def _files() -> "list[pathlib.Path]":
