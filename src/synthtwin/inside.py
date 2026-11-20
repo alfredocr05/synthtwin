@@ -253,31 +253,94 @@ def _linux_mounts() -> "tuple[tuple[str, str], ...]":
     return _mounts_of(_mount_table())
 
 
-def default_places() -> Places:
-    """The places of this computer: the installation's data folder, its fixed temporary roots, the downloads folder."""
-    os_name = installation.system_name()
-    home = _home()
+def default_places(os_name: "str | None" = None, variables: "dict[str, str] | None" = None,
+                   home: "str | None" = None) -> Places:
+    """The places of this computer: the installation's data folder, its fixed temporary roots, the downloads folder.
+
+    `os_name`, `variables` (a stand-in for the account's environment
+    variables) and `home` stand in for this computer's (as
+    `installation.data_folder` takes them), so the places of a Windows
+    computer are built, and its decisions rehearsed, on any system (lane
+    IN-8, plan P4-D502). The product reads no environment here: only
+    `installation.data_folder`'s one audited read does, where `variables`
+    is not given.
+    """
+    system = os_name if os_name is not None else installation.system_name()
+    own = pathlib.Path(home) if home is not None else _home()
     temporary: "tuple[pathlib.Path, ...]"
-    if os_name == "nt":
-        temporary = (pathlib.Path(home, "AppData", "Local", "Temp"), pathlib.Path("C:\\Windows\\Temp"),
+    if system == "nt":
+        temporary = (pathlib.Path(own, "AppData", "Local", "Temp"), pathlib.Path("C:\\Windows\\Temp"),
                      pathlib.Path("C:\\Temp"), pathlib.Path("C:\\tmp"))
     else:
         temporary = (pathlib.Path("/tmp"), pathlib.Path("/var/tmp"), pathlib.Path("/private/tmp"),
                      pathlib.Path("/private/var/tmp"), pathlib.Path("/var/folders"), pathlib.Path("/private/var/folders"),
                      pathlib.Path("/dev/shm"))
-    return Places(pathlib.Path(installation.data_folder(), FOLDER), temporary, (pathlib.Path(home, "Downloads"),),
-                  os_name, _linux_mounts())
+    data = installation.data_folder(system, variables, f"{own}" if home is not None else None)
+    mounts = _linux_mounts() if os_name is None else ()
+    return Places(pathlib.Path(data, FOLDER), temporary, (pathlib.Path(own, "Downloads"),), system, mounts)
 
 
 def _resolved(path: object) -> pathlib.Path:
     return pathlib.Path(os.path.realpath(f"{path}"))
 
 
-def _parts(path: object) -> "list[str]":
+def _rehearsed(places: Places) -> bool:
+    """Whether the places are a Windows computer's read on another system (the rehearsal of lane IN-8).
+
+    There no path can be resolved as Windows resolves it (links, junctions,
+    a mapped drive's share), so each is read as it is written, by Windows'
+    rules (`_windows_parts`), and nothing of the file system is asked.
+    """
+    return places.os_name == "nt" and installation.system_name() != "nt"
+
+
+def _windows_parts(text: object) -> "list[str]":
+    """A path's parts as Windows reads them: the drive or the share first, then each folder, as written.
+
+    Either slash separates; a dot is no part and two dots take the part
+    before them away (as `os.path.normpath` writes a Windows path); the
+    drive with its separator, a share (two separators, the server and the
+    share) or a device form (two separators and a question mark or a dot)
+    is the first part, as `pathlib` names it on Windows.
+    """
+    if not isinstance(text, str):
+        raise TypeError("synthtwin reads a path as text only.")
+    unified = text.replace("/", "\\")
+    head = ""
+    tail = unified.split("\\")
+    if unified[:2] == "\\\\":
+        pieces = unified[2:].split("\\")
+        taken = 4 if len(pieces) > 3 and pieces[0] in ("?", ".") and pieces[1] == "UNC" else 2
+        head = "\\\\"
+        for piece in pieces[:taken]:
+            head = head + _text(piece) + "\\"
+        tail = pieces[taken:]
+    elif len(unified) >= 2 and unified[1] == ":":
+        head = unified[:3] if unified[2:3] == "\\" else unified[:2]
+        tail = unified[len(head):].split("\\")
+    folders: "list[str]" = []
+    for part in tail:
+        if part == "" or part == ".":
+            continue
+        if part == "..":
+            folders = folders[: len(folders) - 1]
+            continue
+        folders += [part]
+    return ([head] if head else []) + folders
+
+
+def _written_parts(path: object, places: Places) -> "list[str]":
+    """The path's parts as the places' system reads them: resolved, or on a rehearsal as written; never lower-cased."""
+    if places.os_name == "nt":
+        return _windows_parts(f"{path}" if _rehearsed(places) else f"{_resolved(path)}")
+    return [_text(part) for part in _resolved(path).parts]
+
+
+def _parts(path: object, places: Places) -> "list[str]":
     """The resolved path's parts, case-blind on Windows."""
     out: "list[str]" = []
-    for part in _resolved(path).parts:
-        out += [_low(part) if sys.platform == "win32" else _text(part)]
+    for part in _written_parts(path, places):
+        out += [_low(part) if places.os_name == "nt" else _text(part)]
     return out
 
 
@@ -292,22 +355,25 @@ def _identity(path: object) -> "tuple[int, int] | None":
     return found.st_dev, found.st_ino
 
 
-def _inside(path: object, folder: object) -> bool:
+def _inside(path: object, folder: object, places: Places) -> bool:
     """Whether `path` is `folder` or lies under it.
 
-    Both resolved and compared part by part (case-blind on Windows); and
-    BY THE FILE SYSTEM'S IDENTITY (the batch 4w Codex review, item 7):
-    where `folder` stands, `path` lies in it when the folder or any of
-    its own standing folders is that folder to the file system. A
-    case-blind volume (macOS's and Windows' by default) reads
-    `/private/TMP` and `/private/tmp` as one folder, so a record under
-    the first spelling lay in a temporary folder the parts alone did not
-    see.
+    Both resolved (on a rehearsal, as written) and compared part by part
+    (case-blind on Windows); and BY THE FILE SYSTEM'S IDENTITY (the batch
+    4w Codex review, item 7): where `folder` stands, `path` lies in it
+    when the folder or any of its own standing folders is that folder to
+    the file system. A case-blind volume (macOS's and Windows' by default)
+    reads `/private/TMP` and `/private/tmp` as one folder, so a record
+    under the first spelling lay in a temporary folder the parts alone did
+    not see. A rehearsal (lane IN-8) asks the file system nothing, so it
+    reads the parts alone.
     """
-    here = _parts(path)
-    there = _parts(folder)
+    here = _parts(path, places)
+    there = _parts(folder, places)
     if len(here) >= len(there) and here[: len(there)] == there:
         return True
+    if _rehearsed(places):
+        return False
     wanted = _identity(_resolved(folder))
     if wanted is None:
         return False
@@ -318,23 +384,27 @@ def _inside(path: object, folder: object) -> bool:
     return False
 
 
-def _one_place(path: object, folder: object) -> bool:
-    """Whether two paths are one place: their resolved parts (case-blind on Windows), or, both standing, the file system's identity."""
-    if _parts(path) == _parts(folder):
+def _one_place(path: object, folder: object, places: Places) -> bool:
+    """Whether two paths are one place: their parts (case-blind on Windows), or, both standing and no rehearsal, the file system's identity."""
+    if _parts(path, places) == _parts(folder, places):
         return True
+    if _rehearsed(places):
+        return False
     wanted = _identity(_resolved(folder))
     return wanted is not None and _identity(_resolved(path)) == wanted
 
 
-def _cloud_part(path: object) -> str:
-    for part in _resolved(path).parts:
+def _cloud_part(path: object, places: Places) -> str:
+    for part in _written_parts(path, places):
         if _is_cloud(part):
             return _text(part)
     return ""
 
 
-def _version_control(path: object) -> str:
-    """The first folder above `path` that holds a version-control folder or file, '' where none does."""
+def _version_control(path: object, places: Places) -> str:
+    """The first folder above `path` that holds a version-control folder or file, '' where none does (or on a rehearsal)."""
+    if _rehearsed(places):
+        return ""
     here = _resolved(path)
     for folder in [here, *here.parents]:
         for name in VERSION_CONTROL:
@@ -356,7 +426,7 @@ def _network_mount(path: object, places: Places) -> str:
         return f"the mount table says {best!r} is a network file system ({kind})"
     private = f"{_resolved(places.private)}"
     for root in MOUNT_ROOTS:
-        if _under(private, root) or _inside(private, root):
+        if _under(private, root) or _inside(private, root, places):
             return f"the private folder itself lies under {root}, where other disks and network shares are mounted"
     folder = _resolved(path)
     stop = _resolved(places.private)
@@ -380,26 +450,30 @@ def place_refusal(target: "str | pathlib.Path", places: "Places | None" = None) 
     """Why a record may not be written at `target` ('' where it may), checked before anything is written."""
     here = places if places is not None else default_places()
     try:
-        validated = validate_local_path(f"{target}", purpose="inside record")
+        checked = validate_local_path(f"{target}", purpose="inside record")
     except PathValidationError as refused:
         return f"{refused}"
+    # A rehearsal of a Windows computer on another system reads the path as
+    # written (`_rehearsed`): the locality gate above has refused its network
+    # and device forms by their letters, as it does on Windows.
+    validated = pathlib.Path(f"{target}") if _rehearsed(here) else checked
     for folder in here.temporary:
-        if _inside(validated, folder):
+        if _inside(validated, folder, here):
             return (f"The inside record was not written: {f'{validated}'!r} lies in a temporary folder ({f'{folder}'!r}), "
                     "which the system or other programs may copy, keep or clear.")
     for folder in here.downloads:
-        if _inside(validated, folder):
+        if _inside(validated, folder, here):
             return (f"The inside record was not written: {f'{validated}'!r} lies in a downloads folder ({f'{folder}'!r}), "
                     "where files are shared and synchronised.")
-    for part in _resolved(validated).parts:
+    for part in _written_parts(validated, here):
         if _low(part) in DOWNLOADS:
             return (f"The inside record was not written: {f'{validated}'!r} lies in a downloads folder ({part!r}), "
                     "where files are shared and synchronised.")
-    cloud = _cloud_part(validated)
+    cloud = _cloud_part(validated, here)
     if cloud:
         return (f"The inside record was not written: {f'{validated}'!r} lies in a folder a cloud service keeps in step "
                 f"with other computers ({cloud!r}). Keep it on this computer's own disk, in your private data folder.")
-    held = _version_control(validated)
+    held = _version_control(validated, here)
     if held:
         return (f"The inside record was not written: {f'{validated}'!r} lies in a folder under version control "
                 f"({held!r}), from which files are committed and shared.")
@@ -407,7 +481,7 @@ def place_refusal(target: "str | pathlib.Path", places: "Places | None" = None) 
     if mounted:
         return (f"The inside record was not written: {f'{validated}'!r} may lie on a network share or another disk: "
                 f"{mounted}. Keep it on this computer's own disk, in your private data folder.")
-    if not _inside(validated, here.private) or _one_place(validated, here.private):
+    if not _inside(validated, here.private, here) or _one_place(validated, here.private, here):
         return (f"The inside record was not written: {f'{validated}'!r} lies outside your private data folder "
                 f"({f'{here.private}'!r}), the one place an inside record is kept.")
     for folder in (here.private, validated.parent):
@@ -746,7 +820,7 @@ def in_temporary(target: "str | pathlib.Path", places: "Places | None" = None) -
     """Whether `target` lies in one of the temporary folders the guard refuses (a run whose data folder is a test's)."""
     here = places if places is not None else default_places()
     for folder in here.temporary:
-        if _inside(target, folder):
+        if _inside(target, folder, here):
             return True
     return False
 

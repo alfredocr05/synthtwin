@@ -87,12 +87,17 @@ import dataclasses
 import math
 import typing
 
-from synthtwin import date_counts, parsing
+from synthtwin import date_counts, offset_rules, parsing, twinstore
 
 ZONE = "dates"
 # Version 2: moments are instants in nanoseconds (version 1 held wall clocks in whole seconds; a writer reading one
 # would draw gaps a billion times too short, so it refuses it and the twin keeps the description's dates).
-VERSION = 2
+# Version 3: every census a twin's day or minute is drawn from is pulled toward its pooled shape as far as the
+# real departures from that shape allow (`_concentration`), and where a person starts inside its room is kept as
+# shares of `PLACE_BINS` bins: a version 2 zone held the persons' first dates by band in cells of month by
+# weekday of a few real persons each and their places on a grid of real persons' own places, and its twins sat on
+# real persons' times (lane IN-5b), so the writer refuses it and the twin keeps the description's dates.
+VERSION = 3
 GAP_GRID = 1001
 CELL_GRID = 201
 PER = 1_000_000
@@ -121,8 +126,10 @@ CELL_SHARE = 0.01
 TIGHTER = 0.9
 BANDS = (2, 3, 4, 5, 7, 10, 20, 50)
 FIRST_BANDS = (1, 2, 3, 4, 5, 7, 10, 20, 50)
-FIRST_LEAST_PEOPLE = 100
 BAND_GRID = 101
+# Where a person starts inside the room its span leaves: shares of this many equal bins, a place drawn evenly
+# inside its bin (a tenth of the room: wide against any person's span of dates, so no real person's place is kept).
+PLACE_BINS = 10
 
 # The members of the product's date vocabulary the zone reads, in the
 # product's own order (a cell two members read is read by the first).
@@ -578,30 +585,151 @@ def _shares_of(counts: "dict[str, int]") -> "list[list[object]]":
     return [[key, share] for key, share in zip(keys, shares)]
 
 
-def _calendar(days: "list[int]", cache: "dict[int, tuple[int, int, int]]") -> "dict[str, object]":
-    """The calendar of a list of days: each year's 84 shares of month by weekday, per million over all of them."""
+def _per_million_of(weights: "list[float]") -> "list[int]":
+    """Weights as shares per million that sum to exactly `PER` (largest remainders), all nought where they are."""
+    total = math.fsum(weights)
+    if total <= 0.0:
+        return [0 for _ in weights]
+    exact = [weight * PER / total for weight in weights]
+    floors = [int(value) for value in exact]
+    left = PER - sum(floors)
+    ranked = sorted((floors[k] - exact[k], k) for k in range(len(exact)))
+    for _remainder, k in ranked[:left]:
+        floors[k] += 1
+    return floors
+
+
+# -- smoothing a census toward its pooled shape -----------------------------------------------------
+#
+# A census of fine cells (a month's seven weekdays, an hour's sixty minutes) read from a table of a few thousand
+# persons holds, besides the table's real shape, the weekdays and the minutes ITS persons happened to come at. A
+# twin drawn from it lands on the real persons' own days and minutes more often than a fresh sample of the same
+# people would (lane IN-1's nearest-record and rare-date checks read exactly that). So each group of cells (a
+# month, an hour) is read as its own shares spread about a pooled shape (the whole calendar's weekdays, the
+# whole clock's minutes) with a Dirichlet concentration, estimated by the method of moments from how far the
+# groups really depart from the pooled shape; each group's shares are its counts pulled toward that shape by the
+# concentration. A real departure (no scheduled case before the 07:30 first slot, a clinic held on Mondays only)
+# is kept almost whole; a departure no larger than chance makes is pulled into the pooled shape.
+
+
+def _concentration(groups: "list[list[int]]", priors: "list[list[float]]") -> float:
+    """How far groups of counts spread about their pooled shares beyond chance, as a Dirichlet concentration.
+
+    A group of `n` counts drawn with shares that themselves spread about the prior shares with concentration
+    `alpha` gives Pearson's statistic an expectation of (cells - 1)(n + alpha) / (1 + alpha); summed over the
+    groups and solved for `alpha`. Returns -1.0 where the groups spread no more than draws of the prior shares
+    themselves would (no departure beyond chance: the prior alone is the estimate), 0.0 where they spread as far
+    as can be (each group keeps its own counts).
+    """
+    statistic = 0.0
+    freedom = 0.0
+    weighted = 0.0
+    for counts, prior in zip(groups, priors):
+        total = sum(counts)
+        if total <= 0:
+            continue
+        cells = 0
+        for count, share in zip(counts, prior):
+            if share <= 0.0:
+                continue
+            cells += 1
+            expected = total * share
+            statistic += (count - expected) * (count - expected) / expected
+        if cells > 1:
+            freedom += cells - 1
+            weighted += (cells - 1) * total
+    if freedom <= 0.0 or statistic <= freedom:
+        return -1.0
+    if statistic >= weighted:
+        return 0.0
+    return (weighted - statistic) / (statistic - freedom)
+
+
+def _pulled(counts: "list[int]", prior: "list[float]", alpha: float, weight: "float | None" = None) -> "list[float]":
+    """A group's shares: its counts pulled toward the prior shares by the concentration (-1.0: the prior itself).
+
+    `weight`, where given, is the size the pull is read at (a group's persons where its counts are rows), so a
+    group of many rows of few persons is pulled as its persons warrant; its own shares are then its counts'.
+    """
+    total = sum(counts)
+    if total <= 0:
+        return [share for share in prior]
+    size = float(total) if weight is None else weight
+    if alpha < 0.0:
+        return [share for share in prior]
+    own = size / (size + alpha) if size + alpha > 0.0 else 1.0
+    return [own * count / total + (1.0 - own) * share for count, share in zip(counts, prior)]
+
+
+def _pooled(groups: "list[list[int]]", cells: int) -> "list[float]":
+    """The shares of all groups' counts together (nought everywhere where there is none)."""
+    sums = [0] * cells
+    for counts in groups:
+        for k in range(cells):
+            sums[k] += counts[k]
+    total = sum(sums)
+    return [count / total if total else 0.0 for count in sums]
+
+
+def _calendar(days: "list[int]", cache: "dict[int, tuple[int, int, int]]",
+              units: "list[int] | None" = None) -> "dict[str, object]":
+    """The calendar of a list of days: each year's 84 shares of month by weekday, per million over all of them.
+
+    Each month keeps its own share of the days (a trend, a season, a step). Its weekdays are its own shares
+    pulled toward the whole calendar's weekday shares as far as the months' real departures from them allow
+    (`_concentration`, read on the days a person holds, one person's rows of one day counted once: `units` names
+    each day's person, every day its own where none is given): a month of few persons writes the calendar's
+    weekdays, never the weekdays its few real persons came on.
+    """
     by_year: "dict[int, list[int]]" = {}
-    for day in days:
+    held: "dict[int, list[int]]" = {}
+    met: "dict[tuple[int, int], int]" = {}
+    for k in range(len(days)):
+        day = days[k]
         year, month, _date = _civil(day, cache)
         if year not in by_year:
             by_year[year] = [0] * 84
-        by_year[year][(month - 1) * WEEK + weekday(day)] += 1
+            held[year] = [0] * 84
+        cell = (month - 1) * WEEK + weekday(day)
+        by_year[year][cell] += 1
+        unit = (units[k], day) if units is not None else (k, day)
+        if unit not in met:
+            met[unit] = 1
+            held[year][cell] += 1
+    met = {}
     years = sorted(by_year)
     if len(years) > YEAR_CAP:
         middle = years[len(years) // 2]
         kept = [year for year in years if abs(year - middle) <= YEAR_CAP // 2][:YEAR_CAP]
         years = kept
-    flat: "list[int]" = []
+    months_rows: "list[list[int]]" = []
+    months_held: "list[list[int]]" = []
     for year in years:
-        flat += by_year[year]
-    shares = _per_million(flat)
+        for month in range(12):
+            months_rows += [by_year[year][month * WEEK: (month + 1) * WEEK]]
+            months_held += [held[year][month * WEEK: (month + 1) * WEEK]]
+    week_rows = _pooled(months_rows, WEEK)
+    week_held = _pooled(months_held, WEEK)
+    alpha = _concentration(months_held, [week_held for _ in months_held])
+    flat: "list[float]" = []
+    for k in range(len(months_rows)):
+        size = sum(months_rows[k])
+        pulled = _pulled(months_rows[k], week_rows, alpha, float(sum(months_held[k])))
+        flat += [size * share for share in pulled]
+    shares = _per_million_of(flat)
     return {"years": years, "cells": [shares[84 * k: 84 * (k + 1)] for k in range(len(years))]}
 
 
 def _clock(days: "list[int]", ticks: "list[int]") -> "dict[str, object]":
-    """Hour by weekday, minute by hour and the second, as shares, and the share of minutes on five-minute marks."""
-    hours = [0] * (WEEK * 24)
-    minutes = [0] * (24 * 60)
+    """Hour by weekday, minute by hour and the second, as shares, and the share of minutes on five-minute marks.
+
+    Each weekday's hours are pulled toward the hours of its kind of day (a weekday or the weekend), and those
+    toward all the hours; each hour's minutes toward the minutes of every hour (`_concentration`): a minute a
+    real hour keeps apart (the 07:30 first slot) stays its own, a minute only the table's few persons happened
+    to come at is drawn as the clock's minutes are. Every weekday and hour keeps its own share of the stamps.
+    """
+    hours = [[0] * 24 for _ in range(WEEK)]
+    minutes = [[0] * 60 for _ in range(24)]
     at_second = [0] * 60
     marks = 0
     for day, tick in zip(days, ticks):
@@ -610,17 +738,42 @@ def _clock(days: "list[int]", ticks: "list[int]") -> "dict[str, object]":
         second = tick // TICKS
         hour = second // 3600
         minute = (second // 60) % 60
-        hours[weekday(day) * 24 + hour] += 1
-        minutes[hour * 60 + minute] += 1
+        hours[weekday(day)][hour] += 1
+        minutes[hour][minute] += 1
         at_second[second % 60] += 1
         marks += 1 if minute % 5 == 0 else 0
     clocked = sum(at_second)
-    hour_shares = _per_million(hours)
-    minute_shares = _per_million(minutes)
+    kinds = [_sum_rows(hours[0:5]), _sum_rows(hours[5:7])]
+    every = _pooled(kinds, 24)
+    kind_alpha = _concentration(kinds, [every, every])
+    kind_shares = [_pulled(kinds[0], every, kind_alpha), _pulled(kinds[1], every, kind_alpha)]
+    priors = [kind_shares[0 if day < 5 else 1] for day in range(WEEK)]
+    day_alpha = _concentration(hours, priors)
+    hour_weights: "list[float]" = []
+    for day in range(WEEK):
+        size = sum(hours[day])
+        hour_weights += [size * share for share in _pulled(hours[day], priors[day], day_alpha)]
+    within = _pooled(minutes, 60)
+    minute_alpha = _concentration(minutes, [within for _ in minutes])
+    minute_weights: "list[float]" = []
+    for hour in range(24):
+        size = sum(minutes[hour])
+        minute_weights += [size * share for share in _pulled(minutes[hour], within, minute_alpha)]
+    hour_shares = _per_million_of(hour_weights)
+    minute_shares = _per_million_of(minute_weights)
     return {"hour": [hour_shares[24 * k: 24 * (k + 1)] for k in range(WEEK)],
             "minute": [minute_shares[60 * k: 60 * (k + 1)] for k in range(24)],
             "second": _per_million(at_second), "marks": (marks * PER // clocked) if clocked else 0,
             "clocked": clocked}
+
+
+def _sum_rows(rows: "list[list[int]]") -> "list[int]":
+    """The cell-by-cell sums of rows of counts of one length."""
+    sums = [0] * (len(rows[0]) if rows else 0)
+    for row in rows:
+        for k in range(len(sums)):
+            sums[k] += row[k]
+    return sums
 
 
 # -- quantile functions -------------------------------------------------------------------------------
@@ -730,24 +883,6 @@ def _clock_parent(keys: "list[int]", rows: "list[int]", labels: "dict[str, list[
         if moved > best:
             best, chosen = moved, name
     return chosen
-
-
-def _label_columns(columns: "dict[str, list[str]]", skip: "set[str]") -> "dict[str, list[str]]":
-    """The columns of two to ten different words: the ones a date's clock or gap may depend on."""
-    found: "dict[str, list[str]]" = {}
-    for name in columns:
-        if name in skip:
-            continue
-        seen: "set[str]" = set()
-        for cell in columns[name]:
-            word = _bare(cell)
-            if word and word not in seen:
-                seen = seen | {word}
-                if len(seen) > PARENT_LEVELS:
-                    break
-        if 2 <= len(seen) <= PARENT_LEVELS:
-            found[name] = columns[name]
-    return found
 
 
 def _iqr(values: "list[int]") -> int:
@@ -925,34 +1060,46 @@ def _timeline(person: str, column: str, columns: "dict[str, list[str]]", days: "
     if not by_person or len(days) < 1.5 * len(by_person):
         return None
     first_rows: "list[int]" = []
-    first_bands: "list[int]" = []
+    first_bands: "dict[int, list[int]]" = {}
     gaps: "list[int]" = []
     day_gaps: "list[int]" = []
     previous_weekdays: "list[str]" = []
     previous_blocks: "list[str]" = []
     bands: "list[int]" = []
+    # A gap's weekday and four-hour block, seven and twelve texts, each held once (lane IN-8): a pointer a gap.
+    held_keys: "dict[str, str]" = {}
     clocked = True
     for key in by_person:
         ordered = sorted(by_person[key])
         first_rows += [ordered[0][1]]
-        first_bands += [first_band_of(len(ordered))]
+        opening_band = first_band_of(len(ordered))
+        if opening_band not in first_bands:
+            first_bands[opening_band] = []
+        first_bands[opening_band] += [ordered[0][2]]
         band = band_of(len(ordered))
         for k in range(1, len(ordered)):
             gaps += [ordered[k][0] - ordered[k - 1][0]]
             day_gaps += [ordered[k][2] - ordered[k - 1][2]]
-            previous_weekdays += [f"{weekday(ordered[k - 1][2])}"]
-            previous_blocks += [time_block(ordered[k - 1][2], seconds[ordered[k - 1][1]])]
+            weekday_key = f"{weekday(ordered[k - 1][2])}"
+            four_hours = time_block(ordered[k - 1][2], seconds[ordered[k - 1][1]])
+            if weekday_key not in held_keys:
+                held_keys[weekday_key] = weekday_key
+            if four_hours not in held_keys:
+                held_keys[four_hours] = four_hours
+            previous_weekdays += [held_keys[weekday_key]]
+            previous_blocks += [held_keys[four_hours]]
             bands += [band]
         for _moment, row, _day in ordered:
             clocked = clocked and seconds[row] >= 0
     if not gaps:
         return None
-    by_band: "dict[str, object]" = {}
-    for band in FIRST_BANDS:
-        mine_rows = [first_rows[k] for k in range(len(first_rows)) if first_bands[k] == band]
-        if _kept(len(mine_rows), 2 * len(first_rows), FIRST_LEAST_PEOPLE) and len(mine_rows) >= 0.04 * len(first_rows):
-            by_band[f"{band}"] = _calendar([days[row] for row in mine_rows], cache)
+    # The persons' first dates (each person once), pulled as every calendar is, and each band's own calendar
+    # of first dates where its months or weekdays depart from every person's beyond chance (`_band_calendars`):
+    # a person of one date starts anywhere in the calendar while a person of many starts early; a person's first
+    # order falls on another weekday where it is its only one. Where a person of a band starts inside its room is
+    # kept by its place (`_places`), at a tenth of the room.
     whole = _calendar([days[row] for row in first_rows], cache)
+    by_band = _band_calendars(first_bands, whole, len(first_rows), cache)
     entry: "dict[str, object]" = {"person": person, "column": column, "calendar": whole, "calendars": by_band,
                                   "clock": _clock_entry(days, seconds, first_rows, labels) if clocked else None,
                                   "places": _places(by_person, by_band, whole, days)}
@@ -974,13 +1121,73 @@ def _timeline(person: str, column: str, columns: "dict[str, list[str]]", days: "
     return entry
 
 
+def _band_calendars(days_by_band: "dict[int, list[int]]", whole: "dict[str, object]", persons: int,
+                    cache: "dict[int, tuple[int, int, int]]") -> "dict[str, object]":
+    """Each band's calendar of first dates: every person's calendar with the band's own month and weekday shares.
+
+    A band of a fiftieth of the persons or more (and the least rows) keeps a calendar. Its month shares are its
+    persons' months pulled toward every person's months, and its weekday shares likewise, each by the band's own
+    departure from every person's beyond chance (`_concentration` on the band alone): a band that starts as
+    every person does writes every person's calendar, never the months and weekdays its few real persons came
+    on; a band that starts late or on other weekdays keeps it. Within a month, the weekdays are every person's
+    (every person's calendar's own) tilted by the band's weekday shares over every person's.
+    """
+    pooled = _prepared_calendar(whole)
+    years = _numbers(_object(whole)["years"])
+    index: "dict[tuple[int, int], int]" = {}
+    for k in range(len(pooled.months)):
+        index[pooled.months[k]] = k
+    month_totals = [float(sum(week)) for week in pooled.weekdays]
+    total = math.fsum(month_totals)
+    month_prior = [share / total for share in month_totals]
+    week_sums = [0.0] * WEEK
+    for week in pooled.weekdays:
+        for day in range(WEEK):
+            week_sums[day] += week[day]
+    week_prior = [share / total for share in week_sums]
+    out: "dict[str, object]" = {}
+    for band in sorted(days_by_band):
+        days = days_by_band[band]
+        if not _kept(len(days), persons, PARENT_LEAST_ROWS) or len(days) < 0.02 * persons:
+            continue
+        month_counts = [0] * len(pooled.months)
+        week_counts = [0] * WEEK
+        for day in days:
+            year, month, _date = _civil(day, cache)
+            if (year, month) in index:
+                month_counts[index[(year, month)]] += 1
+            week_counts[weekday(day)] += 1
+        months = _pulled(month_counts, month_prior, _concentration([month_counts], [month_prior]))
+        band_week = _pulled(week_counts, week_prior, _concentration([week_counts], [week_prior]))
+        tilt = [band_week[day] / week_prior[day] if week_prior[day] > 0.0 else 0.0 for day in range(WEEK)]
+        cells: "dict[int, list[float]]" = {}
+        for year in years:
+            cells[year] = [0.0] * 84
+        for k in range(len(pooled.months)):
+            year, month = pooled.months[k]
+            if year not in cells:
+                continue
+            tilted = [pooled.weekdays[k][day] * tilt[day] for day in range(WEEK)]
+            size = math.fsum(tilted)
+            for day in range(WEEK):
+                cells[year][(month - 1) * WEEK + day] = months[k] * tilted[day] / size if size > 0.0 else 0.0
+        flat: "list[float]" = []
+        for year in years:
+            flat += cells[year]
+        shares = _per_million_of(flat)
+        out[f"{band}"] = {"years": years, "cells": [shares[84 * k: 84 * (k + 1)] for k in range(len(years))]}
+    return out
+
+
 def _places(by_person: "dict[str, list[tuple[int, int, int]]]", by_band: "dict[str, object]",
             whole: "dict[str, object]", days: "list[int]") -> "dict[str, object]":
-    """Where each person of two dates or more starts inside the room its span leaves, by band, per million.
+    """Where the persons of two dates or more start inside the room their span leaves: shares of `PLACE_BINS` bins.
 
     A person's dates must end by the calendar's last month, so a person of a long span starts early: the place
-    is the person's first date's position in its band's first-date calendar between the calendar's start (0)
-    and the latest first date its span allows (1). The writer places a twin person at the same relative place.
+    is the person's first date's position in its band's first-date calendar (every person's where its band keeps
+    none) between the calendar's start (0) and the latest first date its span allows (1). Kept as shares of
+    equal bins of the room, by band of the persons' numbers of dates ("all": every such person): the writer
+    places a twin person evenly inside a bin drawn by its share, never at a real person's own place.
     """
     present = [day for day in days if day != _ABSENT]
     year, month, _date = parsing.civil_from_days(max(present))
@@ -990,7 +1197,8 @@ def _places(by_person: "dict[str, list[tuple[int, int, int]]]", by_band: "dict[s
         prepared[band] = _prepared_calendar(by_band[band])
     overall = _prepared_calendar(whole)
     found: "dict[str, list[int]]" = {}
-    everyone: "list[int]" = []
+    everyone = [0] * PLACE_BINS
+    persons = 0
     for key in by_person:
         ordered = sorted(by_person[key])
         if len(ordered) < 2:
@@ -1004,15 +1212,17 @@ def _places(by_person: "dict[str, list[tuple[int, int, int]]]", by_band: "dict[s
         low = _position_of(calendar, calendar.first_day)
         high = _position_of(calendar, latest)
         place = (_position_of(calendar, first) - low) / (high - low) if high > low else 0.5
-        value = int(min(1.0, max(0.0, place)) * PER)
+        cell = min(PLACE_BINS - 1, max(0, int(place * PLACE_BINS)))
         if band not in found:
-            found[band] = []
-        found[band] += [value]
-        everyone += [value]
-    out: "dict[str, object]" = {"grid": _grid(everyone, BAND_GRID) if everyone else []}
+            found[band] = [0] * PLACE_BINS
+        found[band][cell] += 1
+        everyone[cell] += 1
+        persons += 1
+    out: "dict[str, object]" = {"all": _per_million(everyone)}
     for band in sorted(found):
-        if _kept(len(found[band]), len(everyone), PARENT_LEAST_ROWS) and len(found[band]) >= 0.02 * len(everyone):
-            out[band] = _grid(found[band], BAND_GRID)
+        held = sum(found[band])
+        if _kept(held, persons, PARENT_LEAST_ROWS) and held >= 0.02 * persons:
+            out[band] = _per_million(found[band])
     return out
 
 
@@ -1106,6 +1316,124 @@ def _dated_cells(cells: "list[str]", reading: Reading) -> "list[str]":
     return [cell for cell in cells if _bare(cell) and moment_of(cell, reading) is not None]
 
 
+@dataclasses.dataclass
+class Census:
+    """What the zone keeps of a table read a column at a time (`take_column`), before `zone_of` builds the zone.
+
+    THE MEMORY (lane IN-8, plan P4-D502): a column is read once and let go.
+    Kept: each date column's days and seconds, every number held once a
+    value (`_shared`: a list of a row's pointers, eight bytes a row, the
+    values a few thousand objects); each label column of two to ten words,
+    its cells held once a word the same way; the person column's keys once
+    a key; and each column's spellings and dates among other values as
+    their small entries. Never a column of numbers or of free text, so the
+    zone of a table of 2,000,000 rows holds about 16 bytes a row a date
+    column and 8 a label column, not the table.
+    """
+
+    person: str
+    declared: "dict[str, str]"
+    skip: "tuple[str, ...]"
+    declared_only: bool = False
+    rows: int = -1
+    names: "list[str]" = dataclasses.field(default_factory=list)
+    read: "dict[str, Reading]" = dataclasses.field(default_factory=dict)
+    days_of: "dict[str, list[int]]" = dataclasses.field(default_factory=dict)
+    seconds_of: "dict[str, list[int]]" = dataclasses.field(default_factory=dict)
+    spelled: "dict[str, dict[str, object]]" = dataclasses.field(default_factory=dict)
+    labels: "dict[str, list[str]]" = dataclasses.field(default_factory=dict)
+    mixed: "dict[str, object]" = dataclasses.field(default_factory=dict)
+    keys: "list[str] | None" = None
+    cache: "dict[int, tuple[int, int, int]]" = dataclasses.field(default_factory=dict)
+
+
+def census(person: str = "", readings: "dict[str, str] | None" = None, skip: "tuple[str, ...]" = (),
+           declared_only: bool = False) -> Census:
+    """An empty census: `build_zone`'s arguments but the columns, which `take_column` hands in one at a time."""
+    return Census(person, dict(readings) if readings is not None else {}, tuple(skip), declared_only)
+
+
+def _shared_texts(cells: "list[str]") -> "list[str]":
+    """The cells, each value held by one text object (a list of pointers, eight bytes a row)."""
+    held: "dict[str, str]" = {}
+    out: "list[str]" = []
+    for cell in cells:
+        text = _text(cell)
+        if text not in held:
+            held[text] = text
+        out += [held[text]]
+    return out
+
+
+def _shared_numbers(values: "list[int]") -> "list[int]":
+    """The whole numbers, each value held by one object (a list of pointers, eight bytes a row)."""
+    held: "dict[int, int]" = {}
+    out: "list[int]" = []
+    for value in values:
+        if value not in held:
+            held[value] = value
+        out += [held[value]]
+    return out
+
+
+def _is_label(cells: "list[str]") -> bool:
+    """Whether a column holds two to ten different words: a column a date's clock or gap may depend on."""
+    seen: "set[str]" = set()
+    for cell in cells:
+        word = _bare(cell)
+        if word and word not in seen:
+            seen = seen | {word}
+            if len(seen) > PARENT_LEVELS:
+                break
+    return 2 <= len(seen) <= PARENT_LEVELS
+
+
+def take_column(gathered: Census, name: str, cells: "list[str]") -> None:
+    """Read one column into the census, in the table's order; nothing of it is kept but what the zone reads.
+
+    The same reading as `build_zone`'s of the whole table: a date column
+    (one member reads 95 per cent of its present cells, or the person's
+    declared member; with `declared_only`, a column the readings name and
+    no other) keeps its days, its times of day in ticks and its spellings;
+    any other column but the person's and the skipped is a label of two to
+    ten words or not, and holds dates among other values or not.
+    """
+    if gathered.rows < 0:
+        gathered.rows = len(cells)
+    gathered.names += [name]
+    if name == gathered.person:
+        gathered.keys = _shared_texts(cells)
+        return
+    if name in gathered.skip:
+        return
+    texts = [_text(cell) for cell in cells]
+    reading: "Reading | None" = None
+    if not gathered.declared_only or name in gathered.declared:
+        reading = reading_of(texts, gathered.declared[name] if name in gathered.declared else "")
+    if reading is not None:
+        days: "list[int]" = []
+        seconds: "list[int]" = []
+        for cell in texts:
+            found = _moment(cell, reading)
+            if found is None:
+                days += [_ABSENT]
+                seconds += [-1]
+            else:
+                days += [found[0]]
+                seconds += [found[1]]
+        if not all(day == _ABSENT for day in days):
+            gathered.read[name] = reading
+            gathered.days_of[name] = _shared_numbers(days)
+            gathered.seconds_of[name] = _shared_numbers(seconds)
+            gathered.spelled[name] = _spellings(texts, reading)
+            return
+    if _is_label(cells):
+        gathered.labels[name] = _shared_texts(cells)
+    found_mixed = _mixed_columns({name: texts}, set(), gathered.cache)
+    if name in found_mixed:
+        gathered.mixed[name] = found_mixed[name]
+
+
 def build_zone(columns: "dict[str, list[str]]", person: str = "", readings: "dict[str, str] | None" = None,
                skip: "tuple[str, ...]" = (), declared_only: bool = False) -> "dict[str, object]":
     """The dates zone of a table's inside record: a census a date column, its chain, and the timeline.
@@ -1121,37 +1449,37 @@ def build_zone(columns: "dict[str, list[str]]", person: str = "", readings: "dic
     profile step's established reading, `--day-first` and the person's
     answers in it: a column the description reads otherwise is never read
     again here, and one it reads day first is never read month first).
+    The columns are taken one at a time (`take_column`), as the profile
+    hook takes them from a table read in groups, so the zone is the same
+    whichever way it is built.
     """
-    names = [name for name in columns]
-    rows = len(columns[names[0]]) if names else 0
-    declared = readings if readings is not None else {}
-    cache: "dict[int, tuple[int, int, int]]" = {}
-    read: "dict[str, Reading]" = {}
-    days_of: "dict[str, list[int]]" = {}
-    seconds_of: "dict[str, list[int]]" = {}
-    for name in names:
-        if name == person or name in skip or (declared_only and name not in declared):
-            continue
-        cells = [_text(cell) for cell in columns[name]]
-        reading = reading_of(cells, declared[name] if name in declared else "")
-        if reading is None:
-            continue
-        days: "list[int]" = []
-        seconds: "list[int]" = []
-        for cell in cells:
-            found = _moment(cell, reading)
-            if found is None:
-                days += [_ABSENT]
-                seconds += [-1]
-            else:
-                days += [found[0]]
-                seconds += [found[1]]
-        if all(day == _ABSENT for day in days):
-            continue
-        read[name] = reading
-        days_of[name] = days
-        seconds_of[name] = seconds
-    labels = _label_columns(columns, {person, *skip, *read})
+    gathered = census(person, readings, skip, declared_only)
+    for name in columns:
+        take_column(gathered, name, columns[name])
+    return zone_of(gathered)
+
+
+def zone_of(gathered: Census) -> "dict[str, object]":
+    """The dates zone of a census every column of the table was taken into (`take_column`)."""
+    names = gathered.names
+    rows = max(0, gathered.rows)
+    person = gathered.person
+    cache = gathered.cache
+    read = gathered.read
+    days_of = gathered.days_of
+    seconds_of = gathered.seconds_of
+    labels = gathered.labels
+    columns: "dict[str, list[str]]" = {person: gathered.keys} if gathered.keys is not None else {}
+    # Each row's person (a number a person), so a calendar reads a person's rows of one day as one day held.
+    owners: "list[int] | None" = None
+    if person and gathered.keys is not None:
+        codes: "dict[str, int]" = {}
+        owners = []
+        for cell in gathered.keys:
+            key = _bare(cell)
+            if key not in codes:
+                codes[key] = len(codes)
+            owners += [codes[key]]
     entries: "dict[str, object]" = {}
     order = [name for name in names if name in read]
     for k, name in enumerate(order):
@@ -1165,10 +1493,11 @@ def build_zone(columns: "dict[str, list[str]]", person: str = "", readings: "dic
         entry: "dict[str, object]" = {"reading": {"kind": read[name].kind, "member": read[name].member},
                                       "rows": rows, "present": len(present),
                                       "presence": _per_million([len(present), rows - len(present)]),
-                                      "calendar": _calendar([days[row] for row in present], cache),
+                                      "calendar": _calendar([days[row] for row in present], cache,
+                                                            [owners[row] for row in present] if owners else None),
                                       "clock": _clock_entry(days, seconds, present, {} if minute_chain else labels)
                                       if any(seconds[row] >= 0 for row in present) else None,
-                                      "spellings": _spellings(columns[name], read[name]),
+                                      "spellings": gathered.spelled[name],
                                       "chain": chain}
         entries[name] = entry
     orders: "list[list[str]]" = []
@@ -1184,8 +1513,7 @@ def build_zone(columns: "dict[str, list[str]]", person: str = "", readings: "dic
             timeline = _timeline(person, anchors[0], columns, days_of[anchors[0]], seconds_of[anchors[0]], labels,
                                  cache)
     return {"version": VERSION, "rows": rows, "person": person, "order": order, "columns": entries,
-            "orders": orders, "timeline": timeline,
-            "mixed": _mixed_columns(columns, {person, *skip, *read}, cache)}
+            "orders": orders, "timeline": timeline, "mixed": gathered.mixed}
 
 
 def add_zone(record: "dict[str, object]", columns: "dict[str, list[str]]", person: str = "",
@@ -1452,6 +1780,26 @@ def _order_statistic(rank: int, count: int, state: "list[int]") -> float:
     return min(max(mean + spread * normal, 0.5 / (count + 1)), 1.0 - 0.5 / (count + 1))
 
 
+def _spread_positions(rows: "list[int]", state: "list[int]") -> "dict[int, float]":
+    """Positions in (0, 1) for rows drawn alike: one in each of as many equal parts of (0, 1) as there are rows, the
+    parts dealt to the rows in an order the stream shuffles, each position drawn evenly inside its part.
+
+    Each row's month then comes back in its calendar share to within a row, so a twin's monthly counts carry the
+    table's own spread about a trend and not a second spread drawn on top of it (a month drawn row by row from
+    shares that already hold the table's counts left a twin's monthly admissions noisier than the table's: a step's
+    standard error a third too wide). Which day and minute of the month a row takes stays drawn.
+    """
+    count = len(rows)
+    order = list(range(count))
+    for k in range(count - 1, 0, -1):
+        other = min(k, int(_uniform(state) * (k + 1)))
+        order[k], order[other] = order[other], order[k]
+    out: "dict[int, float]" = {}
+    for k in range(count):
+        out[rows[k]] = (order[k] + _uniform(state)) / count
+    return out
+
+
 def _position(positions: "dict[int, float]", row: int, state: "list[int]") -> float:
     """The row's position from the generate step's scores where it gave one, else a draw of the stream."""
     if row in positions:
@@ -1517,7 +1865,11 @@ def _heaped(moment: int, level: "_Clock | None", whole: "_Clock | None", state: 
     minute = moment // (60 * TICKS)
     if _uniform(state) < level.marks:
         return ((minute + 2) // 5) * 5 * 60 * TICKS
-    return ((minute + 1) if minute % 5 == 0 else minute) * 60 * TICKS
+    if minute % 5 == 0:
+        # Off the mark by one or two minutes, earlier or later, each as likely: no minute between two marks
+        # takes what the mark gives up (always one later made the minute after a mark twice as common).
+        minute += (1, 2, -1, -2)[min(3, int(_uniform(state) * 4))]
+    return minute * 60 * TICKS
 
 
 def _anchored(column: _Column, u: float, row: int, given: "dict[str, list[str]]", state: "list[int]",
@@ -1638,7 +1990,10 @@ def _prepared_line(timeline: "dict[str, object]", column: _Column) -> _Line:
     held_places = _object(timeline["places"])
     places: "dict[str, list[int]]" = {}
     for key in held_places:
-        places[key] = _numbers(held_places[key])
+        shares = _numbers(held_places[key])
+        if len(shares) != PLACE_BINS:
+            raise DatesError("The dates zone is damaged: a share of the persons' places is missing.")
+        places[key] = shares
     return _Line(column.name, timeline["scale"] == "minute", first, firsts, _numbers(timeline["grid"]), bands, places)
 
 
@@ -1709,16 +2064,20 @@ def _person_dates(line: _Line, column: _Column, members: "list[int]", start: "tu
 
 
 def _placed(line: _Line, calendar: _Calendar, last_day: int, dates: int, first_day: int, end: int, u: float,
-            cache: "dict[tuple[int, ...], list[float]]") -> int:
-    """The whole weeks a person's dates move by to start at the relative place a real person of its band starts."""
+            state: "list[int]", cache: "dict[tuple[int, ...], list[float]]") -> int:
+    """The whole weeks a person's dates move by to start at a place inside its room drawn from its band's shares.
+
+    The bin by its share (`u`), the place evenly inside the bin: a tenth of the room is far wider than any
+    person's dates, so a twin person starts where the persons of its band start, never where one of them did.
+    """
     band = f"{first_band_of(dates)}"
-    grid = line.places[band] if band in line.places else (line.places["grid"] if "grid" in line.places else [])
+    shares = line.places[band] if band in line.places else (line.places["all"] if "all" in line.places else [])
     latest = last_day - (end - first_day)
-    if dates < 2 or not grid or latest <= calendar.first_day:
+    if dates < 2 or not shares or sum(shares) <= 0 or latest <= calendar.first_day:
         return 0
     low = _position_of(calendar, calendar.first_day)
     high = _position_of(calendar, latest)
-    place = _quantile(grid, u) / PER
+    place = (_pick(_cumulative(shares), u) + _uniform(state)) / len(shares)
     target = min(made_up_day(calendar, low + place * (high - low), cache), latest)
     shift = WEEK * ((first_day - target + WEEK // 2) // WEEK)
     while end - shift > last_day:
@@ -1775,7 +2134,7 @@ def _timeline_moments(line: _Line, column: _Column, people: "list[str]", rows: i
         first_day = moments[0][0]
         end = moments[len(moments) - 1][0]
         shift = _placed(line, opening.calendar, column.calendar.last_day, len(members), first_day, end,
-                        _position(positions, members[0], state), cache)
+                        _position(positions, members[0], state), state, cache)
         if end - shift > column.calendar.last_day:
             latest = column.calendar.last_day - (end - first_day)
             if latest >= opening.calendar.first_day:
@@ -1866,9 +2225,309 @@ def _ordered(zone: "dict[str, object]", moments: "dict[str, tuple[list[int], lis
                 second_seconds[row] = first_seconds[row]
 
 
+_WEEK = 7
+_WEEKS_AT_MOST = 600
+_DAYS_NEAR = 62
+
+
+def _month_key(day: int, cache: "dict[int, tuple[int, int, int]]") -> int:
+    year, month, _date = _civil(day, cache)
+    return year * 12 + month - 1
+
+
+def _rule_of(given: "list[str]", member: str) -> "offset_rules.Rule | None":
+    """The daylight-saving rule the description's twin's stamps of a column follow (`offset_rules.rule_of`), or None."""
+    pairs: "list[tuple[str, str]]" = []
+    for cell in given:
+        if not _bare(cell):
+            continue
+        found = parsing.parse_datetime(_bare(cell), member)
+        if found is not None:
+            pairs += [(found[0], found[1])]
+    if not pairs:
+        return None
+    return offset_rules.parsed_rule(offset_rules.rule_of(pairs))
+
+
+def _summer(day: int, tick: int, rule: "offset_rules.Rule | None") -> int:
+    """1 where the rule puts its summer offset in force at the instant (`day`, `tick` from 1970 UTC), else 0."""
+    if rule is None:
+        return 0
+    instant = day * DAY + (tick // TICKS if tick >= 0 else 0)
+    return 1 if offset_rules.offset_at(rule, instant) != rule.standard else 0
+
+
+def _bin(day: int, tick: int, rule: "offset_rules.Rule | None", cache: "dict[int, tuple[int, int, int]]") -> int:
+    """A date's month, and, where the column follows an offset rule, the part of the month it falls in: before the
+    rule's change in that month or after it (two bins a month, in the order of the calendar)."""
+    if rule is None:
+        return _month_key(day, cache) * 2
+    _year, _month, date = _civil(day, cache)
+    phase = 1 if _summer(day, tick, rule) != _summer(day - (date - 1), 0, rule) else 0
+    return _month_key(day, cache) * 2 + phase
+
+
+def _months_held(days: "list[int]", seconds: "list[int]", targets: "list[int]",
+                 cache: "dict[int, tuple[int, int, int]]", rule: "offset_rules.Rule | None" = None) -> "list[int]":
+    """Each row's move, in whole weeks, that gives a column's dates exactly the months of `targets` (one month a date
+    of the description's twin), the earliest date the earliest month; nought where a date stays or is absent.
+
+    A move of whole weeks keeps each date's weekday and clock and changes
+    only its day of the month (made up in any case) and, where its month
+    differs from the month its rank asks for, its month: the date lands on
+    one of that month's days of its weekday, chosen by a fixed hash of the
+    row, as the dates zone makes up a day (so no date piles at a month's
+    first or last week); where no whole week reaches its bin (a part of a
+    month before or after an offset rule's change, fewer than seven days),
+    the nearest day in it, its clock kept.
+    """
+    moves = [0 for _row in range(len(days))]
+    ordered = sorted((days[row], seconds[row], row) for row in range(len(days)) if days[row] != _ABSENT)
+    count = len(ordered)
+    wanted = sorted(targets)
+    if not count or not wanted:
+        return moves
+    for rank in range(count):
+        day, second, row = ordered[rank]
+        goal = wanted[min(len(wanted) - 1, (rank * len(wanted)) // count)]
+        own = _bin(day, second, rule, cache)
+        if own == goal:
+            continue
+        step = _WEEK if goal > own else -_WEEK
+        moved = day
+        landing: "list[int]" = []
+        for _week in range(_WEEKS_AT_MOST):
+            moved += step
+            here = _bin(moved, second, rule, cache)
+            if here == goal:
+                landing += [moved - day]
+            elif landing or (here // 2 > goal // 2 if step > 0 else here // 2 < goal // 2):
+                break
+        if landing:
+            moves[row] = landing[_mixed((row << 4) + len(landing)) % len(landing)]
+            continue
+        # A part of a month no whole week reaches (the days before an offset rule's change in a month, fewer than
+        # seven): the nearest day that is in it, its clock kept and its weekday given up.
+        for distance in range(1, _DAYS_NEAR + 1):
+            if _bin(day + distance * (1 if step > 0 else -1), second, rule, cache) == goal:
+                moves[row] = distance * (1 if step > 0 else -1)
+                break
+            if _bin(day - distance * (1 if step > 0 else -1), second, rule, cache) == goal:
+                moves[row] = -distance * (1 if step > 0 else -1)
+                break
+    return moves
+
+
+_PERSON_WEEKS = (1, 2, 3, 4, 6, 9, 13, 20, 26)
+_PERSON_PASSES = 6
+
+
+def _gap_after(surplus: "dict[int, int]", leaving: "list[int]", arriving: "list[int]") -> int:
+    """How much the summed distance from the target months changes when dates leave and arrive at these months."""
+    change: "dict[int, int]" = {}
+    for month in leaving:
+        change[month] = (change[month] if month in change else 0) - 1
+    for month in arriving:
+        change[month] = (change[month] if month in change else 0) + 1
+    total = 0
+    for month in change:
+        before = surplus[month] if month in surplus else 0
+        total += abs(before + change[month]) - abs(before)
+    return total
+
+
+def _persons_months_held(days: "list[int]", groups: "list[list[int]]", targets: "list[int]",
+                         cache: "dict[int, tuple[int, int, int]]", seconds: "list[int] | None" = None,
+                         rule: "offset_rules.Rule | None" = None) -> "list[int]":
+    """Each row's move, in whole weeks and the same for every row of a person, that brings a person timeline's months
+    to `targets` (one month a date of the description's twin): passes in which each person takes the move among
+    `_PERSON_WEEKS` (weeks, earlier or later) that most closes the distance, then persons of one date moved from a
+    month that holds too many to one that holds too few. Every weekday, clock and gap within a person stands."""
+    moves = [0 for _row in range(len(days))]
+    surplus: "dict[int, int]" = {}
+    for month in targets:
+        surplus[month] = (surplus[month] if month in surplus else 0) - 1
+    dated: "list[list[int]]" = []
+    for rows in groups:
+        mine = [row for row in rows if days[row] != _ABSENT]
+        dated += [mine]
+        for row in mine:
+            month = _bin(days[row], _tick_of(seconds, row), rule, cache)
+            surplus[month] = (surplus[month] if month in surplus else 0) + 1
+    shift = [0 for _group in groups]
+    for _pass in range(_PERSON_PASSES):
+        improved = False
+        for at in range(len(groups)):
+            mine = dated[at]
+            if not mine:
+                continue
+            now = [_bin(days[row] + shift[at], _tick_of(seconds, row), rule, cache) for row in mine]
+            best, chosen = 0, 0
+            for weeks in _PERSON_WEEKS:
+                for sign in (1, -1):
+                    step = sign * weeks * _WEEK
+                    then = [_bin(days[row] + shift[at] + step, _tick_of(seconds, row), rule, cache) for row in mine]
+                    change = _gap_after(surplus, now, then)
+                    if change < best:
+                        best, chosen = change, step
+            if chosen:
+                for month in now:
+                    surplus[month] -= 1
+                for row in mine:
+                    month = _bin(days[row] + shift[at] + chosen, _tick_of(seconds, row), rule, cache)
+                    surplus[month] = (surplus[month] if month in surplus else 0) + 1
+                shift[at] += chosen
+                improved = True
+        if not improved:
+            break
+    # A person holding a date in a month of too many may move far: its first date into a month of too few, where
+    # that closes the distance (the months short at the calendar's ends are reached so).
+    for _pass in range(_PERSON_PASSES):
+        short = sorted(month for month in surplus if surplus[month] < 0)
+        if not short:
+            break
+        improved = False
+        for at in range(len(groups)):
+            mine = dated[at]
+            if not mine:
+                continue
+            now = [_bin(days[row] + shift[at], _tick_of(seconds, row), rule, cache) for row in mine]
+            if not [month for month in now if surplus[month] > 0]:
+                continue
+            first = days[mine[0]] + shift[at]
+            best, chosen = 0, 0
+            for goal in short:
+                if surplus[goal] >= 0:
+                    continue
+                step = _week_into(first, goal, cache, _tick_of(seconds, mine[0]), rule)
+                if not step:
+                    continue
+                then = [_bin(days[row] + shift[at] + step, _tick_of(seconds, row), rule, cache) for row in mine]
+                change = _gap_after(surplus, now, then)
+                if change < best:
+                    best, chosen = change, step
+            if chosen:
+                for month in now:
+                    surplus[month] -= 1
+                for row in mine:
+                    month = _bin(days[row] + shift[at] + chosen, _tick_of(seconds, row), rule, cache)
+                    surplus[month] = (surplus[month] if month in surplus else 0) + 1
+                shift[at] += chosen
+                improved = True
+        if not improved:
+            break
+    for at in range(len(groups)):
+        mine = dated[at]
+        if len(mine) != 1:
+            continue
+        month = _bin(days[mine[0]] + shift[at], _tick_of(seconds, mine[0]), rule, cache)
+        if surplus[month] <= 0:
+            continue
+        goal = -1
+        for each in surplus:
+            if surplus[each] < 0 and (goal < 0 or abs(each - month) < abs(goal - month)):
+                goal = each
+        if goal < 0:
+            break
+        step = _WEEK if goal > month else -_WEEK
+        moved = shift[at]
+        for _week in range(_WEEKS_AT_MOST):
+            moved += step
+            if _bin(days[mine[0]] + moved, _tick_of(seconds, mine[0]), rule, cache) == goal:
+                surplus[month] -= 1
+                surplus[goal] += 1
+                shift[at] = moved
+                break
+    for at in range(len(groups)):
+        for row in groups[at]:
+            moves[row] = shift[at]
+    return moves
+
+
+def _week_into(day: int, goal: int, cache: "dict[int, tuple[int, int, int]]", tick: int = -1,
+               rule: "offset_rules.Rule | None" = None) -> int:
+    """The nearest move in whole weeks that brings `day` into the bin `goal` (its month, and its rule's season where
+    one stands: `_bin`), 0 where it is there or none is."""
+    own = _bin(day, tick, rule, cache)
+    if own == goal:
+        return 0
+    step = _WEEK if goal > own else -_WEEK
+    moved = 0
+    for _week in range(_WEEKS_AT_MOST):
+        moved += step
+        if _bin(day + moved, tick, rule, cache) == goal:
+            return moved
+    return 0
+
+
+def _tick_of(seconds: "list[int] | None", row: int) -> int:
+    """A row's clock (its ticks), or -1 where none is read."""
+    return seconds[row] if seconds is not None else -1
+
+
+def _descendants(name: str, children: "dict[str, list[str]]") -> "list[str]":
+    """The columns chained to `name`, and to them, in turn."""
+    out: "list[str]" = []
+    for child in children[name] if name in children else []:
+        out += [child] + _descendants(child, children)
+    return out
+
+
+def _held_months(entries: "dict[str, object]", order: "list[str]", timeline_column: str,
+                 moments: "dict[str, tuple[list[int], list[int]]]", months: "dict[str, list[str]]",
+                 cache: "dict[int, tuple[int, int, int]]", groups: "list[list[int]] | None" = None) -> None:
+    """Every date column that heads its own chain moved by whole weeks so its months hold the months of the
+    description's twin's cells (`months`): row by row, exactly (`_months_held`); a person's timeline (`groups`, each
+    person's rows) person by person (`_persons_months_held`). Each column chained to it moves with it, row by row,
+    so every gap stands (lane IN-2b)."""
+    children: "dict[str, list[str]]" = {}
+    heads: "list[str]" = []
+    for name in order:
+        link = _prepared_chain(_object(entries[name])["chain"])
+        if link is None:
+            heads += [name]
+        elif link.reference in children:
+            children[link.reference] += [name]
+        else:
+            children[link.reference] = [name]
+    for name in heads:
+        if name not in months or name not in moments or (name == timeline_column and groups is None):
+            continue
+        entry = _object(entries[name])
+        reading_entry = _object(entry["reading"])
+        reading = Reading(_word(reading_entry["kind"]), _word(reading_entry["member"]))
+        rule = _rule_of(months[name], reading.member) if reading.kind == "text" else None
+        bins: "list[int]" = []
+        for cell in months[name]:
+            if _bare(cell):
+                found = _moment(cell, reading)
+                if found is not None:
+                    bins += [_bin(found[0], found[1], rule, cache)]
+        days, seconds = moments[name]
+        if name == timeline_column and groups is not None:
+            moves = _persons_months_held(days, groups, bins, cache, seconds, rule)
+            _moved(moments, [name] + _descendants(name, children), moves)
+            continue
+        # ...row by row: its months exactly, and, where it follows an offset rule, the dates in each season of it.
+        moves = _months_held(days, seconds, bins, cache, rule)
+        _moved(moments, [name] + _descendants(name, children), moves)
+
+
+def _moved(moments: "dict[str, tuple[list[int], list[int]]]", names: "list[str]", moves: "list[int]") -> None:
+    """Each named column's dates moved row by row (a row's absent date stays absent)."""
+    for each in names:
+        if each not in moments:
+            continue
+        own_days = moments[each][0]
+        for row in range(len(own_days)):
+            if moves[row] and own_days[row] != _ABSENT:
+                own_days[row] += moves[row]
+
+
 def write_dates(zone: "dict[str, object]", rows: int, people: "list[str] | None" = None,
                 given: "dict[str, list[str]] | None" = None, scores: "dict[str, list[float]] | None" = None,
-                present: "dict[str, list[bool]] | None" = None, seed: int = 0) -> "dict[str, list[str]]":
+                present: "dict[str, list[bool]] | None" = None, seed: int = 0,
+                months: "dict[str, list[str]] | None" = None) -> "dict[str, list[str]]":
     """The twin's cells of every date column of the zone (the hook the generate step calls).
 
     `rows` is the twin's number of rows; `people` its person column's cells
@@ -1877,9 +2536,50 @@ def write_dates(zone: "dict[str, object]", rows: int, people: "list[str] | None"
     `scores` one number a row and date column that ties the date to the
     twin's other columns (a latent score of the generate step: only its
     order within the rows the zone draws alike is read; `_cell_positions`);
-    `present` the rows of a column that hold a date. Every ordering the
-    real table never breaks between two date columns of a row holds in the
-    twin (`orders`). Same zone and seed, same cells.
+    `present` the rows of a column that hold a date; `months` the
+    description's twin's cells of a column, whose months a column heading
+    its own chain then holds exactly (`_held_months`: whole weeks, so the
+    weekday and the clock stand, and the columns chained to it move with
+    it). Every ordering the real table never breaks between two date
+    columns of a row holds in the twin (`orders`). Same zone and seed, same
+    cells.
+    """
+    entries, order, moments = _date_moments(zone, rows, people, given, scores, present, seed, months)
+    out: "dict[str, list[str]]" = {}
+    for name in order:
+        out[name] = _spelled_column(entries, name, moments[name], rows, seed,
+                                    months[name] if months is not None and name in months else None)
+    return out
+
+
+def write_dates_held(zone: "dict[str, object]", rows: int, people: "list[str] | None" = None,
+                     given: "dict[str, list[str]] | None" = None, scores: "dict[str, list[float]] | None" = None,
+                     present: "dict[str, list[bool]] | None" = None, seed: int = 0,
+                     months: "dict[str, list[str]] | None" = None) -> "dict[str, twinstore.HeldColumn]":
+    """`write_dates`' cells, each column held compactly as soon as it is spelled (lane IN-8, plan P4-D502).
+
+    The same cells (`twinstore.column_cells` gives them back): what is held
+    beside the columns' days and seconds is one column's text at a time,
+    never every date column's at once. `months` as `write_dates` reads it.
+    """
+    entries, order, moments = _date_moments(zone, rows, people, given, scores, present, seed, months)
+    out: "dict[str, twinstore.HeldColumn]" = {}
+    for name in order:
+        out[name] = twinstore.held_column(_spelled_column(entries, name, moments[name], rows, seed,
+                                                          months[name] if months is not None and name in months
+                                                          else None))
+    return out
+
+
+def _date_moments(zone: "dict[str, object]", rows: int, people: "list[str] | None",
+                  given: "dict[str, list[str]] | None", scores: "dict[str, list[float]] | None",
+                  present: "dict[str, list[bool]] | None", seed: int,
+                  months: "dict[str, list[str]] | None" = None,
+                  ) -> "tuple[dict[str, object], list[str], dict[str, tuple[list[int], list[int]]]]":
+    """Every date column's days and seconds a row, the orderings held: `write_dates`' moments before they are spelled.
+
+    Each column's days and seconds are held once a value (`_shared_numbers`:
+    a list of pointers, eight bytes a row) as soon as the column is made.
     """
     found = _object(zone)
     _versioned(found)
@@ -1888,7 +2588,19 @@ def write_dates(zone: "dict[str, object]", rows: int, people: "list[str] | None"
     timeline = found["timeline"]
     held = given if given is not None else {}
     tied = scores if scores is not None else {}
-    holds = present if present is not None else {}
+    holds: "dict[str, list[bool]]" = {}
+    if present is not None:
+        for name in present:
+            holds[name] = present[name]
+    # Where the description's twin's cells of a column are given (`months`), the column holds a date on exactly the
+    # rows those cells hold one, read as the zone reads the column (lane IN-2b): a blank or another word there is
+    # written back as that twin writes it, so its missing-value spellings stand too.
+    readings: "dict[str, Reading]" = {}
+    for name in order:
+        reading_entry = _object(_object(entries[name])["reading"])
+        readings[name] = Reading(_word(reading_entry["kind"]), _word(reading_entry["member"]))
+        if months is not None and name in months and len(months[name]) == rows:
+            holds[name] = [bool(_bare(cell)) and moment_of(cell, readings[name]) is not None for cell in months[name]]
     cache: "dict[tuple[int, ...], list[float]]" = {}
     moments: "dict[str, tuple[list[int], list[int]]]" = {}
     columns: "dict[str, _Column]" = {}
@@ -1902,7 +2614,7 @@ def write_dates(zone: "dict[str, object]", rows: int, people: "list[str] | None"
         for row in range(rows):
             if not _is_present(columns[name], holds, row, state):
                 days[row] = _ABSENT
-        moments[name] = (days, seconds)
+        moments[name] = (_shared_numbers(days), _shared_numbers(seconds))
     for name in order:
         if name in moments:
             continue
@@ -1945,37 +2657,143 @@ def write_dates(zone: "dict[str, object]", rows: int, people: "list[str] | None"
                 if _is_present(column, holds, row, state):
                     dated += [row]
             positions = _cell_positions(tied, name, dated, [""] * len(dated), state)
+            if not positions:
+                positions = _spread_positions(dated, state)
             for row in dated:
                 day, second = _anchored(column, _position(positions, row, state), row, held, state, cache)
                 days[row] = day
                 seconds[row] = second
-        moments[name] = (days, seconds)
+        moments[name] = (_shared_numbers(days), _shared_numbers(seconds))
+        del days, seconds, dated, keys
+    if months is not None:
+        cache_days: "dict[int, tuple[int, int, int]]" = {}
+        line_column = ""
+        groups: "list[list[int]] | None" = None
+        if isinstance(timeline, dict) and people is not None:
+            line_column = _word(typing.cast("dict[str, object]", timeline)["column"])
+            members: "dict[str, list[int]]" = {}
+            for row in range(rows):
+                key = _bare(people[row]) if row < len(people) else ""
+                if key in members:
+                    members[key] += [row]
+                else:
+                    members[key] = [row]
+            groups = [members[key] for key in members]
+            del members
+        _held_months(entries, order, line_column, moments, months, cache_days, groups)
     _ordered(found, moments)
-    out: "dict[str, list[str]]" = {}
-    for name in order:
-        entry = _object(entries[name])
-        reading = _object(entry["reading"])
-        member = _word(reading["member"])
-        spellings = _object(entry["spellings"])
-        state = _stream(seed, name, "spelling")
-        days, seconds = moments[name]
-        cells: "list[str]" = []
-        if reading["kind"] == "count":
-            form = _object(spellings["count"])
-            for row in range(rows):
-                cells += ["" if days[row] == _ABSENT else _spelled_count(days[row], seconds[row], member, form, state)]
-        else:
-            spelled = typing.cast("list[list[object]]", spellings["text"])
-            weights = _cumulative([int(typing.cast("int", item[6])) for item in spelled])
-            fallback = _widths(spelled)
-            for row in range(rows):
-                if days[row] == _ABSENT or not spelled:
-                    cells += [""]
-                    continue
+    return entries, order, moments
+
+
+def _spelled_column(entries: "dict[str, object]", name: str, moment: "tuple[list[int], list[int]]", rows: int,
+                    seed: int, given: "list[str] | None" = None) -> "list[str]":
+    """One date column's twin cells, spelled from its days and seconds by the zone's census of spellings.
+
+    `given`, the description's twin's cells of the column (lane IN-2b): its
+    dates' spellings are dealt by the rank of the instants (`_keys_dealt`),
+    and a row that holds no date writes that twin's cell back (its blanks
+    and missing-value spellings).
+    """
+    entry = _object(entries[name])
+    reading = _object(entry["reading"])
+    member = _word(reading["member"])
+    spellings = _object(entry["spellings"])
+    state = _stream(seed, name, "spelling")
+    days, seconds = moment
+    twin_cells = given if given is not None and len(given) == rows else None
+    cells: "list[str]" = []
+    if reading["kind"] == "count":
+        form = _object(spellings["count"])
+        for row in range(rows):
+            cells += ["" if days[row] == _ABSENT else _spelled_count(days[row], seconds[row], member, form, state)]
+    else:
+        spelled = typing.cast("list[list[object]]", spellings["text"])
+        weights = _cumulative([int(typing.cast("int", item[6])) for item in spelled])
+        fallback = _widths(spelled)
+        given_keys = (_keys_dealt(days, seconds, twin_cells, Reading(_word(reading["kind"]), member))
+                      if twin_cells is not None else {})
+        for row in range(rows):
+            if days[row] == _ABSENT or not spelled:
+                cells += [""]
+                continue
+            if row in given_keys:
+                chosen = given_keys[row]
+            else:
                 chosen = spelled[_pick(weights, _uniform(state))] if weights[len(weights) - 1] > 0 else spelled[0]
-                cells += [_spelled_text(days[row], seconds[row], member, chosen, fallback)]
-        out[name] = cells
+            cells += [_spelled_text(days[row], seconds[row], member, chosen, fallback)]
+    if twin_cells is not None:
+        cells = [twin_cells[row] if cells[row] == "" and days[row] == _ABSENT else cells[row] for row in range(rows)]
+    return cells
+
+
+def _keys_dealt(days: "list[int]", seconds: "list[int]", given: "list[str]",
+                reading: Reading) -> "dict[int, list[object]]":
+    """Each dated row's spelling (`spelling_of`): the spellings of the description's twin's dates (`given`), dealt by
+    the rank of the instants, the earliest spelling to the earliest date, so every written form that twin holds
+    (offsets, marks, clock forms, fractions of a second, month-name styles) stands in count, and a spelling that
+    follows the calendar (an offset of the season) stays near its season. A spelling that cannot be read is left to
+    the zone's own draw."""
+    found: "list[tuple[int, int, int, list[object] | None]]" = []
+    for row in range(len(given)):
+        cell = given[row]
+        if not _bare(cell):
+            continue
+        moment = _moment(cell, reading)
+        if moment is None:
+            continue
+        found += [(moment[0], moment[1], row, spelling_of(cell, reading))]
+    ranked = sorted((day, second, row) for day, second, row, _key in found)
+    keys_of: "dict[int, list[object] | None]" = {}
+    for _day, _second, row, key in found:
+        keys_of[row] = key
+    dated = sorted((days[row], seconds[row], row) for row in range(len(days)) if days[row] != _ABSENT)
+    out: "dict[int, list[object]]" = {}
+    if len(dated) != len(ranked):
+        return out
+    for at in range(len(dated)):
+        key = keys_of[ranked[at][2]]
+        if key is not None:
+            out[dated[at][2]] = key
+    rule = _rule_of(given, reading.member) if reading.kind == "text" else None
+    if rule is not None:
+        _offsets_in_force(out, days, seconds, rule)
     return out
+
+
+def _offsets_in_force(keys: "dict[int, list[object]]", days: "list[int]", seconds: "list[int]",
+                      rule: "offset_rules.Rule") -> None:
+    """Each dealt spelling's offset made the one the column's rule puts in force on its date: two rows each holding
+    the other's season's offset exchange spellings (the counts stand), and a row left holding the wrong one takes the
+    one in force, written as the column writes it."""
+    written: "dict[int, str]" = {}
+    for row in keys:
+        offset = _word(keys[row][5])
+        found = offset_rules.offset_seconds(offset) if offset else None
+        if found is not None:
+            written[found] = offset
+    summer_rows: "list[int]" = []
+    winter_rows: "list[int]" = []
+    for row in sorted(keys):
+        offset = _word(keys[row][5])
+        found = offset_rules.offset_seconds(offset) if offset else None
+        if found is None:
+            continue
+        wanted = rule.standard + 3600 * _summer(days[row], seconds[row], rule)
+        if found == wanted:
+            continue
+        if wanted == rule.standard:
+            winter_rows += [row]
+        else:
+            summer_rows += [row]
+    pairs = min(len(summer_rows), len(winter_rows))
+    for at in range(pairs):
+        first, second = summer_rows[at], winter_rows[at]
+        keys[first], keys[second] = keys[second], keys[first]
+    for row in summer_rows[pairs:] + winter_rows[pairs:]:
+        wanted = rule.standard + 3600 * _summer(days[row], seconds[row], rule)
+        key = keys[row]
+        offset = written[wanted] if wanted in written else offset_rules.offset_text(wanted)
+        keys[row] = [key[0], key[1], key[2], key[3], key[4], offset]
 
 
 def rewrite_mixed(zone: "dict[str, object]", name: str, cells: "list[str]", seed: int = 0) -> "list[str]":

@@ -6565,6 +6565,17 @@ def _chained_description(
     return with_chain
 
 
+def _held_once_a_value(cells: "list[str]") -> "list[str]":
+    """A column's cells, each different text one object: a list of pointers beside the column's different texts."""
+    one: "dict[str, str]" = {}
+    out: "list[str]" = []
+    for cell in cells:
+        if cell not in one:
+            one[cell] = cell
+        out += [one[cell]]
+    return out
+
+
 def _inside_trajectories(read: "typing.Any", document: "dict[str, object]", written: pathlib.Path) -> None:
     """The trajectories zone written into the description's inside record (lane IN-3, plan P4-D498); nothing where no record stands for it.
 
@@ -6604,12 +6615,17 @@ def _inside_trajectories(read: "typing.Any", document: "dict[str, object]", writ
         # ...and only where that record stands: no column is read for a zone that could be written nowhere.
         if inside.place_refusal(target, places) or not inside.carries_marker(target):
             return
+        identifiers = tuple(f"{name}" for name in forced) if isinstance(forced, list) else ()
+        # THE MEMORY (lane IN-8, plan P4-D502): each column is read once, in the
+        # table's order, and held once a value (a list of pointers, eight bytes a
+        # row, each different text one object), never as the reader's own cells;
+        # a record-number column, which the zone never reads, is not held.
         columns: "dict[str, list[str]]" = {}
         for place in range(len(names)):
-            columns[names[place]] = reading.column_values(read, place)
-        zone = inside_trajectories.zone_from_columns(
-            columns, f"{persons[0]}", tuple(f"{name}" for name in forced) if isinstance(forced, list) else ()
-        )
+            if names[place] in identifiers and names[place] != f"{persons[0]}":
+                continue
+            columns[names[place]] = _held_once_a_value(reading.column_values(read, place))
+        zone = inside_trajectories.zone_from_columns(columns, f"{persons[0]}", identifiers)
         columns = {}
         if zone is None:
             return
@@ -7019,16 +7035,47 @@ def _inside_record_at(description: "str | pathlib.Path", private: pathlib.Path) 
 
 
 # THE INSIDE RECORD'S SUB-SWITCH (batch 4w): the record is written and the twin drawn from it only where this is on.
-# False on the shipped route until the drawn twin keeps the description's written forms (number spellings, date
-# spellings) that the suite's gate files hold the description's twin to. A gate file sets it in place for its own
-# span; the product reads no environment. The flip is a ruling.
-_INSIDE_RECORD_SHIPPED = False
+# On the shipped route since lane IN-2b: the drawn twin keeps the description's written forms (each drawn column is
+# written with the description's twin's own cells; a made-up date column holds a date where that twin does and its
+# months where it can). A gate file sets it in place; the product reads no environment. The flip is a ruling.
+_INSIDE_RECORD_SHIPPED = True
 
 
 def _inside_record_switched_on() -> bool:
     """Whether the inside record is written and the twin drawn from it: the sub-switch alone (the product reads no
     environment; a gate file sets the switch in place)."""
     return _INSIDE_RECORD_SHIPPED
+
+
+# THE KEYED ZONE'S OWN SUB-SWITCH (batch 4x, plan P4-D503): the keyed zone (lane IN-4, plan P4-D499) is merged behind
+# it and it is OFF on the shipped route. The zone writes cells of its own over the drawn twin (it re-cuts the persons
+# to the record's census of rows a person and rewrites its numbers, flags, pairs and later clocks), so the drawn
+# twin's columns are no longer the description's twin's cells and validate misses published facts on a long keyed
+# table; batch 4x's outside review also found a held identifier level and an age past 89 it could write. While it is
+# off the record is written without the zone and a record holding one is drawn without it; a gate file sets it in
+# place, and the product reads no environment. Turning it on waits for the IN-4 follow-up named in plan P4-D503.
+_KEYED_ZONE_SHIPPED = False
+
+
+def _keyed_zone_switched_on() -> bool:
+    """Whether the inside record's keyed zone is written and drawn: its own sub-switch alone (read in place)."""
+    return _KEYED_ZONE_SHIPPED
+
+
+def _record_without_keyed_zone(record: "dict[str, object]") -> "dict[str, object]":
+    """The record as the twin is drawn from it: its keyed zone left out while that zone's sub-switch is off (each
+    other zone as it stands). Raises nothing; no I/O."""
+    zones = record["zones"] if "zones" in record else None
+    if _keyed_zone_switched_on() or not isinstance(zones, dict) or "keyed" not in zones:
+        return record
+    kept: "dict[str, object]" = {}
+    for name in zones:
+        if name != "keyed":
+            kept[name] = zones[name]
+    out: "dict[str, object]" = {}
+    for key in record:
+        out[key] = kept if key == "zones" else record[key]
+    return out
 
 
 def _inside_record_written(read: object, published: "dict[str, object]", written: pathlib.Path) -> None:
@@ -7051,7 +7098,7 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     an internal mismatch; what `reading.column_values` raises; nothing
     else (a refused write is said, never raised).
     """
-    from synthtwin import inside, inside_relations, reading
+    from synthtwin import inside, inside_holds, inside_missing, inside_relations, reading
 
     if not isinstance(read, reading.Table):
         raise TypeError("internal check: the table is not a table")
@@ -7071,6 +7118,11 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     rows = published["n_rows"] if "n_rows" in published else None
     if not isinstance(rows, int):
         return
+    # THE TABLE FLOOR (lane IN-2b): the product twins no table under the owner's floor (`_below_the_table_floor`), so
+    # the record is written for a table at or above it alone (its rows, and its people where a person column
+    # repeats); a table under it, described under a test's internal switch, keeps the twin of its description.
+    if rows < parsing.TABLE_ROW_FLOOR:
+        return
     specs = inside_relations.specs_of(published)
     if len(specs) != len(read.column_names):
         return
@@ -7083,10 +7135,35 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             found_persons = inside_relations.persons_of(reading.column_values(read, place))
             if found_persons.repeats:
                 persons, person = found_persons, specs[place].name
+    if persons is not None and len(persons.rows_of) < parsing.TABLE_PEOPLE_FLOOR:
+        return
     sample = inside_relations.sample_rows(rows, persons=persons)
     marginals: "dict[str, object]" = {}
     encoded: "list[inside_relations.Encoded]" = []
     names: "list[str]" = []
+    # THE KEPT COLUMNS' EMPTINESS (lane IN-7, plan P4-D501), read in the same
+    # pass: each kept column with empty and filled cells enough, for the
+    # missing-values zone fitted on the relations zone's frames below.
+    kept: "list[inside_missing.Kept]" = []
+    blocks = published["columns"] if "columns" in published and isinstance(published["columns"], list) else []
+    settings_block = published["settings"] if "settings" in published else None
+    frames: "dict[str, inside_relations.Frame]" = {}
+    owners: "list[int] | None" = None
+    # ONE READING OF THE TABLE FOR THE RECORD'S MARGINALS, RELATIONS AND DATES
+    # (lane IN-8, plan P4-D502): each column is asked for once, in the table's
+    # order, so a table read in groups of columns is read once a group, and
+    # handed to the marginals, the relations' sample, the missing-values zone
+    # and the dates zone's census (`inside_dates.take_column`, which keeps a
+    # date column's days and a label's words, never the table); it is let go
+    # before the next. A census that stops leaves the dates out. Each date
+    # column is read as the description reads it (`--day-first`, the answers,
+    # `--date-count`), and no other column is read as dates.
+    from synthtwin import inside_dates
+
+    skipped = tuple(specs[place].name for place in range(len(specs))
+                    if specs[place].why_kept in inside_relations.RECORD_NUMBERS)
+    gathered: "inside_dates.Census | None" = inside_dates.census(person, _inside_date_readings(published), skipped,
+                                                                 True)
     try:
         for place, name in enumerate(read.column_names):
             if specs[place].name != name:
@@ -7094,12 +7171,28 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             names += [name]
             cells = reading.column_values(read, place)
             marginals[name] = inside.column_entry(cells, specs[place].why_kept in inside_relations.RECORD_NUMBERS)
-            found = inside_relations.encode(specs[place], cells, sample, persons)
+            # THE HOLDS NARROWED (lane IN-7, plan P4-D501): a column the person
+            # answered a measurement is modelled though the description holds it
+            # as record numbers, and an ordinary label carries its real spellings
+            # the readers let through; identifiers and Safe Harbor columns stay held.
+            block = blocks[place] if place < len(blocks) else None
+            spec = inside_holds.narrowed_spec(specs[place], block, settings_block, cells)
+            spec = inside_holds.carried_spec(spec, block, cells)
+            found = inside_relations.encode(spec, cells, sample, persons)
             if found is not None:
                 encoded += [found]
+            else:
+                missing = inside_missing.kept_column(spec, block, cells, sample, persons)
+                if missing is not None:
+                    kept += [missing]
+            if gathered is not None:
+                try:
+                    inside_dates.take_column(gathered, name, cells)
+                except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+                    gathered = None
             del cells
         owners = [persons.person[row] for row in sample] if persons is not None else None
-        zone = inside_relations.fit_zone(encoded, len(sample), rows, owners, person)
+        zone = inside_relations.fit_zone(encoded, len(sample), rows, owners, person, frames)
     except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
         # The description is written: a fit that stops leaves it and the exit
         # code as they are, and the twin is built from the description alone.
@@ -7112,27 +7205,57 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
         return
     persons = None
     encoded = []
+    # THE MISSING-VALUES ZONE (lane IN-7, plan P4-D501): each kept column's
+    # emptiness fitted on every modelled column and the kept ones before it.
+    # An addition: a fit that stops leaves the record without it, and the
+    # kept columns' empty cells where the description's twin puts them.
+    missing_zone: "dict[str, object] | None" = None
+    if kept:
+        try:
+            missing_zone = inside_missing.fit_zone(
+                kept, frames, inside_missing.once_of(zone), len(sample), rows, owners)
+        except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
+            missing_zone = None
+    kept = []
+    frames = {}
     # THE DATES ZONE (lane IN-5, plan P4-D497): beside the relations, a census
     # of each date column's weekday, clock and gaps, so the twin's dates keep
-    # them with the day of the month made up. A table past the rows the zone
-    # reads whole leaves it out, and the twin keeps the description's dates.
+    # them with the day of the month made up. Taken a column at a time above
+    # (lane IN-8), at every size: the census holds a date column's days and
+    # seconds and a label's words, about 16 and 8 bytes a row, never the table.
     dates_zone: "dict[str, object] | None" = None
-    if rows <= _DATES_ZONE_MOST_ROWS:
+    if gathered is not None:
         try:
-            from synthtwin import inside_dates
+            built = inside_dates.zone_of(gathered)
+            if built["order"]:
+                dates_zone = built
+        except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+            dates_zone = None
+    gathered = None
+    # THE KEYED ZONE (lane IN-4, plan P4-D499): where one person's rows are
+    # typed by a key (an item, a test), each key level's rules inside a row,
+    # marginals and trajectories. It reads the table's columns whole, so it is
+    # built only for a table of at most `_KEYED_ZONE_MOST_ROWS` rows (the
+    # bound both zones kept before lane IN-8 read the dates a column at a
+    # time); a larger table's twin keeps the description's keyed values. It is
+    # written only where its own sub-switch is on (`_keyed_zone_switched_on`,
+    # off on the shipped route since batch 4x, plan P4-D503).
+    keyed_zone: "dict[str, object] | None" = None
+    if person and rows <= _KEYED_ZONE_MOST_ROWS and _keyed_zone_switched_on():
+        whole: "dict[str, list[str]] | None" = None
+        try:
+            from synthtwin import inside_keyed
 
             whole = {name: [str(cell) for cell in reading.column_values(read, place)]
                      for place, name in enumerate(read.column_names)}
-            skipped = tuple(specs[place].name for place in range(len(specs))
-                            if specs[place].why_kept in inside_relations.RECORD_NUMBERS)
-            # ...each date column read as the description reads it (`--day-first`, the answers, `--date-count`),
-            # and no other column read as dates.
-            built = inside_dates.build_zone(whole, person, _inside_date_readings(published), skipped, True)
-            if built["order"]:
-                dates_zone = built
-            del whole
+            dated = (tuple(str(each) for each in typing.cast("list[object]", dates_zone["order"]))
+                     if dates_zone is not None else ())
+            tops, held = inside_keyed.key_blocks_of(published)
+            keyed_zone = inside_keyed.build_zone(whole, person, skipped + inside_keyed.kept_by_description(published),
+                                                 dated, tops, held)
         except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
-            dates_zone = None
+            keyed_zone = None
+        whole = None
     data = pathlib.Path(f"{written}").read_bytes()
     record: "dict[str, object]" = {
         "format": inside.FORMAT,
@@ -7147,6 +7270,10 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     }
     if dates_zone is not None:
         record["zones"]["dates"] = dates_zone  # type: ignore[index]
+    if missing_zone is not None and inside_missing.carried(missing_zone):
+        record["zones"][inside_missing.ZONE] = missing_zone  # type: ignore[index]
+    if keyed_zone is not None:
+        record["zones"]["keyed"] = keyed_zone  # type: ignore[index]
     try:
         made = inside.write_record(record, target, places)
     except (inside.InsideError, OSError) as failed:
@@ -7172,17 +7299,19 @@ def _inside_report_head(drawn: "list[str]") -> str:
     named = _joined([parsing.visible(name) for name in drawn], ", ")
     return (
         "THIS TWIN WAS DRAWN FROM THE INSIDE RECORD, which stays on this computer.\n"
-        f"These {len(drawn)} column(s) were drawn from its fitted responses: {named}.\n"
-        "Each holds its own shape over every row of the real table and its relations\n"
-        "to the drawn columns before it (interactions, curves and steps at a class's\n"
-        "cut points included), fitted on the real table inside. Every other column is\n"
-        "the description's own twin's, made by every rule it keeps. Where the report\n"
-        "below says columns or rows were built independently, it speaks of those other\n"
-        "columns only, and it checks no published fact of a drawn column.\n\n"
+        f"These {len(drawn)} column(s) were drawn from it: {named}.\n"
+        "A number or a label among them holds the description's own twin's cells for\n"
+        "it, each row's cell chosen by its relations to the drawn columns before it\n"
+        "(interactions, curves and steps at a class's cut points included), fitted on\n"
+        "the real table inside; a date among them keeps the real weekday and clock\n"
+        "with the day of the month made up. Every other column is the description's\n"
+        "own twin's, made by every rule it keeps. Where the report below says columns\n"
+        "or rows were built independently, it speaks of those other columns only.\n\n"
     )
 
 
-_DATES_ZONE_MOST_ROWS = 250_000
+# THE KEYED ZONE'S BOUND (lane IN-4, kept at the 4x merge): the zone reads the table's columns whole.
+_KEYED_ZONE_MOST_ROWS = 250_000
 
 
 def _inside_date_readings(published: "dict[str, object]") -> "dict[str, str]":
@@ -7228,16 +7357,33 @@ def _inside_date_readings(published: "dict[str, object]") -> "dict[str, str]":
 
 
 def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.Any") -> "typing.Any":
-    """A twin drawn from the inside record: its drawn columns' exact obligations are authorized deviations (4w integration).
+    """A twin drawn from the inside record: the only obligations excused are the calendar counts of a date column the
+    dates zone made up (4w integration, narrowed by lane IN-2b).
 
-    The description's exact counts and spellings describe the real table; a
-    column drawn from the inside record's fitted responses keeps its shape and
-    its relations, not those counts (the twin's own report says so). Where the
-    report beside the measured file opens with the inside record's head line
-    and the record lies beside this description, every MISSED label-count and
-    label-spelling check of a column the record's relations zone drew is an
-    AUTHORIZED-DEVIATION that cites the record; no other verdict moves, and a
-    file with no such report is judged as it always was.
+    Every column the relations zone draws is written with the description's
+    twin's own cells (`inside_relations.redeal_number`, `redeal_label`), so
+    no obligation of a number or a label is excused. A date column the dates
+    zone made up keeps its weekday pattern and clock and makes up its day of
+    the month (the owner's ruling of 2026-11-18), so its counts at the day's
+    grain (its distinct days, a day-level ladder and tails, the heavy days,
+    the day-of-month and weekday counts) cannot be the description's, nor
+    the counts of its hours and minutes (stamps at midnight among them),
+    kept by their shares; its months are held where they are published
+    (`inside_dates._held_months`:
+    exactly for a column heading its own chain, as near as whole persons and
+    chains allow for a person's timeline or a chained date). Where the report
+    beside the measured file opens with the inside record's head line and
+    the record lies beside this description, a MISSED check of
+    `_INSIDE_EXCUSED_DATE_FACTS` on such a column is an AUTHORIZED-DEVIATION
+    that cites the record; no other verdict moves (the presence of every
+    date, its written form and every other obligation stay strict), and a
+    file with no such report is judged as it always was. A COLUMN THE DATES
+    ZONE DID NOT WRITE IS NOT EXCUSED (batch 4x's outside review, item 11):
+    the column must be in the record's dates zone AND named by the report's
+    head among the columns drawn from the record (`_drawn_in_report`), so a
+    zone the writer refused (another version) or a column it left as the
+    description's twin's is judged strictly; a head whose list cannot be
+    read without doubt excuses nothing.
     """
     from synthtwin import inside, inside_relations, validation
 
@@ -7250,26 +7396,21 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
         opening = pathlib.Path(report).read_text(encoding="utf-8", errors="replace")
         if opening[: len(_INSIDE_REPORT_HEAD)] != _INSIDE_REPORT_HEAD:
             return outcome
+        drawn = _drawn_in_report(opening)
         target = _inside_record_at(description, inside.default_places().private)
         if not os.path.isfile(f"{target}"):
             return outcome
         record = inside.load_record(target)
-        zones = record["zones"]
-        drawn: "set[str]" = set(inside_relations.modelled_names(inside_relations.zone_of(record)))
         made_up: "set[str]" = set()
-        if isinstance(zones, dict) and "dates" in zones:
-            dates = zones["dates"]
-            order = dates["order"] if isinstance(dates, dict) and "order" in dates else None
-            if isinstance(order, list):
-                made_up = {str(each) for each in order}
+        for each in _dates_made_up(record["zones"]):
+            if parsing.visible(each) in drawn:
+                made_up = made_up | {each}
     except (inside.InsideError, inside_relations.RelationsError, OSError, KeyError, TypeError, ValueError):
         return outcome
     changed = [
         dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_CITATION)
-        if check.verdict == validation.MISSED and (
-            (check.column in drawn and check.fact in _INSIDE_EXCUSED_FACTS)
-            or (check.column in made_up and check.fact in _INSIDE_EXCUSED_DATE_FACTS)
-        ) else check
+        if check.verdict == validation.MISSED and check.column in made_up and check.fact in _INSIDE_EXCUSED_DATE_FACTS
+        else check
         for check in outcome.checks
     ]
     counted = {verdict: 0 for verdict in validation.VERDICTS}
@@ -7283,19 +7424,76 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
     return dataclasses.replace(outcome, checks=tuple(changed), census=census)
 
 
-# THE ONLY OBLIGATIONS A DRAWN COLUMN IS EXCUSED: a label's exact level counts and its spelling census. Every
-# other obligation (identifiers, held columns, ages past 89, dates and clocks, moments, the file's written form,
-# the row and patient copies) stays as strict as before; the twin checks of the inside record stay the gate.
-_INSIDE_EXCUSED_FACTS = frozenset({"label.count", "label.variants", "numeric.n_distinct", "numeric.n_distinct_folded",
-                                    "numeric.n_distinct_values", "numeric.n_zero"})
-# A date column the dates zone made up keeps its weekday and clock and NOT the real days (Safe Harbor binds the twin:
-# no twin date is a real day), so the description's day-level ladder and tails are excused for it and nothing else.
+def _drawn_in_report(opening: str) -> "set[str]":
+    """The columns a drawn twin's report names as drawn from the inside record, as its head writes them (`_inside_report_head`'s
+    second line: 'These N column(s) were drawn from it: a, b.'); none where that line is not there, or where its list
+    does not split into exactly N names (a name holding the separator), so a doubtful head excuses nothing.
+
+    Raises TypeError for anything but text; nothing else; no I/O.
+    """
+    if not isinstance(opening, str):
+        raise TypeError("internal check: a twin's report is read as text")
+    found: "set[str]" = set()
+    first = opening.find("\n")
+    if first < 0:
+        return found
+    rest = opening[first + 1:]
+    end = rest.find("\n")
+    if end < 0:
+        return found
+    line = rest[:end]
+    lead = "These "
+    marker = " column(s) were drawn from it: "
+    if line[: len(lead)] != lead:
+        return found
+    middle = line.find(marker)
+    if middle < 0:
+        return found
+    counted = line[len(lead):middle]
+    listed = line[middle + len(marker):]
+    if not counted.isdigit() or listed[len(listed) - 1:] != ".":
+        return found
+    pieces = listed[: len(listed) - 1].split(", ")
+    if len(pieces) != int(counted):
+        return found
+    for piece in pieces:
+        found = found | {piece}
+    return found
+
+
+def _dates_made_up(zones: object) -> "set[str]":
+    """The date columns a record's dates zone made up (read by subscript and type checks alone)."""
+    made_up: "set[str]" = set()
+    if isinstance(zones, dict) and "dates" in zones:
+        dates = zones["dates"]
+        if isinstance(dates, dict) and "order" in dates:
+            listed = dates["order"]
+            if isinstance(listed, list):
+                for each in listed:
+                    if isinstance(each, str):
+                        made_up = made_up | {each}
+    return made_up
+
+
+# THE ONLY OBLIGATIONS EXCUSED: the calendar and clock counts of a date column the dates zone made up -- its distinct
+# days, its ladder and tails, its heavy days, its day-of-month and weekday counts, and the counts of its hours,
+# minutes and seconds, stamps at midnight among them (the zone keeps the weekday and the clock by their shares, not
+# by the description's counts over rows). Every other obligation (identifiers, held columns, ages past 89, numbers,
+# labels, the file's written form and each date's spelling, the presence of every date, moments, the row and patient
+# copies) stays as strict as before; the twin checks of the inside record stay the gate.
 _INSIDE_EXCUSED_DATE_FACTS = frozenset({"datetime.date_percentiles", "datetime.low_tail.rows",
-                                        "datetime.low_tail.boundary", "datetime.high_tail.rows",
-                                        "datetime.high_tail.boundary", "datetime.day_of_month_census",
-                                        "datetime.heavy_dates"})
+                                        "datetime.low_tail.boundary", "datetime.low_tail.values",
+                                        "datetime.low_tail.mean_distance", "datetime.low_tail.rms_distance",
+                                        "datetime.high_tail.rows", "datetime.high_tail.boundary",
+                                        "datetime.high_tail.values", "datetime.high_tail.mean_distance",
+                                        "datetime.high_tail.rms_distance", "datetime.day_of_month_census",
+                                        "datetime.heavy_dates", "datetime.weekday_census", "datetime.n_distinct",
+                                        "datetime.n_distinct_folded", "datetime.hour_census",
+                                        "datetime.n_at_midnight", "datetime.minute_census", "datetime.minute_heaps",
+                                        "datetime.second_census", "datetime.second_heaps"})
 _INSIDE_REPORT_HEAD = "THIS TWIN WAS DRAWN FROM THE INSIDE RECORD"
-_INSIDE_CITATION = "the twin's column was drawn from the inside record, which keeps its shape and relations, not the description's exact counts"
+_INSIDE_CITATION = ("the twin's date column was made up by the inside record's dates zone (weekday and clock kept, "
+                    "the day of the month made up), so its counts at the day's grain are not the description's")
 
 
 def _inside_record_for(description: str) -> "dict[str, object] | None":
@@ -7305,7 +7503,9 @@ def _inside_record_for(description: str) -> "dict[str, object] | None":
     private folder. Where one lies there but cannot be read, or was written
     beside another version of the description (its digest differs), the
     twin is built from the description alone and a caution says so,
-    naming the record's path and size, never a value of it.
+    naming the record's path and size, never a value of it. A keyed zone
+    the record holds is left out while that zone's own sub-switch is off
+    (`_record_without_keyed_zone`, batch 4x).
     """
     from synthtwin import inside, inside_relations
 
@@ -7334,7 +7534,8 @@ def _inside_record_for(description: str) -> "dict[str, object] | None":
             caution=results.CAUTION_CHAIN,
         )
         return None
-    return record
+    # The keyed zone is drawn only where its own sub-switch is on (batch 4x, plan P4-D503).
+    return _record_without_keyed_zone(record)
 
 
 def _loader_refusal(document: "dict[str, object]") -> str:

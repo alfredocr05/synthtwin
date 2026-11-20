@@ -271,7 +271,9 @@ def test_a_zone_is_read_only_beside_the_bytes_it_was_written_for(tmp_path: pathl
     makes a record of its own (b9165d2d: no such binding; the record was found by the table's bare name). Mutant: the
     description's digest not compared on reading."""
     private = tmp_path / "private"
-    places = inside.Places(private, (), (), "posix")
+    # This computer's own system (push 27's CI: on Windows a folder read as a POSIX one is open to others, so the
+    # guard refused the record's own folder once it was made).
+    places = inside.Places(private, (), (), installation.system_name())
     monkeypatch.setattr(inside, "default_places", lambda: places)
     real = _recut_table(60)
     names = list(real)
@@ -393,8 +395,13 @@ def test_the_gap_model_reads_each_patients_own_mean(monkeypatch: pytest.MonkeyPa
             owner += [patient]
     scores = I.mid_scores(found)
     rows_scores = I.mid_scores([float(length) for length in lengths])
-    sxy = sum(rows_scores[owner[at]] * scores[at] for at in range(len(found)))
-    sxx = sum(rows_scores[owner[at]] * rows_scores[owner[at]] for at in range(len(found)))
+    # Added one at a time in row order, as the zone adds them (push 27's CI: from Python 3.12 the built-in sum of
+    # floats compensates its rounding, so a sum here moved the last bit of the paces' tie on 3.12 to 3.14).
+    sxy = 0.0
+    sxx = 0.0
+    for at in range(len(found)):
+        sxy = sxy + rows_scores[owner[at]] * scores[at]
+        sxx = sxx + rows_scores[owner[at]] * rows_scores[owner[at]]
     term = I._bounded(sxy / sxx, -I.CORR_MOST, I.CORR_MOST)
     by_patient: "dict[int, list[float]]" = {}
     for at in range(len(found)):

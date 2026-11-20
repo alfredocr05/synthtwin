@@ -144,6 +144,55 @@ def installation_folder(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[p
         yield data
 
 
+# THE INSIDE RECORD STAYS OUT OF THE SUITE'S OWN FOLDERS, ON EVERY MACHINE
+# (batch 4x, plan P4-D503). The record's guard (`synthtwin.inside.place_refusal`)
+# refuses a temporary folder by its fixed roots (`/tmp`, `/var/folders`, a
+# Windows account's `AppData\Local\Temp` and the rest) and says nothing
+# there. pytest's base folder lies under one of them on every CI runner, so
+# an ordinary test's `synthtwin profile` writes no record and its twin is the
+# description's own; but under a TMPDIR or a `--basetemp` elsewhere the same
+# test wrote a record and drew its twin from it, and the suite's verdicts hung
+# on where it ran. So the session's base folder, and the folder the
+# standard library's `tempfile` makes folders in (where the measurement
+# helpers' own data folders go, `kpi_rules.fresh_data_folder`), are two more
+# temporary roots of this computer's default places
+# (`inside.default_places()` asked with no argument), on every machine. A
+# test of the record or of a twin drawn from it names its own places, as the
+# inside gate files do (a private folder and no temporary root); a rehearsal
+# of another computer's places, which passes its own arguments, is
+# untouched. The product's guard is not changed.
+@pytest.fixture(autouse=True, scope="session")
+def _the_suite_s_folders_are_temporary_for_the_inside_record(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "Iterator[None]":
+    try:
+        from synthtwin import inside
+    except ModuleNotFoundError as missing:
+        # CI's static jobs run their test files without the package installed.
+        if missing.name != "synthtwin":
+            raise
+        yield
+        return
+
+    import dataclasses
+    import tempfile
+
+    roots = (tmp_path_factory.getbasetemp(), pathlib.Path(tempfile.gettempdir()))
+    real = inside.default_places
+
+    def places(
+        os_name: "str | None" = None, variables: "dict[str, str] | None" = None, home: "str | None" = None
+    ) -> "inside.Places":
+        found = real(os_name, variables, home)
+        if os_name is None and variables is None and home is None:
+            return dataclasses.replace(found, temporary=found.temporary + roots)
+        return found
+
+    with pytest.MonkeyPatch.context() as own:
+        own.setattr(inside, "default_places", places)
+        yield
+
+
 @pytest.fixture(autouse=True)
 def _the_small_table_refusal_off_in_process_runs() -> "Iterator[None]":
     # Its OWN MonkeyPatch, never the test's `monkeypatch`: a test that

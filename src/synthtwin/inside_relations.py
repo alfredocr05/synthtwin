@@ -82,6 +82,8 @@ EXTRA_CAP = 4
 # A label's modelled spellings, its commonest published ones; and the rows a level, state or term needs.
 LEVEL_CAP = 30
 MIN_ROWS = 20
+# A carried label's rest spellings kept with their counts (lane IN-7), the marginals zone's own cap.
+OTHERS_CAP = 1000
 # A label parent's indicator terms at most; an interaction's degrees of freedom at most.
 INDICATOR_CAP = 24
 INTERACTION_DF_CAP = 8
@@ -370,6 +372,14 @@ class ColumnSpec:
     top: int
     spellings: "tuple[str, ...]"
     why_kept: str
+    # Lane IN-7 (`inside_holds.carried_spec`): the spellings are the column's real ones the readers let through,
+    # each written as it is, the rest drawn from their real counts.
+    carried: bool = False
+
+
+def number_of(text: object) -> "float | None":
+    """A cell's number where the whole cell is one (finite), else None."""
+    return _number(text)
 
 
 def _block_spellings(block: "dict[str, object]") -> "tuple[str, ...]":
@@ -460,12 +470,83 @@ def _place_of(cell: str) -> "float | None":
     return atom[0] if atom is not None else None
 
 
-def _spike_text(cells: "list[str]", place: float) -> str:
+# A number written inside a wrapper (`72.5 kg`, `$12.00`, `45 years`) is read as its number where at least this
+# share of a column's cells that are not bare numbers wear one wrapper (lane IN-7: the column is modelled, its
+# number drawn and written back inside the wrapper; a cell wearing another wrapper is a word of the column).
+WRAPPER_SHARE = 0.95
+_FIGURES = "0123456789"
+
+
+def wrapped(text: object) -> "tuple[str, str, str] | None":
+    """A cell written as one number inside a wrapper: its prefix, its number as written, its suffix; None for any other cell.
+
+    The number is the first run of figures with at most one point (a
+    point just before the run joins it, a minus sign at the cell's start
+    too); a wrapper holds no figure, and a bare number has none.
+    """
+    bare = _bare(text)
+    start = -1
+    for place in range(len(bare)):
+        if bare[place] in _FIGURES:
+            start = place
+            break
+    if start < 0:
+        return None
+    if start > 0 and bare[start - 1] == ".":
+        start -= 1
+    if start == 1 and bare[0] == "-":
+        start = 0
+    end = start + 1 if bare[start] in "-." else start
+    pointed = bare[start] == "."
+    while end < len(bare) and (bare[end] in _FIGURES or (bare[end] == "." and not pointed)):
+        if bare[end] == ".":
+            pointed = True
+        end += 1
+    prefix, core, suffix = bare[:start], bare[start:end], bare[end:]
+    if not prefix and not suffix:
+        return None
+    for character in prefix + suffix:
+        if character in _FIGURES:
+            return None
+    if _number(core) is None:
+        return None
+    return prefix, core, suffix
+
+
+def common_wrapper(cells: "list[str]") -> "tuple[str, str] | None":
+    """The one wrapper a number column's cells wear, where `WRAPPER_SHARE` of its cells that are not bare numbers wear it."""
+    tallies: "dict[tuple[str, str], int]" = {}
+    others = 0
+    for cell in cells:
+        bare = _bare(cell)
+        if not bare or _number(bare) is not None or _atom(bare) is not None:
+            continue
+        others += 1
+        found = wrapped(bare)
+        if found is not None:
+            key = (found[0], found[2])
+            tallies[key] = (tallies[key] if key in tallies else 0) + 1
+    ranked = sorted((-tallies[key], key) for key in tallies)
+    if not ranked or -ranked[0][0] < MIN_ROWS or -ranked[0][0] < WRAPPER_SHARE * others:
+        return None
+    return ranked[0][1]
+
+
+def _place_in(cell: str, wrapper: "tuple[str, str] | None") -> "float | None":
+    """A cell's place on the number line, a number inside the column's wrapper read as its number."""
+    if wrapper is not None:
+        found = wrapped(cell)
+        if found is not None and (found[0], found[2]) == wrapper:
+            return _number(found[1])
+    return _place_of(cell)
+
+
+def _spike_text(cells: "list[str]", place: float, wrapper: "tuple[str, str] | None" = None) -> str:
     """The commonest spelling of the cells at one place (a spike's text)."""
     spellings: "dict[str, int]" = {}
     for cell in cells:
         bare = _bare(cell)
-        if bare and _place_of(bare) == place:
+        if bare and _place_in(bare, wrapper) == place:
             spellings[bare] = (spellings[bare] if bare in spellings else 0) + 1
     ranked = sorted((-spellings[text], text) for text in spellings)
     return ranked[0][1] if ranked else ""
@@ -481,6 +562,7 @@ def encode_number(spec: ColumnSpec, cells: "list[str]", rows: "list[int]") -> "E
     fixed_cells = 0
     exponent_cells = 0
     forms: "dict[tuple[int, str, bool, int], int]" = {}
+    wrapper = common_wrapper(cells)
     for cell in cells:
         bare = _bare(cell)
         if not bare:
@@ -504,6 +586,14 @@ def encode_number(spec: ColumnSpec, cells: "list[str]", rows: "list[int]") -> "E
             positions += [atom[0]]
             atoms[atom[1]] = (atom[0], (atoms[atom[1]][1] if atom[1] in atoms else 0) + 1)
             continue
+        found = wrapped(bare) if wrapper is not None else None
+        if found is not None and (found[0], found[2]) == wrapper:
+            inner = _number(found[1])
+            if inner is not None:
+                positions += [inner]
+                places = _decimals(found[1])
+                decimals[places] = (decimals[places] if places in decimals else 0) + 1
+                continue
         counts[WORD] += 1
     if len(positions) < MIN_ROWS or len(set(positions)) < 3:
         return None
@@ -516,7 +606,7 @@ def encode_number(spec: ColumnSpec, cells: "list[str]", rows: "list[int]") -> "E
     rest = len(ordered)
     for side, place, held in ((0, low_end, at_low), (1, high_end, at_high)):
         if held >= MIN_ROWS and held >= SPIKE_SHARE * len(ordered) and rest - held >= MIN_ROWS:
-            spikes[side] = [place, _spike_text(cells, place)]
+            spikes[side] = [place, _spike_text(cells, place, wrapper)]
             rest = rest - held
     lowest = spikes[0][0] if isinstance(spikes[0], list) else None
     highest = spikes[1][0] if isinstance(spikes[1], list) else None
@@ -546,12 +636,14 @@ def encode_number(spec: ColumnSpec, cells: "list[str]", rows: "list[int]") -> "E
         ranked = sorted((-forms[key], key) for key in forms)
         chosen = ranked[0][1]
         entry["exponent"] = [chosen[0], chosen[1], chosen[2], chosen[3]]
+    if wrapper is not None:
+        entry["wrapper"] = [wrapper[0], wrapper[1]]
     del middle
     states: "list[int]" = []
     places_of: "list[float]" = []
     for row in rows:
         bare = _bare(cells[row])
-        spot = _place_of(bare) if bare else None
+        spot = _place_in(bare, wrapper) if bare else None
         if not bare:
             states += [EMPTY]
             places_of += [0.0]
@@ -593,6 +685,13 @@ def encode_label(spec: ColumnSpec, cells: "list[str]", rows: "list[int]") -> "En
         "name": spec.name, "place": spec.place, "kind": LABEL, "levels": levels, "counts": level_counts,
         "rest": rest_rows,
     }
+    if spec.carried:
+        # The rest's own spellings with their real counts (lane IN-7): a rest row of the twin is drawn among them,
+        # the rows of a spelling the readers hold filled from the description's twin as before.
+        others = sorted((-counts[cell], cell) for cell in counts if cell in allowed and cell not in code_of
+                        and _bare(cell))
+        entry["carried"] = True
+        entry["others"] = [[cell, -negative] for negative, cell in others[:OTHERS_CAP]]
     return Encoded(entry, [], [], codes)
 
 
@@ -669,14 +768,86 @@ def spline(score: float, which: int) -> float:
     return value / (span * span)
 
 
+@dataclasses.dataclass(frozen=True)
+class HeldFrame:
+    """A drawn column's frame held compactly while later columns read it (lane IN-8, plan P4-D502).
+
+    A number's scores as each row's place in `table`, its different scores
+    in the order first met (`places`, the fewest bytes a row that hold the
+    count), and its states a byte a row; a label's codes the fewest bytes a
+    row. `frame_rows` gives a block of rows back as the lists a term reads,
+    each value the one held: a score of -0.0 is held apart from 0.0.
+    """
+
+    rows: int
+    table: "list[float]"
+    places: chain_walk.Packed
+    states: bytes
+    codes: chain_walk.Packed
+
+
 @dataclasses.dataclass
 class Frame:
-    """The values a term reads: for a number its scores and states, for a label its codes."""
+    """The values a term reads: for a number its scores and states, for a label its codes.
+
+    A frame of the draw that a later column reads is held compactly
+    (`held_frame`): its lists are then empty and `held` holds them.
+    """
 
     kind: str
     scores: "list[float]"
     states: "list[int]"
     codes: "list[int]"
+    held: "HeldFrame | None" = None
+
+
+def held_frame(frame: Frame, rows: int) -> Frame:
+    """The frame of `rows` rows held compactly (`HeldFrame`), its values unchanged."""
+    if frame.held is not None:
+        return frame
+    table: "list[float]" = []
+    index: "dict[object, int]" = {}
+    places: "list[int]" = []
+    for score in frame.scores:
+        # A zero is keyed by its spelling, so -0.0 is held apart from 0.0 (equal as numbers, not as signs).
+        key: object = score if score != 0.0 else f"{score}"
+        if key not in index:
+            index[key] = len(table)
+            table += [score]
+        places += [index[key]]
+    packed_places = chain_walk.packed(len(places), chain_walk.width_for(max(0, len(table) - 1)))
+    for row in range(len(places)):
+        chain_walk.put(packed_places, row, places[row])
+    del places
+    states = bytes([state for state in frame.states])
+    top = 0
+    for code in frame.codes:
+        if code > top:
+            top = code
+    codes = chain_walk.packed(len(frame.codes), chain_walk.width_for(top))
+    for row in range(len(frame.codes)):
+        chain_walk.put(codes, row, frame.codes[row])
+    return Frame(frame.kind, [], [], [], HeldFrame(rows, table, packed_places, states, codes))
+
+
+def frame_rows(frame: Frame, start: int, stop: int) -> Frame:
+    """Rows `start` to `stop` of a frame, as the lists a term reads (a held frame's values given back)."""
+    held = frame.held
+    if held is None:
+        return Frame(frame.kind, frame.scores[start:stop], frame.states[start:stop], frame.codes[start:stop])
+    scores: "list[float]" = []
+    states: "list[int]" = []
+    codes: "list[int]" = []
+    if held.table:
+        table = held.table
+        data, width = held.places.data, held.places.width
+        scores = [table[chain_walk.read_code(data, width, row)] for row in range(start, min(stop, held.rows))]
+    if held.states:
+        states = [state for state in held.states[start:stop]]
+    if chain_walk.size_of(held.codes):
+        data, width = held.codes.data, held.codes.width
+        codes = [chain_walk.read_code(data, width, row) for row in range(start, min(stop, held.rows))]
+    return Frame(frame.kind, scores, states, codes)
 
 
 def term_values(term: object, frames: "dict[str, Frame]", rows: int) -> "list[float]":
@@ -815,8 +986,29 @@ def least_squares(columns: "list[list[float]]", response: "list[float]") -> Fit:
     return Fit(beta, [1.0 for _row in range(rows)], residuals, lower, dropped, max(scale, 1e-12))
 
 
+def _deviance(response: "list[float]", eta: "list[float]") -> float:
+    """A logistic fit's deviance at a linear predictor (its probabilities kept off nought and one)."""
+    terms: "list[float]" = []
+    for y, e in zip(response, eta):
+        mean = min(1.0 - 1e-15, max(1e-15, expit(e)))
+        terms += [y * chain_walk.natural_log(mean) + (1.0 - y) * chain_walk.natural_log(1.0 - mean)]
+    return -2.0 * math.fsum(terms)
+
+
+# A Newton step that raises a logistic fit's deviance is halved up to this many times (lane IN-7: a fit near
+# separation, a label level no row of some parent's level holds, took a step to coefficients of 1e9 and drew its
+# label at a share far from the table's; a step that lowers the deviance is taken whole, so a fit that settles
+# as before keeps every byte).
+_HALVINGS = 60
+
+
 def logistic(columns: "list[list[float]]", response: "list[float]") -> Fit:
-    """A logistic fit by iteratively reweighted least squares (the first term the intercept), ridged; its predictor capped at the draw."""
+    """A logistic fit by iteratively reweighted least squares (the first term the intercept), ridged; its predictor capped at the draw.
+
+    A step that raises the deviance is halved until it does not (at most
+    `_HALVINGS` times), so a fit near separation walks its coefficients
+    out slowly instead of jumping to a meaningless point.
+    """
     rows = len(response)
     size = len(columns)
     share = math.fsum(response) / max(1, rows)
@@ -826,6 +1018,7 @@ def logistic(columns: "list[list[float]]", response: "list[float]") -> Fit:
     dropped: "list[bool]" = []
     weights: "list[float]" = []
     means: "list[float]" = []
+    deviance = _deviance(response, _predictor(columns, beta, rows))
     for _step in range(_ITERATIONS):
         eta = _predictor(columns, beta, rows)
         means = [expit(e) for e in eta]
@@ -834,10 +1027,18 @@ def logistic(columns: "list[list[float]]", response: "list[float]") -> Fit:
         lower, dropped = _cholesky(_ridged(_gram(columns, weights)))
         weighted = [w * z for w, z in zip(weights, working)]
         moved = _solve(lower, dropped, [0.0 if dropped[a] else _dot(columns[a], weighted) for a in range(size)])
+        if not all([math.isfinite(value) for value in moved]):
+            beta = moved
+            break
+        reached = _deviance(response, _predictor(columns, moved, rows))
+        halved = 0
+        while not reached <= deviance + 1e-9 * (1.0 + abs(deviance)) and halved < _HALVINGS:
+            moved = [(a + b) / 2.0 for a, b in zip(moved, beta)]
+            reached = _deviance(response, _predictor(columns, moved, rows))
+            halved += 1
         change = max([abs(a - b) for a, b in zip(moved, beta)]) if size else 0.0
         beta = moved
-        if not all([math.isfinite(value) for value in beta]):
-            break
+        deviance = reached
         if change < _CHANGE:
             break
     if not all([math.isfinite(value) for value in beta]):
@@ -914,6 +1115,11 @@ def _main_block(name: str, frame: Frame) -> "Block | None":
             if -negative >= MIN_ROWS:
                 terms += [["level", name, code]]
     return Block(tuple(terms), name, "main") if terms else None
+
+
+def main_block(name: str, frame: Frame) -> "Block | None":
+    """A parent's main block: a number's score and its states held by `MIN_ROWS` rows, a label's levels but the commonest (lane IN-7 reads it too)."""
+    return _main_block(name, frame)
 
 
 def _curve_block(name: str, frame: Frame) -> "Block | None":
@@ -1180,7 +1386,7 @@ def fit_number(target: Target, candidates: "list[Block]", frames: "dict[str, Fra
 
 
 def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int] | None" = None,
-             person: str = "") -> "dict[str, object]":
+             person: str = "", frames_out: "dict[str, Frame] | None" = None) -> "dict[str, object]":
     """The relations zone: each encoded column, in order, fitted on the columns before it (`sample` rows read).
 
     `owners` gives each fit row's person (None where every row is a
@@ -1189,7 +1395,10 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
     fitted on each person's first row alone, on the columns before it
     that are held once a person too; a number varying by row splits its
     residual into a person's share and a row's; a sequence is fitted on
-    nothing and read by the columns after it.
+    nothing and read by the columns after it. `frames_out`, where given,
+    gains every modelled column's frame on the fit's rows (the
+    missing-values zone of lane IN-7 fits on them); the zone's bytes do
+    not depend on it.
     """
     first: "list[bool] | None" = None
     if owners is not None:
@@ -1240,6 +1449,9 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
         if held_once:
             once = once | set([name])
         columns += [entry]
+    if frames_out is not None:
+        for name in frames:
+            frames_out[name] = frames[name]
     return {"version": ZONE_VERSION, "rows": rows, "sample_rows": sample, "person": person, "columns": columns}
 
 
@@ -1336,14 +1548,90 @@ def _aged(text: str, places: int, top: int) -> str:
     return _censored_age(text, top) if _atom(text) is not None else text
 
 
+# THE DRAW'S BLOCK OF ROWS (lane IN-8, plan P4-D502): a term's values and a
+# predictor are made for this many rows at a time, from the parents' frames
+# read back a block at a time (`frame_rows`), so what a column's draw holds
+# beside its own cells is one block of its terms, not the table. Each row's
+# arithmetic is the same in the same order, so the twin is the same bytes
+# whatever the block (a gate case draws one twin with blocks of 7 rows).
+DRAW_BLOCK = 65_536
+
+
+def _block_frames(frames: "dict[str, Frame]", terms: "list[object]", start: int, stop: int) -> "dict[str, Frame]":
+    """The frames the terms read, rows `start` to `stop`, as lists; RelationsError where a term reads no frame."""
+    out: "dict[str, Frame]" = {}
+    for term in terms:
+        for name in _names_in(term):
+            if name not in frames:
+                raise RelationsError("The inside record's relations zone names a parent it does not model.")
+            if name not in out:
+                out[name] = frame_rows(frames[name], start, stop)
+    return out
+
+
 def _draw_label(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int]",
-                levels: int) -> "list[int]":
+                levels: int, residuals: "list[float] | None" = None) -> "list[int]":
+    """Each row's level by its fitted log odds; `residuals`, where given, gains each row's place inside its level's share (0 to 1)."""
     terms = _list(_get(model, "terms"))
     coefficients = _list(_get(model, "coefficients"))
-    columns = [term_values(term, frames, rows) for term in terms]
+    _block_frames(frames, terms, 0, 0)
+    block = max(1, DRAW_BLOCK)
+    codes: "list[int]" = []
+    for start in range(0, rows, block):
+        stop = min(rows, start + block)
+        held = _block_frames(frames, terms, start, stop)
+        columns = [term_values(term, held, stop - start) for term in terms]
+        etas: "list[list[float]]" = [[0.0 for _row in range(stop - start)]]
+        for level in range(1, levels):
+            etas += [_predictor(columns, _floats(coefficients[level]), stop - start)]
+        del columns
+        for at in range(stop - start):
+            top = max([etas[level][at] for level in range(levels)])
+            lifted = [chain_walk.exponential(max(-700.0, etas[level][at] - top)) for level in range(levels)]
+            total = math.fsum(lifted)
+            share = _uniform(words[start + at]) * total
+            running = 0.0
+            code = levels - 1
+            for level in range(levels):
+                running += lifted[level]
+                if share < running:
+                    code = level
+                    break
+            codes += [code]
+            if residuals is not None:
+                width = lifted[code]
+                inside = (share - (running - width)) / width if width > 0.0 else 0.5
+                residuals += [min(1.0 - 1e-12, max(0.0, inside))]
+    return codes
+
+
+def _etas(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, levels: int) -> "list[list[float]]":
+    """Each level's fitted log odds against the first on every row (the first level's are nought).
+
+    Made `DRAW_BLOCK` rows at a time from the parents' frames read back a
+    block at a time (lane IN-8): each row's arithmetic is the same in the
+    same order, so the log odds are the same whatever the block.
+    """
+    terms = _list(_get(model, "terms"))
+    coefficients = _list(_get(model, "coefficients"))
+    _block_frames(frames, terms, 0, 0)
+    block = max(1, DRAW_BLOCK)
     etas: "list[list[float]]" = [[0.0 for _row in range(rows)]]
-    for level in range(1, levels):
-        etas += [_predictor(columns, _floats(coefficients[level]), rows)]
+    for _level in range(1, levels):
+        etas += [[]]
+    for start in range(0, rows, block):
+        stop = min(rows, start + block)
+        held = _block_frames(frames, terms, start, stop)
+        columns = [term_values(term, held, stop - start) for term in terms]
+        for level in range(1, levels):
+            etas[level] += _predictor(columns, _floats(coefficients[level]), stop - start)
+        del columns
+    return etas
+
+
+def _codes_of(etas: "list[list[float]]", rows: int, words: "list[int]") -> "list[int]":
+    """Each row's level drawn by its log odds (`etas`) from its own word."""
+    levels = len(etas)
     codes: "list[int]" = []
     for row in range(rows):
         top = max([etas[level][row] for level in range(levels)])
@@ -1363,21 +1651,46 @@ def _draw_label(model: "dict[str, object]", frames: "dict[str, Frame]", rows: in
 
 def _scores_drawn(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, present: "list[int]",
                   words: "list[int]", owners: "list[int] | None" = None,
-                  person_words: "list[int] | None" = None) -> "list[float]":
-    """Each present row's drawn score: its fitted predictor and a residual, a person's share added where one was fitted."""
+                  person_words: "list[int] | None" = None, word_at: int = 0, person_at: int = 0) -> "list[float]":
+    """Each present row's drawn score: its fitted predictor and a residual, a person's share added where one was fitted.
+
+    `present` is in rising order; the predictor is made a block of rows at a
+    time. A row's residual word is `words[word_at + row]` and a person's
+    share's `person_words[person_at + first row]`: the column's one list of
+    words is read in place, never copied into slices (lane IN-8).
+    """
     terms = _list(_get(model, "terms"))
     beta = _floats(_get(model, "coefficients"))
     spread = _float(_get(model, "spread"))
     shape = _floats(_get(model, "residuals"))
-    columns = [term_values(term, frames, rows) for term in terms]
-    eta = _predictor(columns, beta, rows)
-    if "person_spread" in model and owners is not None and person_words is not None:
+    _block_frames(frames, terms, 0, 0)
+    block = max(1, DRAW_BLOCK)
+    split = "person_spread" in model and owners is not None and person_words is not None
+    between, scale = 0.0, 0.0
+    if split:
         between = _float(model["person_spread"])
         within = _float(_get(model, "row_spread"))
         scale = within / spread if spread > 0.0 else 0.0
-        return [eta[row] + between * chain_walk.normal_score(_uniform(person_words[owners[row]]))
-                + scale * spread * _residual(shape, _uniform(words[row])) for row in present]
-    return [eta[row] + spread * _residual(shape, _uniform(words[row])) for row in present]
+    out: "list[float]" = []
+    at = 0
+    for start in range(0, rows, block):
+        stop = min(rows, start + block)
+        end = at
+        while end < len(present) and present[end] < stop:
+            end += 1
+        if end == at:
+            continue
+        held = _block_frames(frames, terms, start, stop)
+        columns = [term_values(term, held, stop - start) for term in terms]
+        eta = _predictor(columns, beta, stop - start)
+        del columns
+        if split and owners is not None and person_words is not None:
+            out += [eta[row - start] + between * chain_walk.normal_score(_uniform(person_words[person_at + owners[row]]))
+                    + scale * spread * _residual(shape, _uniform(words[word_at + row])) for row in present[at:end]]
+        else:
+            out += [eta[row - start] + spread * _residual(shape, _uniform(words[word_at + row])) for row in present[at:end]]
+        at = end
+    return out
 
 
 @dataclasses.dataclass
@@ -1420,7 +1733,7 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
     if len(counts) != STATES:
         raise RelationsError("The inside record's relations zone counts a number's states another way; describe the table again.")
     if isinstance(presence, dict):
-        states = _draw_label(_dict(presence), frames, rows, words[:rows], STATES)
+        states = _draw_label(_dict(presence), frames, rows, words, STATES)
     else:
         total = max(1, sum(counts))
         states = []
@@ -1440,9 +1753,11 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
     if len(spikes) != 2:
         raise RelationsError("The inside record's relations zone holds a number's spikes another way; describe the table again.")
     present = [row for row in range(rows) if states[row] == PRESENT and (owners is None or owners[row] == row)]
-    drawn = _scores_drawn(_dict(_get(entry, "value")), frames, rows, present, words[rows:2 * rows],
-                          persons_of_rows, words[2 * rows:] if len(words) >= 3 * rows else None)
+    drawn = _scores_drawn(_dict(_get(entry, "value")), frames, rows, present, words,
+                          persons_of_rows, words if len(words) >= 3 * rows else None, rows, 2 * rows)
     order = sorted((drawn[k], present[k]) for k in range(len(present)))
+    # What is dead is let go at once (lane IN-8): the scores and rows once in order, the order once mapped.
+    del drawn, present
     grid = _floats(_get(entry, "grid"))
     places = _int(_get(entry, "decimals"))
     top = _int(_get(entry, "top"))
@@ -1450,6 +1765,9 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
     atoms: "dict[float, str]" = {}
     for pair in _list(_get(entry, "atoms")):
         atoms[_float(_list(pair)[0])] = _text(_list(pair)[1])
+    # A number written inside a wrapper is written back inside it (lane IN-7); a column without one keeps its bytes.
+    worn = _list(entry["wrapper"]) if "wrapper" in entry else ["", ""]
+    prefix, suffix = _text(worn[0]), _text(worn[1])
     cells: "list[str | None]" = [None for _row in range(rows)]
     positions = [0.0 for _row in range(rows)]
     count = len(order)
@@ -1462,9 +1780,10 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
             positions[row] = place
             continue
         text = _written(place, places, top, form)
-        cells[row] = text
+        cells[row] = prefix + text + suffix if prefix or suffix else text
         value = _number(text)
         positions[row] = value if value is not None else place
+    del order
     for row in range(rows):
         if states[row] == EMPTY:
             cells[row] = ""
@@ -1474,9 +1793,15 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
             end = grid[0] if states[row] == LOW else grid[GRID - 1]
             place = _float(_list(spike)[0]) if isinstance(spike, list) else end
             positions[row] = place
-            spelled = _text(_list(spike)[1]) if isinstance(spike, list) else _written(end, places, top, form)
-            # ...a number above 89 written as the top code, a censoring spelling past the top category as it.
-            cells[row] = _aged(spelled, places, top)
+            spelled = (_text(_list(spike)[1]) if isinstance(spike, list)
+                       else prefix + _written(end, places, top, form) + suffix)
+            # ...a number above 89 written as the top code, a censoring spelling past the top category as it, and a
+            # number inside the column's wrapper capped inside it (lane IN-7).
+            inner = wrapped(spelled) if prefix or suffix else None
+            if inner is not None:
+                cells[row] = inner[0] + _aged(inner[1], places, top) + inner[2]
+            else:
+                cells[row] = _aged(spelled, places, top)
     if owners is not None:
         cells = [cells[owners[row]] for row in range(rows)]
         positions = [positions[owners[row]] for row in range(rows)]
@@ -1490,18 +1815,43 @@ def draw_label(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int
     `owners` draws a column held once a person, as `draw_number` does.
     """
     levels = _list(_get(entry, "levels"))
-    count = len(levels) + (1 if _int(_get(entry, "rest")) > 0 else 0)
-    codes = _draw_label(_dict(_get(entry, "value")), frames, rows, words, count)
+    rest = _int(_get(entry, "rest"))
+    count = len(levels) + (1 if rest > 0 else 0)
+    # A carried label (lane IN-7) writes every modelled level as it is, and draws a rest row among the rest's real
+    # spellings by their counts (the rows of the spellings it does not list are filled as before).
+    carried = "carried" in entry and entry["carried"] is True
+    others: "list[tuple[str, int]]" = []
+    if carried and "others" in entry:
+        for pair in _list(entry["others"]):
+            others += [(_text(_list(pair)[0]), _int(_list(pair)[1]))]
+    places: "list[float] | None" = [] if others else None
+    codes = _draw_label(_dict(_get(entry, "value")), frames, rows, words, count, places)
     if owners is not None:
         codes = [codes[owners[row]] for row in range(rows)]
+        if places is not None:
+            places = [places[owners[row]] for row in range(rows)]
     cells: "list[str | None]" = []
-    for code in codes:
+    for row in range(len(codes)):
+        code = codes[row]
         if code < len(levels):
             text = _text(levels[code])
-            cells += [text if (text in allowed or not _bare(text)) else None]
+            cells += [text if (carried or text in allowed or not _bare(text)) else None]
+        elif places is not None:
+            cells += [_other_of(others, rest, places[row])]
         else:
             cells += [None]
     return Drawn(cells, Frame(LABEL, [], [], codes))
+
+
+def _other_of(others: "list[tuple[str, int]]", rest: int, share: float) -> "str | None":
+    """A rest row's spelling: the listed spelling its place among the rest's rows falls on; None past them (filled as before)."""
+    at = share * max(1, rest)
+    running = 0
+    for text, held in others:
+        running += held
+        if at < running:
+            return text
+    return None
 
 
 def _filled(cells: "list[str | None]", pool: "list[str]") -> "list[str]":
@@ -1517,17 +1867,570 @@ def _filled(cells: "list[str | None]", pool: "list[str]") -> "list[str]":
     return out
 
 
-def _pool(kind: str, strict: "list[str]", modelled: "set[str]") -> "list[str]":
-    """The description's twin's cells a drawn column may borrow: a number's words, a label's unmodelled spellings."""
-    out: "list[str]" = []
+# -- THE DESCRIPTION'S WRITTEN FORMS KEPT (lane IN-2b): a drawn column dealt inside its own twin's cells ----------
+#
+# A drawn column is written with the description's twin's own cells for that column: every spelling, decimal
+# place, sign, affix, missing-value spelling, label spelling and exact count the description publishes stands as
+# that twin writes it, and the draw decides only WHICH ROW holds WHICH cell. The classes of cells (a number, its
+# low or high spike, an empty cell, another word; a label's modelled spellings and the rest) are drawn with
+# exactly the counts that twin holds (the draw's own result, the fewest rows moved where it holds other counts),
+# a number's cells are dealt by the rank of the drawn scores, and a column held once a person deals whole
+# persons' cells among persons of the same number of rows, so every count over rows stands too.
+
+_FAR = -700.0
+_LANE_RELEASE, _LANE_ORDER, _LANE_PICK, _LANE_TIE = 0, 1, 2, 3
+
+
+def _salted(salt: int, row: int, lane: int) -> float:
+    """A share strictly between nought and one: a fixed hash of a column's salt, a row's place and a lane."""
+    return _uniform(_mix((salt + _mix((row << 3) + lane)) & _MASK64))
+
+
+def _share_at(etas: "list[list[float]] | None", constant: "list[float]", row: int, kind: int) -> float:
+    """A class's log odds at a row against the row's first class: its fitted predictor, or its constant share's log."""
+    if etas is not None:
+        return etas[kind][row] if kind < len(etas) else _FAR
+    return constant[kind] if kind < len(constant) else _FAR
+
+
+def _constant_shares(counts: "list[int]") -> "list[float]":
+    """Each class's share, as a logarithm (a class the counts never hold weighs half a row)."""
+    total = float(max(1, sum(counts)))
+    return [chain_walk.natural_log(max(float(count), 0.5) / total) for count in counts]
+
+
+def _settled(codes: "list[int]", members: "list[int]", targets: "list[int]", etas: "list[list[float]] | None",
+             constant: "list[float]", salt: int) -> int:
+    """Move the fewest of `members`' codes so each class holds exactly its target; the number of rows moved.
+
+    A class holding more members than its target releases its surplus,
+    drawn without replacement, each member weighted by how much likelier
+    the under-filled classes are than its own at its row (Efraimidis and
+    Spirakis' keys, in logarithms); each released member then takes an
+    under-filled class with room, drawn by those classes' shares at its
+    row. `targets` add up to the members. A fixed function of its inputs:
+    the draws are hashes of `salt` and the row, no word of the stream.
+    """
+    classes = len(targets)
+    by_class: "list[list[int]]" = [[] for _class in range(classes)]
+    for row in members:
+        by_class[codes[row]] += [row]
+    surplus = [len(by_class[kind]) - targets[kind] for kind in range(classes)]
+    under = [kind for kind in range(classes) if surplus[kind] < 0]
+    if not under:
+        return 0
+    released: "list[int]" = []
+    for kind in range(classes):
+        if surplus[kind] <= 0:
+            continue
+        keyed: "list[tuple[float, int]]" = []
+        for row in by_class[kind]:
+            ups = [_share_at(etas, constant, row, other) for other in under]
+            top = max(ups)
+            gain = top + chain_walk.natural_log(math.fsum([chain_walk.exponential(max(_FAR, up - top)) for up in ups]))
+            weight = min(-_FAR, max(_FAR, gain - _share_at(etas, constant, row, kind)))
+            keyed += [(chain_walk.natural_log(_salted(salt, row, _LANE_RELEASE)) * chain_walk.exponential(-weight), row)]
+        ranked = sorted(keyed, reverse=True)
+        released += [row for _key, row in ranked[:surplus[kind]]]
+    room = [-surplus[kind] if surplus[kind] < 0 else 0 for kind in range(classes)]
+    for _share, row in sorted((_salted(salt, row, _LANE_ORDER), row) for row in released):
+        open_classes = [kind for kind in under if room[kind] > 0]
+        ups = [_share_at(etas, constant, row, kind) for kind in open_classes]
+        top = max(ups)
+        lifted = [chain_walk.exponential(max(_FAR, up - top)) for up in ups]
+        pick = _salted(salt, row, _LANE_PICK) * math.fsum(lifted)
+        chosen = open_classes[len(open_classes) - 1]
+        running = 0.0
+        for at in range(len(open_classes)):
+            running += lifted[at]
+            if pick < running:
+                chosen = open_classes[at]
+                break
+        codes[row] = chosen
+        room[chosen] -= 1
+    return len(released)
+
+
+def _number_class(cell: str, low: "float | None", high: "float | None",
+                  wrapper: "tuple[str, str] | None" = None) -> "tuple[int, float]":
+    """A number column's cell as the draw's states read it: its class (a number, a spike, empty, a word) and place.
+
+    A number worn inside the column's wrapper (lane IN-7, `common_wrapper`) is read as its number.
+    """
+    bare = _bare(cell)
+    if not bare:
+        return EMPTY, 0.0
+    place = _place_in(bare, wrapper)
+    if place is None:
+        return WORD, 0.0
+    if low is not None and place == low:
+        return LOW, place
+    if high is not None and place == high:
+        return HIGH, place
+    return PRESENT, place
+
+
+@dataclasses.dataclass
+class Dealing:
+    """How a drawn column's cells are dealt: row by row (`rows_of` None), or person by person where the column is held
+    once a person (`rows_of` lists each person's rows in row order).
+
+    `kept` names rows left as the description's twin holds them (its
+    all-empty records).
+    """
+
+    rows: int
+    kept: "list[bool] | None" = None
+    rows_of: "list[list[int]] | None" = None
+
+
+def _free_rows(dealing: Dealing) -> "list[int]":
+    """The rows a row-by-row dealing deals: every row not kept."""
+    kept = dealing.kept
+    return [row for row in range(dealing.rows) if kept is None or not kept[row]]
+
+
+def _free_persons(dealing: Dealing) -> "list[int]":
+    """The persons a person-by-person dealing deals: every person whose first row is not kept."""
+    kept = dealing.kept
+    rows_of = dealing.rows_of if dealing.rows_of is not None else []
+    return [person for person in range(len(rows_of)) if kept is None or not kept[rows_of[person][0]]]
+
+
+def _hashed(units: "list[int]", lead: "list[int]", salt: int, lane: int) -> "list[int]":
+    """Units in a fixed hashed order (each read at its row in `lead`)."""
+    return [unit for _key, unit in sorted((_salted(salt, lead[at], lane), units[at]) for at in range(len(units)))]
+
+
+def _put(bucket: "dict[int, list[int]]", size: int, person: int) -> None:
+    """A person put on top of its size's pile."""
+    if size in bucket:
+        bucket[size] += [person]
+    else:
+        bucket[size] = [person]
+
+
+def _taken(bucket: "dict[int, list[int]]", size: int) -> int:
+    """The person on top of a size's pile, taken off it."""
+    pile = bucket[size]
+    person = pile[len(pile) - 1]
+    del pile[len(pile) - 1]
+    return person
+
+
+def _persons_dealt_settled(codes: "list[int]", rows_of: "list[list[int]]", persons: "list[int]", kinds: "list[int]",
+                           classes: int, etas: "list[list[float]] | None", constant: "list[float]", salt: int) -> None:
+    """The person-by-person settle: where the description's twin holds the column one value a person, each number of
+    rows keeps that twin's count of persons of each class (`_settled` on the persons of each size), so the counts
+    over persons and over rows stand at once; elsewhere the counts over rows, by moving whole persons
+    (`_person_settled`). `kinds` is each row's class in that twin; `codes` is read and written at first rows."""
+    one_a_person = True
+    for person in persons:
+        rows = rows_of[person]
+        first = kinds[rows[0]]
+        for row in rows:
+            if kinds[row] != first:
+                one_a_person = False
+                break
+        if not one_a_person:
+            break
+    if not one_a_person:
+        targets = [0 for _class in range(classes)]
+        for person in persons:
+            for row in rows_of[person]:
+                targets[kinds[row]] += 1
+        _person_settled(codes, rows_of, persons, targets, salt)
+        return
+    by_size: "dict[int, list[int]]" = {}
+    for person in persons:
+        size = len(rows_of[person])
+        if size in by_size:
+            by_size[size] += [person]
+        else:
+            by_size[size] = [person]
+    for size in sorted(by_size):
+        group = by_size[size]
+        targets = [0 for _class in range(classes)]
+        for person in group:
+            targets[kinds[rows_of[person][0]]] += 1
+        _settled(codes, [rows_of[person][0] for person in group], targets, etas, constant, salt)
+
+
+def _person_settled(codes: "list[int]", rows_of: "list[list[int]]", persons: "list[int]", targets: "list[int]",
+                    salt: int) -> int:
+    """Move the fewest whole persons between classes so each class holds exactly `targets` rows; the persons moved.
+
+    `codes` is read and written at each person's first row. Persons move
+    in a fixed hashed order, the largest gap between a class of too many
+    and one of too few first: the largest person that does not overshoot
+    the gap, else an exchange of two persons whose sizes differ by it; a
+    pair no move closes gives way to the next. Where no move closes any
+    gap the rest is left (a table whose persons cannot make the count; the
+    count is then off by under the largest person's rows).
+    """
+    classes = len(targets)
+    held = [0 for _class in range(classes)]
+    buckets: "list[dict[int, list[int]]]" = [{} for _class in range(classes)]
+    for person in _hashed(persons, [rows_of[person][0] for person in persons], salt, _LANE_RELEASE):
+        kind = codes[rows_of[person][0]]
+        size = len(rows_of[person])
+        held[kind] += size
+        _put(buckets[kind], size, person)
+    surplus = [held[kind] - targets[kind] for kind in range(classes)]
+    moved = 0
+    while True:
+        over = sorted((-surplus[kind], kind) for kind in range(classes) if surplus[kind] > 0)
+        under = sorted((surplus[kind], kind) for kind in range(classes) if surplus[kind] < 0)
+        if not over or not under:
+            return moved
+        step = None
+        # The largest gap first; a pair no move closes gives way to the next, so one class whose gap no person fits
+        # leaves the others' gaps to close.
+        for _over, fullest in over:
+            for _under, emptiest in under:
+                need = min(surplus[fullest], -surplus[emptiest])
+                fits = [size for size in buckets[fullest] if size <= need and buckets[fullest][size]]
+                if fits:
+                    step = (fullest, emptiest, max(fits), 0)
+                    break
+                for size in sorted(buckets[fullest]):
+                    back = size - need
+                    if size > need and buckets[fullest][size] and back in buckets[emptiest] and buckets[emptiest][back]:
+                        step = (fullest, emptiest, size, back)
+                        break
+                if step is not None:
+                    break
+            if step is not None:
+                break
+        if step is None:
+            return moved
+        fullest, emptiest, size, back = step
+        going = _taken(buckets[fullest], size)
+        _put(buckets[emptiest], size, going)
+        codes[rows_of[going][0]] = emptiest
+        surplus[fullest] -= size
+        surplus[emptiest] += size
+        moved += 1
+        if back:
+            coming = _taken(buckets[emptiest], back)
+            _put(buckets[fullest], back, coming)
+            codes[rows_of[coming][0]] = fullest
+            surplus[fullest] += back
+            surplus[emptiest] -= back
+            moved += 1
+
+
+def _persons_valued(entry: "dict[str, object]", cells: "list[str | None]", rows_of: "list[list[int]]",
+                    persons: "list[int]", pool: "list[str]", wrapper: "tuple[str, str] | None" = None) -> None:
+    """Each person drawn as a number, in the order of its drawn score, writes on all its rows the description's twin's
+    cell in the middle of the block of that twin's sorted numbers (`pool`) its rows cover in turn: a quantile over
+    persons WEIGHTED BY THEIR ROWS (batch 4x's outside review, item 4), so a person holds one value and the rows
+    follow that twin's numbers -- its distribution over rows, its mean among them, stands as nearly as one value a
+    person allows, however the persons' sizes go with their values -- and every value written is one of that twin's
+    cells, its spelling, places and unit wrapper with it (item 3: a number worn inside the column's wrapper keeps it).
+    A column written with an exponent writes that cell's number in its own exponent form, inside the wrapper where
+    it wears one. Where that twin holds no number for the column, the zone's quantile function over persons is read
+    as before (a censoring atom keeps its spelling, the top code holds)."""
+    grid = _floats(_get(entry, "grid"))
+    places = _int(_get(entry, "decimals"))
+    top = _int(_get(entry, "top"))
+    form = _exponent_of(entry)
+    prefix, suffix = wrapper if wrapper is not None else ("", "")
+    atoms: "dict[float, str]" = {}
+    for pair in _list(_get(entry, "atoms")):
+        atoms[_float(_list(pair)[0])] = _text(_list(pair)[1])
+    count = len(persons)
+    taken = 0
+    for rank in range(count):
+        person = persons[rank]
+        size = len(rows_of[person])
+        if pool:
+            block = pool[min(len(pool) - 1, taken + (size - 1) // 2)]
+            text = block
+            value = _place_in(_bare(block), wrapper) if form is not None and _atom(block) is None else None
+            if value is not None:
+                text = prefix + _written(value, places, top, form) + suffix
+        else:
+            place = _grid_value(grid, (rank + 0.5) / count)
+            if place in atoms:
+                text = _aged(atoms[place], places, top)
+            else:
+                text = prefix + _written(place, places, top, form) + suffix
+        for row in rows_of[person]:
+            cells[row] = text
+        taken += size
+
+
+def _rows_valued(entry: "dict[str, object]", cells: "list[str | None]", rows: "list[int]") -> None:
+    """Each row drawn as a number, in the order given (its drawn score's), takes its value from the zone's quantile
+    function and writes it as `draw_number` does (a censoring atom keeps its spelling, the top code holds, an
+    exponent column writes its own exponent form)."""
+    grid = _floats(_get(entry, "grid"))
+    places = _int(_get(entry, "decimals"))
+    top = _int(_get(entry, "top"))
+    form = _exponent_of(entry)
+    atoms: "dict[float, str]" = {}
+    for pair in _list(_get(entry, "atoms")):
+        atoms[_float(_list(pair)[0])] = _text(_list(pair)[1])
+    count = len(rows)
+    for rank in range(count):
+        place = _grid_value(grid, (rank + 0.5) / count)
+        cells[rows[rank]] = _aged(atoms[place], places, top) if place in atoms else _written(place, places, top, form)
+
+
+def _spellings_dealt(cells: "list[str | None]", rows_of: "list[list[int]]", persons: "list[int]",
+                     pool: "list[str]", salt: int) -> None:
+    """The persons of one class, each writing one spelling of that class on all its rows: first the cell at the head of
+    the block of `pool` (that class's cells in the description's twin, in a fixed hashed order) its rows cover in
+    turn, then the spellings' counts over rows settled by moving whole persons between them (`_person_settled`), so
+    a class holding several spellings (the rest of a label, a number's words) keeps each spelling's count as nearly
+    as whole persons allow."""
+    if not persons or not pool:
+        return
+    spellings = sorted(set(pool))
+    index: "dict[str, int]" = {}
+    for at in range(len(spellings)):
+        index[spellings[at]] = at
+    targets = [0 for _spelling in spellings]
+    for cell in pool:
+        targets[index[cell]] += 1
+    marks: "dict[int, int]" = {}
+    taken = 0
+    for person in persons:
+        marks[rows_of[person][0]] = index[pool[min(len(pool) - 1, taken)]]
+        taken += len(rows_of[person])
+    if len(spellings) > 1:
+        codes = [0 for _row in range(max(marks) + 1)]
+        for row in marks:
+            codes[row] = marks[row]
+        _person_settled(codes, rows_of, persons, targets, salt)
+        for row in marks:
+            marks[row] = codes[row]
+    for person in persons:
+        text = spellings[marks[rows_of[person][0]]]
+        for row in rows_of[person]:
+            cells[row] = text
+
+
+def _capped(text: str, places: int, top: int, wrapper: "tuple[str, str] | None" = None) -> str:
+    """A cell of a top-coded column as the twin may write it: a number past the top code written as it, a censoring
+    spelling past the top category written as that category (`_censored_age`); every other cell as it stands. A
+    number worn inside the column's wrapper (lane IN-7) is capped inside it."""
+    if top <= 0 or not _bare(text):
+        return text
+    if wrapper is not None:
+        found = wrapped(text)
+        if found is not None and (found[0], found[2]) == wrapper:
+            inner = _capped(found[1], places, top)
+            return text if inner == found[1] else found[0] + inner + found[2]
+    value = _number(text)
+    if value is not None:
+        return _written(float(top), places, top) if value > top else text
+    return _censored_age(text, top) if _atom(text) is not None else text
+
+
+def _number_states(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int,
+                   words: "list[int]") -> "tuple[list[int], list[list[float]] | None, list[float]]":
+    """A number column's presence states drawn as `draw_number` draws them, and the log odds they were drawn by."""
+    counts = [_int(each) for each in _list(_get(entry, "states"))]
+    if len(counts) != STATES:
+        raise RelationsError("The inside record's relations zone counts a number's states another way; describe the table again.")
+    presence = entry["presence"] if "presence" in entry else None
+    if isinstance(presence, dict):
+        etas = _etas(_dict(presence), frames, rows, STATES)
+        return _codes_of(etas, rows, words), etas, []
+    total = max(1, sum(counts))
+    states: "list[int]" = []
+    for row in range(rows):
+        share = _uniform(words[row]) * total
+        running = 0
+        state = PRESENT
+        for each in range(STATES):
+            running += counts[each]
+            if share < running:
+                state = each
+                break
+        states += [state]
+    return states, None, _constant_shares(counts)
+
+
+def redeal_number(entry: "dict[str, object]", frames: "dict[str, Frame]", words: "list[int]", strict: "list[str]",
+                  dealing: Dealing, persons_of_rows: "list[int] | None" = None) -> Drawn:
+    """A number column drawn from the zone and written with the description's twin's own cells for it.
+
+    ROW BY ROW: the presence states (a number, the low or high spike, an
+    empty cell, a word) are drawn as `draw_number` draws them, then
+    settled on the counts of those classes among the description's twin's
+    cells (`_settled`); the rows drawn as numbers take that twin's numbers
+    in the order of their drawn scores, every other row a cell of its
+    class in a fixed hashed order: the column's cells ARE that twin's.
+    PERSON BY PERSON (a column held once a person): the states are drawn
+    at each person's first row and settled on those counts over rows by
+    moving whole persons (`_person_settled`); the persons drawn as numbers
+    take, in the order of their scores, the middle cell of the block of
+    that twin's sorted numbers their rows cover, so each person holds one
+    value and the rows follow that twin's numbers. A top-coded column
+    keeps its top code on every cell.
+    """
+    rows = dealing.rows
+    top = _int(_get(entry, "top"))
+    places = _int(_get(entry, "decimals"))
+    spikes = _list(_get(entry, "spikes"))
+    if len(spikes) != 2:
+        raise RelationsError("The inside record's relations zone holds a number's spikes another way; describe the table again.")
+    if len(strict) != rows:
+        raise RelationsError("The description's twin holds another number of rows than the inside record draws.")
+    low = _float(_list(spikes[0])[0]) if isinstance(spikes[0], list) else None
+    high = _float(_list(spikes[1])[0]) if isinstance(spikes[1], list) else None
+    # A number column worn inside one common wrapper (lane IN-7) is read and capped inside it, so its numbers are
+    # dealt by their drawn scores as a bare column's are.
+    worn = _list(entry["wrapper"]) if "wrapper" in entry else None
+    wrapper = (_text(worn[0]), _text(worn[1])) if worn is not None and len(worn) == 2 else None
+    kinds: "list[int]" = []
+    spots: "list[float]" = []
     for cell in strict:
-        bare = _bare(cell)
-        if kind == NUMBER:
-            if bare and _number(bare) is None and _atom(bare) is None:
-                out += [cell]
-        elif cell not in modelled and bare:
-            out += [cell]
-    return out
+        kind, spot = _number_class(_capped(cell, places, top, wrapper), low, high, wrapper)
+        kinds += [kind]
+        spots += [spot]
+    states, etas, constant = _number_states(entry, frames, rows, words)
+    salt = words[0] if words else 0
+    cells: "list[str | None]" = [None for _row in range(rows)]
+    rows_of = dealing.rows_of
+    if rows_of is None:
+        free = _free_rows(dealing)
+        targets = [0 for _class in range(STATES)]
+        for row in free:
+            targets[kinds[row]] += 1
+        _settled(states, free, targets, etas, constant, salt)
+        etas = None
+        lead = [row for row in free if states[row] == PRESENT]
+    else:
+        free = _free_persons(dealing)
+        _persons_dealt_settled(states, rows_of, free, kinds, STATES, etas, constant, salt)
+        etas = None
+        lead = [rows_of[person][0] for person in free if states[rows_of[person][0]] == PRESENT]
+    drawn = _scores_drawn(_dict(_get(entry, "value")), frames, rows, lead, words,
+                          persons_of_rows, words if len(words) >= 3 * rows else None, rows, 2 * rows)
+    order = [row for _score, row in sorted((drawn[at], lead[at]) for at in range(len(lead)))]
+    del drawn, lead
+    if rows_of is None:
+        givers: "list[list[int]]" = [[] for _class in range(STATES)]
+        takers: "list[list[int]]" = [[] for _class in range(STATES)]
+        for row in free:
+            givers[kinds[row]] += [row]
+            takers[states[row]] += [row]
+        takers[PRESENT] = order
+        for kind in range(STATES):
+            if kind == PRESENT and _exponent_of(entry) is not None:
+                # A column written with an exponent: the description's twin does not write that form, so its numbers
+                # are the zone's, in the column's own exponent form (the classes' counts stand as dealt).
+                _rows_valued(entry, cells, takers[kind])
+                continue
+            if kind == PRESENT:
+                ranked = [row for _spot, _tie, row in sorted((spots[row], _salted(salt, row, _LANE_TIE), row)
+                                                             for row in givers[kind])]
+            else:
+                ranked = _hashed(givers[kind], givers[kind], salt, _LANE_TIE + 1 + kind)
+            for at in range(len(takers[kind])):
+                cells[takers[kind][at]] = strict[ranked[at]]
+    else:
+        pools: "list[list[int]]" = [[] for _class in range(STATES)]
+        for person in free:
+            for row in rows_of[person]:
+                pools[kinds[row]] += [row]
+        by_state: "list[list[int]]" = [[] for _class in range(STATES)]
+        for person in free:
+            by_state[states[rows_of[person][0]]] += [person]
+        firsts: "dict[int, int]" = {}
+        for person in free:
+            firsts[rows_of[person][0]] = person
+        by_state[PRESENT] = [firsts[row] for row in order]
+        for kind in range(STATES):
+            if kind == PRESENT:
+                pool = [strict[row] for _spot, _tie, row in sorted((spots[row], _salted(salt, row, _LANE_TIE), row)
+                                                                   for row in pools[kind])]
+                _persons_valued(entry, cells, rows_of, by_state[kind], pool, wrapper)
+            else:
+                pool = [strict[row] for row in _hashed(pools[kind], pools[kind], salt, _LANE_TIE + 1 + kind)]
+                persons = by_state[kind]
+                _spellings_dealt(cells, rows_of, _hashed(persons, [rows_of[person][0] for person in persons], salt,
+                                                         _LANE_ORDER), pool, salt)
+    del order, kinds, spots, states
+    written = [_capped(cell if cell is not None else strict[row], places, top, wrapper) for row, cell in enumerate(cells)]
+    del cells
+    final: "list[int]" = []
+    positions: "list[float]" = []
+    for text in written:
+        kind, spot = _number_class(text, low, high, wrapper)
+        final += [kind]
+        positions += [spot]
+    return Drawn([text for text in written], Frame(NUMBER, normal_scores(final, positions), final, []))
+
+
+def redeal_label(entry: "dict[str, object]", frames: "dict[str, Frame]", words: "list[int]", strict: "list[str]",
+                 dealing: Dealing) -> Drawn:
+    """A label column drawn from the zone and written with the description's twin's own cells for it.
+
+    Each row's level is drawn by its fitted log odds as `draw_label` draws
+    it, then the levels are settled on the counts of the zone's modelled
+    spellings and of the rest among the description's twin's cells
+    (`_settled`), and each row takes a cell of its class in a fixed hashed
+    order: the column's cells ARE that twin's. A column held once a person
+    draws at each person's first row and settles by moving whole persons
+    (`_person_settled`); a person of a modelled spelling writes it on all
+    its rows, one of the rest a cell of the rest, so the modelled
+    spellings' counts over rows stand exactly.
+    """
+    rows = dealing.rows
+    if len(strict) != rows:
+        raise RelationsError("The description's twin holds another number of rows than the inside record draws.")
+    levels = [_text(each) for each in _list(_get(entry, "levels"))]
+    modelled = len(levels) + (1 if _int(_get(entry, "rest")) > 0 else 0)
+    rest = len(levels)
+    code_of: "dict[str, int]" = {}
+    for code in range(len(levels)):
+        code_of[levels[code]] = code
+    kinds = [code_of[cell] if cell in code_of else rest for cell in strict]
+    etas = _etas(_dict(_get(entry, "value")), frames, rows, modelled)
+    codes = _codes_of(etas, rows, words)
+    salt = words[0] if words else 0
+    cells: "list[str | None]" = [None for _row in range(rows)]
+    rows_of = dealing.rows_of
+    targets = [0 for _class in range(rest + 1)]
+    if rows_of is None:
+        free = _free_rows(dealing)
+        for row in free:
+            targets[kinds[row]] += 1
+        _settled(codes, free, targets, etas, [], salt)
+        del etas
+        givers: "list[list[int]]" = [[] for _class in range(rest + 1)]
+        takers: "list[list[int]]" = [[] for _class in range(rest + 1)]
+        for row in free:
+            givers[kinds[row]] += [row]
+            takers[codes[row]] += [row]
+        for kind in range(rest + 1):
+            ranked = _hashed(givers[kind], givers[kind], salt, _LANE_TIE)
+            for at in range(len(takers[kind])):
+                cells[takers[kind][at]] = strict[ranked[at]]
+    else:
+        free = _free_persons(dealing)
+        pools: "list[list[int]]" = [[] for _class in range(rest + 1)]
+        for person in free:
+            for row in rows_of[person]:
+                pools[kinds[row]] += [row]
+        _persons_dealt_settled(codes, rows_of, free, kinds, rest + 1, etas, [], salt)
+        del etas
+        by_code: "list[list[int]]" = [[] for _class in range(rest + 1)]
+        for person in _hashed(free, [rows_of[person][0] for person in free], salt, _LANE_ORDER):
+            by_code[codes[rows_of[person][0]]] += [person]
+        for kind in range(rest + 1):
+            pool = [strict[row] for row in _hashed(pools[kind], pools[kind], salt, _LANE_TIE)]
+            _spellings_dealt(cells, rows_of, by_code[kind], pool, salt)
+    del codes, kinds
+    written = [cell if cell is not None else strict[row] for row, cell in enumerate(cells)]
+    del cells
+    final = [code_of[cell] if cell in code_of else rest for cell in written]
+    return Drawn([text for text in written], Frame(LABEL, [], [], final))
 
 
 def zone_of(record: object) -> "dict[str, object]":
@@ -1585,24 +2488,34 @@ def _last_reads(columns: "list[object]") -> "dict[str, int]":
 
 
 def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "dict[str, twinstore.HeldColumn]",
-                 seed: int) -> "dict[str, twinstore.HeldColumn]":
+                 seed: int, keep: "frozenset[str] | set[str]" = frozenset(),
+                 frames_out: "dict[str, Frame] | None" = None,
+                 kept: "list[bool] | None" = None) -> "dict[str, twinstore.HeldColumn]":
     """Every modelled column of a twin of `profile.n_rows` rows, drawn from the zone and the seed, each held at once.
 
     Guarantees: a fixed function of the zone, the description, the
     description's twin's held columns of the modelled columns and of the
-    person column the zone names (`held`: they fill a number's words and a
-    label's unpublished spellings, and name the twin's persons) and the
-    seed. Each column draws exactly `2 n` words (a number: its presence,
-    then its scores; `3 n` where persons repeat and it varies by row: a
-    person's share read at each person's first row), `n` (a label) or
-    none (a sequence), in the zone's order. A column held once a person is
-    drawn on each twin person's first row and written on every row of the
-    person; a sequence is each row's place among its person's rows. Every
-    label cell written is a spelling the description publishes or a cell
-    of the description's twin. THE MEMORY: one column of the description's
-    twin is read back at a time, each drawn column is held compactly
-    (`twinstore.held_column`) as soon as it is drawn, and a column's scores
-    are let go after the last fit that reads them. Raises RelationsError
+    person column the zone names (`held`: each drawn column is WRITTEN WITH
+    ITS OWN CELLS there, `redeal_number` and `redeal_label`, and the person
+    column names the twin's persons), the rows `kept` as that twin holds
+    them (its all-empty records) and the seed. Each column draws exactly
+    `2 n` words (a number: its presence, then its scores; `3 n` where
+    persons repeat and it varies by row: a person's share read at each
+    person's first row), `n` (a label) or none (a sequence), in the zone's
+    order. A column held once a person is drawn on each twin person's
+    first row and deals whole persons' cells among persons of one number of
+    rows; a sequence is each row's place among its person's rows. So every
+    cell of a drawn column is a cell of the same column of the description's
+    twin, and every spelling and count over rows that twin holds stands
+    (a sequence aside). THE MEMORY: one column of the description's twin is
+    read back at a time, each drawn column is held compactly
+    (`twinstore.held_column`) as soon as it is drawn, a column's terms and
+    predictors are made `DRAW_BLOCK` rows at a time (lane IN-8), and a
+    column's scores, states or codes are held compactly (`held_frame`:
+    bytes a row, not Python objects) until the last fit that reads them,
+    then let go, except the columns `keep` names (the missing-values zone's
+    parents, lane IN-7), whose frames `frames_out` gains once every column
+    is drawn. Raises RelationsError
     where the zone does not fit the description (another number of rows,
     a column it does not hold).
     """
@@ -1619,6 +2532,16 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
             raise RelationsError("The inside record's relations zone names a person column this description does not hold.")
         persons = persons_of(twinstore.column_cells(held[person]))
     owners = _owners(persons, rows)
+    # THE DEALING (lane IN-2b): every drawn column is written with the description's twin's own cells for it; a
+    # column held once a person deals whole persons among persons of one number of rows; the twin's all-empty
+    # records (`kept`) stay as that twin holds them.
+    by_row = Dealing(rows, kept)
+    by_person = by_row
+    if persons is not None and persons.repeats:
+        rows_of: "list[list[int]]" = [[] for _person in range(len(persons.rows_of))]
+        for row in range(rows):
+            rows_of[persons.person[row]] += [row]
+        by_person = Dealing(rows, kept, rows_of)
     entries = _list(_get(zone, "columns"))
     last = _last_reads(entries)
     frames: "dict[str, Frame]" = {}
@@ -1635,31 +2558,34 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
             drawn = draw_sequence(persons, rows)
             out[name] = twinstore.held_column(_filled(drawn.cells, []))
         else:
-            held_once = owners if level == PATIENT and persons is not None else None
-            split = persons is not None and held_once is None and kind == NUMBER
+            held_once = level == PATIENT and persons is not None
+            split = persons is not None and not held_once and kind == NUMBER
             need = (3 * rows if split else 2 * rows) if kind == NUMBER else rows
             words: "list[int]" = []
             if need > 0:
                 words = [int(word) for word in generator.integers(0, _WORD_CEILING, size=int(need), dtype="uint64",
                                                                   endpoint=True)]
             strict = twinstore.column_cells(held[name])
+            dealing = by_person if held_once else by_row
             if kind == NUMBER:
-                drawn = draw_number(entry, frames, rows, words, held_once, owners if split else None)
-                pool = _pool(NUMBER, strict, set())
+                drawn = redeal_number(entry, frames, words, strict, dealing, owners if split else None)
             else:
-                allowed = published_spellings(blocks[name])
-                drawn = draw_label(entry, frames, rows, words, allowed, held_once)
-                modelled = set([_text(level_text) for level_text in _list(_get(entry, "levels"))])
-                pool = _pool(LABEL, strict, modelled & allowed)
+                drawn = redeal_label(entry, frames, words, strict, dealing)
             del strict
             del words
-            cells = _filled(drawn.cells, pool)
-            out[name] = twinstore.held_column([cells[owner] for owner in held_once] if held_once is not None else cells)
-            del cells
-        if name in last and last[name] > place:
-            frames[name] = drawn.frame
-        for gone in [each for each in frames if last[each] <= place]:
+            out[name] = twinstore.held_column(_filled(drawn.cells, []))
+            drawn.cells = []
+        if (name in last and last[name] > place) or name in keep:
+            # A frame later columns read is held compactly until its last reader (lane IN-8, plan P4-D502); the
+            # missing-values zone's parents (lane IN-7) are held to the end.
+            frames[name] = held_frame(drawn.frame, rows)
+        for gone in [each for each in frames if each not in keep and last[each] <= place]:
             del frames[gone]
+    if frames_out is not None:
+        for name in frames:
+            if name in keep:
+                # Given back as the lists a term reads (`term_values` reads no held frame).
+                frames_out[name] = frame_rows(frames[name], 0, rows)
     return out
 
 

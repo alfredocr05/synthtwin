@@ -76780,10 +76780,44 @@ def generate_held(profile: contract.Profile, seed: int) -> Twin:
 # The note a column drawn from the inside record carries in the twin's report (lane IN-2, plan P4-D496).
 INSIDE_DRAWN_SUBJECT = "drawn from the inside record"
 INSIDE_DRAWN_NOTE = (
-    "This column's cells were drawn from the inside record kept on this computer: the real table's own shape for "
-    "the column and its relations to the columns before it, fitted inside. The description's published facts for "
-    "it are not what the twin was built from, so none is checked against it here."
+    "This column holds the description's own twin's cells for it, so every published fact of it stands; the inside "
+    "record kept on this computer chose which row holds which cell, by the real table's relations to the columns "
+    "before it, fitted inside."
 )
+INSIDE_DATES_NOTE = (
+    "This column's dates were made up from the inside record kept on this computer: the real weekday and clock, the "
+    "day of the month made up. It holds a date where the description's own twin holds one, in that twin's "
+    "spellings, and that twin's months where whole weeks can move it there; its counts by day and by hour follow "
+    "the record's shares, not the description's counts."
+)
+# The note a kept column whose empty cells the inside record placed carries (lane IN-7, plan P4-D501).
+INSIDE_MISSING_SUBJECT = "empty cells placed by the inside record"
+INSIDE_MISSING_NOTE = (
+    "This column keeps the description's twin's own cells, as many filled and empty ones, but its filled cells "
+    "stand on the rows the inside record's model of its missing values leaves filled: which columns are empty "
+    "together and how its emptiness follows the other columns, fitted inside."
+)
+
+
+def _shared_cells(column: "twinstore.HeldColumn") -> "list[str]":
+    """A held column's cells, read a block at a time, each value one text object (a list of pointers, eight bytes a row)."""
+    one: "dict[str, str]" = {}
+    out: "list[str]" = []
+    for index in range(twinstore.blocks_of(column.count)):
+        for cell in twinstore.column_block(column, index):
+            if cell not in one:
+                one[cell] = cell
+            out += [one[cell]]
+    return out
+
+
+def _holds_a_cell(column: "twinstore.HeldColumn") -> bool:
+    """Whether a held column holds a cell that is not empty, read a block at a time."""
+    for index in range(twinstore.blocks_of(column.count)):
+        for cell in twinstore.column_block(column, index):
+            if cell != "":
+                return True
+    return False
 
 
 def _names_under_by(found: object) -> "set[str]":
@@ -76806,6 +76840,96 @@ def _names_under_by(found: object) -> "set[str]":
     return names
 
 
+def _keyed_step(zone: "dict[str, object]", finished: "list[twinstore.HeldColumn]", places: "dict[str, int]",
+                step: str, seed: int) -> "set[str]":
+    """One step of the keyed zone (lane IN-4, plan P4-D499) on the twin's columns held so far: the names it wrote.
+
+    `step` is "labels" (`inside_keyed.persons_and_labels`) or "numbers"
+    (`inside_keyed.numbers_and_rules`); the zone reads its person, key,
+    content and anchor columns and every column it writes is held again.
+    """
+    from synthtwin import inside_keyed
+
+    wanted = inside_keyed.written_columns(zone) + inside_keyed.read_columns(zone) + [str(zone["key"]), str(zone["anchor"])]
+    current: "dict[str, list[str]]" = {}
+    for name in wanted:
+        if name in places and name not in current:
+            current[name] = twinstore.column_cells(finished[places[name]])
+    if step == "labels":
+        written = inside_keyed.persons_and_labels(zone, current, seed)
+    else:
+        written = inside_keyed.numbers_and_rules(zone, current, seed)
+    current = {}
+    done: "dict[str, int]" = {}
+    for name in sorted(written):
+        if name in places:
+            finished[places[name]] = twinstore.held_column(written[name])
+            done[name] = 1
+    return set(done)
+
+
+def _dates_order(found: object) -> "list[str]":
+    """The date columns a dates zone writes, in its order (read by subscript and type checks alone)."""
+    names: "list[str]" = []
+    if isinstance(found, dict) and "order" in found:
+        listed = found["order"]
+        if isinstance(listed, list):
+            for value in listed:
+                if isinstance(value, str):
+                    names += [value]
+    return names
+
+
+def _holds_value(cell: object) -> bool:
+    """Whether a twin cell holds anything but blanks."""
+    if not isinstance(cell, str):
+        raise TypeError("synthtwin reads a twin's cells as text only.")
+    return cell.strip() != ""
+
+
+def _all_empty_rows(held: "tuple[twinstore.HeldColumn, ...]", rows: int) -> "list[bool] | None":
+    """The rows of a description's twin whose every cell is blank (a form's all-empty records), or None where there
+    are none. Each column is read once at most, and only while a row may still be all empty."""
+    open_rows = [row for row in range(rows)]
+    for column in held:
+        if not open_rows:
+            return None
+        cells = twinstore.column_cells(column)
+        open_rows = [row for row in open_rows if not _holds_value(cells[row])]
+        del cells
+    if not open_rows:
+        return None
+    mask = [False for _row in range(rows)]
+    for row in open_rows:
+        mask[row] = True
+    return mask
+
+
+def _sorted_again(finished: "list[twinstore.HeldColumn]", order: "dialect.RowOrder", empty_rows: "list[bool] | None",
+                  profile: contract.Profile) -> "list[twinstore.HeldColumn]":
+    """Every column's rows moved so the file's sort column holds its order again (`dialect.row_permutation`); the
+    all-empty records stay where they stand and a row-sequence column is written again in row order."""
+    rows = profile.n_rows
+    free = [row for row in range(rows) if empty_rows is None or not empty_rows[row]]
+    key = twinstore.column_cells(finished[order.column - 1])
+    placed = dialect.row_permutation([key[row] for row in free], order)
+    del key
+    form_columns = profile.source.dialect.columns
+    out: "list[twinstore.HeldColumn]" = []
+    for place in range(len(finished)):
+        if place < len(form_columns) and form_columns[place].sequence_start >= 0:
+            out += [twinstore.held_column(dialect.sequence_cells(form_columns[place].sequence_start, rows))]
+            continue
+        cells = twinstore.column_cells(finished[place])
+        moved = [cell for cell in cells]
+        for index in range(len(free)):
+            moved[free[index]] = cells[free[placed[index]]]
+        del cells
+        out += [twinstore.held_column(moved)]
+        del moved
+    return out
+
+
 def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed: int) -> Twin:
     """Build the twin from the inside record (lane IN-2, plan P4-D496): the description's twin, its modelled columns drawn anew.
 
@@ -76823,13 +76947,33 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
       in the table's order from its fitted response on the columns drawn
       before it. Every other column -- identifiers, dates, clocks, free
       text, keyed values, held columns -- is the description's twin's,
-      made by every rule it keeps, Safe Harbor's among them; a drawn
-      label writes only spellings the description publishes and fills the
-      rest from the description's twin's own cells.
+      made by every rule it keeps, Safe Harbor's among them, except where
+      another zone of the record writes it, in this order: the keyed zone
+      (lane IN-4; the command hands a record holding it only where the
+      zone's own sub-switch is on, `cli._KEYED_ZONE_SHIPPED`, off on the
+      shipped route since batch 4x) re-cuts a long table's persons and writes each row's
+      key-level labels, then, after the dates, its numbers, pairs, flags,
+      later clocks and copies; the dates zone (lane IN-5) makes up each
+      date column; the missing-values zone (lane IN-7) moves a kept
+      column's own cells onto the rows its model leaves filled (a date
+      column's presence with them; that twin's all-empty records kept as
+      they stand), never a column the keyed zone writes;
+      where the file is sorted by a column written again or moved, the
+      rows are sorted again (`_sorted_again`). A DRAWN
+      COLUMN IS WRITTEN WITH ITS OWN CELLS in the description's twin
+      (lane IN-2b): the draw decides which row holds which of them, so
+      every spelling, decimal place, affix, missing-value spelling, label
+      spelling and count over rows that twin holds stands; that twin's
+      all-empty records stay so; a date column of the dates zone holds a
+      date on exactly the rows that twin holds one.
     - The record of how well it matches: a drawn column's outcome is
-      recounted from its cells and carries one remark (`INSIDE_DRAWN_NOTE`)
-      in place of the description's deviations and approximations, which
-      no longer describe it.
+      recounted from its cells and keeps what the description's twin says
+      of them (its cells are that twin's), with one remark more
+      (`INSIDE_DRAWN_NOTE`); a date column the dates zone wrote carries
+      `INSIDE_DATES_NOTE` in place of that twin's notes, which no longer
+      describe its values; a column the keyed zone wrote is recounted and
+      carries `INSIDE_DRAWN_NOTE` in place of them; a column the
+      missing-values zone moved keeps them, with `INSIDE_MISSING_NOTE`.
     - Determinism: a fixed function of the description, the record and
       the seed. Errors: `errors.ProfileError` for a seed out of range;
       `inside_relations.RelationsError` where the record does not fit the
@@ -76860,7 +77004,22 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
             raise inside_relations.RelationsError(
                 "The inside record's relations zone names a column this description does not hold.")
         kept[name] = held[places[name]]
-    drawn = inside_relations.draw_columns(zone, profile, kept, seeds[1])
+    # THE MISSING-VALUES ZONE (lane IN-7, plan P4-D501): the frames its fits
+    # read are kept through the relations draw; a zone that cannot be read
+    # leaves every kept column's empty cells where the description's twin puts them.
+    from synthtwin import inside_missing
+
+    missing_zone: "dict[str, object] | None" = None
+    needed: "set[str]" = set()
+    try:
+        missing_zone = inside_missing.zone_of(record)
+        needed = inside_missing.parents(missing_zone)
+    except inside_missing.MissingError:
+        missing_zone = None
+    frames: "dict[str, inside_relations.Frame]" = {}
+    # The description's twin's all-empty records stay where they stand (lane IN-2b).
+    empty_rows = _all_empty_rows(held, profile.n_rows)
+    drawn = inside_relations.draw_columns(zone, profile, kept, seeds[1], needed, frames, empty_rows)
     kept = {}
     finished = [column for column in held]
     outcomes = [outcome for outcome in strict.outcomes]
@@ -76873,15 +77032,46 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
         remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DRAWN_NOTE)
         added += [remark]
         old = outcomes[place]
+        # The cells are the description's twin's (lane IN-2b), so what its outcome says of them stands beside the
+        # drawn column's remark.
         outcomes[place] = dataclasses.replace(
             old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
-            deviations=(), approximations=(), remarks=(remark,),
+            remarks=tuple([each for each in old.remarks] + [remark]),
         )
         del cells
+    zones = record["zones"] if "zones" in record else {}
+    # THE KEYED ZONE, STEP ONE (lane IN-4, plan P4-D499): on a long table typed
+    # by a key, the twin's persons take the real census of rows a person and
+    # each row its key level's label cells (a unit, a flag, a printed range),
+    # before the dates zone reads the persons and the labels.
+    keyed_zone: "dict[str, object] | None" = None
+    keyed: "set[str]" = set()
+    if isinstance(zones, dict) and "keyed" in zones:
+        from synthtwin import inside_keyed
+
+        try:
+            keyed_zone = inside_keyed.zone_of_record(record)
+            if keyed_zone is not None:
+                keyed |= _keyed_step(keyed_zone, finished, places, "labels", seeds[1])
+        except (inside_keyed.KeyedError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
+            keyed_zone = None
+    # Each carried column's latent emptiness, over the twin's drawn columns and
+    # its persons as the keyed zone's first step leaves them (the zone's draws
+    # are its own streams: no word of the seed's stream moves, so every other
+    # column keeps its bytes).
+    latent: "dict[str, list[float]]" = {}
+    if missing_zone is not None:
+        try:
+            twin_persons = (inside_relations.persons_of(twinstore.column_cells(finished[places[person]]))
+                            if person and person in places else None)
+            latent = inside_missing.draw(missing_zone, frames, profile.n_rows, seeds[1], twin_persons)
+        except (inside_missing.MissingError, inside_relations.RelationsError, KeyError, ValueError, IndexError,
+                TypeError, ArithmeticError):
+            latent = {}
+    frames = {}
     # THE DATES ZONE (lane IN-5, plan P4-D497): each date column's cells made
     # from the zone's census, the day of the month made up, over the twin's
     # persons and labels; a column the description's twin holds blank stays so.
-    zones = record["zones"] if "zones" in record else {}
     dated: "set[str]" = set()
     if isinstance(zones, dict) and "dates" in zones:
         from synthtwin import inside_dates
@@ -76889,30 +77079,57 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
         # The zone's cells are made first and every column replaced only once
         # all of them are: a zone that cannot be read leaves every date column
         # the description's twin's, its outcome and its remarks with it.
-        made: "list[tuple[int, str, list[str]]]" = []
+        made: "list[tuple[int, str, twinstore.HeldColumn]]" = []
         try:
-            people_cells = (twinstore.column_cells(finished[places[person]]) if person and person in places
+            # THE MEMORY (lane IN-8, plan P4-D502): the persons' and the labels'
+            # cells are held once a value (a list of pointers), each date column
+            # is held compactly as soon as it is spelled, and one date column at
+            # a time is text again, for its recount.
+            people_cells = (_shared_cells(finished[places[person]]) if person and person in places
                             else None)
             dzone = typing.cast("dict[str, object]", zones["dates"])
             given_cells: "dict[str, list[str]]" = {}
             for each in _names_under_by(dzone):
                 if each in places:
-                    given_cells[each] = twinstore.column_cells(finished[places[each]])
-            written = inside_dates.write_dates(dzone, profile.n_rows, people_cells, given_cells, None, None,
-                                               seeds[1])
+                    given_cells[each] = _shared_cells(finished[places[each]])
+            # The description's twin's cells of each date column (lane IN-2b): the column holds a date on exactly
+            # the rows that twin holds one (its blanks and missing-value spellings written back as it writes them),
+            # each date takes one of that twin's spellings, and a column heading its own chain holds that twin's
+            # months, moved by whole weeks (weekday and clock kept), the columns chained to it moving with it. A
+            # date column the missing-values zone carries (lane IN-7) gives those cells moved by its latent
+            # emptiness onto the rows the fitted model leaves filled: the same cells, so the same counts.
+            months_of: "dict[str, list[str]]" = {}
+            for each in _dates_order(dzone):
+                if each in places and each not in names:
+                    own = twinstore.column_cells(finished[places[each]])
+                    if each in latent:
+                        try:
+                            # ...the all-empty records kept as they stand (batch 4x's outside review, item 7).
+                            own = inside_missing.dealt(own, latent[each], empty_rows)
+                        except inside_missing.MissingError:
+                            pass
+                    months_of[each] = own
+                    del own
+            written = inside_dates.write_dates_held(dzone, profile.n_rows, people_cells, given_cells, None, None,
+                                                    seeds[1], months_of)
+            del months_of
+            people_cells = None
+            given_cells = {}
             for name in written:
                 if name not in places or name in names:
                     continue
-                if not any(cell != "" for cell in twinstore.column_cells(finished[places[name]])):
+                if not _holds_a_cell(finished[places[name]]):
                     continue
                 made += [(places[name], name, written[name])]
             del written
         except (inside_dates.DatesError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
             made = []
-        for place, name, cells in made:
-            finished[place] = twinstore.held_column(cells)
+        for place, name, column in made:
+            finished[place] = column
+            cells = twinstore.column_cells(column)
             present, absent, different, folded = _recounted(cells, ())
-            remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DRAWN_NOTE)
+            del cells
+            remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DATES_NOTE)
             added += [remark]
             old = outcomes[place]
             outcomes[place] = dataclasses.replace(
@@ -76921,13 +77138,79 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
             )
             dated = dated | {name}
         del made
-    replaced = set(names) | dated
+    # Every other carried column keeps its own cells, moved by its latent
+    # emptiness onto the rows the fitted model leaves filled (lane IN-7); a
+    # column the keyed zone writes keeps its key level's cells (4x merge).
+    keyed_writes: "set[str]" = set(keyed)
+    if keyed_zone is not None:
+        from synthtwin import inside_keyed
+
+        try:
+            keyed_writes = keyed_writes | set(inside_keyed.written_columns(keyed_zone))
+        except (inside_keyed.KeyedError, KeyError, ValueError, IndexError, TypeError):
+            keyed_writes = keyed_writes | set(places)
+    moved: "set[str]" = set()
+    if missing_zone is not None:
+        for name in latent:
+            if name in dated or name in names or name in keyed_writes or name not in places:
+                continue
+            try:
+                if not inside_missing.moves(inside_missing.entry_of(missing_zone, name)):
+                    continue
+                place = places[name]
+                finished[place] = twinstore.held_column(
+                    inside_missing.dealt(twinstore.column_cells(finished[place]), latent[name], empty_rows))
+            except inside_missing.MissingError:
+                continue
+            moved = moved | {name}
+            remark = Remark(column=name, subject=INSIDE_MISSING_SUBJECT, held="inside record", note=INSIDE_MISSING_NOTE)
+            added += [remark]
+            old = outcomes[place]
+            outcomes[place] = dataclasses.replace(old, remarks=old.remarks + (remark,))
+    # THE KEYED ZONE, STEP TWO (lane IN-4, plan P4-D499): each modelled row's
+    # numbers from its key level's marginal in the order of a latent score
+    # (the trend over the person's time the dates zone wrote, the person's
+    # level, a lag-one series), then every pair, flag and copy by its rule.
+    if keyed_zone is not None:
+        from synthtwin import inside_keyed
+
+        try:
+            keyed |= _keyed_step(keyed_zone, finished, places, "numbers", seeds[1])
+        except (inside_keyed.KeyedError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
+            pass
+    for name in sorted(keyed):
+        place = places[name]
+        cells = twinstore.column_cells(finished[place])
+        present, absent, different, folded = _recounted(cells, ())
+        old = outcomes[place]
+        remarks = old.remarks
+        if name not in names and name not in dated:
+            remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DRAWN_NOTE)
+            added += [remark]
+            remarks = (remark,)
+        outcomes[place] = dataclasses.replace(
+            old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
+            deviations=(), approximations=(), remarks=remarks,
+        )
+        del cells
+    replaced = set(names) | dated | keyed
+    # THE ROWS STAY IN THE ORDER THE FILE IS WRITTEN IN (lane IN-2b): where the
+    # description says the rows are sorted by a column the record wrote again,
+    # every row moves to its place by that column, as the arrangement sorted
+    # the description's twin (its all-empty records kept where they stand, a
+    # row-sequence column written again in row order).
+    order = profile.source.dialect.row_order
+    if (order.column and order.column <= len(finished)
+            and profile.columns[order.column - 1].name in (replaced | moved)):
+        finished = _sorted_again(finished, order, empty_rows, profile)
     return dataclasses.replace(
         strict,
         outcomes=tuple(outcomes),
-        deviations=tuple([each for each in strict.deviations if each.column not in replaced]),
-        approximations=tuple([each for each in strict.approximations if each.column not in replaced]),
-        remarks=tuple([each for each in strict.remarks if each.column not in replaced] + added),
+        # A drawn column's cells are the description's twin's (lane IN-2b), so its notes stand; a date column the
+        # dates zone made up and a column the keyed zone wrote (lane IN-4) hold cells of their own, so theirs go.
+        deviations=tuple([each for each in strict.deviations if each.column not in (dated | keyed)]),
+        approximations=tuple([each for each in strict.approximations if each.column not in (dated | keyed)]),
+        remarks=tuple([each for each in strict.remarks if each.column not in (dated | keyed)] + added),
         words_drawn=strict.words_drawn + 2,
         seed=seed,
         held_columns=tuple(finished),

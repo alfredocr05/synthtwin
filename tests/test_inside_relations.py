@@ -239,9 +239,16 @@ def test_a_person_s_columns_are_drawn_once_a_person_and_the_rows_keep_a_person_s
     assert _entry(zone, "arm")["level"] == R.PATIENT
     assert _entry(zone, "visit")["level"] == R.SEQUENCE
     assert _entry(zone, "pressure")["value"]["person_spread"] > 0.3  # type: ignore[index]
-    twin_persons = _visit_table(600, 2)["pid"]
-    strict = {"pid": twin_persons, "arm": ["A"] * len(twin_persons), "visit": ["1"] * len(twin_persons),
-              "pressure": ["0"] * len(twin_persons)}
+    other = _visit_table(600, 2)
+    twin_persons = other["pid"]
+    # The description's twin stands in as its own cells with no relation between columns (shuffled): each drawn
+    # column is written with these cells (lane IN-2b), so a person's share must come from the draw.
+    shuffled = random.Random("strict")
+    arms = [cell for cell in other["arm"]]
+    pressures = [cell for cell in other["pressure"]]
+    shuffled.shuffle(arms)
+    shuffled.shuffle(pressures)
+    strict = {"pid": twin_persons, "arm": arms, "visit": ["1"] * len(twin_persons), "pressure": pressures}
     profile = _person_profile({**columns, "pid": twin_persons})
     profile.n_rows = len(twin_persons)  # type: ignore[attr-defined]
     zone["rows"] = len(twin_persons)

@@ -7134,6 +7134,12 @@ def sequence_cells(start: int, n_rows: int) -> "list[str]":
     return [f"{start + index}" for index in range(n_rows)]
 
 
+def row_permutation(keys: "list[str]", order: RowOrder) -> "list[int]":
+    """The places of `keys` in the order the form's sort key puts them, ties kept in place (`arranged_columns`'s sort,
+    for a twin whose sort column was written again after the arrangement: lane IN-2b)."""
+    return _permutation(keys, order, len(keys))
+
+
 def arranged(
     columns: "list[tuple[str, ...]]", form: Dialect, n_rows: int
 ) -> "list[tuple[str, ...]]":

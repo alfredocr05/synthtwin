@@ -544,13 +544,23 @@ jobs:
           # the carried installer would only repair or upgrade that one in
           # its own place, so every registered 3.14 is removed first; the
           # target and the log must not exist before, and the step fails
-          # unless this run's installer wrote both.
+          # unless this run's installer wrote both. A runner image can hold
+          # a 3.14's parts as Windows Installer packages with no bundle
+          # registered above them (push 27's run: eight parts of 3.14.10,
+          # no bundle), so each part left is then removed by the key it
+          # is registered under; the check after it is unchanged.
           $roots = @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*')
           $registered = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.BundleCachePath })
           foreach ($entry in $registered) {
             "removing the runner's own $($entry.DisplayName) first, so the carried installer installs fresh"
             $removed = Start-Process -FilePath $entry.BundleCachePath -Wait -PassThru -ArgumentList @('/uninstall', '/quiet')
             if ($removed.ExitCode -notin 0, 3010) { throw "the runner's $($entry.DisplayName) could not be removed (exit $($removed.ExitCode))" }
+          }
+          $parts = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.WindowsInstaller -eq 1 -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$' })
+          foreach ($part in $parts) {
+            "removing the runner's own $($part.DisplayName) $($part.PSChildName) by the key it is registered under"
+            $removed = Start-Process -FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart')
+            if ($removed.ExitCode -notin 0, 1605, 3010) { throw "the runner's $($part.DisplayName) could not be removed (exit $($removed.ExitCode))" }
           }
           $left = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' })
           if ($left.Count -gt 0) { $left | ForEach-Object { $_.DisplayName }; throw 'a Python 3.14 is still registered on this runner, so the carried installer would not install fresh' }

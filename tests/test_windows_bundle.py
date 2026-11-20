@@ -1460,14 +1460,17 @@ OTHER_PYTHONS = {"rehearse-fallback": ("(Join-Path $env:BUNDLE '.venv\\Scripts\\
 # job of the file may carry one.
 KEPT_WITH_IF = "Keep the runs for the comparison (internal, one day)"
 # What the backup's rehearsal must hold: the carried installer, run fresh
-# (every registered 3.14 removed first, the target and its log made by
-# this run) and its log read for downloads; install.bat with the carried
+# (every registered 3.14 removed first, by its bundle or, for a part a
+# runner image registers with no bundle above it, by the key it is
+# registered under; the target and its log made by this run) and its
+# log read for downloads; install.bat with the carried
 # Python first on PATH and its log holding that Python's path; the trial
 # directly and under the guard; the redirect recorded; the golden tests.
 FALLBACK_LINES = (
     "InstallAllUsers=0",
     "Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.BundleCachePath }",
     "-ArgumentList @('/uninstall', '/quiet')",
+    "-FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart')",
     "throw 'a Python 3.14 is still registered on this runner, so the carried installer would not install fresh'",
     "if ((Test-Path $target) -or (Test-Path $log)) { throw ",
     "if (-not (Test-Path $log)) { throw ",
@@ -1906,6 +1909,7 @@ def test_every_foreign_line_after_the_denial_is_red() -> None:
         ("          $base = Join-Path $target 'python.exe'\n", "          $base = \"C:\\hostedtoolcache\\windows\\Python\\$release\\x64\\python.exe\"\n"),
         ("          if ((Test-Path $target) -or (Test-Path $log)) { throw ", "          if ($false) { throw "),
         ("-ArgumentList @('/uninstall', '/quiet')", "-ArgumentList @('/repair', '/quiet')"),
+        ("@('/x', $part.PSChildName", "@('/fa', $part.PSChildName"),
         ("          if (-not (Test-Path $log)) { throw ", "          if ($false) { throw "),
         # The verify's carry C4: install.bat must take the carried Python.
         ("          $env:PATH = (Split-Path $env:BASE_PYTHON) + ';' + $env:PATH\n", ""),

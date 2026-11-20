@@ -1,9 +1,9 @@
 """Gate file of the 4w integration: `validate` of a twin drawn from the inside record is not a rubber stamp.
 
-A column drawn from the inside record keeps its shape and relations, not the description's exact counts and spellings,
-so `synthtwin validate` excuses exactly those obligations (a label's level counts and spelling census, a number's
-distinct and zero counts, a made-up date column's day-level ladder and tails, `cli._INSIDE_EXCUSED_FACTS` and
-`cli._INSIDE_EXCUSED_DATE_FACTS`) and nothing else.
+A column drawn from the inside record is written with the description's twin's own cells (lane IN-2b), so no
+obligation of a number or a label is excused; `synthtwin validate` excuses only the calendar counts of a made-up date
+column that moves as a whole, a person's timeline or a chained date (`cli._INSIDE_EXCUSED_DATE_FACTS`), and nothing
+else.
 
 WHAT IT HOLDS (each clause red on its mutant):
 

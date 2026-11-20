@@ -2039,24 +2039,31 @@ def zone_from_columns(columns: "dict[str, list[str]]", person: str, identifiers:
             best = moving
             anchor_name = name
             anchor = [moment.seconds if moment is not None else None for moment in read]
-    numbers_of: "dict[str, list[float | None]]" = {}
+    # THE NUMBERS ARE READ ONE COLUMN AT A TIME (lane IN-8, plan P4-D502): which columns are numbers is
+    # kept, and a column's readings are made again where they are used, so no list of every number column's
+    # readings is held at once.
+    numbers_of: "dict[str, bool]" = {}
     for name in usable:
         if name in dates:
             continue
         cells = columns[name]
         filled = sum(1 for cell in cells if not _absent(cell))
-        readings = [_number(cell) for cell in cells]
-        numeric = sum(1 for value in readings if value is not None)
+        numeric = sum(1 for cell in cells if _number(cell) is not None)
         if filled and numeric >= 0.9 * filled:
-            numbers_of[name] = readings
+            numbers_of[name] = True
     # The position: a whole-number column rising within the patients in the anchor's order.
     first_order = _ordered_rows(members, anchor, None)
     position_name = ""
+    position_readings: "list[float | None]" = []
     for name in usable:
-        if name in numbers_of and _is_position(numbers_of[name], first_order):
-            position_name = name
-            break
-    ordered = _ordered_rows(members, anchor, numbers_of[position_name] if position_name else None)
+        if name in numbers_of:
+            readings = [_number(cell) for cell in columns[name]]
+            if _is_position(readings, first_order):
+                position_name = name
+                position_readings = readings
+                break
+            del readings
+    ordered = _ordered_rows(members, anchor, position_readings if position_name else None)
     fixed = [name for name in usable if name not in dates and name != position_name and _constant_within(columns[name], members)]
     # A label of three levels or more that moves within patients makes the table a keyed long table: its
     # per-key trajectories wait for the keyed rows' own zone, so no entry is written for it here.
@@ -2085,7 +2092,7 @@ def zone_from_columns(columns: "dict[str, list[str]]", person: str, identifiers:
         "census": _census(lengths),
         "order": {"anchor": anchor_name, "kind": kinds[anchor_name] if anchor_name else "", "dates": dates},
         "position": {"column": position_name,
-                     "from_one": bool(position_name) and _counting_from_one(numbers_of[position_name], ordered)},
+                     "from_one": bool(position_name) and _counting_from_one(position_readings, ordered)},
         "fixed": fixed,
         "gaps": None,
         "numbers": [],
@@ -2176,8 +2183,10 @@ def zone_from_columns(columns: "dict[str, list[str]]", person: str, identifiers:
     number_entries: "list[dict[str, object]]" = []
     residuals: "list[dict[int, float]]" = []
     levels_of: "list[dict[int, float]]" = []
+    position_readings = []
     for name in repeated_numbers:
-        built = _number_entry(name, numbers_of[name], fitted, positions, years, patient_columns, patient_cells, rows_scores)
+        built = _number_entry(name, [_number(cell) for cell in columns[name]], fitted, positions, years, patient_columns,
+                              patient_cells, rows_scores)
         if built is None:
             continue
         number_entries += [built[0]]
@@ -2189,10 +2198,18 @@ def zone_from_columns(columns: "dict[str, list[str]]", person: str, identifiers:
     axis = AXIS_YEARS if any(entry["axis"] == AXIS_YEARS for entry in number_entries) else AXIS_POSITION
     times = years if axis == AXIS_YEARS and years is not None else positions
     time_spread = _spread([times[row] for rows_of in ordered for row in rows_of]) or 1.0
+    # A repeated number's scores are read by the yes/no fits on the fitted rows alone, so they are made there
+    # (lane IN-8): every other row holds None, a pointer, and no score.
     scored: "list[tuple[dict[str, object], list[float | None]]]" = []
     for entry in number_entries:
         column = _text(entry["column"])
-        scored += [(entry, [score_of(entry, cell) for cell in columns[column]])]
+        cells = columns[column]
+        at_fitted: "list[float | None]" = [None] * len(cells)
+        for rows_of in fitted:
+            for row in rows_of:
+                at_fitted[row] = score_of(entry, cells[row])
+        scored += [(entry, at_fitted)]
+        del cells
     binary_entries: "list[dict[str, object]]" = []
     for name in repeated_binaries:
         built_binary = _binary_entry(name, columns[name], fitted, times, time_spread, patient_columns, patient_cells,
@@ -3178,7 +3195,15 @@ def _dates_written_again(twin: "typing.Any", place_of: "dict[str, int]", first: 
         if label in place_of:
             given[label] = laid_out(label)
     rows = len(people) if people is not None else int(twin.n_rows)
-    made = inside_dates.write_dates(dates, rows, people, given, None, None, next_word(stream_of(seed, name_salt(ZONE))))
+    # Written again with the first writing's cells (lane IN-2b): their dates, blanks and spellings, and their
+    # months, are the description's twin's, so they stand over the rows as now laid out.
+    months: "dict[str, list[str]]" = {}
+    for name in rewritten:
+        if name in place_of:
+            months[name] = laid_out(name)
+    made = inside_dates.write_dates(dates, rows, people, given, None, None,
+                                    next_word(stream_of(seed, name_salt(ZONE))), months)
+    del months
     out: "dict[str, list[str]]" = {}
     for name in rewritten:
         if name in made:

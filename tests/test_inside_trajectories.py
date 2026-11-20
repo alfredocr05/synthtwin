@@ -396,7 +396,7 @@ def test_the_commands_write_the_zone_inside_and_the_twin_follows_it(tmp_path: pa
 
     monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", True)
     monkeypatch.setattr(inside, "default_places", places)
-    text = T.text("T2", 4000, 2)
+    text = T.text("T2", 20000, 2)
     product = B.make_twins(pathlib.Path(f"{tmp_path}"), "T2", text, (0,), True)
     assert product.errors == {}
     # The zone joins the record bound to the description's place and bytes (Codex's review of batch 4w, item 14).
@@ -463,7 +463,7 @@ def test_a_zone_that_cannot_be_read_leaves_the_commands_whole(tmp_path: pathlib.
     monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", True)
     monkeypatch.setattr(inside, "default_places", places)
     monkeypatch.setattr(I, "zone_from_columns", broken)
-    product = B.make_twins(pathlib.Path(f"{tmp_path}"), "T2", T.text("T2", 3000, 4), (0,), True)
+    product = B.make_twins(pathlib.Path(f"{tmp_path}"), "T2", T.text("T2", 20000, 4), (0,), True)
     assert product.errors == {} and 0 in product.twins
     # No zone joins the record bound to the description (Codex's review of batch 4w, item 14).
     record = cli._inside_record_at(pathlib.Path(f"{tmp_path}", "out", "visits-profile.json"),
