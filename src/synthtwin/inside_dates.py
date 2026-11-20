@@ -2159,10 +2159,131 @@ def _widths(keys: "list[list[object]]") -> str:
     return chosen
 
 
-def _spelled_text(day: int, tick: int, member: str, key: "list[object]", fallback: str) -> str:
+# THE WIDTH A MADE-UP DATE IS WRITTEN WITH (the Windows bundle workflow's trial). A spelling's width word is read
+# off one cell (`spelling_of`), and it says only what that cell's fields could show: a field of ten or more shows no
+# width, so `7/29/2021` is counted `first-field-unpadded`, and `10/10/2020` under no word at all. Dealt to a made-up
+# date whose day is below ten, the field the word never decided took `parsing.pair_widths`' padded default, so a
+# column every real cell of which writes `m/d/yyyy` was written `7/03/2021` on 1,460 twin cells of 20,000, a
+# convention neither the table nor the description's twin holds, and validate missed the column's width census (its
+# one published word and the unnamed remainder). `_width_written` writes each made-up date with a word the
+# column's own cells showing the same fields are written with (`_width_pools`).
+WIDTH_BOTH = "both"
+WIDTH_FIRST = "first"
+WIDTH_SECOND = "second"
+
+
+def _width_kind(word: object) -> str:
+    """Which fields a width word decides: `WIDTH_BOTH` for a joint word, `WIDTH_FIRST` or `WIDTH_SECOND` for a
+    one-field word, '' for anything else (a cell that showed no width)."""
+    if word in parsing.FIELD_WIDTH_STYLES_BOTH:
+        return WIDTH_BOTH
+    if word in parsing.FIELD_WIDTH_STYLES_FIRST:
+        return WIDTH_FIRST
+    if word in parsing.FIELD_WIDTH_STYLES_SECOND:
+        return WIDTH_SECOND
+    return ""
+
+
+def _width_pools(keys: "list[list[object]]", weighted: bool) -> "dict[str, dict[str, int]]":
+    """The width words a column's cells are written with, by the fields each shows: for `WIDTH_BOTH` the joint words
+    of the cells whose two fields show a width, for `WIDTH_FIRST` and `WIDTH_SECOND` the one-field words of the cells
+    where only that field does, each with its weight (the key's share where `weighted`, one a key otherwise: the
+    description's twin's keys, one a cell). A key whose width is no word of the census is passed over.
+
+    Raises DatesError where a key's width is not text (a damaged zone, as `_word`); no I/O.
+    """
+    pools: "dict[str, dict[str, int]]" = {WIDTH_BOTH: {}, WIDTH_FIRST: {}, WIDTH_SECOND: {}}
+    for key in keys:
+        if not isinstance(key, list) or len(key) < 1:
+            continue
+        word = _word(key[0])
+        kind = _width_kind(word)
+        if not kind:
+            continue
+        weight = 1
+        if weighted:
+            weight = key[6] if len(key) > 6 and isinstance(key[6], int) and not isinstance(key[6], bool) else 0
+        pool = pools[kind]
+        pool[word] = (pool[word] if word in pool else 0) + weight
+    return pools
+
+
+def _width_agrees(candidate: str, kind: str, decided: str, padded: "tuple[bool, bool]") -> bool:
+    """Whether a candidate word of the pool `kind` pads each field the dealt word decided (`decided`, its kind) and
+    the made-up date shows as that word pads it."""
+    first, second = parsing.pair_widths(candidate)
+    if kind == WIDTH_FIRST:
+        return decided not in (WIDTH_BOTH, WIDTH_FIRST) or (candidate == parsing.WIDTH_FIRST_FIELD_PADDED) == padded[0]
+    if kind == WIDTH_SECOND:
+        return decided not in (WIDTH_BOTH, WIDTH_SECOND) or (candidate == parsing.WIDTH_SECOND_FIELD_PADDED) == padded[1]
+    if decided in (WIDTH_BOTH, WIDTH_FIRST) and first != padded[0]:
+        return False
+    return not (decided in (WIDTH_BOTH, WIDTH_SECOND) and second != padded[1])
+
+
+def _width_written(word: str, fallback: str, month: int, date: int, member: str,
+                   pools: "dict[str, dict[str, int]] | None", state: "list[int] | None" = None) -> str:
+    """The width word a made-up date of `member` is written with, `word` being the dealt spelling's ('' where its
+    cell showed none) and `fallback` the column's (`_widths`).
+
+    `word` (else `fallback`) where every field this date shows is a field `word` decided and comes out as the
+    column's cells showing the same fields write it, or where no such cell is known (`pools`, `_width_pools`).
+    Otherwise -- a shown field `word` never decided, which `parsing.pair_widths` would write padded, or a decided one
+    no such cell writes -- one of the words of those cells that pad every field `word` decided as `word` does (all of
+    them where none does), drawn from `state` in proportion to their weights, so a column written both ways keeps
+    its share of each on the cells showing the same fields; with no `state`, the heaviest (ties to the first in
+    sorted order). A one-field word chosen is given as the joint word that pads its field so (the other field is ten
+    or more there and shows nothing). Only the members with two numeric fields of either width are resolved.
+
+    Raises nothing; no I/O; deterministic (a function of its arguments and the stream's state, which it advances
+    only where it draws among two words or more).
+    """
+    given = word or fallback
+    if pools is None or member not in parsing.VARIABLE_WIDTH_MEMBERS:
+        return given
+    values = (month, date) if member in parsing.MONTH_FIRST_MEMBERS else (date, month)
+    shows = (values[0] < 10, values[1] < 10)
+    if not shows[0] and not shows[1]:
+        return given
+    padded = parsing.pair_widths(given)
+    decided = _width_kind(word)
+    covered = decided == WIDTH_BOTH
+    if shows[0] and shows[1]:
+        kind, written = WIDTH_BOTH, parsing.joint_width(padded[0], padded[1])
+    elif shows[0]:
+        kind, written = WIDTH_FIRST, parsing.field_width_word(1, padded[0])
+        covered = covered or decided == WIDTH_FIRST
+    else:
+        kind, written = WIDTH_SECOND, parsing.field_width_word(2, padded[1])
+        covered = covered or decided == WIDTH_SECOND
+    pool = pools[kind] if kind in pools else {}
+    if not pool or (covered and written in pool):
+        return given
+    candidates: "list[str]" = []
+    for agreeing in (True, False):
+        for candidate in sorted(pool):
+            if pool[candidate] > 0 and (not agreeing or _width_agrees(candidate, kind, decided, padded)):
+                candidates += [candidate]
+        if candidates:
+            break
+    if not candidates:
+        return given
+    chosen = candidates[0]
+    if len(candidates) > 1 and state is not None:
+        chosen = candidates[_pick(_cumulative([pool[candidate] for candidate in candidates]), _uniform(state))]
+    elif len(candidates) > 1:
+        for candidate in candidates:
+            if pool[candidate] > pool[chosen]:
+                chosen = candidate
+    return chosen if kind == WIDTH_BOTH else parsing.width_of_field_word(chosen)
+
+
+def _spelled_text(day: int, tick: int, member: str, key: "list[object]", fallback: str,
+                  pools: "dict[str, dict[str, int]] | None" = None, state: "list[int] | None" = None) -> str:
     """A moment (an instant) written in one of the column's spellings: moved into the spelling's offset, its clock at
     the spelling's step and its fraction of a second the moment's own, to the spelling's figures (cut, never rounded,
-    so two moments in order are written in order)."""
+    so two moments in order are written in order); its fields at the width `_width_written` gives where `pools` (the
+    column's widths, `_width_pools`) is given, its draws from `state` (the column's own width stream)."""
     width, style, mark, form, figures, offset = key[0], key[1], key[2], key[3], key[4], key[5]
     written_offset = _word(offset)
     shift = _offset_seconds(written_offset) if tick >= 0 else 0
@@ -2170,6 +2291,7 @@ def _spelled_text(day: int, tick: int, member: str, key: "list[object]", fallbac
         moved = day * DAY_TICKS + tick + shift * TICKS
         day, tick = moved // DAY_TICKS, moved % DAY_TICKS
     year, month, date = parsing.civil_from_days(day)
+    width = _width_written(_word(width), fallback, month, date, member, pools, state)
     half = parsing.written_date(year, month, date, member, _word(width) or fallback, _word(style))
     clock_form = _word(form)
     if not clock_form or tick < 0:
@@ -2712,6 +2834,10 @@ def _spelled_column(entries: "dict[str, object]", name: str, moment: "tuple[list
         fallback = _widths(spelled)
         given_keys = (_keys_dealt(days, seconds, twin_cells, Reading(_word(reading["kind"]), member))
                       if twin_cells is not None else {})
+        # Each made-up date's fields at the widths the description's twin writes the same fields with, or, where no
+        # twin cells are given, the zone's own census of spellings (`_width_written`), drawn from a stream of their own.
+        pools = _width_pools([given_keys[row] for row in given_keys], False) if given_keys else _width_pools(spelled, True)
+        widths = _stream(seed, name, "widths")
         for row in range(rows):
             if days[row] == _ABSENT or not spelled:
                 cells += [""]
@@ -2720,7 +2846,7 @@ def _spelled_column(entries: "dict[str, object]", name: str, moment: "tuple[list
                 chosen = given_keys[row]
             else:
                 chosen = spelled[_pick(weights, _uniform(state))] if weights[len(weights) - 1] > 0 else spelled[0]
-            cells += [_spelled_text(days[row], seconds[row], member, chosen, fallback)]
+            cells += [_spelled_text(days[row], seconds[row], member, chosen, fallback, pools, widths)]
     if twin_cells is not None:
         cells = [twin_cells[row] if cells[row] == "" and days[row] == _ABSENT else cells[row] for row in range(rows)]
     return cells
@@ -2817,6 +2943,8 @@ def rewrite_mixed(zone: "dict[str, object]", name: str, cells: "list[str]", seed
     spelled = typing.cast("list[list[object]]", spellings["text"])
     weights = _cumulative([int(typing.cast("int", item[6])) for item in spelled])
     fallback = _widths(spelled)
+    pools = _width_pools(spelled, True)
+    widths = _stream(seed, name, "mixed widths")
     state = _stream(seed, name, "mixed")
     cache: "dict[tuple[int, ...], list[float]]" = {}
     out: "list[str]" = []
@@ -2827,5 +2955,5 @@ def rewrite_mixed(zone: "dict[str, object]", name: str, cells: "list[str]", seed
             continue
         day, second = _anchored(column, _uniform(state), row, {}, state, cache)
         chosen = spelled[_pick(weights, _uniform(state))]
-        out += [_spelled_text(day, second, reading.member, chosen, fallback)]
+        out += [_spelled_text(day, second, reading.member, chosen, fallback, pools, widths)]
     return out

@@ -985,7 +985,10 @@ RUNNING_NAMES = ("exec", "eval", "compile", "runpy.run_path", "runpy.run_module"
 # tools/hooks/check_inside_records.py, by its committed path.
 # 82 AT BATCH 4w'S LANDING (the outside review's fix round, worker A): tests/test_review_4w_a.py loads the offline
 # scanner, tools/offline_scan/scan_imports.py, by its committed path.
-FILES_LOADED_AS_MODULES = 82
+# 83 AFTER BATCH 4x (the Windows bundle workflow's fix): tests/test_inside_dates_widths.py loads the bundle's invented
+# table and its rehearsal, tools/bundle/invented_windows_table.py and tools/bundle/rehearse_windows.py, by their
+# committed paths, from one call.
+FILES_LOADED_AS_MODULES = 83
 
 
 def _files() -> "list[pathlib.Path]":
