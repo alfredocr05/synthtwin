@@ -282,8 +282,19 @@ def _described(
 ) -> "tuple[contract.Profile, str, dict]":
     """One table through the real producer, loader and all."""
     path = fixtures.write(folder, f"{stem}.csv", text)
+    # READ AT THE FLOOR THE DESCRIPTION IS WRITTEN AT, as `synthtwin
+    # profile` reads it (plan P4-D290): the survey of the file's own lines
+    # is held to the disclosure rule on both sides, so a description read
+    # at the default floor and written at eleven is one the product never
+    # makes. Measured on the `nothing-named` control after the repair pass
+    # gated those rules on a raised floor: read at one, its twelve trailing
+    # blank lines at ONE place were published, and the validator, reading
+    # the same file at eleven, withheld that place and reported
+    # `bytes.blank-lines` MISSED on the file the description was made from.
     table = reading.read_table(
-        str(path), first_row=reading.FIRST_ROW_AUTOMATIC
+        str(path),
+        first_row=reading.FIRST_ROW_AUTOMATIC,
+        small_cell_floor=settings.small_cell_floor,
     )
     document = profile.build_document(table, settings, [])
     loaded = contract.load_profile(
@@ -691,7 +702,11 @@ def test_a_column_no_declared_word_reached_keeps_every_check(
         check.subcheck for check in outcome.checks if check.column == readings.name
     }
     assert "presence.n_present" in kept
-    assert "ladder.min" in kept
+    # `ladder.min` stood here until landing 3.3: the tail rule withholds
+    # that rung on a column of different readings (contract 6.7a), so
+    # what the numeric family carries in its place is the group beyond
+    # the low boundary, checked like any other published fact.
+    assert "tails.low.mean_distance" in kept
     moved = {
         listing.column
         for listing in outcome.listings
@@ -824,10 +839,14 @@ def test_the_position_obligation_is_the_one_that_stays_a_check(
     """
     witness = witnesses["free-text"]
     outcome = validation.measure(witness.described, witness.path)
+    # How the column's cells are QUOTED is a fact of the file's written
+    # form (plan P4-D86), measured from the file's bytes and not from any
+    # cell this rule concerns, so it is not among what this counts.
     mine = [
         check.subcheck
         for check in outcome.checks
         if check.column == witness.described.columns[0].name
+        and check.fact != "document.source.dialect"
     ]
     assert mine == ["position.at"]
     assert outcome.checks[-1].verdict == validation.HELD
@@ -852,7 +871,15 @@ def test_what_moves_on_the_free_text_witness_is_written_out(
     """
     witness = witnesses["free-text"]
     outcome = validation.measure(witness.described, witness.path)
-    assert len(outcome.checks) == 10
+    # The rules of the written form (plan P4-D86) are the file's, measured
+    # from its bytes, and none of them moves with this ruling.
+    assert len(
+        [
+            check
+            for check in outcome.checks
+            if check.fact != "document.source.dialect"
+        ]
+    ) == 10
     assert len(_unsupported(outcome)) == 21
     # THIRTY-THREE, AND NONE OF THE MOVEMENT IS THIS RULING'S. The
     # census also carries every REPORT-ONLY fact of the description.

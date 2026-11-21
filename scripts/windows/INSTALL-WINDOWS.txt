@@ -1,0 +1,193 @@
+synthtwin for Windows: the ready folder
+=======================================
+
+This folder holds synthtwin and everything it needs, its own Python
+included. Nothing is installed: you unzip it and double-click
+START-HERE. It needs no internet and no administrator rights. The
+part For IT, "What it writes", lists every place it writes on the
+computer.
+
+
+FIRST, CHECK THE ZIP (before you unzip it)
+
+Whoever gave you the zip also gave you its SHA-256: a line of 64
+letters and digits, printed on the page of the run that kept the zip.
+Copy the zip to the computer, open the folder that holds it, click the
+folder's address bar, type powershell and press Enter: a PowerShell
+window opens in that folder. Copy this line into it and press Enter:
+
+    Get-FileHash -Algorithm SHA256 .\synthtwin-*-windows-ready.zip
+
+The long line under Hash must be the SHA-256 you were given, every
+letter and digit (capitals or not does not matter). If it is not, do
+not unzip the zip: ask for it again. (Where PowerShell is blocked, type
+certutil -hashfile, the zip's name and SHA256 in Command Prompt.)
+
+Why first: each time it starts, START-HERE checks every file of the
+folder against its list of hashes, which catches a folder damaged on
+its way or changed by accident. It cannot catch a folder changed on
+purpose: the folder's own Python and the check itself run before any
+file is compared. The SHA-256 you were given comes from outside the
+zip, so it covers those files too.
+
+
+BEFORE YOU START
+
+1. The computer must run Windows 10 or 11, 64-bit. To see it: Start,
+   Settings, System, About. "System type" should say "64-bit operating
+   system, x64-based processor".
+
+2. Write down its memory and processors. Press Ctrl+Shift+Esc to open
+   Task Manager, choose Performance, then Memory (the total is at the
+   top right) and CPU ("Cores" and "Logical processors"). synthtwin's
+   own computer check cannot read the memory on Windows. For a table
+   of 2,000,000 rows by 50 columns, use a computer with at least 16 GB
+   of memory and close other programs.
+
+
+PUT THE FOLDER IN PLACE (once)
+
+3. With the zip checked (above), right-click it, choose Extract
+   All, type C:\ as the place (or C:\Users\YOU\, with your own user
+   name), and choose Extract. Keep the place short: Windows refuses
+   very long paths. Never unzip it into a OneDrive folder or onto a
+   network drive. Extract All writes about 8,400 files and can take
+   several minutes when the computer's virus scanner is on: wait for
+   it to finish before you open the folder.
+
+   If the zip was downloaded from the internet on this computer,
+   right-click it first, choose Properties, tick Unblock, then OK.
+
+4. Make your work folder: C:\Users\YOU\twin-work, and copy your table
+   there. Not Documents, Desktop, OneDrive or a network drive:
+   synthtwin reads only from this computer's own disk, and those
+   folders are synced or protected. Never open and save the real CSV
+   in Excel again before describing it: Excel rewrites codes such as
+   0250 and dates.
+
+
+START (every time)
+
+5. Open the unzipped folder (named like synthtwin-0.1.0-win) and
+   double-click START-HERE. It reads every file of the folder once and
+   checks it against its list of hashes: this can take a minute or
+   more; the window prints how many seconds it took. Then it opens a
+   PowerShell window in your twin-work folder and runs the computer
+   check: a column of "ok" lines, and a "note" that the memory could
+   not be read, which is expected on Windows. Where PowerShell is
+   blocked, a Command Prompt window opens instead and works the same
+   way; the words in that window say how to type quotes there.
+
+   If START-HERE says a file does not match its hash, unzip the zip
+   file again into a new folder and start from there. If it says a
+   file could run in place of synthtwin's own launcher, a program was
+   saved into synthtwin's folder: unzip the zip again into a new
+   folder and keep your own files in twin-work. If it says to
+   unzip the zip first, you opened START-HERE inside the zip: do step
+   3, then double-click START-HERE in the unzipped folder.
+
+
+THE COMMANDS (type them in that window)
+
+6. Describe your table, naming the column that says which patient
+   each row is about (here subject_id):
+
+       synthtwin profile my-table.csv --identifier subject_id
+
+   When synthtwin asks a question on the screen, type the number in
+   square brackets and press Enter; Enter alone leaves the question
+   open. To stop, press Ctrl+C. To end your answers, press Ctrl+Z,
+   then Enter.
+
+7. Questions left open are written in my-table-questions.json beside
+   your table. Open it in Notepad, write an offered answer beside
+   "your_answer", save it, and describe the table again:
+
+       synthtwin profile my-table.csv --identifier subject_id --answers my-table-questions.json --replace
+
+8. While synthtwin works, do not click inside the window: a click
+   pauses it. If the window's title begins with the word Select, press
+   Esc. For a long run keep the computer plugged in, the lid open and
+   the window open; a screen lock is fine. Closing the window stops
+   synthtwin.
+
+
+WHAT MAY LEAVE THIS COMPUTER
+
+Only the description, my-table-profile.json, and only after your
+institution's approval. It holds no row of your table, but it is not
+anonymous: it names your columns and holds counts, labels and
+summaries computed from your real data. Every file a full run writes
+carries facts computed from the real table, so the same rules apply
+to each of them. The table itself, and any part or copy of it, never
+leaves.
+
+
+REMOVING IT
+
+Delete the folder, and your work folder once you no longer need its
+files. The part For IT, "What it writes", lists everything else
+synthtwin may leave on the computer.
+
+
+FOR IT
+
+What it is. synthtwin with python.org's embeddable Python 3.14 for
+Windows x64 (its programs signed by the Python Software Foundation,
+its Visual C++ runtime files by Microsoft) and the libraries numpy,
+pandas, pyarrow, scipy, python-dateutil, six and tzdata, installed
+into python\lib when the folder was built in the project's public CI
+run, from the project's hash-pinned requirements-install.lock: pip
+install --isolated --no-index --require-hashes --only-binary=:all:
+--target, every wheel's SHA-256 checked. BUILD-INFO.txt names the
+commit, the Python release and every wheel with its SHA-256.
+
+What it does. It opens no network connection and installs nothing.
+START-HERE.bat runs scripts\check_folder.py with the folder's
+python.exe: every file is checked against SHA256SUMS, and a changed or
+missing file, or an extra program file outside python\ (.exe, .bat,
+.cmd, .ps1 and the other endings PATHEXT runs), is refused before
+synthtwin starts. It then opens powershell.exe -NoLogo -NoProfile
+-NoExit -Command (no script file, no change of execution policy)
+defining a function named synthtwin, or, where PowerShell is blocked,
+cmd.exe with a DOSKEY macro binding the word synthtwin to the folder's
+synthtwin.bat, the folder first on PATH and
+NoDefaultCurrentDirectoryInExePath set, for that window only. Every
+command either window runs names synthtwin.bat or python.exe by its
+full path, so a program named synthtwin in the work folder never runs
+in its place.
+
+The trusted start. The check guards against damage and accidental
+change, not against a deliberate change of the folder: python.exe, the
+DLLs and standard library it loads first and the check itself run
+before any hash is compared. The zip's own SHA-256, printed by the
+build run and compared with Get-FileHash before the zip is unzipped
+(FIRST, CHECK THE ZIP, above), covers the folder as a whole.
+
+Its only .exe files are python.exe and pythonw.exe
+as python.org ships them, signed; the libraries' own .pyd and .dll
+files are those of their wheels, each wheel checked by its SHA-256
+against the lock.
+
+What it writes. synthtwin writes only beside the table the person
+names, in the folder given with --out-dir, or, for the computer
+check's test file, removed at once, in the window's current folder. It
+writes no registry key, no environment variable and nothing inside its
+own folder (its Python runs with -I -B, every library was compiled
+when the folder was built, and python314._pth limits what it loads to
+python314.zip, python\ and python\lib), and the PowerShell window
+turns off PSReadLine's history file, so what is typed there is not
+saved (not yet measured on Windows).
+
+How to verify it. In PowerShell, Get-FileHash -Algorithm SHA256 on the
+zip before it is unzipped, against the SHA-256 the build run's summary
+prints; then Get-FileHash -Algorithm SHA256 FILE against SHA256SUMS,
+for any file; Get-AuthenticodeSignature
+python\python.exe, or right-click it, Properties, Digital Signatures;
+BUILD-INFO.txt against the public CI run that built the folder, which
+keeps a zip only after rehearsing it on a clean Windows computer with
+the network refused.
+
+Where it may live. Any local disk, including C:\Program
+Files\synthtwin: it needs no write access to its own folder, and
+application-control rules usually allow programs there.

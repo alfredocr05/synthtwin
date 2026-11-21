@@ -519,10 +519,12 @@ def test_reviewed_yaml_exemption_is_an_explicit_file_list() -> None:
     list must contain exactly the reviewed configuration paths that
     exist at head, and the predicate must accept nothing else.
     """
-    assert _CHECKER_MODULE.KNOWN_CONFIG_YAML == {".github/workflows/ci.yml"}
-    assert _CHECKER_MODULE.is_reviewed_yaml_configuration(
-        ".github/workflows/ci.yml"
-    )
+    assert _CHECKER_MODULE.KNOWN_CONFIG_YAML == {
+        ".github/workflows/ci.yml",
+        ".github/workflows/windows-bundle.yml",
+    }
+    for reviewed in sorted(_CHECKER_MODULE.KNOWN_CONFIG_YAML):
+        assert _CHECKER_MODULE.is_reviewed_yaml_configuration(reviewed)
 
     rejected = [
         # A NEW file in the workflow directory gains no exemption until

@@ -1,0 +1,3625 @@
+{
+  "cases": {
+    "clock_minute_kin_escape": {
+      "answer": [
+        1709543700,
+        1709544005,
+        1709547245,
+        1709549940
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        3
+      ],
+      "counts": [
+        1,
+        3
+      ],
+      "field_unit": 60,
+      "half_day": false,
+      "highs": [
+        1709543700,
+        1709549940,
+        1709549940,
+        1709549940
+      ],
+      "holes": [],
+      "kin": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "lows": [
+        1709543700,
+        1709543700,
+        1709543700,
+        1709549940
+      ],
+      "ordinals": [
+        1709543700,
+        1709544005,
+        1709545205,
+        1709549940
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "The ESCAPE's first tier, on a field of minutes whose parent is the hour: minutes [00-14] owed one rank, [15-59] one over, a gap from 09:15 to 10:59 that leaves hour 9 no minute of [00-14]. Hours 9 and 10 share a group of the hour census, so the rank at 09:40:05 takes 10:14:05 on its own day.",
+      "written_unit": 1
+    },
+    "clock_minute_kin_kept": {
+      "answer": [
+        1709543700,
+        1709544005,
+        1709545205,
+        1709549940
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        3
+      ],
+      "counts": [
+        1,
+        3
+      ],
+      "field_unit": 60,
+      "half_day": false,
+      "highs": [
+        1709543700,
+        1709549940,
+        1709549940,
+        1709549940
+      ],
+      "holes": [],
+      "kin": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "lows": [
+        1709543700,
+        1709543700,
+        1709543700,
+        1709549940
+      ],
+      "ordinals": [
+        1709543700,
+        1709544005,
+        1709545205,
+        1709549940
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "The ESCAPE keeps its kin group: the same state with hour 9 alone in its group of the hour census. Hour 10 has a place, but a move there would change the hour census, and the gap holds no other day, so no rank moves.",
+      "written_unit": 1
+    },
+    "clock_minute_put_back_kin": {
+      "answer": [
+        1709543100,
+        1709547609,
+        1709547609,
+        1709547609,
+        1709549400
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        1,
+        4
+      ],
+      "field_unit": 60,
+      "half_day": false,
+      "highs": [
+        1709543100,
+        1709549400,
+        1709549400,
+        1709549400,
+        1709549400
+      ],
+      "holes": [],
+      "kin": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "lows": [
+        1709543100,
+        1709543100,
+        1709543100,
+        1709543100,
+        1709549400
+      ],
+      "ordinals": [
+        1709543100,
+        1709544607,
+        1709547609,
+        1709547609,
+        1709549400
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "PUT BACK on a field of minutes, the count one long: 09:30:07 is alone on its second and hour 9 holds no other of [15-59]; hour 10, in its group of the hour census, does, so it joins the nearest, 10:20:09.",
+      "written_unit": 1
+    },
+    "half_day_apart": {
+      "anchor": 1709523600,
+      "answer": [
+        990,
+        942,
+        941,
+        219,
+        10
+      ],
+      "apart": true,
+      "edge": 100000,
+      "found": [
+        990,
+        700,
+        600,
+        500,
+        10
+      ],
+      "low_side": true,
+      "step": "half_day",
+      "unit": 60,
+      "why": "Step 10 where every rank must differ: 700 and 600 minutes out both take 941, 11:59 the day before, and 500 takes 219; the construction's first pass, made again over half-day distances alone, parts the two, the outer taking 942."
+    },
+    "half_day_high": {
+      "anchor": 1709550000,
+      "answer": [
+        89999,
+        47000,
+        3599,
+        3599,
+        3599
+      ],
+      "apart": false,
+      "edge": 1000000,
+      "found": [
+        90000,
+        47000,
+        25200,
+        7200,
+        3599
+      ],
+      "low_side": false,
+      "step": "half_day",
+      "unit": 1,
+      "why": "Step 10 on a high tail of seconds, the boundary at 11:00:00: 7,200 seconds out is 13:00:00, nearer 11:59:59 than 00:00:01, so 3,599; 25,200 out is 18:00:00, as near the one as the other, and takes the nearer the boundary; 47,000 out stands at 00:03:20 the next day and stays."
+    },
+    "half_day_low": {
+      "anchor": 1709523600,
+      "answer": [
+        3000,
+        941,
+        219,
+        60,
+        5
+      ],
+      "apart": false,
+      "edge": 100000,
+      "found": [
+        3000,
+        700,
+        300,
+        60,
+        5
+      ],
+      "low_side": true,
+      "step": "half_day",
+      "unit": 60,
+      "why": "G7.3b step 10 on a low tail of minutes, the boundary at 03:40: 300 minutes out is 22:40 the day before, nearer 00:01 than 11:59, so 219; 700 out is 16:00, nearer 11:59, so 941; 3,000 out stands on a morning and stays."
+    },
+    "hour_escape_any_day": {
+      "answer": [
+        1709460000,
+        1709462460,
+        1709539200
+      ],
+      "anyday": true,
+      "before": [
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        2
+      ],
+      "counts": [
+        0,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709460000,
+        1709539200,
+        1709539200
+      ],
+      "holes": [],
+      "lows": [
+        1709460000,
+        1709460000,
+        1709539200
+      ],
+      "ordinals": [
+        1709460000,
+        1709530860,
+        1709539200
+      ],
+      "pinned": [
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "left",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "The ESCAPE's last resort (step 3): a Monday rank at 05:41 before a rung at 08:00, the gap opening on Sunday at 10:00, hours 0 to 7 counted empty and no weekday census standing. No Monday of the gap has a place, so it takes the nearest day of another weekday, Sunday, at 10:41.",
+      "written_unit": 60
+    },
+    "hour_escape_weekday": {
+      "answer": [
+        1709200800,
+        1709282460,
+        1709539200
+      ],
+      "before": [
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        2
+      ],
+      "counts": [
+        0,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709200800,
+        1709539200,
+        1709539200
+      ],
+      "holes": [],
+      "lows": [
+        1709200800,
+        1709200800,
+        1709539200
+      ],
+      "ordinals": [
+        1709200800,
+        1709530860,
+        1709539200
+      ],
+      "pinned": [
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "step": "left",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "The ESCAPE (step 3): a Monday rank at 05:41 before a rung at 08:00, hour 8 held by the rung, and a weekday census of [Mon-Fri] [Sat-Sun]. Sunday and Saturday stand nearer but in the other group, so it takes Friday's 08:41.",
+      "written_unit": 60
+    },
+    "hour_half_day_tails": {
+      "answer": [
+        1709164860,
+        1709380740,
+        1709542800,
+        1710028860
+      ],
+      "before": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        2,
+        2
+      ],
+      "counts": [
+        1
+      ],
+      "half_day": true,
+      "highs": [
+        1709186400,
+        1709456400,
+        1709542800,
+        1710039600
+      ],
+      "holes": [],
+      "lows": [
+        1709096400,
+        1709290800,
+        1709542800,
+        1710014400
+      ],
+      "ordinals": [
+        1709164800,
+        1709393400,
+        1709542800,
+        1710027600
+      ],
+      "pinned": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "tails",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "why": "Step 5, the dial's half day: a low tail rank at 15:30 takes 11:59 the same day, nearer than 00:01 the next; a high tail rank at 23:40 whose stratum opens at 20:00 takes 00:01 the next day; and one written at midnight takes 00:01.",
+      "written_unit": 60
+    },
+    "hour_half_day_tails_stratum": {
+      "answer": [
+        1709164860,
+        1709424060,
+        1709542800,
+        1709974800
+      ],
+      "before": [
+        true,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        2,
+        2
+      ],
+      "counts": [
+        1
+      ],
+      "half_day": true,
+      "highs": [
+        1709186400,
+        1709434800,
+        1709542800,
+        1709978400
+      ],
+      "holes": [],
+      "lows": [
+        1709096400,
+        1709382600,
+        1709542800,
+        1709971200
+      ],
+      "ordinals": [
+        1709164800,
+        1709384400,
+        1709542800,
+        1709974800
+      ],
+      "pinned": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "tails",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "why": "Step 5 inside the stratum: a low tail rank at 13:00 is nearer 11:59 than 00:01 the next day, but its stratum opens at 12:30, so it takes 00:01; a rank written at midnight takes 00:01 as before.",
+      "written_unit": 60
+    },
+    "hour_off_a_hole": {
+      "answer": [
+        1708941600,
+        1709453700,
+        1709542800,
+        1710151200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        1,
+        2
+      ],
+      "counts": [
+        0,
+        2
+      ],
+      "half_day": false,
+      "highs": [
+        1708941600,
+        1710151200,
+        1710151200,
+        1710151200
+      ],
+      "holes": [
+        19786
+      ],
+      "lows": [
+        1708941600,
+        1708941600,
+        1708941600,
+        1710151200
+      ],
+      "ordinals": [
+        1708941600,
+        1709522100,
+        1709542800,
+        1710151200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "SAMEPARENT asks no place of a hole (step 3): a rank at 03:15 on a day the description holds empty, hours 0 to 7 counted empty. Its own day has places in hour 8, but none is free, as no rank may land on a hole, so it escapes to the day before, at 08:15.",
+      "written_unit": 60
+    },
+    "hour_off_midnight": {
+      "answer": [
+        1709503200,
+        1709510460,
+        1709521200
+      ],
+      "before": [
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        2
+      ],
+      "counts": [
+        2,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709503200,
+        1709521200,
+        1709521200
+      ],
+      "holes": [],
+      "lows": [
+        1709503200,
+        1709503200,
+        1709521200
+      ],
+      "ordinals": [
+        1709503200,
+        1709510420,
+        1709521200
+      ],
+      "pinned": [
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "midnight",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "Step 4: a rank the shared pass put at 00:00:20, written 00:00 on a column of minutes, takes the free minute of hour 0 nearest midnight, 00:01:00.",
+      "written_unit": 60
+    },
+    "hour_off_midnight_lattice": {
+      "answer": [
+        1709503200,
+        1709512200,
+        1709512200,
+        1709511300,
+        1709521200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        4,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709503200,
+        1709521200,
+        1709521200,
+        1709521200,
+        1709521200
+      ],
+      "holes": [],
+      "lattice": 900,
+      "lows": [
+        1709503200,
+        1709503200,
+        1709503200,
+        1709503200,
+        1709521200
+      ],
+      "ordinals": [
+        1709503200,
+        1709510400,
+        1709510400,
+        1709511300,
+        1709521200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "midnight",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "Step 4 on the body's lattice (Codex's review of lane J2, the leftover regression): a pair the shared pass put at midnight, on a column of seconds drawn on fifteen minutes, takes 00:30:00, the free place of that lattice nearest midnight, 00:15:00 held; a written unit at a time it took 00:00:01, off second 0, where no field pass could put it back but at midnight.",
+      "written_unit": 1
+    },
+    "hour_paid_count_given_back": {
+      "answer": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        6,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ROUND GIVEN BACK WHERE IT COSTS THE COUNT (the whole pass, lane J's skeptic, finding 1): hours 12 to 17 counted six and 18 to 23 three beside seven single weekdays. The pair at 05:23 finds one payer, so it SPLITs: one rank takes Sunday's 12:23, paid, and the other stays. Sunday's own value stands at 18:30, in the other group, so no merge keeping the day and the group takes the new value back and the count stands one long; without the round it is met, so the round is given back.",
+      "written_unit": 60
+    },
+    "hour_paid_count_nearer": {
+      "answer": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        6,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 7,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ROUND GIVEN BACK WHERE THE COUNT IS NEARER WITHOUT IT, THOUGH STILL OFF (the whole pass, lane J's second skeptic, finding 1): the state the round is given back on, its count drawn seven. With the round the count stands at nine, two long; without it, at eight, one long, so the round is given back although the count is missed either way.",
+      "written_unit": 60
+    },
+    "hour_paid_count_tied": {
+      "answer": [
+        1709294400,
+        1709403600,
+        1709468580,
+        1709490600,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710180600,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        6,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709403600,
+        1709490600,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710094200,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 10,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ROUND KEPT WHERE THE COUNT IS NO NEARER WITHOUT IT (the whole pass, lane J's skeptic, finding 1): the state the round is given back on, its count drawn ten. With the round the count stands at nine; without it PUT BACK splits the pair at 05:23 and it stands at nine too, so the round, which puts a rank on its hour, stands.",
+      "written_unit": 60
+    },
+    "hour_paid_escape": {
+      "answer": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709468580,
+        1709553600,
+        1709812800,
+        1710159000,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        7
+      ],
+      "counts": [
+        0,
+        8,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "paid",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE ESCAPE PAID BACK (step 3, lane J): a Monday rank at 05:23 on the day of the Monday rung at noon, hour 12 alone counted and seven single weekdays published. No free minute of hour 12 lies on its day inside its gap, which holds no other Monday, so it takes Sunday's 12:23, the nearest day of another standing; the Sunday rank at 12:30 has no Monday in its gap, so the one six days on goes the other way, taking the Monday after it at its own 12:10.",
+      "written_unit": 60
+    },
+    "hour_paid_given_back": {
+      "answer": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709468580,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710159000,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        9,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "paid",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE PAYERS GIVEN BACK (step 3, lane J): two Monday ranks share 05:23 and one Sunday rank alone can pay. Whole, the pair finds one payer for Sunday, who goes back, and none for Saturday or Friday, whose pairs are refused; SPLIT, the first rank takes Sunday's 12:23, paid, and the second finds no payer left and stays.",
+      "written_unit": 60
+    },
+    "hour_paid_hole": {
+      "answer": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709468580,
+        1709553600,
+        1709812800,
+        1710763800,
+        1710936000
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        7
+      ],
+      "counts": [
+        0,
+        8,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710936000,
+        1710936000
+      ],
+      "holes": [
+        19793
+      ],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710936000
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710936000
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "paid",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "A PAYER KEPT OFF A HOLE (step 3, lane J's skeptic, finding 3): the escape paid back's Monday rank at 05:23 takes Sunday's 12:23, and the Sunday rank at 12:10 six days on goes the other way; the nearest Monday of its gap is a hole, so it takes the Monday a week later, at its own 12:10.",
+      "written_unit": 60
+    },
+    "hour_paid_keeping": {
+      "answer": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709468580,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710160800,
+        1710159000,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        9
+      ],
+      "counts": [
+        0,
+        10,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710074400,
+        1710159000,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "paid",
+      "wanted": 10,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "THE PAYER KEEPING THE COUNT (step 3, lane J): as the escape paid back, but a Monday rank already stands at 12:10 the next week. The Sunday rank at 12:10, alone on its minute, would share that one, so the one at 12:40, asked after it, goes instead.",
+      "written_unit": 60
+    },
+    "hour_paid_pass": {
+      "answer": [
+        1709294400,
+        1709382000,
+        1709468580,
+        1709469000,
+        1709553600,
+        1709812800,
+        1710159000,
+        1710331200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        7
+      ],
+      "counts": [
+        0,
+        8,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709812800,
+        1710331200,
+        1710331200
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1709812800,
+        1709812800,
+        1710331200
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1709812800,
+        1710072600,
+        1710331200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "The whole pass beside a weekday census (lane J): the escape paid back's state, both censuses met where the pass with the round withdrawn left 05:23 in hour 5.",
+      "written_unit": 60
+    },
+    "hour_paid_unit_standing": {
+      "answer": [
+        1709294400,
+        1709468580,
+        1709468580,
+        1709469000,
+        1709553600,
+        1710075540,
+        1710159000,
+        1710591000,
+        1710676800
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        0,
+        9,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709294400,
+        1709553600,
+        1709553600,
+        1709553600,
+        1709553600,
+        1710075540,
+        1710676800,
+        1710676800,
+        1710676800
+      ],
+      "holes": [],
+      "lows": [
+        1709294400,
+        1709294400,
+        1709294400,
+        1709294400,
+        1709553600,
+        1710075540,
+        1710075540,
+        1710075540,
+        1710676800
+      ],
+      "ordinals": [
+        1709294400,
+        1709382000,
+        1709469000,
+        1709529780,
+        1709553600,
+        1710075540,
+        1710652200,
+        1710652200,
+        1710676800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "pass",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "A UNIT ASKED AS IT STANDS (the whole pass, Codex's review of lane J, item 1): hour 12 alone counted beside seven single weekdays, eight different values. The Monday rank at 05:23 takes Sunday's 12:23, paid by the first of a Sunday pair at 05:10, which goes to the Monday between at its own 05:10. The pair, listed before, is asked as it stands: the Sunday rank left on its minute takes the Saturday's 12:10, paid by the Saturday rank at 12:20, which goes to Sunday's 12:20 and is merged onto 12:23; the Monday rank, asked in the next round, takes the Monday's 12:10. Asked as listed, the pair moved whole onto the Monday and Monday's 2 and Sunday's 5 came back 3 and 4.",
+      "written_unit": 60
+    },
+    "hour_proportional": {
+      "answer": [
+        1709496000,
+        1709521800,
+        1709608260,
+        1709712720,
+        1709781180,
+        1709867640,
+        1709972100,
+        1710100800
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        7
+      ],
+      "counts": [
+        4,
+        4
+      ],
+      "half_day": false,
+      "highs": [
+        1709496000,
+        1710100800,
+        1710100800,
+        1710100800,
+        1710100800,
+        1710100800,
+        1710100800,
+        1710100800
+      ],
+      "holes": [],
+      "lows": [
+        1709496000,
+        1709496000,
+        1709496000,
+        1709496000,
+        1709496000,
+        1709496000,
+        1709496000,
+        1710100800
+      ],
+      "ordinals": [
+        1709496000,
+        1709521800,
+        1709608260,
+        1709694720,
+        1709781180,
+        1709867640,
+        1709954100,
+        1710100800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 8,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "Proportional order (step 3): six ranks in [00-07] on six days, the group two over. The smooth rotation asks the third and the sixth first, not the first two, and each takes its own minute of hour 8 on its own day.",
+      "written_unit": 60
+    },
+    "hour_put_back": {
+      "answer": [
+        1709532000,
+        1709545200,
+        1709545200,
+        1709545200,
+        1709545200,
+        1709653800,
+        1709653800,
+        1709653800,
+        1709755200
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        8
+      ],
+      "counts": [
+        1,
+        4,
+        4
+      ],
+      "half_day": false,
+      "highs": [
+        1709532000,
+        1709755200,
+        1709755200,
+        1709755200,
+        1709755200,
+        1709755200,
+        1709755200,
+        1709755200,
+        1709755200
+      ],
+      "holes": [],
+      "lows": [
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709755200
+      ],
+      "ordinals": [
+        1709532000,
+        1709543100,
+        1709545200,
+        1709545200,
+        1709634600,
+        1709648400,
+        1709653800,
+        1709653800,
+        1709755200
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK (step 6), the count three long: three ranks alone on their minute join one another rank holds in their own hour group -- 09:05 and 14:20 on their own day, and Tuesday's 10:30, whose day holds no other of its group, Monday's 09:40.",
+      "written_unit": 60
+    },
+    "hour_put_back_any_day": {
+      "answer": [
+        1709445600,
+        1709458800,
+        1709458800,
+        1709458800,
+        1709668800
+      ],
+      "anyday": true,
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        1,
+        3,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709445600,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709445600,
+        1709445600,
+        1709445600,
+        1709445600,
+        1709668800
+      ],
+      "ordinals": [
+        1709445600,
+        1709458800,
+        1709458800,
+        1709543100,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "step": "put_back",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK's last resort (step 6), the count one long and no weekday census standing: Monday's 09:05 is alone on its minute and no Monday of its gap holds another of its hour group, so it joins the nearest such unit on a day of another weekday, Sunday's 09:40.",
+      "written_unit": 60
+    },
+    "hour_put_back_off_midnight": {
+      "answer": [
+        1709496000,
+        1709510400,
+        1709519400,
+        1709519400,
+        1709519400,
+        1709668800
+      ],
+      "before": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        5
+      ],
+      "counts": [
+        4,
+        1,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709496000,
+        1709510400,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709496000,
+        1709510400,
+        1709510400,
+        1709510400,
+        1709510400,
+        1709668800
+      ],
+      "ordinals": [
+        1709496000,
+        1709510400,
+        1709513400,
+        1709519400,
+        1709519400,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK (step 6), the count one long, never onto a written midnight: 00:50 is alone on its minute, and of the units of its hour group on its own day 00:00 is nearer than 02:30, but a merge there would write one more cell at midnight, so it joins 02:30.",
+      "written_unit": 60
+    },
+    "hour_put_back_short": {
+      "answer": [
+        1709532000,
+        1709547540,
+        1709547600,
+        1709547600,
+        1709668800
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        1,
+        3,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709532000,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709668800
+      ],
+      "ordinals": [
+        1709532000,
+        1709547600,
+        1709547600,
+        1709547600,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 4,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK (step 6), the count one short: the first rank sharing 10:20 takes the free minute of its own hour nearest it, 10:19.",
+      "written_unit": 60
+    },
+    "hour_put_back_short_shared": {
+      "answer": [
+        1709532000,
+        1709544000,
+        1709547540,
+        1709547600,
+        1709668800
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        1,
+        3,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709532000,
+        1709668800,
+        1709668800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709532000,
+        1709532000,
+        1709532000,
+        1709532000,
+        1709668800
+      ],
+      "ordinals": [
+        1709532000,
+        1709544000,
+        1709547600,
+        1709547600,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "put_back",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "PUT BACK (step 6), the count one short: 09:20 comes first in rank order but holds its minute alone, and moving it gains nothing, so the first rank SHARING its minute moves, 10:20 to 10:19.",
+      "written_unit": 60
+    },
+    "hour_relief": {
+      "answer": [
+        1709191800,
+        1709276700,
+        1709276700,
+        1709367300,
+        1709537340,
+        1709537400
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        5
+      ],
+      "counts": [
+        0,
+        5,
+        1
+      ],
+      "half_day": false,
+      "highs": [
+        1709191800,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400
+      ],
+      "holes": [],
+      "lows": [
+        1709191800,
+        1709191800,
+        1709191800,
+        1709191800,
+        1709191800,
+        1709537400
+      ],
+      "ordinals": [
+        1709191800,
+        1709276700,
+        1709276700,
+        1709363700,
+        1709523600,
+        1709537400
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "relief",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "RELIEF (step 3): a rank at 03:40 before a rung at 07:30 on the last day of its gap, hours 0 to 6 counted empty and hour 7 full. It takes 07:29 once a unit of hour 7 of as many ranks has left: the pair at 07:05 is two, so the rank at 07:15 goes, to 08:15 on its own day.",
+      "written_unit": 60
+    },
+    "hour_relief_given_back": {
+      "answer": [
+        1709190000,
+        1709276700,
+        1709363400,
+        1709450100,
+        1709523600,
+        1709537400
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        1,
+        4
+      ],
+      "counts": [
+        0,
+        2,
+        2
+      ],
+      "half_day": false,
+      "highs": [
+        1709190000,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400,
+        1709537400
+      ],
+      "holes": [],
+      "lows": [
+        1709190000,
+        1709190000,
+        1709190000,
+        1709190000,
+        1709190000,
+        1709537400
+      ],
+      "ordinals": [
+        1709190000,
+        1709276700,
+        1709363400,
+        1709450100,
+        1709523600,
+        1709537400
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "relief",
+      "wanted": 6,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "RELIEF gives back (step 3): a rank at 03:40 before a rung at 07:30 on the last day of its gap, hours 0 to 6 counted empty, and hour 7 OVER its count by one. A unit of hour 7 leaving it still leaves no room there, so each relief unit goes back where it stood, and no rank moves.",
+      "written_unit": 60
+    },
+    "hour_rounds": {
+      "answer": [
+        1709513100,
+        1709541900,
+        1709529180,
+        1709541660,
+        1709545260,
+        1709563260,
+        1709572560,
+        1709589600,
+        1709589600,
+        1709660880,
+        1709660880,
+        1709675100
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        11
+      ],
+      "counts": [
+        1,
+        1,
+        0,
+        2,
+        1,
+        0,
+        0,
+        1,
+        4,
+        2,
+        0
+      ],
+      "half_day": false,
+      "highs": [
+        1709513100,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709675100,
+        1709675100,
+        1709675100,
+        1709675100,
+        1709675100
+      ],
+      "holes": [],
+      "lows": [
+        1709513100,
+        1709513100,
+        1709513100,
+        1709513100,
+        1709513100,
+        1709513100,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709572560,
+        1709675100
+      ],
+      "ordinals": [
+        1709513100,
+        1709513100,
+        1709529180,
+        1709541660,
+        1709545260,
+        1709563260,
+        1709572560,
+        1709625600,
+        1709625600,
+        1709660880,
+        1709660880,
+        1709675100
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 9,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        7,
+        7,
+        7,
+        7,
+        8,
+        8,
+        8,
+        8,
+        8,
+        9,
+        10
+      ],
+      "why": "Step 3's later round: hours 0 to 4 are one over, and their rank at 00:45, sharing its minute with the pinned rank, has no place, hour 22 the one group with room and past its gap's end at 17:16. Hour 8 is one over too, and Tuesday's pair at 08:00 leaves it WHOLE, by the escape to Monday's 22:00, so hour 8 stands one under its count. In the next round the 00:45 rank takes Monday's 08:45, and the census is met.",
+      "written_unit": 60
+    },
+    "hour_same_day_clock": {
+      "answer": [
+        1709457000,
+        1709470800,
+        1709490600,
+        1709540040,
+        1709540100
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        0,
+        5
+      ],
+      "half_day": false,
+      "highs": [
+        1709457000,
+        1709540100,
+        1709540100,
+        1709540100,
+        1709540100
+      ],
+      "holes": [],
+      "lows": [
+        1709457000,
+        1709457000,
+        1709457000,
+        1709457000,
+        1709540100
+      ],
+      "ordinals": [
+        1709457000,
+        1709470800,
+        1709490600,
+        1709530860,
+        1709540100
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "SAMEDAY (step 3): a rank at 05:41 on the day of a rung at 08:15, hours 0 to 7 counted empty. No whole hour keeps its minute inside the gap, so it takes the free minute of hour 8 nearest its own, 08:14, on its own day.",
+      "written_unit": 60
+    },
+    "hour_sixtieth_second": {
+      "answer": [
+        1709539200,
+        1709542800,
+        1709596800,
+        1709643600,
+        1709668800
+      ],
+      "before": [
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        2,
+        3
+      ],
+      "half_day": false,
+      "highs": [
+        1709539200,
+        1709596800,
+        1709596800,
+        1709668800,
+        1709668800
+      ],
+      "holes": [],
+      "lows": [
+        1709539200,
+        1709539200,
+        1709596800,
+        1709596800,
+        1709668800
+      ],
+      "ordinals": [
+        1709539200,
+        1709542800,
+        1709596800,
+        1709643600,
+        1709668800
+      ],
+      "pinned": [
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "reachable": true,
+      "sixtieths": [
+        2
+      ],
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "pass",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "A rank written at a sixtieth second (the review of the landing, item 1): the rung at rank 2 is published as Monday 23:59:60, which the ordinal space stands at Tuesday 00:00:00 and the twin writes from its own fields, in hour 23. Hours 0 to 10 owe two ranks and hours 11 to 23 three, as written. Counted by its ordinal the rung would stand in hours 0 to 10, one over, and Monday's 09:00 would leave for 11:00; counted as written, the census already holds and nothing moves.",
+      "written_unit": 60
+    },
+    "hour_sixtieth_ties": {
+      "answer": [
+        [
+          6,
+          "2024-03-04 23:59:60",
+          1709596800
+        ],
+        [
+          7,
+          "2024-03-04 23:59:60",
+          1709596800
+        ],
+        [
+          8,
+          "2024-03-04 23:59:60",
+          1709596800
+        ],
+        [
+          16,
+          "2024-03-05 23:59:60",
+          1709683200
+        ],
+        [
+          17,
+          "2024-03-05 23:59:60",
+          1709683200
+        ]
+      ],
+      "pins": [
+        [
+          2,
+          1709546400,
+          "2024-03-04 10:00:00"
+        ],
+        [
+          5,
+          1709596800,
+          "2024-03-04 23:59:60"
+        ],
+        [
+          9,
+          1709596800,
+          "2024-03-04 23:59:60"
+        ],
+        [
+          12,
+          1709596800,
+          "2024-03-05 00:00:00"
+        ],
+        [
+          15,
+          1709683200,
+          "2024-03-05 23:59:60"
+        ],
+        [
+          18,
+          1709683200,
+          "2024-03-05 23:59:60"
+        ],
+        [
+          20,
+          1709712000,
+          "2024-03-06 08:00:00"
+        ],
+        [
+          23,
+          1709712000,
+          "2024-03-06 08:00:00"
+        ]
+      ],
+      "step": "ties",
+      "why": "The ranks between two body pins of one sixtieth second (the review of the landing, item 1): Monday 23:59:60 published at ranks 5 and 9 leaves ranks 6 to 8 their one place, every row there holding that moment, and Tuesday 23:59:60 at ranks 15 and 18 leaves ranks 16 and 17 so; each is written from the moment's own fields and counted in hour 23. Ranks 10 and 11 stand between Monday 23:59:60 and Tuesday 00:00:00, one instant written two ways, and ranks 21 and 22 between two pins of an ordinary second: neither pair is tied."
+    },
+    "hour_split": {
+      "answer": [
+        1709287200,
+        1709468100,
+        1709489700,
+        1709489699,
+        1709521230
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        2,
+        1,
+        2
+      ],
+      "half_day": false,
+      "highs": [
+        1709287200,
+        1709521230,
+        1709521230,
+        1709521230,
+        1709521230
+      ],
+      "holes": [],
+      "lows": [
+        1709287200,
+        1709287200,
+        1709287200,
+        1709287200,
+        1709521230
+      ],
+      "ordinals": [
+        1709287200,
+        1709518500,
+        1709518500,
+        1709518500,
+        1709521230
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": false,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "left",
+      "wanted": 3,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "why": "SPLIT (step 3): three ranks on one second, 02:15:00, before a rung at 03:00:30, the afternoon owed one rank and the evening two. No group has room for the three, so they leave one at a time: 12:15:00 and two at 18:15 the day before.",
+      "written_unit": 1
+    },
+    "hour_whole_pass": {
+      "answer": [
+        1709457000,
+        1709470800,
+        1709490600,
+        1709540040,
+        1709540100
+      ],
+      "before": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "body": [
+        0,
+        4
+      ],
+      "counts": [
+        0,
+        5
+      ],
+      "half_day": false,
+      "highs": [
+        1709457000,
+        1709540100,
+        1709540100,
+        1709540100,
+        1709540100
+      ],
+      "holes": [],
+      "lows": [
+        1709457000,
+        1709457000,
+        1709457000,
+        1709457000,
+        1709540100
+      ],
+      "ordinals": [
+        1709457000,
+        1709470800,
+        1709490600,
+        1709530860,
+        1709540100
+      ],
+      "pinned": [
+        true,
+        false,
+        false,
+        false,
+        true
+      ],
+      "reachable": true,
+      "standing": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": "pass",
+      "wanted": 5,
+      "where": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "why": "The whole pass: SAMEDAY's state through steps 2 to 7. The shared steps leave the 05:41 rank where it is; step 3 takes it to 08:14, and the runs are sorted.",
+      "written_unit": 60
+    }
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "what": "The states of ranks method section G7.3g's own steps (landing 3b.2-H, plan P4-D371) are frozen on, and the tails G7.3b step 10 takes onto the dial's half day, each with its answer computed from the method's text: every rank's ordinal after the step, or every distance. A state's bins are the hours, a unit of an hour with the day kept, unless it names another field (`field_unit`, its bins `where`, each parent's group in the coarser census `kin`); it names its census, its written unit, its day standing and its holes."
+}

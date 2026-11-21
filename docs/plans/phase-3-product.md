@@ -724,6 +724,10 @@ E-F4, E-F5 and E-F6).
    facts about the file's form: no cell, no name, no count and no
    person is in either of them. Nothing changes in the code; what
    changes is that the conflict is settled in writing.
+   **SUPERSEDED 2026-09-15 by Phase 4 plan decision P4-D86**, by the
+   test amendment A-P3-5 clause 3 wrote down: the producer now publishes
+   both facts, and the byte-order mark, about every file, so the checks
+   state published facts and are withheld on a file it refuses.
 
 7. **The report's own gloss on WITHHELD is re-derived. No obligation
    changes.** The census line read "WITHHELD — measured, and not
@@ -7363,7 +7367,16 @@ tests as bounded in P3-D8.3.
   wrong about half of what it named and is corrected by A-P3-39**: a
   built-in missing text stays pinned only on a description no column of
   which publishes it as a hole source.
-- **New, and open at its own size: R-P3-11.** The two presence COUNTS
+- **CLOSED by the owner's ruling of 2026-09-17 (option A, plan
+  P4-D200): R-P3-11.** Pooled missing-value words below a raised floor
+  count as absent, so a real table passes its own description; the guard
+  that proved the pool honest is rewritten to check the pool's total --
+  the pooled words count as holes only up to the published
+  `n_missing_withheld`, and every one past it counts as a value, so the
+  round-2 witness below stays caught. The residual this closes is the
+  one A-P3-5 clause 1 left, and closing it narrows that clause to
+  descriptions that pool nothing. The entry as it stood:
+  **New, and open at its own size: R-P3-11.** The two presence COUNTS
   are read over the weaker publication amendment A-P3-5 clause 1 chose
   for them — `missing_by_class` says how many of a column's holes are
   non-blank, without saying what they spell — so a column whose

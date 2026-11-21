@@ -52,7 +52,7 @@ guard mutation-verified.
 
 1. **SEVERITY: blocking — the disposition seal does not detect deletion.**
 
-   **CONCRETE FAILURE SCENARIO:** Delete the newly sealed `part_above` disposition row. The guard converts the seal to a set and asks only whether each remaining passage is known. My in-memory deletion left zero unknown passages; the deleted digest merely remained stale in the seal. The suite therefore need not turn red when a governing obligation is removed. See the [one-directional comparison](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p2c4f1_disposition_registry.py:275>).
+   **CONCRETE FAILURE SCENARIO:** Delete the newly sealed `part_above` disposition row. The guard converts the seal to a set and asks only whether each remaining passage is known. My in-memory deletion left zero unknown passages; the deleted digest merely remained stale in the seal. The suite therefore need not turn red when a governing obligation is removed. See the [one-directional comparison](<../../../tests/test_p2c4f1_disposition_registry.py#L275>).
 
    The volume statement is also inaccurate: version 6 currently contains 2,191 passage instances and the seal stores 1,987 unique digests, neither 1,989. The manual seal command reports current, but it is not an enforced test of exact equality.
 
@@ -64,25 +64,25 @@ guard mutation-verified.
    - Add “The note grammar contains 47 forms.” None of the five patterns recognizes that shape; every existing pattern still matches elsewhere, so the asserted non-vacuity does nothing.
    - Change all three breakdowns consistently from 66 whole-number positions and 4 package-word positions to 65 and 5. They still sum to 79, agree with one another, and retain five bound positions, so the guard accepts the false classification.
 
-   The unresolved dictionary collapse is at [_appendix](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p4d27_note_grammar_matches_the_code.py:142>); the closed pattern inventory and self-consistency-only breakdown are at [the count guard](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p4d27_note_grammar_matches_the_code.py:262>).
+   The unresolved dictionary collapse is at [_appendix](<../../../tests/test_p4d27_note_grammar_matches_the_code.py#L142>); the closed pattern inventory and self-consistency-only breakdown are at [the count guard](<../../../tests/test_p4d27_note_grammar_matches_the_code.py#L262>).
 
 3. **SEVERITY: blocking — the validator does not enforce `parts[]` “field by field.”**
 
    **CONCRETE FAILURE SCENARIO:** Start with joined readings whose first position uses plain spellings `100`, `200`, and `300`. In the checked file, retain `100` but rewrite every `200` and `300` as `200.0` and `300.0`. Numeric values, endpoints, minimum width, distinct counts, integer status, rank agreement, above-count, separator, and row counts remain unchanged. The published `numeric_styles` and `fraction_widths` are wrong, but `_joined_part_checks` checks only the two endpoints and `integer_valued`, so the quality report can miss the mismatch.
 
-   This contradicts the contract’s [unchanged field-by-field disposition](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:6838>) and even the validator docstring’s assertion that the average is checked. The actual return path is at [_joined_part_checks](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/validation.py:6640>).
+   This contradicts the contract’s [unchanged field-by-field disposition](<../../../docs/spec/profile-contract-v6.md#L6838>) and even the validator docstring’s assertion that the average is checked. The actual return path is at [_joined_part_checks](<../../../src/synthtwin/validation.py#L6640>).
 
 4. **SEVERITY: blocking — the generation report omits every joined-role approximation.**
 
    **CONCRETE FAILURE SCENARIO:** Generate a profile containing only a joined column. Its per-position interior rungs and moments are approximated, and `part_agreements` is explicitly approximated. `_approximations()` has no `JoinedFacts` branch and returns an empty list. The report can consequently say the twin has no approximated fact at all instead of printing the published value, achieved value, and bound promised by section 9.4a.
 
-   See the [missing dispatch](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/generation.py:13968>) and the [report guarantee](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/rendering.py:1521>).
+   See the [missing dispatch](<../../../src/synthtwin/generation.py#L13968>) and the [report guarantee](<../../../src/synthtwin/rendering.py#L1521>).
 
 5. **SEVERITY: blocking — three-part joined columns cannot honor every published pair.**
 
    **CONCRETE FAILURE SCENARIO:** Profile `1-100-50`, `2-99-50`, …, `100-1-50` under `--measurement`. Positions one and two have rank agreement −1 and a nonzero published above-count. Generation sorts both positions ascending, giving agreement +1 and above-count zero. The repair walk permutes only the last position; pair `(1,2)` is never scored or moved.
 
-   The omission is explicit in [the pair selection](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/generation.py:4617>). Validation will report the miss if run, but item 4 leaves the generation report silent.
+   The omission is explicit in [the pair selection](<../../../src/synthtwin/generation.py#L4617>). Validation will report the miss if run, but item 4 leaves the generation report silent.
 
 6. **SEVERITY: blocking — section 9.4a contains three false disposition statements.**
 
@@ -92,7 +92,7 @@ guard mutation-verified.
    - `part_min_widths` contains one minimum per position, not “the smallest and largest written width.” The minimum itself is produced and compared exactly; no maximum is published.
    - The agreement window is not stated in the validation method. The code cites Phase 4 plan P4-D25, while both method specifications contain no joined-agreement clause.
 
-   These assertions are together in [section 9.4a](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:6835>).
+   These assertions are together in [section 9.4a](<../../../docs/spec/profile-contract-v6.md#L6835>).
 
 7. **SEVERITY: blocking — the exemption guard remains unsound in both directions and still misses ordinary wording.**
 
@@ -102,19 +102,19 @@ guard mutation-verified.
    - “Privacy rules govern generated files. These converters read CSV files. They do not apply to Parquet.” returned an offender even though `they` refers to the converters.
    - “Privacy rules cease to apply to synthetic twins,” “Synthetic records are excluded from institutional policy,” and “Institutional policy is inapplicable to synthetic records” all returned no offender.
 
-   Bare plural pronouns remain in the supposedly plain set and retain window-distance carry and cure authority. See [the reference sets and walks](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6505>).
+   Bare plural pronouns remain in the supposedly plain set and retain window-distance carry and cure authority. See [the reference sets and walks](<../../../tests/test_claim_inventory.py#L6505>).
 
 8. **SEVERITY: blocking — the joined-number wording repair still missed governing and executable surfaces.**
 
    **CONCRETE FAILURE SCENARIO:** Call `why_joined_is_worth_asking(["1:1.5"])`. It returns the joined-question reason, while its docstring says every part is a whole number. The governing Phase 4 amendment likewise says the role is taken only where cells are whole numbers, so an implementer following the ratified plan rejects a case the shipped producer accepts.
 
-   The stale claims remain in [asking.py](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/asking.py:138>) and [the Phase 4 plan](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/plans/phase-4-columns.md:5141>). NF47 also names the retired `splits_into_wholes` symbol at [contract line 1347](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:1347>).
+   The stale claims remain in [asking.py](<../../../src/synthtwin/asking.py#L138>) and [the Phase 4 plan](<../../../docs/plans/phase-4-columns.md#L5141>). NF47 also names the retired `splits_into_wholes` symbol at [contract line 1347](<../../../docs/spec/profile-contract-v6.md#L1347>).
 
 9. **SEVERITY: blocking — the mandatory state record contradicts the owner’s five-round ruling.**
 
    **CONCRETE FAILURE SCENARIO:** The next agent reads STATE first and obeys its instruction that three rounds are the maximum. They stop reviewing this landing and never perform rounds 4 or 5, contrary to the ruling supplied for this review. The round-3 record also declares itself final and says no round 4 will run.
 
-   See [STATE](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/STATE.md:71>) and the [round-3 record](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/plans/reviews/phase-4-obligations-review-round-3.md:5>).
+   See [STATE](<../../../docs/STATE.md#L71>) and the [round-3 record](<../../../docs/plans/reviews/phase-4-obligations-review-round-3.md#L5>).
 
 ## Checked
 

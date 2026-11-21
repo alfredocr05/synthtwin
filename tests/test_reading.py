@@ -22,12 +22,26 @@ def _read(folder: pathlib.Path, text: str, name: str = "table.csv"):
 
 def test_a_short_row_is_refused_not_padded(tmp_path: pathlib.Path) -> None:
     # The defect this whole design exists to prevent: a row with too few
-    # values must never arrive as a row with empty cells.
+    # values must never arrive as a row with empty cells SILENTLY. A row
+    # short by exactly its trailing empty cells is a way some writers
+    # write every row that ends empty (plan P4-D86), and it is read that
+    # way only where the whole file agrees: no full row ends with an
+    # empty cell and no short row does. Where the file does not agree, a
+    # short row is refused exactly as it always was.
     with pytest.raises(errors.ProfileError) as caught:
-        _read(tmp_path, "a,b,c\n1,2,3\n4,5\n6,7,8\n")
+        _read(tmp_path, "a,b,c\n1,2,\n4,5\n6,7,8\n")
     message = f"{caught.value}"
     assert "row 2 has 2" in message, message
     assert "3 columns" in message or "names 3" in message, message
+
+
+def test_rows_short_by_their_empty_cells_are_read_and_published(
+    tmp_path: pathlib.Path,
+) -> None:
+    table = _read(tmp_path, "a,b,c\n1,2,3\n4,5\n6,7,8\n")
+    assert table.columns == [["1", "4", "6"], ["2", "5", "7"], ["3", "", "8"]]
+    assert table.survey is not None
+    assert table.survey.form.short_rows
 
 
 def test_a_long_row_is_refused_with_its_position(tmp_path: pathlib.Path) -> None:
@@ -39,12 +53,12 @@ def test_a_long_row_is_refused_with_its_position(tmp_path: pathlib.Path) -> None
 def test_ragged_rows_report_the_first_three_and_the_total(
     tmp_path: pathlib.Path,
 ) -> None:
-    rows = ["a,b"] + ["1"] * 5
+    rows = ["a,b"] + ["1,2,3"] * 5
     with pytest.raises(errors.ProfileError) as caught:
         _read(tmp_path, "\n".join(rows) + "\n")
     message = f"{caught.value}"
-    assert "row 1 has 1" in message
-    assert "row 3 has 1" in message
+    assert "row 1 has 3" in message
+    assert "row 3 has 3" in message
     assert "row 4" not in message, "only the first three are named"
     assert "5 rows in total" in message
 
@@ -82,27 +96,40 @@ def test_empty_cells_stay_empty_text(tmp_path: pathlib.Path) -> None:
     assert isinstance(table.columns[0][0], str)
 
 
-def test_duplicate_column_names_are_refused_not_renamed(
+def test_duplicate_column_names_are_named_and_written_back(
     tmp_path: pathlib.Path,
 ) -> None:
-    # pandas would silently rename the second one to "a.1"; a profile of
-    # a column called "a.1" would describe a column the user does not
-    # have.
-    with pytest.raises(errors.ProfileError) as caught:
-        _read(tmp_path, "a,a,b\n1,2,3\n")
-    assert "repeats the same column name" in f"{caught.value}"
+    # Refused until plan P4-D86, which cost the person an edit to the
+    # real table and code that no longer matched it. A repeated name is
+    # named the way pandas names it, and the header cell as the file
+    # writes it is published, so the twin's header is the table's.
+    table = _read(tmp_path, "a,a,b\n1,2,3\n")
+    assert table.column_names == ["a", "a.1", "b"]
+    assert table.survey is not None
+    written = table.survey.form.written_names
+    assert [(entry.position, entry.text) for entry in written] == [(2, "a")]
 
 
-def test_empty_column_name_is_refused(tmp_path: pathlib.Path) -> None:
-    with pytest.raises(errors.ProfileError) as caught:
-        _read(tmp_path, "a,,b\n1,2,3\n")
-    assert "Column number 2 has no name" in f"{caught.value}"
+def test_empty_column_name_is_named_and_written_back(
+    tmp_path: pathlib.Path,
+) -> None:
+    table = _read(tmp_path, "a,,b\n1,2,3\n")
+    assert table.column_names == ["a", "Unnamed: 1", "b"]
+    assert table.survey is not None
+    written = table.survey.form.written_names
+    assert [(entry.position, entry.text) for entry in written] == [(2, "")]
 
 
-def test_a_file_with_no_header_is_refused(tmp_path: pathlib.Path) -> None:
-    with pytest.raises(errors.ProfileError) as caught:
-        _read(tmp_path, "1,2\n3,4\n")
-    assert "does not look like column names" in f"{caught.value}"
+def test_a_file_with_no_header_names_its_own_columns(
+    tmp_path: pathlib.Path,
+) -> None:
+    # Refused until the owner's ruling of 2026-09-17, item 8 (plan
+    # P4-D232). A first row whose every value reads as a number is a
+    # record, so it is kept as one and the columns are synthtwin's own.
+    table = _read(tmp_path, "1,2\n3,4\n")
+    assert table.column_names == ["column_1", "column_2"]
+    assert table.n_rows == 2
+    assert table.header_source == reading.HEADER_GENERATED
 
 
 def test_a_header_with_one_word_is_accepted(tmp_path: pathlib.Path) -> None:
@@ -164,11 +191,24 @@ def test_latin1_fallback_reads_a_file_utf8_cannot(
     assert table.columns[0] == ["café"]
 
 
-def test_utf16_is_refused_with_advice(tmp_path: pathlib.Path) -> None:
-    # Latin-1 can decode anything, so without this check a UTF-16 file
-    # would come through as nonsense column names and be profiled.
+def test_utf16_behind_its_mark_is_read(tmp_path: pathlib.Path) -> None:
+    # Excel's 'Unicode Text' is UTF-16 behind a byte-order mark, and it is
+    # read as the text it is (plan P4-D86). Without the mark Latin-1
+    # would still decode anything, which is why the zero-byte refusal
+    # below stays.
     target = tmp_path / "wide.csv"
-    target.write_bytes("a,b\n1,2\n".encode("utf-16"))
+    target.write_bytes(b"\xff\xfe" + "a,b\n1,2\n".encode("utf-16-le"))
+    table = reading.read_table(str(target))
+    assert table.column_names == ["a", "b"]
+    assert table.encoding == "utf-16-le"
+    assert not table.used_fallback_encoding
+
+
+def test_utf16_without_its_mark_is_refused_with_advice(
+    tmp_path: pathlib.Path,
+) -> None:
+    target = tmp_path / "wide.csv"
+    target.write_bytes("a,b\n1,2\n".encode("utf-16-le"))
     with pytest.raises(errors.ProfileError) as caught:
         reading.read_table(str(target))
     assert "UTF-16" in f"{caught.value}"

@@ -271,9 +271,16 @@ def test_the_key_counts_in_words_are_the_key_sets_the_loader_holds(
         f"the {_in_words(universal)} universal keys of section 5.1 and "
         f"the {_in_words(affixed)} above" in said
     ), affixed
+    # A `continuous` block's additions, and no longer a `count` block's:
+    # since landing 2b.18's second part a `count` block carries one key
+    # more, `number_spellings`, and the affixed block does not reuse it.
     assert (
-        f"a `count` block's {_in_words(numeric)} additions" in said
+        f"a `continuous` block's {_in_words(numeric)} additions" in said
     ), numeric
+    count_keys = len(contract.COUNT_KEYS)
+    assert f"A `count` block carries {_in_words(count_keys)} keys" in said, (
+        count_keys
+    )
     # ...AND EVERY OTHER SENTENCE THAT COUNTS THE SAME COLUMN. Two of
     # them said twenty-four while the loader held thirty-two, and a
     # guard reading only the phrases above did not look at either

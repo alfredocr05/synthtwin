@@ -13,10 +13,11 @@ table and nothing at all on the twin.
 WHAT IS PINNED HERE:
 
 - each recorded spelling at EXACTLY its published count;
-- every other absent cell empty -- the blank count, the withheld
-  remainder, and every judged-pass-sourced cell;
-- the judged passes' keys stay blank, both of them, for the reason
-  C6-116 gives;
+- every other absent cell empty -- the blank count and the withheld
+  remainder;
+- the judged passes' keys are written too, both of them, as the source
+  wrote them (plan P4-D6.4, the owner's ruling of 2026-09-15, which
+  superseded the exception that kept them blank);
 - the placement is the same single permutation, so the bytes stay a
   fixed function of the description and the seed;
 - and the twin re-describes to the same counts, which is what makes
@@ -129,17 +130,22 @@ def test_the_twin_redescribes_to_the_same_counts() -> None:
 # -- the exception, and it is both judged passes ----------------------
 
 
-def test_a_stand_in_number_stays_blank() -> None:
-    """C6-116: its absence reading runs through a re-judgement."""
+def test_a_stand_in_number_is_written_as_the_source_wrote_it() -> None:
+    """Plan P4-D6.4: a judged key comes back at its count, not blank.
+
+    It was kept blank by C6-116's old exception, because its absence
+    reading ran through a re-judgement; the validator now reads it by
+    the description's own verdict, and the twin writes it.
+    """
     document, _described, twin, _folder = _run(_numbers(220) + ["-999"] * 20)
     assert document["columns"][0]["missing_by_source"] == {"-999": 20}
     counted = _counted(twin)
-    assert counted[""] == 20
-    assert "-999" not in counted
+    assert counted["-999"] == 20
+    assert "" not in counted
 
 
-def test_a_calendar_placeholder_stays_blank() -> None:
-    """The second judged pass, excluded for exactly the same reason."""
+def test_a_calendar_placeholder_is_written_as_the_source_wrote_it() -> None:
+    """The second judged pass, written back for exactly the same reason."""
     dates = [
         f"2024-{1 + place % 12:02d}-{1 + place % 28:02d}"
         for place in range(220)
@@ -147,8 +153,8 @@ def test_a_calendar_placeholder_stays_blank() -> None:
     document, _described, twin, _folder = _run(dates + ["9999-12-31"] * 20)
     assert document["columns"][0]["missing_by_source"] == {"9999-12-31": 20}
     counted = _counted(twin)
-    assert counted[""] == 20
-    assert "9999-12-31" not in counted
+    assert counted["9999-12-31"] == 20
+    assert "" not in counted
 
 
 def test_a_blank_stays_blank_and_a_pooled_spelling_stays_blank() -> None:

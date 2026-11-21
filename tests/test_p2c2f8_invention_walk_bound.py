@@ -105,9 +105,14 @@ def test_a_date_reading_candidate_is_stepped_past_with_nothing_written() -> (
 ):
     """Thirty-one consecutive rejections, with an empty history.
 
-    The eight-figure family reaches the first day of the first year at
+    The eight-figure family reaches the first day of the year 1001 at
     index 10101 and steps past every day of that month. A walk allowed
     one index per value already written would stop on the first of them.
+
+    The day moved from the year 1 to the year 1001 at landing 2b.4: the
+    family now spells its numbers with no invented leading zero first
+    (method G9.5 step 3), so index 10101 is `10010101` and no longer
+    `00010101`. The run of thirty-one refusals is the same length.
     """
     kind, band, length, words, index = READS_AS_A_DATE
     run = [
@@ -127,7 +132,7 @@ def test_a_date_reading_candidate_is_stepped_past_with_nothing_written() -> (
     built = generation._walked_cell(
         kind, band, length, words, False, state, used
     )
-    assert built == "00010132"
+    assert built == "10010132"
     assert state[0] == index + 32
 
 

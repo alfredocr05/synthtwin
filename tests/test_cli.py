@@ -33,13 +33,13 @@ def test_version_flag_prints_exact_installed_version(
     )
 
 
-def test_unknown_flag_raises_system_exit_code_2(
+def test_unknown_flag_exits_code_2(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # The main() docstring promises SystemExit only via argparse on bad
-    # flags, with exit code 2 and the message on stderr.
-    with pytest.raises(SystemExit) as excinfo:
-        main(["--no-such-flag"])
-    assert excinfo.value.code == 2
+    # A word the parser does not know is exit 2 with the message on
+    # stderr; `main` returns the status rather than raising SystemExit
+    # since plan P4-D437 (lane S5a), and the console entry point exits
+    # with it.
+    assert main(["--no-such-flag"]) == 2
     captured = capsys.readouterr()
     assert captured.err, "argparse must explain the bad flag on stderr"

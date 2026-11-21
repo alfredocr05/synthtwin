@@ -141,15 +141,23 @@ def test_a_width_too_thinly_shared_is_held_back() -> None:
     The default smallest group size became one (owner ruling, plan
     amendment A-P4-37), and at a floor of one nothing is held back at
     all (contract C5-S13) -- so the floor this case means is named.
+
+    COUNTED INTO THE COMMONEST WIDTH (plan P4-D222; stage 2 closed by the
+    owner rulings of 2026-09-17). Five cells at a width of nine and six at
+    seven are each fewer than the line, so both are counted into the width
+    of five, and neither width is named; a pool beside the named width
+    (plan P4-D221) was the count of the cells it held.
     """
-    values = [f"{number:05d}" for number in range(200)] + [
-        f"{number:09d}" for number in range(200, 205)
-    ]
+    values = (
+        [f"{number:05d}" for number in range(200)]
+        + [f"{number:09d}" for number in range(200, 205)]
+        + [f"{number:07d}" for number in range(205, 211)]
+    )
     document, _loaded, _folder = _described(
         values, taxonomy.Settings(small_cell_floor=11)
     )
     block = document["columns"][0]
-    assert block["pad_widths"] == {"5": 200, "(withheld)": 5}
+    assert block["pad_widths"] == {"5": 211}
 
 
 # -- the twin writes the width ----------------------------------------

@@ -1127,7 +1127,12 @@ def test_the_wide_walk_refuses_a_hole_its_own_cells_wore(
     assert document["columns"][1]["role"] == taxonomy.ROLE_UNREPRESENTABLE
     assert document["columns"][1]["missing_by_source"] == {}
     assert document["columns"][1]["n_missing"] == 12
-    assert named == []
+    # The one line the report names is the FIRST column's: its three
+    # `beta` rows are a level below the default floor of 11 (plan
+    # P4-D316), held back and made up in their place. Nothing is named
+    # about the wide column, which is what this test is about.
+    assert named == ["suppressed_levels"]
+    assert "1e400" not in columns[1]
     assert missed == [], missed
 
 

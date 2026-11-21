@@ -1,0 +1,789 @@
+# THE READY FOLDER FOR WINDOWS AND ITS BACKUP, REHEARSED (plan P4-D483,
+# lane WIN of the December plan; the owner's D3 of 2026-10-20: the
+# hash-checked offline bundle is the only way synthtwin is installed;
+# the orchestrator's LANE WIN RULINGS 1).
+#
+# WHAT IT MAKES. A ready-to-run folder for a disconnected Windows
+# computer: python.org's embeddable Python 3.14 with the locked
+# libraries and the synthtwin wheel installed inside it, START-HERE.bat
+# to double-click, every file in SHA256SUMS and checked at every start;
+# no installer, no administrator, nothing installed. And a backup: the
+# wheelhouse bundle ci.yml builds (every Python 3.11 to 3.14) with
+# python.org's 3.14 installer and a short note. tools/bundle/ holds every
+# decision; the steps here call it.
+#
+# WHAT IT PROVES. Each zip is unzipped on a clean windows-latest, long
+# paths off, under a place of 100 characters whose names hold a space
+# and an apostrophe; the network is refused there at three levels, each
+# proven before the trial runs (proxy variables pointing at a closed
+# local port; a firewall rule blocking the very interpreter that runs,
+# shown by its access-denied refusal while another program still
+# reaches the network; the in-process guard of tools/bundle/guard_run.py);
+# then the trial runs as a person types it, on both zips through the
+# guard as well: --version, doctor, profile with the person column, the
+# questions answered, profile with --answers (and the record's remedy,
+# --replace-description, which its refusal teaches), generate, validate. The
+# backup's Python is installed fresh by the installer it carries (the
+# runner's own 3.14 is removed first). The
+# rehearsal jobs fetch nothing at all once their checkout and artifact
+# downloads are done: no package index, no python.org. The descriptions
+# and twins are then held byte for byte to each other and to Linux
+# (and a Windows-made description builds the same twin on Linux and
+# macOS), and only after every job above is green are the two zips
+# kept for 90 days. The job summary of the keep job is the record (no
+# ledger KPI, RULING W10).
+#
+# TRIGGERS. A push to any branch that touches what the folder is made
+# from. workflow_dispatch is declared too, but GitHub offers the manual
+# run only once this file is on the default branch (main, which is old);
+# until then the run page's re-run button runs the same commit again.
+#
+# PINS. Exactly the four action commits ci.yml pins
+# (tests/test_windows_bundle.py holds them equal). Nothing is published:
+# the zips are this run's artifacts and nothing else.
+
+name: Windows bundle
+
+on:
+  push:
+    paths:
+      - requirements-install.lock
+      - requirements-install.in
+      - pyproject.toml
+      - "src/synthtwin/**"
+      - "tools/bundle/**"
+      - "scripts/**"
+      - .github/workflows/windows-bundle.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  wheel:
+    # The synthtwin wheel, built with the network refused, and the
+    # invented tables run on Linux under Python 3.14 and 3.11 for the
+    # comparison.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py311
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py314
+        with:
+          python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
+      - name: Fetch the build closure from the development lock, every hash checked
+        run: |
+          python - <<'SCRIPT'
+          import pathlib
+          import re
+
+          wanted = {"build", "hatchling", "packaging", "pathspec", "pluggy", "trove-classifiers", "pyproject-hooks"}
+          text = pathlib.Path("requirements-dev.lock").read_text(encoding="utf-8")
+          kept = [
+              block
+              for block in re.findall(r"^[a-z0-9_.-]+==(?:[^\n]*\\\n)*[^\n]*", text, re.M)
+              if block.split("==", 1)[0] in wanted
+          ]
+          assert {block.split("==", 1)[0] for block in kept} == wanted, kept
+          pathlib.Path("build-only.txt").write_text("\n".join(kept) + "\n", encoding="utf-8")
+          SCRIPT
+          python -m pip download --require-hashes --only-binary=:all: --no-deps \
+            --dest "$RUNNER_TEMP/build-wheels" -r build-only.txt
+          python -m venv "$RUNNER_TEMP/buildenv"
+          "$RUNNER_TEMP/buildenv/bin/python" -m pip install --no-index --no-deps \
+            --find-links "$RUNNER_TEMP/build-wheels" --require-hashes -r build-only.txt
+          rm build-only.txt
+      - name: Build the wheel with the network refused (its time from the commit)
+        run: |
+          offline() { sudo unshare --net -- sudo -u "$(id -un)" env "PATH=$PATH" "HOME=$HOME" \
+            "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}" "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" "$@"; }
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export SOURCE_DATE_EPOCH
+          offline "$RUNNER_TEMP/buildenv/bin/python" -I -c "
+          import sys, urllib.request
+          try:
+              urllib.request.urlopen('https://example.com/', timeout=10)
+          except OSError as error:
+              print('the network is denied here:', type(error).__name__)
+          else:
+              sys.exit('a web address was reached: the network is NOT denied')
+          "
+          offline "$RUNNER_TEMP/buildenv/bin/python" -m build --no-isolation --wheel --outdir dist .
+          sha256sum dist/*.whl
+      - name: The wheel holds src/synthtwin's tracked files and its dist-info, nothing else
+        run: |
+          python - <<'SCRIPT'
+          import pathlib
+          import subprocess
+          import sys
+          import zipfile
+
+          (wheel,) = sorted(pathlib.Path("dist").glob("synthtwin-*-py3-none-any.whl"))
+          names = set(zipfile.ZipFile(wheel).namelist())
+          tracked = subprocess.run(
+              ["git", "ls-files", "src/synthtwin"], capture_output=True, text=True, check=True
+          ).stdout.split()
+          expected = {"synthtwin/" + name[len("src/synthtwin/"):] for name in tracked}
+          info = {name for name in names if name.split("/", 1)[0].endswith(".dist-info")}
+          inside = {name.split("/", 1)[1] for name in info}
+          problems = sorted(f"not tracked under src/synthtwin: {name}" for name in names - info - expected)
+          problems += sorted(f"missing from the wheel: {name}" for name in expected - names)
+          problems += sorted(f"missing from the dist-info: {name}" for name in {"METADATA", "WHEEL", "RECORD"} - inside)
+          problems += sorted(
+              f"unexpected in the dist-info: {name}"
+              for name in inside
+              if name not in {"METADATA", "WHEEL", "RECORD", "entry_points.txt"} and not name.startswith("licenses/")
+          )
+          print(f"{wheel.name}: {len(names - info)} package files, {len(info)} dist-info files")
+          if problems:
+              sys.exit("\n".join(problems))
+          SCRIPT
+      - name: Run the invented tables on Linux, Python 3.14 and 3.11 (for the comparison)
+        env:
+          PY311: ${{ steps.py311.outputs.python-path }}
+          PY314: ${{ steps.py314.outputs.python-path }}
+        run: |
+          python tools/bundle/invented_windows_table.py "$RUNNER_TEMP/tables"
+          for PY in "$PY314" "$PY311"; do
+            TAG="$("$PY" -c 'import sys; print("%d%d" % sys.version_info[:2])')"
+            "$PY" -m venv "$RUNNER_TEMP/env$TAG"
+            "$RUNNER_TEMP/env$TAG/bin/python" -m pip install --require-hashes --only-binary=:all: \
+              -r requirements-install.lock
+            "$RUNNER_TEMP/env$TAG/bin/python" -m pip install --no-index --no-deps dist/synthtwin-*.whl
+            "$RUNNER_TEMP/env$TAG/bin/python" tools/bundle/rehearse_windows.py trial --route direct \
+              --python "$RUNNER_TEMP/env$TAG/bin/python" --work "$RUNNER_TEMP/runs/linux-$TAG" \
+              --tables "$RUNNER_TEMP/tables" --summary "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Hand the wheel to the Windows build (internal, one day)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: win-wheel
+          path: dist/synthtwin-*-py3-none-any.whl
+          if-no-files-found: error
+          retention-days: 1
+      - name: Keep the Linux runs for the comparison (internal, one day)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-runs
+          path: ${{ runner.temp }}/runs
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    # The ready folder and the backup, on Windows. The only job that
+    # reaches python.org (curl, in a step: the tools never open the
+    # network) and the package index (pip download, every hash checked).
+    needs: wheel
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      release: ${{ steps.python.outputs.release }}
+      suffix: ${{ steps.python.outputs.suffix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py311
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py312
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py313
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: py314
+        with:
+          python-version: "3.14"
+      - name: Validate the requirement files before pip runs (text only)
+        run: |
+          python tools/supply_chain/validate_lock.py
+          python tools/supply_chain/validate_lock.py \
+            --lock requirements-install.lock \
+            --input requirements-install.in
+      - name: Download the wheel built with the network refused
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win-wheel
+          path: dist
+      - name: Name the Python release, and whether it is pinned (RULING W8)
+        id: python
+        run: |
+          read -r RELEASE STATE <<< "$(python tools/bundle/windows_python.py version | tr -d '\r')"
+          echo "the folder carries Python $RELEASE ($STATE)"
+          test -n "$RELEASE" && test -n "$STATE"
+          if [ "$STATE" = pinned ]; then SUFFIX=""; FLAG=""; else SUFFIX="-unpinned"; FLAG="--unpinned"; fi
+          {
+            echo "release=$RELEASE"
+            echo "suffix=$SUFFIX"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "RELEASE=$RELEASE"
+            echo "UNPINNED_FLAG=$FLAG"
+          } >> "$GITHUB_ENV"
+      - name: Download python.org's embeddable Python and its installer
+        run: |
+          mkdir -p "$RUNNER_TEMP/python-org"
+          python tools/bundle/windows_python.py urls "$RELEASE" | tr -d '\r' > "$RUNNER_TEMP/python-org.txt"
+          while read -r URL; do
+            curl --fail --location --silent --show-error --retry 3 \
+              --output "$RUNNER_TEMP/python-org/${URL##*/}" "$URL"
+          done < "$RUNNER_TEMP/python-org.txt"
+      - name: Check both downloads (names, members, SHA-256 against the pin)
+        run: |
+          python tools/bundle/windows_python.py check \
+            "$RUNNER_TEMP/python-org/python-$RELEASE-embed-amd64.zip" \
+            "$RUNNER_TEMP/python-org/python-$RELEASE-amd64.exe" "$RELEASE"
+      - name: Check the Authenticode signature of every program file and of the installer
+        shell: pwsh
+        run: |
+          $org = Join-Path $env:RUNNER_TEMP 'python-org'
+          $embed = Join-Path $env:RUNNER_TEMP 'embed-signatures'
+          $ProgressPreference = 'SilentlyContinue'
+          Expand-Archive -Path (Join-Path $org "python-$env:RELEASE-embed-amd64.zip") -DestinationPath $embed
+          $files = @(Get-ChildItem -Path $embed -Recurse -File -Include *.exe, *.dll, *.pyd)
+          $files += Get-Item (Join-Path $org "python-$env:RELEASE-amd64.exe")
+          $records = foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -FilePath $file.FullName
+            $subject = ''
+            if ($signature.SignerCertificate) { $subject = $signature.SignerCertificate.Subject }
+            [pscustomobject]@{ Path = $file.FullName; Status = [string]$signature.Status; Signer = $subject }
+          }
+          $records | Format-Table -AutoSize Status, Signer, Path | Out-String -Width 400
+          $records | ConvertTo-Json -Depth 3 | Out-File -Encoding utf8 (Join-Path $env:RUNNER_TEMP 'signatures.json')
+          python tools/bundle/windows_python.py signatures (Join-Path $env:RUNNER_TEMP 'signatures.json') $env:RELEASE
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download every Python's wheels, hash-checked, wheels only
+        env:
+          PY311: ${{ steps.py311.outputs.python-path }}
+          PY312: ${{ steps.py312.outputs.python-path }}
+          PY313: ${{ steps.py313.outputs.python-path }}
+          PY314: ${{ steps.py314.outputs.python-path }}
+        run: |
+          for PY in "$PY311" "$PY312" "$PY313" "$PY314"; do
+            "$PY" -m pip download --require-hashes --only-binary=:all: \
+              --dest "$RUNNER_TEMP/wheelhouse" -r requirements-install.lock
+          done
+      - name: Assemble the ready folder (the path budget and the DLL closure checked inside)
+        run: |
+          python tools/bundle/build_windows_folder.py ready \
+            --embeddable "$RUNNER_TEMP/python-org/python-$RELEASE-embed-amd64.zip" \
+            --wheelhouse "$RUNNER_TEMP/wheelhouse" \
+            --synthtwin-wheel dist/synthtwin-*-py3-none-any.whl \
+            --release "$RELEASE" --commit "$GITHUB_SHA" \
+            --out "$RUNNER_TEMP/ready" --zip-into "$RUNNER_TEMP/zipped" $UNPINNED_FLAG
+      - name: Report the DLL closure in full
+        run: |
+          READY="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'ready').glob('synthtwin-*')))" | tr -d '\r')"
+          python tools/bundle/pe_imports.py "$READY"
+      - name: Assemble the backup (the bundle for every Python, the installer, a note)
+        env:
+          PY311: ${{ steps.py311.outputs.python-path }}
+          PY312: ${{ steps.py312.outputs.python-path }}
+          PY313: ${{ steps.py313.outputs.python-path }}
+          PY314: ${{ steps.py314.outputs.python-path }}
+        run: |
+          python tools/bundle/build_bundle.py \
+            --wheelhouse "$RUNNER_TEMP/wheelhouse" \
+            --synthtwin-wheel dist/synthtwin-*-py3-none-any.whl \
+            --platform win_amd64 --out "$RUNNER_TEMP/bundle" --zip-into "$RUNNER_TEMP/bundle-zip"
+          BUNDLE="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'bundle').glob('synthtwin-*')))" | tr -d '\r')"
+          for PY in "$PY311" "$PY312" "$PY313" "$PY314"; do
+            "$PY" -I "$BUNDLE/scripts/check_bundle.py" "$BUNDLE"
+          done
+          BUNDLE_ZIP="$(python -c "import os, pathlib; print(next((pathlib.Path(os.environ['RUNNER_TEMP']) / 'bundle-zip').glob('synthtwin-*-win_amd64.zip')))" | tr -d '\r')"
+          python tools/bundle/build_windows_folder.py backup \
+            --bundle-zip "$BUNDLE_ZIP" \
+            --installer "$RUNNER_TEMP/python-org/python-$RELEASE-amd64.exe" \
+            --release "$RELEASE" --out "$RUNNER_TEMP/backup" --zip-into "$RUNNER_TEMP/zipped" $UNPINNED_FLAG
+      - name: Fetch pytest for the golden tests, hash-checked (here, so no rehearsal reaches the index)
+        run: |
+          python - <<'SCRIPT'
+          import pathlib
+          import re
+
+          wanted = {"pytest", "iniconfig", "packaging", "pluggy", "pygments", "colorama"}
+          text = pathlib.Path("requirements-dev.lock").read_text(encoding="utf-8")
+          kept = [
+              block
+              for block in re.findall(r"^[a-z0-9_.-]+==(?:[^\n]*\\\n)*[^\n]*", text, re.M)
+              if block.split("==", 1)[0] in wanted
+          ]
+          assert {block.split("==", 1)[0] for block in kept} == wanted, kept
+          pathlib.Path("pytest-only.txt").write_text("\n".join(kept) + "\n", encoding="utf-8")
+          SCRIPT
+          python -m pip install --require-hashes --only-binary=:all: --no-deps \
+            --target "$RUNNER_TEMP/pytest-only" -r pytest-only.txt
+          rm pytest-only.txt
+      - name: Print the sizes
+        run: |
+          python - <<'SCRIPT'
+          import hashlib
+          import os
+          import pathlib
+
+          temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          for folder in sorted([*(temp / "ready").glob("synthtwin-*"), *(temp / "backup").glob("synthtwin-*")]):
+              files = [path for path in folder.rglob("*") if path.is_file()]
+              print(f"{folder.name}: {len(files)} files, {sum(path.stat().st_size for path in files):,} bytes unzipped")
+          for archive in sorted((temp / "zipped").glob("*.zip")):
+              print(f"{archive.name}: {archive.stat().st_size:,} bytes, SHA-256 {hashlib.sha256(archive.read_bytes()).hexdigest()}")
+          SCRIPT
+      - name: Hand the ready folder to its rehearsal (internal, one day)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-ready-internal
+          path: ${{ runner.temp }}/zipped/synthtwin-*-windows-ready*.zip
+          if-no-files-found: error
+          retention-days: 1
+      - name: Hand the backup to its rehearsal (internal, one day)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-fallback-internal
+          path: ${{ runner.temp }}/zipped/synthtwin-*-windows-backup*.zip
+          if-no-files-found: error
+          retention-days: 1
+      - name: Hand pytest to the rehearsals (internal, one day)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pytest-only
+          path: ${{ runner.temp }}/pytest-only
+          if-no-files-found: error
+          retention-days: 1
+
+  rehearse-ready:
+    # The ready folder on a clean Windows computer, as a physician uses
+    # it, the network refused. Every step after the denial runs the
+    # folder's own python.exe or its launchers, and nothing else.
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download the ready folder's zip (before the denial)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-ready-internal
+          path: ${{ runner.temp }}/zipped
+      - name: Download pytest for the golden tests (before the denial)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pytest-only
+          path: ${{ runner.temp }}/pytest-only
+      - name: Long paths off, and this computer's memory and processors
+        shell: pwsh
+        run: |
+          $key = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
+          Set-ItemProperty -Path $key -Name LongPathsEnabled -Value 0 -Type DWord
+          "LongPathsEnabled is now $((Get-ItemProperty -Path $key -Name LongPathsEnabled).LongPathsEnabled)"
+          $computer = Get-CimInstance Win32_ComputerSystem
+          'memory {0:N1} GB, {1} logical processors' -f ($computer.TotalPhysicalMemory / 1GB), $computer.NumberOfLogicalProcessors
+      - name: Unzip with Expand-Archive under a place of 100 characters (a space and an apostrophe in it)
+        shell: powershell
+        run: |
+          $base = Join-Path $env:RUNNER_TEMP "Dr O'Brien files"
+          $place = $base + '\' + ('x' * (99 - $base.Length - 1))
+          New-Item -ItemType Directory -Force -Path $place | Out-Null
+          "unzipping under $place ($($place.Length + 1) characters with its separator)"
+          $zip = Get-ChildItem -Path (Join-Path $env:RUNNER_TEMP 'zipped') -Filter '*-windows-ready*.zip' | Select-Object -First 1
+          $ProgressPreference = 'SilentlyContinue'
+          $began = Get-Date
+          Expand-Archive -Path $zip.FullName -DestinationPath $place
+          "unzipped in $([int]((Get-Date) - $began).TotalSeconds) s"
+          $folder = Get-ChildItem -Path $place -Directory | Select-Object -First 1
+          $longest = (Get-ChildItem -Path $folder.FullName -Recurse -File | ForEach-Object { $_.FullName.Length } | Measure-Object -Maximum).Maximum
+          $deepest = (Get-ChildItem -Path $folder.FullName -Recurse -Directory | ForEach-Object { $_.FullName.Length } | Measure-Object -Maximum).Maximum
+          "the longest path unzipped is $longest characters, the deepest folder $deepest"
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "READY=$($folder.FullName)`n", (New-Object System.Text.UTF8Encoding $false))
+      - name: Deny the network, level 1, proven first - proxy variables at a closed local port
+        shell: pwsh
+        run: |
+          $env:HTTP_PROXY = 'http://127.0.0.1:9'; $env:HTTPS_PROXY = 'http://127.0.0.1:9'
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/guard_run.py --proxied
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Deny the network, level 2, proven first - a firewall rule on the folder's python.exe
+        shell: pwsh
+        run: |
+          $python = Join-Path $env:READY 'python\python.exe'
+          Set-NetFirewallProfile -Profile Domain, Private, Public -Enabled True -DefaultOutboundAction Allow
+          New-NetFirewallRule -DisplayName 'synthtwin rehearsal: no network for the folder python' -Direction Outbound -Action Block -Program $python | Out-Null
+          Get-NetFirewallProfile | Format-Table -AutoSize Name, Enabled, DefaultOutboundAction | Out-String
+          $client = New-Object System.Net.Sockets.TcpClient
+          try { $client.Connect('github.com', 443); $up = $client.Connected } catch { $up = $false } finally { $client.Dispose() }
+          if (-not $up) { throw 'this computer reaches nothing at all, so the rule cannot be shown to bite' }
+          'another program still reaches the network (github.com:443), so a refusal below is the rule'
+          & $python -I -B tools/bundle/guard_run.py --denied
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Deny the network, level 3, proven first - the in-process guard
+        shell: pwsh
+        run: |
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/guard_run.py --prove
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: START-HERE checks the folder as it was unzipped
+        shell: pwsh
+        run: |
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/rehearse_windows.py start-check --folder $env:READY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: The trial through the PowerShell window's synthtwin function
+        shell: pwsh
+        run: |
+          $python = Join-Path $env:READY 'python\python.exe'
+          & $python -I -B tools/bundle/invented_windows_table.py (Join-Path $env:RUNNER_TEMP 'tables')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $python -I -B tools/bundle/rehearse_windows.py trial --route powershell --folder $env:READY --work (Join-Path $env:RUNNER_TEMP 'runs\powershell') --tables (Join-Path $env:RUNNER_TEMP 'tables') --summary $env:GITHUB_STEP_SUMMARY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: The trial through Command Prompt, the folder first on PATH (synthtwin.bat)
+        shell: pwsh
+        run: |
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/rehearse_windows.py trial --route cmd --folder $env:READY --stems visits --work (Join-Path $env:RUNNER_TEMP 'runs\cmd') --tables (Join-Path $env:RUNNER_TEMP 'tables') --summary $env:GITHUB_STEP_SUMMARY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: The trial once more, every network call made to raise in the process
+        shell: pwsh
+        run: |
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/rehearse_windows.py trial --route guard --folder $env:READY --stems visits --work (Join-Path $env:RUNNER_TEMP 'runs\guard') --tables (Join-Path $env:RUNNER_TEMP 'tables') --summary $env:GITHUB_STEP_SUMMARY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: A redirected run on a label outside Windows-1252 exits 0 (the -X utf8 launcher)
+        shell: pwsh
+        run: |
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/rehearse_windows.py redirect --route cmd --folder $env:READY --expect pass --work (Join-Path $env:RUNNER_TEMP 'runs\redirect') --tables (Join-Path $env:RUNNER_TEMP 'tables')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: The golden tests on the folder's own Python
+        shell: pwsh
+        run: |
+          $python = Join-Path $env:READY 'python\python.exe'
+          & $python -I -B tools/bundle/rehearse_windows.py golden --python $python --pytest-only (Join-Path $env:RUNNER_TEMP 'pytest-only')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: A copy with one changed byte in a library file is refused before synthtwin starts
+        shell: pwsh
+        run: |
+          & (Join-Path $env:READY 'python\python.exe') -I -B tools/bundle/rehearse_windows.py tamper --folder $env:READY --into (Join-Path $env:RUNNER_TEMP 'tampered')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Keep the runs for the comparison (internal, one day)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ready-runs
+          path: ${{ runner.temp }}/runs
+          if-no-files-found: error
+          retention-days: 1
+
+  rehearse-fallback:
+    # The backup on a clean Windows computer: the carried installer, per
+    # user and fresh, then install.bat with the network refused, then the
+    # trial through the backup's own .venv python, directly and once more
+    # under the in-process guard.
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download the backup's zip (before the denial)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-fallback-internal
+          path: ${{ runner.temp }}/zipped
+      - name: Download pytest for the golden tests (before the denial)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pytest-only
+          path: ${{ runner.temp }}/pytest-only
+      - name: Long paths off, and this computer's memory and processors
+        shell: pwsh
+        run: |
+          $key = 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
+          Set-ItemProperty -Path $key -Name LongPathsEnabled -Value 0 -Type DWord
+          "LongPathsEnabled is now $((Get-ItemProperty -Path $key -Name LongPathsEnabled).LongPathsEnabled)"
+          $computer = Get-CimInstance Win32_ComputerSystem
+          'memory {0:N1} GB, {1} logical processors' -f ($computer.TotalPhysicalMemory / 1GB), $computer.NumberOfLogicalProcessors
+      - name: Unzip with Expand-Archive under a place of 100 characters, then the bundle inside it
+        shell: powershell
+        run: |
+          $base = Join-Path $env:RUNNER_TEMP "Dr O'Brien files"
+          $place = $base + '\' + ('x' * (99 - $base.Length - 1))
+          New-Item -ItemType Directory -Force -Path $place | Out-Null
+          $zip = Get-ChildItem -Path (Join-Path $env:RUNNER_TEMP 'zipped') -Filter '*-windows-backup*.zip' | Select-Object -First 1
+          $ProgressPreference = 'SilentlyContinue'
+          Expand-Archive -Path $zip.FullName -DestinationPath $place
+          $backup = Get-ChildItem -Path $place -Directory | Select-Object -First 1
+          Get-Content -Path (Join-Path $backup.FullName 'READ-ME-FIRST.txt')
+          $bundleZip = Get-ChildItem -Path $backup.FullName -Filter 'synthtwin-*-win_amd64.zip' | Select-Object -First 1
+          Expand-Archive -Path $bundleZip.FullName -DestinationPath $place
+          $bundle = Get-ChildItem -Path $place -Directory -Filter 'synthtwin-*-win_amd64' | Select-Object -First 1
+          $installer = Get-ChildItem -Path $backup.FullName -Filter 'python-*-amd64.exe' | Select-Object -First 1
+          [IO.File]::AppendAllText($env:GITHUB_ENV, "BUNDLE=$($bundle.FullName)`nINSTALLER=$($installer.FullName)`n", (New-Object System.Text.UTF8Encoding $false))
+      - name: Install the carried Python per user, fresh, silently, with no administrator choice
+        shell: pwsh
+        run: |
+          # A FRESH installation only (LANE WIN RULINGS 5, item 5): the
+          # backup is rehearsed for a computer without Python, so the
+          # interpreter it runs must be made here by the carried installer.
+          # The runner's own Python 3.14 is registered with Windows, and
+          # the carried installer would only repair or upgrade that one in
+          # its own place, so every registered 3.14 is removed first; the
+          # target and the log must not exist before, and the step fails
+          # unless this run's installer wrote both. A runner image can hold
+          # a 3.14's parts as Windows Installer packages with no bundle
+          # registered above them (push 27's run: eight parts of 3.14.10,
+          # no bundle), so each part left is then removed by the key it
+          # is registered under; the check after it is unchanged.
+          $roots = @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*')
+          $registered = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.BundleCachePath })
+          foreach ($entry in $registered) {
+            "removing the runner's own $($entry.DisplayName) first, so the carried installer installs fresh"
+            $removed = Start-Process -FilePath $entry.BundleCachePath -Wait -PassThru -ArgumentList @('/uninstall', '/quiet')
+            if ($removed.ExitCode -notin 0, 3010) { throw "the runner's $($entry.DisplayName) could not be removed (exit $($removed.ExitCode))" }
+          }
+          $parts = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.WindowsInstaller -eq 1 -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$' })
+          foreach ($part in $parts) {
+            "removing the runner's own $($part.DisplayName) $($part.PSChildName) by the key it is registered under"
+            $removed = Start-Process -FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart')
+            if ($removed.ExitCode -notin 0, 1605, 3010) { throw "the runner's $($part.DisplayName) could not be removed (exit $($removed.ExitCode))" }
+          }
+          $left = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' })
+          if ($left.Count -gt 0) { $left | ForEach-Object { $_.DisplayName }; throw 'a Python 3.14 is still registered on this runner, so the carried installer would not install fresh' }
+          $target = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python314-carried'
+          $log = Join-Path $env:RUNNER_TEMP 'python-installer.log'
+          if ((Test-Path $target) -or (Test-Path $log)) { throw 'the target or the installer log was there before the carried installer ran' }
+          $run = Start-Process -FilePath $env:INSTALLER -Wait -PassThru -ArgumentList @('/quiet', 'InstallAllUsers=0', 'Include_launcher=0', 'PrependPath=0', 'Shortcuts=0', 'Include_test=0', "TargetDir=$target", '/log', $log)
+          "the installer exited $($run.ExitCode)"
+          if (-not (Test-Path $log)) { throw 'the carried installer wrote no log of this run, so nothing shows a fresh installation' }
+          if ($run.ExitCode -ne 0) { Get-Content -Tail 60 $log; exit 1 }
+          # The installer runs before the denial (a firewall rule on a
+          # python.exe cannot cover the installer's own temporary copy), so
+          # its log is read for any payload it went to fetch: on the
+          # disconnected computer such an install would fail.
+          $fetched = @(Select-String -Path $log -SimpleMatch -Pattern 'download from:', 'http')
+          if ($fetched.Count -gt 0) { $fetched | ForEach-Object { $_.Line }; throw 'the carried installer reached for the network: it must install from what it carries' }
+          $release = ([IO.Path]::GetFileName($env:INSTALLER) -replace '^python-(.+)-amd64\.exe$', '$1')
+          $base = Join-Path $target 'python.exe'
+          if (-not (Test-Path $base)) { Get-Content -Tail 60 $log; throw "the carried installer made no $base, so this is not a fresh installation" }
+          $said = & $base -c "import platform; print(platform.python_version())"
+          if ($said -ne $release) { throw "the Python the carried installer made reads $said, not $release" }
+          "the backup's Python, installed fresh by the carried installer: $base"
+          Add-Content -Path $env:GITHUB_ENV -Value "BASE_PYTHON=$base" -Encoding utf8
+      - name: Deny the network, level 1, proven first - proxy variables at a closed local port
+        shell: pwsh
+        run: |
+          $env:HTTP_PROXY = 'http://127.0.0.1:9'; $env:HTTPS_PROXY = 'http://127.0.0.1:9'
+          & $env:BASE_PYTHON -I -B tools/bundle/guard_run.py --proxied
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Deny the network, level 2, proven first - a firewall rule on the base interpreter a venv starts
+        shell: pwsh
+        run: |
+          Set-NetFirewallProfile -Profile Domain, Private, Public -Enabled True -DefaultOutboundAction Allow
+          New-NetFirewallRule -DisplayName 'synthtwin rehearsal: no network for the backup python' -Direction Outbound -Action Block -Program $env:BASE_PYTHON | Out-Null
+          New-NetFirewallRule -DisplayName 'synthtwin rehearsal: no network for the backup venv python' -Direction Outbound -Action Block -Program (Join-Path $env:BUNDLE '.venv\Scripts\python.exe') | Out-Null
+          Get-NetFirewallProfile | Format-Table -AutoSize Name, Enabled, DefaultOutboundAction | Out-String
+          $client = New-Object System.Net.Sockets.TcpClient
+          try { $client.Connect('github.com', 443); $up = $client.Connected } catch { $up = $false } finally { $client.Dispose() }
+          if (-not $up) { throw 'this computer reaches nothing at all, so the rule cannot be shown to bite' }
+          'another program still reaches the network (github.com:443), so a refusal below is the rule'
+          & $env:BASE_PYTHON -I -B tools/bundle/guard_run.py --denied
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Deny the network, level 3, proven first - the in-process guard
+        shell: pwsh
+        run: |
+          & $env:BASE_PYTHON -I -B tools/bundle/guard_run.py --prove
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: install.bat with the network refused, the carried Python first on PATH
+        shell: pwsh
+        run: |
+          $env:PATH = (Split-Path $env:BASE_PYTHON) + ';' + $env:PATH
+          $env:HTTP_PROXY = 'http://127.0.0.1:9'; $env:HTTPS_PROXY = 'http://127.0.0.1:9'; $env:ALL_PROXY = 'http://127.0.0.1:9'; $env:NO_PROXY = ''
+          Push-Location $env:BUNDLE
+          & cmd.exe /d /c 'scripts\install.bat' *> (Join-Path $env:RUNNER_TEMP 'install.log')
+          $status = $LASTEXITCODE
+          Pop-Location
+          Get-Content (Join-Path $env:RUNNER_TEMP 'install.log')
+          if ($status -ne 0) { exit $status }
+          & $env:BASE_PYTHON -I -B tools/bundle/rehearse_windows.py scan-log (Join-Path $env:RUNNER_TEMP 'install.log')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path (Join-Path $env:RUNNER_TEMP 'install.log') -SimpleMatch -Pattern $env:BASE_PYTHON -Quiet)) { throw 'install.bat used another Python than the carried one' }
+      - name: The trial through the backup's .venv python
+        shell: pwsh
+        run: |
+          & $env:BASE_PYTHON -I -B tools/bundle/invented_windows_table.py (Join-Path $env:RUNNER_TEMP 'tables')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:BASE_PYTHON -I -B tools/bundle/rehearse_windows.py trial --route direct --utf8-screen --python (Join-Path $env:BUNDLE '.venv\Scripts\python.exe') --work (Join-Path $env:RUNNER_TEMP 'runs\direct') --tables (Join-Path $env:RUNNER_TEMP 'tables') --summary $env:GITHUB_STEP_SUMMARY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: The trial once more through the backup's .venv python, every network call made to raise in the process
+        shell: pwsh
+        run: |
+          & $env:BASE_PYTHON -I -B tools/bundle/rehearse_windows.py trial --route guard --utf8-screen --python (Join-Path $env:BUNDLE '.venv\Scripts\python.exe') --work (Join-Path $env:RUNNER_TEMP 'runs\guard') --tables (Join-Path $env:RUNNER_TEMP 'tables') --summary $env:GITHUB_STEP_SUMMARY
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: A redirected run on a label outside Windows-1252, recorded (lane WIN-b's rider)
+        shell: pwsh
+        run: |
+          & $env:BASE_PYTHON -I -B tools/bundle/rehearse_windows.py redirect --route direct --expect record --python (Join-Path $env:BUNDLE '.venv\Scripts\python.exe') --work (Join-Path $env:RUNNER_TEMP 'runs\redirect') --tables (Join-Path $env:RUNNER_TEMP 'tables')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: The golden tests on the backup's Python
+        shell: pwsh
+        run: |
+          & $env:BASE_PYTHON -I -B tools/bundle/rehearse_windows.py golden --python (Join-Path $env:BUNDLE '.venv\Scripts\python.exe') --pytest-only (Join-Path $env:RUNNER_TEMP 'pytest-only')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Keep the runs for the comparison (internal, one day)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fallback-runs
+          path: ${{ runner.temp }}/runs
+          if-no-files-found: error
+          retention-days: 1
+
+  compare:
+    # The descriptions and twins held to each other: the ready folder to
+    # the backup and to Linux 3.14 (asserted), to Linux 3.11 (reported),
+    # and a Windows-made description built and checked on Linux 3.14.
+    needs: [wheel, rehearse-ready, rehearse-fallback]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Download the runs and the wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: "*-runs"
+          path: runs
+      - name: Download the wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win-wheel
+          path: dist
+      - name: Hold the descriptions and twins to each other, byte for byte
+        run: |
+          python tools/bundle/rehearse_windows.py compare \
+            --assert runs/ready-runs/powershell runs/fallback-runs/direct \
+            --assert runs/ready-runs/powershell runs/fallback-runs/guard \
+            --assert runs/ready-runs/powershell runs/linux-runs/linux-314 \
+            --report runs/ready-runs/powershell runs/linux-runs/linux-311
+          python tools/bundle/rehearse_windows.py compare --stems visits \
+            --assert runs/ready-runs/powershell runs/ready-runs/cmd \
+            --assert runs/ready-runs/powershell runs/ready-runs/guard
+      - name: A Windows-made description builds the same twin on Linux 3.14
+        run: |
+          python -m venv "$RUNNER_TEMP/env"
+          "$RUNNER_TEMP/env/bin/python" -m pip install --require-hashes --only-binary=:all: -r requirements-install.lock
+          "$RUNNER_TEMP/env/bin/python" -m pip install --no-index --no-deps dist/synthtwin-*.whl
+          python tools/bundle/rehearse_windows.py again --python "$RUNNER_TEMP/env/bin/python" \
+            --from runs/ready-runs/powershell --work "$RUNNER_TEMP/again"
+
+  compare-macos:
+    # The same on a Mac with an Apple chip: the trial's real path is the
+    # description out of the protected computer and the twin built on a Mac.
+    needs: [wheel, rehearse-ready]
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Download the ready folder's runs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ready-runs
+          path: runs/ready-runs
+      - name: Download the wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win-wheel
+          path: dist
+      - name: A Windows-made description builds the same twin on macOS 3.14
+        run: |
+          python -m venv "$RUNNER_TEMP/env"
+          "$RUNNER_TEMP/env/bin/python" -m pip install --require-hashes --only-binary=:all: -r requirements-install.lock
+          "$RUNNER_TEMP/env/bin/python" -m pip install --no-index --no-deps dist/synthtwin-*.whl
+          python tools/bundle/rehearse_windows.py again --python "$RUNNER_TEMP/env/bin/python" \
+            --from runs/ready-runs/powershell --work "$RUNNER_TEMP/again"
+
+  keep:
+    # Only rehearsed zips are kept: this job waits for every job above,
+    # then keeps the two zips 90 days and writes the record.
+    needs: [build, rehearse-ready, rehearse-fallback, compare, compare-macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download the rehearsed ready folder
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-ready-internal
+          path: keep/ready
+      - name: Download the rehearsed backup
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-fallback-internal
+          path: keep/fallback
+      - name: Keep the ready folder 90 days
+        id: ready
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: synthtwin-windows-ready${{ needs.build.outputs.suffix }}
+          path: keep/ready/*.zip
+          if-no-files-found: error
+          retention-days: 90
+      - name: Keep the backup 90 days
+        id: fallback
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: synthtwin-windows-fallback${{ needs.build.outputs.suffix }}
+          path: keep/fallback/*.zip
+          if-no-files-found: error
+          retention-days: 90
+      - name: Write the record in the job summary
+        env:
+          READY_URL: ${{ steps.ready.outputs.artifact-url }}
+          FALLBACK_URL: ${{ steps.fallback.outputs.artifact-url }}
+          RELEASE: ${{ needs.build.outputs.release }}
+          SUFFIX: ${{ needs.build.outputs.suffix }}
+        run: |
+          {
+            echo "## synthtwin for Windows, rehearsed and kept 90 days"
+            echo ""
+            echo "Commit \`$GITHUB_SHA\`; Python $RELEASE (python.org's embeddable package and installer)."
+            if [ -n "$SUFFIX" ]; then
+              echo ""
+              echo "**UNPINNED**: the Python files were trusted on first use after their signature check, so these zips are not for the trial until the pin printed by the build job is committed."
+            fi
+            echo ""
+            echo "| artifact | download | zip | size (bytes) | SHA-256 |"
+            echo "|---|---|---|---|---|"
+            for ZIP in keep/ready/*.zip; do
+              echo "| synthtwin-windows-ready$SUFFIX | $READY_URL | \`$(basename "$ZIP")\` | $(stat -c %s "$ZIP") | \`$(sha256sum "$ZIP" | cut -d' ' -f1)\` |"
+            done
+            for ZIP in keep/fallback/*.zip; do
+              echo "| synthtwin-windows-fallback$SUFFIX | $FALLBACK_URL | \`$(basename "$ZIP")\` | $(stat -c %s "$ZIP") | \`$(sha256sum "$ZIP" | cut -d' ' -f1)\` |"
+            done
+            echo ""
+            echo "What to click:"
+            echo ""
+            echo "1. Click the synthtwin-windows-ready link above (signed in to GitHub); the download holds one zip: carry that zip as it is, unopened."
+            echo "2. On the Windows computer, right-click the zip, Extract All to C:\\, and double-click START-HERE in the new folder."
+            echo "3. Keep synthtwin-windows-fallback on the same USB key: it is the backup, used only if the ready folder does not start."
+          } >> "$GITHUB_STEP_SUMMARY"
