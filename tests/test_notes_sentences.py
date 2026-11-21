@@ -633,11 +633,15 @@ def test_the_validator_s_hand_over_reads_filler_as_free_text(tmp_path: pathlib.P
 CASE_FAMILIES = ("tpl216", "remark_n", "remark_p", "codes30")
 
 
-def test_the_stock_bank_and_the_templates_at_20000_rows(tmp_path: pathlib.Path) -> None:
+def test_the_stock_bank_and_the_templates_at_20000_rows(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """THE ONE 20,000-ROW CASE (1,000 people of 20 rows, the person column said, through the commands a person types, nobody at the keyboard, the table floor on): the stock bank of 216 sentences and the name and place templates are free text, put the question with `text` and `identifier`, and no whole sentence of theirs, exact or folded, is shown in the description, the summary, the questions file or on the screen; the codes column keeps its 30 labels; the twin writes no real sentence, and its stock bank keeps the real number of groups and their sizes (a grouping by the column, made-up words); the real table validates against its description, and so does the twin, missing nothing: the validator's hand-over of the columns its description read as free text for their sentences (`validation.described_text_here` into `profile.build_document`'s ``described_text``, batch 4t's merge of the lane) re-describes them as free text, where before it the validator read the twin's filler as labels and missed `axes.role` and `axes.statistical_type` of the three columns (validate exited 3); and the twin checked in groups of one column (lane SV, plan P4-D476) exits, says and writes what it does checked whole -- the agreement of the two readings on a notes table."""
     import unanswered_identifier_shapes as shapes
     from synthtwin import cli, reading, validation
 
+    # At the floor the shipped command draws the patient layer (lane W5-PL), which withholds a repeated column's
+    # repetition and writes each value on the rows its even map gives it; this case reads the rows' own group sizes,
+    # so the layer is left out of it.
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", False)
     folder = tmp_path / "run"
     folder.mkdir()
     header, rows = forms.notes_table(zoo.KPI_ROWS, 20261112, CASE_FAMILIES)
@@ -660,8 +664,11 @@ def test_the_stock_bank_and_the_templates_at_20000_rows(tmp_path: pathlib.Path) 
                             small_tables_refused=True)
         return code, said.getvalue(), {path.name: path.read_bytes() for path in sorted(checked.iterdir())}
 
-    def keep(description: object, path: str, sheet: str = "") -> object:
-        outcome = measure(description, path, sheet)  # type: ignore[arg-type]
+    def keep(description: object, path: str, sheet: str = "", document: object = None) -> object:
+        # A description that publishes between columns (the patient layer at the floor, lane W5-PL) is measured
+        # with its document too.
+        outcome = (measure(description, path, sheet) if document is None  # type: ignore[arg-type]
+                   else measure(description, path, sheet, document))  # type: ignore[arg-type]
         seen.extend([outcome])
         return outcome
 

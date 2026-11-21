@@ -1523,6 +1523,7 @@ _USAGE_311 = (
     "                 [--keep-value VALUE] [--missing-value VALUE] [--day-first]\n"
     "                 [--sheet NAME] [--first-row {auto,names,data}] [--name NAME]\n"
     "                 [--replace-description] [--new-key] [--private-folder FOLDER]\n"
+    "                 [--linked-to FILE]\n"
     "                 [{profile,generate,validate,doctor}] [path]\n"
 )
 

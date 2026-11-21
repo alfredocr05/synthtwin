@@ -130,7 +130,12 @@ def run(
     """Profile, answer the column's questions one round an answer, generate; what each step wrote.
 
     ``answers``: each round's answer, given to every question put to the
-    column and still unanswered. ``typed``: more of the command line.
+    column and still unanswered, each answered round typed with
+    ``--replace-description`` as the screen teaches (batch 4y's landing:
+    with the patient layer on, a released column's round is the first of
+    the run to publish between columns of this table of 1,000 people,
+    and the record of earlier descriptions refuses it without that word,
+    plan P4-D507). ``typed``: more of the command line.
     Returns the exits, the questions put to the column in each round (each
     with what it offered), the description's text and the column's block,
     the real cells and the twin's.
@@ -157,8 +162,8 @@ def run(
                     entry["your_answer"] = answer
             given = folder / "answers.json"
             given.write_text(json.dumps(document), encoding="utf-8", newline="\n")
-            exits += [cli.main(["profile", f"{source}", "--out-dir", f"{folder}", "--replace", "--answers", f"{given}"]
-                               + declared + list(typed))]
+            exits += [cli.main(["profile", f"{source}", "--out-dir", f"{folder}", "--replace", "--replace-description",
+                                "--answers", f"{given}"] + declared + list(typed))]
         put += [[[f"{one['answer']}" for one in entry.get("answers_you_can_give", [])]  # type: ignore[union-attr]
                  for entry in _asked_of(questions, column) if not f"{entry.get('your_answer') or ''}"]]
         twin_folder = folder / "twin"

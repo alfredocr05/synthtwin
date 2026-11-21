@@ -1,8 +1,9 @@
 """A PATIENT'S OWN TRAJECTORY: each repeated number column's level, slope and serial correlation over a patient's visits as rounded, floor-gated moments (contract 4.6c.15; lane GRb2-c, plan P4-D491 part c).
 
-NOT IN FORCE ON A SHIPPED RUN: like the rest of the patient layer, this
-module is reached only where `grain` stands, which no shipped command
-publishes while `cli._PATIENT_LAYER_SHIPPED` is off.
+IN FORCE ON A SHIPPED RUN SINCE LANE W5-PL: like the rest of the patient
+layer, this module is reached only where `grain` stands, which the shipped
+command publishes on a table at the owner's floor since
+`cli._PATIENT_LAYER_SHIPPED` is on.
 
 WHY (the owner's priority order of 2026-11-10, and his "I want statistical
 reliability!"): the patient layer keeps the people, the rows a person, the

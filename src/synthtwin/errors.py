@@ -1941,6 +1941,32 @@ def one_column_answered_both_ways(path: str, name: str) -> str:
     )
 
 
+def measurement_answered_both_ways(path: str, name: str, measurement: str) -> str:
+    """Message when one measurement of a long table is answered two ways (lane IN-4c, plan P4-D514).
+
+    An edited questions file can carry two entries for one measurement of
+    a value column under `measurements_asked`; taking either would drop
+    the other without a word, so the pair is refused, as two answers about
+    one column's codes are.
+    """
+    return (
+        f"Your answers in {path} say two things about the measurement "
+        f"'{_shown(measurement)}' of the column '{_shown(name)}': two entries "
+        f"give it different answers. synthtwin will not choose between them. "
+        f"Leave one of the two answers blank and run the command again. "
+        f"Nothing was written."
+    )
+
+
+def answers_measurement_names_none(place: str) -> str:
+    """One entry of the measurements a long table asks about lost its measurement's name (lane IN-4c, plan P4-D514)."""
+    return (
+        f"The question at {place} in the questions file has no measurement "
+        f"name, so synthtwin cannot tell which measurement your answer is "
+        f"about. The name belongs beside 'measurement'. {_ANSWER_IT_AGAIN}"
+    )
+
+
 def date_count_system_not_supported(given: str) -> str:
     """Message for a `--date-count` system that is not one of the twelve (landing R4).
 

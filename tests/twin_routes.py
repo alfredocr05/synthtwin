@@ -272,8 +272,19 @@ def offered(entry: dict) -> "list[str]":
 
 
 def asks_for_people(entry: dict) -> bool:
-    """Whether an entry is the person question: its `identifier` answer means the people the rows are about."""
-    return any(str(a.get("answer")) == "identifier" and "people" in str(a.get("means", ""))
+    """Whether an entry is the person question: its `identifier` answer means the person the rows are about.
+
+    Both wordings, as `health_zoo._asks_for_people` reads them: the first
+    ("the people the rows are about") and the switched one every shipped run
+    puts ("identifies the person", beside `record`), which holds no word
+    "people". Read as the first alone, a key of another person (a guarantor's,
+    a member of staff's) is answered `identifier` there and said to name the
+    person (lane W5-ACC: the reliability battery's accounts table was refused
+    so). No table of lane MU's or lane E0b's knows such a key today, so no
+    answer of theirs moves.
+    """
+    return any(str(a.get("answer")) == "identifier"
+               and ("people" in str(a.get("means", "")) or "identifies the person" in str(a.get("means", "")))
                for a in entry.get("answers_you_can_give", []) if isinstance(a, dict))
 
 

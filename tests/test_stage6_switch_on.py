@@ -1585,6 +1585,8 @@ def test_the_blocks_counted_in_patients_are_checked_on_the_twin_s_patients(
     from synthtwin import chain_validation, reading, validation
 
     monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", True)
+    # These tables are under the owner's floor, where the shipped command draws no layer (lane W5-PL): drawn here.
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_AT_THE_FLOOR", False)
     outcomes: "list[validation.Outcome]" = []
     measure = validation.measure
 

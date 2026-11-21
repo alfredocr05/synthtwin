@@ -1,11 +1,12 @@
 """The patient layer's profile side: several rows per patient (contract 4.6c; lane GRa, plan P4-D449).
 
-NOT IN FORCE ON A SHIPPED RUN YET: the landing that ships stage 6 (plan
-P4-D464, lane CHON) keeps the patient layer's sub-switch off until lane
-GRb's generator reads it (`cli._PATIENT_LAYER_SHIPPED`), so this module
-runs only where a caller hands `chain.describe` the switch with the
-layer on, on a table whose settings name a person column. It has ONE
-call site, in `chain.describe`.
+IN FORCE ON A SHIPPED RUN SINCE LANE W5-PL: the landing that ships stage 6
+(plan P4-D464, lane CHON) kept the patient layer's sub-switch off until the
+generator read it, and lane W5-PL turned it on (`cli._PATIENT_LAYER_SHIPPED`),
+so this module runs wherever a caller hands `chain.describe` the switch with
+the layer on, the shipped command among them on a table at the owner's floor
+(`cli._PATIENT_LAYER_AT_THE_FLOOR`), on a table whose settings name a person
+column. It has ONE call site, in `chain.describe`.
 
 WHAT IT DOES, in contract 4.6c's order:
 

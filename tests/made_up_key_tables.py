@@ -612,7 +612,10 @@ def run_own_question(folder: pathlib.Path, rows: int = 20000, which: str = "pers
         arguments = ["profile", f"{source}", "--out-dir", f"{folder}", "--replace"]
         if answers is not None:
             answered(questions, answers)
-            arguments += ["--answers", f"{questions}"]
+            # An answered round of a table one person stands on several rows of may be the first to publish between
+            # columns (the patient layer, lane W5-PL): the record of earlier descriptions then asks for
+            # --replace-description, as the earlier round's screen says it will.
+            arguments += ["--answers", f"{questions}", "--replace-description"]
         return _quietly(arguments, screen)
 
     with nobody_at_the_keyboard():

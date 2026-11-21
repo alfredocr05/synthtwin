@@ -593,9 +593,12 @@ def test_a_value_two_people_hold_is_counted_as_the_bare_numbers_are(tmp_path: pa
             unit_lines += [f"{value}.5 mg,{person}"]
             bare_lines += [f"{value}.5,{person}"]
         for typed in (["--identifier", "patient_id"], []):
-            assert _profile(tmp_path, unit_lines, "--measurement", "x", *typed) == 0
+            # The same table described again under other settings publishes between columns at the floor (the
+            # patient layer, lane W5-PL): the record of earlier descriptions asks for --replace-description.
+            again = ["--replace-description"]
+            assert _profile(tmp_path, unit_lines, "--measurement", "x", *typed, *again) == 0
             unit = _block(tmp_path, "x")
-            assert _profile(tmp_path, bare_lines, "--measurement", "x", *typed) == 0
+            assert _profile(tmp_path, bare_lines, "--measurement", "x", *typed, *again) == 0
             bare = _block(tmp_path, "x")
             assert _publishes(unit, 266.5, "266.5 mg") == _publishes(bare, 266.5, "266.5"), (attached, typed)
             assert (unit["role"] == taxonomy.ROLE_AFFIXED) == (bare["role"] in _NUMBER_ROLES), (attached, typed)

@@ -343,7 +343,16 @@ def test_the_settles_move_the_fewest_and_hold_every_count() -> None:
 
 @pytest.fixture(scope="module", autouse=True)
 def _inside_record_switched_on() -> "typing.Iterator[None]":
-    """The inside record's sub-switch is on for this file (`cli._inside_record_switched_on`)."""
+    """The inside record's sub-switch is on for this file (`cli._inside_record_switched_on`), the patient layer's off.
+
+    The forms table stands at the owner's floor with a person column that repeats, where the shipped command draws the
+    patient layer (lane W5-PL) and the record's trajectories zone sets each patient's rows to the real census, so a
+    column held once a person keeps its values over the persons and not its counts over the rows. This file holds the
+    dealing of the description's twin's cells, each clause red on its mutant, without that re-cut; the layer's route is
+    lane W5-PL's gate file's (tests/test_patient_layer_inside.py), and that route on this table validates with the
+    same misses as this one's (the description's own twin's) and passes the five checks.
+    """
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("synthtwin.cli._INSIDE_RECORD_SHIPPED", True)
+        patch.setattr("synthtwin.cli._PATIENT_LAYER_SHIPPED", False)
         yield

@@ -142,6 +142,11 @@ _NOT_ABOUT_THE_DESCRIPTION = {
         "stands, and a run without it where the file is lost is refused and told to give it"
     ),
     "--private-folder": "decides where the private report goes, not what the description says",
+    # LANE W5-F14: how two tables of one study join, kept in this computer's private record of the table.
+    "--linked-to": (
+        "names the study's other table, whose join is kept in this computer's private record of the table, "
+        "or that table's description for 'generate'; nothing the description says moves with it"
+    ),
 }
 
 

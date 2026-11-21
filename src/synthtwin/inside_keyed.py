@@ -15,8 +15,6 @@ carries the table's keyed structure as a MODEL, never as data:
   to `KEY_LEVELS_MOST` levels moving within a person, the one that fixes
   or types the most other columns of the row; the first in the table's
   order on a tie);
-* `census`: how many persons hold each number of rows (exact, never a
-  person);
 * `copies`: the rules between two columns of a row that need no key: a
   column equal to another wherever that one is a number, and one fixed
   spelling elsewhere (a numeric copy of a text result and its sentinel);
@@ -37,26 +35,43 @@ carries the table's keyed structure as a MODEL, never as data:
   (moments, unbalanced and corrected for the lag, read on at most
   `FIT_ROWS` rows of whole persons).
 
-A key level the description holds as possible record numbers whose values
-do not repeat across persons, a level whose values read as dates, and a
-column of more than `LABELS_MOST` spellings at a level are NOT modelled:
-their rows keep the description's twin's cells. A level or a column the
-description top-codes at 90 (an age, Safe Harbor) is written so here too.
-The zone's size follows columns, levels and grids, never rows.
+A key block the description holds as identifiers (an answered or an open
+question offering `identifier`) is NEVER modelled, whatever its values
+repeat across persons (lane IN-4b, batch 4x's outside review, item 1: a
+name repeats across the persons a clinician sees): that column's cells at
+that level stay the description's twin's made-up ones, while the level's
+other columns are modelled. So is a key block the description holds by a
+privacy mark of its own (a year cut, an age's words, a withheld count:
+batch 4y's fix round), a column whose cells at a level read as dates, and
+a column of more than `LABELS_MOST` spellings at a level. A column the
+description publishes key by key (`by_key`) is named in `scoped`. A level
+or a column the description top-codes at 90 (an age, Safe Harbor) is
+written so here too, a copy's own levels among them; a copy any of whose
+own key blocks the description holds is not written. The zone's size
+follows columns, levels and grids, never rows.
 
-HOW THE TWIN READS IT, in two steps of `generation.generate_inside`
-(the dates zone, lane IN-5, writes the dates between them): (1)
-`persons_and_labels`: the twin's persons (the description's own made-up
-keys) take the census's numbers of rows, each person's rows together, and
-each row's label cells come from its key level's joint table (exact
-shares, in an order the seed draws); (2) `numbers_and_rules`, on the time
-axis the dates zone wrote: each row's numbers from its level's marginal,
-in the order of a latent score that carries the trend, the person's level
-and the lag, every pair and flag and copy by its rule. Every random
-quantity comes from SplitMix64 words seeded by the twin's seed; the
-arithmetic is binary64 `+ - * /` and `sqrt` in the order written, with the
-shared module's logarithm and normal quantile, so a twin is the same on
-every machine.
+HOW THE TWIN READS IT (lane IN-4b), in two steps of
+`generation.generate_inside` (the dates zone, lane IN-5, writes the dates
+between them). The zone writes no person and no spelling of its own: the
+persons are the description's twin's, never re-cut (item 5), and every
+column it deals holds that twin's own cells -- a `scoped` column on each
+key level's rows, any other over the rows of the keys it types -- the
+zone deciding only which row holds which cell, as the relations zone
+does (lane IN-2b). (1) `persons_and_labels`: a `scoped` column moved with
+its key where the relations zone moved the key, and each row's label
+cells dealt toward its key level's joint table; (2) `numbers_and_rules`,
+on the time axis the dates zone wrote: each level's numbers dealt in the
+order of a latent score that carries the trend, the person's level and
+the lag (a number the deal leaves on the scale of another label's group
+written at its row's place on its own scale, in the cell's own written
+form, never past a top code: item 2), every flag dealt toward its
+intervals, each later clock moved to its level's gap after the anchor
+keeping the dates zone's presence, form and month on every row (item 6),
+and each copy written by its rule where no level of its source is held.
+Every random quantity comes from SplitMix64 words seeded by the twin's
+seed; the arithmetic is binary64 `+ - * /` and `sqrt` in the order
+written, with the shared module's logarithm and normal quantile, so a
+twin is the same on every machine.
 
 NOTHING HERE PRINTS A VALUE. The producer returns the zone, the
 generator returns cells; neither writes a line.
@@ -66,10 +81,15 @@ import dataclasses
 import math
 import typing
 
-from synthtwin import chain_walk, inside_dates, inside_trajectories
+from synthtwin import chain_walk, inside_dates, inside_trajectories, parsing
 
 ZONE = "keyed"
-ZONE_VERSION = 1
+# Version 2 (lane IN-4b): no census of persons, `scoped` columns, a level's held columns, gaps without a presence
+# rule, a copy's top code. Version 3 (batch 4y's fix round): a level's blocks held by a privacy mark of their own,
+# and a copy's own holds key by key (its levels top-coded at 90, a copy any of whose blocks is held left unwritten);
+# a zone of version 2 lacks them, so it is refused as every zone of another version is, and the twin keeps the
+# description's keyed values.
+ZONE_VERSION = 3
 KEY_LEVELS_LEAST = 3
 KEY_LEVELS_MOST = 1000
 MODELLED_LEVELS_MOST = 300
@@ -104,8 +124,12 @@ AXIS_POSITION = "position"
 KEPT_IDENTIFIER = "possible record numbers"
 KEPT_DATES = "dates"
 KEPT_RARE = "past the levels modelled"
+# A key block the description holds by a privacy mark of its own (a year cut, an age's words, a withheld count, a
+# Safe Harbor top code other than an age's 90): never modelled, its rows keeping the description's twin's cells
+# (batch 4y's fix round, Codex's review of the batch, item 3).
+KEPT_PRIVACY = "held for privacy"
 _SEP = "\x1f"
-_ZONE_KEYS = ("anchor", "axis", "census", "content", "copies", "key", "levels", "person", "rows", "version")
+_ZONE_KEYS = ("anchor", "axis", "content", "copies", "gaps", "key", "levels", "person", "rows", "scoped", "version")
 
 
 class KeyedError(ValueError):
@@ -517,15 +541,6 @@ def _copies(columns: "dict[str, list[str]]", content: "list[str]", rows: int) ->
     return out
 
 
-def _census(owners: "list[int]", persons: int) -> "list[list[int]]":
-    held = [0 for _person in range(persons)]
-    for owner in owners:
-        if owner >= 0:
-            held[owner] += 1
-    counts = _counts([str(count) for count in held])
-    return [[int(count), counts[count]] for _number, count in sorted((int(count), count) for count in counts)]
-
-
 def _times(columns: "dict[str, list[str]]", dated: "tuple[str, ...]", owners: "list[int]",
            persons: int) -> "tuple[str, str, list[float]]":
     """The anchor date column, the axis ('days' or 'position') and each row's time since its person's first row."""
@@ -636,7 +651,8 @@ def _gap_grid(gaps: "list[int]") -> "list[int]":
 
 def _keyed_gaps(columns: "dict[str, list[str]]", dated: "tuple[str, ...]", anchor: str, by: "dict[str, list[int]]",
                 levels: "list[dict[str, object]]", candidates: "list[str]") -> "list[list[str]]":
-    """The later clocks whose gap from the anchor the key moves: each level's gaps and presence, put in its entry."""
+    """The later clocks whose gap from the anchor the key moves: each level's gaps (split by the label that moves them
+    most), put in its entry. Their presence is not modelled: the twin keeps the dates zone's (lane IN-4b, item 6)."""
     if not anchor:
         return []
     read = _minute_stamps(columns[anchor])
@@ -666,32 +682,10 @@ def _keyed_gaps(columns: "dict[str, list[str]]", dated: "tuple[str, ...]", ancho
             if _text(entry["kept"]) or level not in gaps_of or not gaps_of[level]:
                 continue
             rows = by[level]
-            present = [minutes[row] is not None for row in rows]
-            rule = ""
-            shares: "dict[str, list[int]]" = {}
             labels: "list[str]" = []
             for label in candidates:
                 if 2 <= len(_counts([_bare(columns[label][row]) for row in rows])) <= SCALE_LABELS_MOST:
                     labels += [label]
-            for label in labels:
-                split: "dict[str, list[int]]" = {}
-                for at in range(len(rows)):
-                    cell = _bare(columns[label][rows[at]])
-                    if cell not in split:
-                        split[cell] = [0, 0]
-                    split[cell][0] += 1 if present[at] else 0
-                    split[cell][1] += 1
-                pure = True
-                absent_somewhere = False
-                for cell in split:
-                    share = split[cell][0] / split[cell][1]
-                    if RULE_SHARE > share > 1.0 - RULE_SHARE:
-                        pure = False
-                    if share <= 1.0 - RULE_SHARE:
-                        absent_somewhere = True
-                if pure and absent_somewhere and len(split) >= 2:
-                    rule, shares = label, split
-                    break
             split_by, grids = "", {}
             best = GAP_MOVED
             for label in labels:
@@ -711,9 +705,7 @@ def _keyed_gaps(columns: "dict[str, list[str]]", dated: "tuple[str, ...]", ancho
                     best = moved
                     split_by = label
                     grids = {cell: _gap_grid(parts[cell]) for cell in sorted(parts)}
-            gaps_entry: "dict[str, object]" = {"present": [sum(1 for each in present if each), len(rows)],
-                                               "grid": _gap_grid(gaps_of[level]), "by": rule,
-                                               "present_by": shares, "split_by": split_by, "grids": grids}
+            gaps_entry: "dict[str, object]" = {"grid": _gap_grid(gaps_of[level]), "split_by": split_by, "grids": grids}
             held = typing.cast("dict[str, object]", entry["gaps"]) if "gaps" in entry else {}
             held[name] = gaps_entry
             entry["gaps"] = held
@@ -1127,47 +1119,50 @@ def _level_entry(columns: "dict[str, list[str]]", rows: "list[int]", content: "l
             corr = sab / math.sqrt(saa * sbb) if saa > 0.0 and sbb > 0.0 else 0.0
         z = {rows[at]: first_scores[at] for at in first_scores}
         pair_entries[name] = {"first": first_entry, "second": second_entry, "corr": max(-0.999, min(0.999, corr)),
+                              "agreement": _agreement_of(cells),
                               "model": _model(z, times, owners, order),
                               "cap": TOP_CODE if (name in tops or name in level_tops) else 0}
     entry["pairs"] = pair_entries
     return entry
 
 
-def _distinct_repeat(cells: "list[str]", owners: "list[int]") -> bool:
-    """Whether a level's values repeat across persons as measurements do: half its cells hold a value two persons or more hold."""
-    holders: "dict[str, dict[int, int]]" = {}
-    present = 0
-    for at in range(len(cells)):
-        parts: "list[str]" = []
-        found = pair_of(cells[at])
-        if found is not None:
-            parts = [found[0], found[1]]
-        elif _bare(cells[at]):
-            parts = [_bare(cells[at])]
-        for part in parts:
-            present += 1
-            if part not in holders:
-                holders[part] = {}
-            holders[part][owners[at]] = 1
-    if present == 0:
-        return True
-    shared = 0
-    for part in holders:
-        if len(holders[part]) >= 2:
-            shared += 1
-    repeated = 0
-    for at in range(len(cells)):
-        found = pair_of(cells[at])
-        parts = [found[0], found[1]] if found is not None else ([_bare(cells[at])] if _bare(cells[at]) else [])
-        for part in parts:
-            if len(holders[part]) >= 2:
-                repeated += 1
-    return repeated >= 0.5 * present and len(holders) <= 0.5 * present
+def _held_somewhere(blocks: "dict[str, dict[str, object]]") -> bool:
+    """Whether any key block of a column the description publishes key by key is held as identifiers."""
+    for level in sorted(blocks):
+        block = blocks[level]
+        if "identifier" in block and block["identifier"]:
+            return True
+    return False
+
+
+def _kept_for_privacy(block: "dict[str, object]") -> bool:
+    """Whether a key block as `key_blocks_of` reads it carries a privacy mark of its own (`PRIVACY_KEYS`, or a Safe
+    Harbor top code other than an age's 90): such a block is never modelled (batch 4y's fix round)."""
+    return "privacy" in block and block["privacy"] is True
+
+
+def _agreement_of(cells: "list[str]") -> float:
+    """The rank agreement of a pair column's two parts over its cells that are pairs (`parsing.rank_agreement`, the
+    measure the description publishes as `part_agreements` and validation reads; lane IN-4c)."""
+    firsts: "list[float]" = []
+    seconds: "list[float]" = []
+    for cell in cells:
+        found = pair_of(cell)
+        if found is None:
+            continue
+        first = plain_number(found[0])
+        second = plain_number(found[1])
+        if first is None or second is None:
+            continue
+        firsts += [first]
+        seconds += [second]
+    return parsing.rank_agreement(firsts, seconds)
 
 
 def build_zone(columns: "dict[str, list[str]]", person: str, skipped: "tuple[str, ...]" = (),
                dated: "tuple[str, ...]" = (), tops: "dict[str, int] | None" = None,
-               held: "dict[str, dict[str, dict[str, object]]] | None" = None) -> "dict[str, object] | None":
+               held: "dict[str, dict[str, dict[str, object]]] | None" = None,
+               typed: "dict[str, str] | None" = None) -> "dict[str, object] | None":
     """The keyed zone of a long table, or None where the table holds no key (see the module's account).
 
     `columns` holds every column's cells as text; `person` names the
@@ -1175,7 +1170,14 @@ def build_zone(columns: "dict[str, list[str]]", person: str, skipped: "tuple[str
     (record numbers, free text); `dated` the date columns (the first read
     on nine rows in ten is the time axis); `tops` the columns top-coded
     at 90; `held` each keyed value column's key blocks as the description
-    holds them ({column: {folded level: {"identifier": bool, "top": int}}}).
+    holds them ({column: {folded level: {"identifier": bool, "top": int,
+    "privacy": bool}}}, `key_blocks_of`); `typed` each column the
+    description publishes key by key, with its key column (`typed_of`). A
+    key block held as identifiers (lane IN-4b, item 1) or by a privacy mark
+    of its own (batch 4y's fix round) is never modelled; a column published
+    key by key under another key with any block held as identifiers is left
+    out of the zone whole; a copy reads its own blocks (its levels' top
+    codes, its holds).
     Guarantees: a fixed function of its inputs; no I/O. Raises nothing
     but TypeError on an internal mismatch.
     """
@@ -1183,6 +1185,9 @@ def build_zone(columns: "dict[str, list[str]]", person: str, skipped: "tuple[str
         return None
     rows = len(columns[person])
     owners, persons = _persons(columns[person])
+    tops = tops or {}
+    held = held or {}
+    typed = typed or {}
     content = [name for name in columns if name != person and name not in skipped and name not in dated]
     for name in content:
         if len(columns[name]) != rows:
@@ -1190,8 +1195,10 @@ def build_zone(columns: "dict[str, list[str]]", person: str, skipped: "tuple[str
     key = key_of(columns, content, owners)
     if not key:
         return None
-    tops = tops or {}
-    held = held or {}
+    # A column published key by key under ANOTHER key whose blocks the description holds anywhere: its held cells
+    # cannot be told apart by this key's levels, so the zone leaves the whole column to the description's twin.
+    content = [name for name in content
+               if not (name in typed and typed[name] != key and name in held and _held_somewhere(held[name]))]
     sample = _spread_rows(rows, KEY_SAMPLE)
     key_sample = [_bare(columns[key][row]) for row in sample]
     owner_sample = [owners[row] for row in sample]
@@ -1207,8 +1214,22 @@ def build_zone(columns: "dict[str, list[str]]", person: str, skipped: "tuple[str
             taken += [name]
     copies = [rule for rule in _copies(columns, [name for name in content if name != key and name not in constant], rows)
               if rule["from"] in taken]
+    for rule in copies:
+        # THE COPY'S OWN HOLDS, KEY BY KEY (batch 4y's fix round, Codex's review of the batch, item 2): a copy is
+        # taken out of the modelled columns before their key blocks are read, so its own blocks are read here: the
+        # rows of each key level whose block the description top-codes at 90 take no number past it, and a copy any
+        # of whose blocks the description holds (as identifiers or by a privacy mark) is not written at all.
+        destination = typing.cast(str, rule["column"])
+        rule["cap"] = TOP_CODE if destination in tops else 0
+        own = held[destination] if destination in held else {}
+        capped = [level for level in sorted(own) if "top" in own[level] and own[level]["top"] == TOP_CODE]
+        if capped:
+            rule["capped"] = capped
+        if _held_somewhere(own) or any([_kept_for_privacy(own[level]) for level in sorted(own)]):
+            rule["held"] = True
     copied = [typing.cast(str, rule["column"]) for rule in copies]
     rest = [name for name in taken if name not in copied]
+    scoped = [name for name in rest if name in typed and typed[name] == key]
     anchor, axis, times = _times(columns, dated, owners, persons)
     by: "dict[str, list[int]]" = {}
     for row in range(rows):
@@ -1226,35 +1247,52 @@ def build_zone(columns: "dict[str, list[str]]", person: str, skipped: "tuple[str
             continue
         folded = fold(level)
         level_tops: "dict[str, int]" = {}
-        why = ""
+        # THE COLUMNS HELD AT THIS LEVEL (lane IN-4b, batch 4x's outside review, item 1): a key block the
+        # description holds as identifiers is never modelled, whatever its values repeat across persons (a name
+        # repeats across the persons one clinician sees), and a column whose cells read as dates here is not
+        # either; each keeps the description's twin's cells on this level's rows, while the level's other
+        # columns are modelled.
+        set_aside: "list[list[str]]" = []
         for name in rest:
             blocks = held[name] if name in held else {}
             block = blocks[folded] if folded in blocks else {}
             if "top" in block and block["top"] == TOP_CODE:
                 level_tops[name] = TOP_CODE
+            if "identifier" in block and block["identifier"]:
+                set_aside += [[name, KEPT_IDENTIFIER]]
+                continue
+            # ...and a block held by a privacy mark of its own (a year cut: Codex's review of batch 4y, item 3,
+            # birth years before the cut written from the record's marginal) is never modelled either.
+            if _kept_for_privacy(block):
+                set_aside += [[name, KEPT_PRIVACY]]
+                continue
             cells = [_text(columns[name][row]) for row in level_rows]
-            if "identifier" in block and block["identifier"] and not _distinct_repeat(
-                    cells, [owners[row] for row in level_rows]):
-                why = KEPT_IDENTIFIER
-            if not why and _numeric_share(cells) < NUMERIC_SHARE and inside_dates.reading_of(cells) is not None:
-                why = KEPT_DATES
-        if why:
-            levels += [{"level": level, "rows": len(level_rows), "kept": why}]
-            continue
-        built = _level_entry(columns, level_rows, rest, owners, times, tops, level_tops)
+            if _numeric_share(cells) < NUMERIC_SHARE and inside_dates.reading_of(cells) is not None:
+                set_aside += [[name, KEPT_DATES]]
+        aside = [pair[0] for pair in set_aside]
+        built = _level_entry(columns, level_rows, [name for name in rest if name not in aside], owners, times, tops,
+                             level_tops)
         built["level"] = level
+        built["held"] = set_aside
         levels += [built]
     keyed_gaps = _keyed_gaps(columns, dated, anchor, by, levels,
                              [name for name in content if name != key and name not in constant])
     return {
         "version": ZONE_VERSION, "key": key, "person": person, "anchor": anchor, "axis": axis,
-        "census": _census(owners, persons), "content": rest, "copies": copies, "levels": levels, "rows": rows,
-        "gaps": keyed_gaps, "constant": constant,
+        "content": rest, "copies": copies, "levels": levels, "rows": rows, "gaps": keyed_gaps, "scoped": scoped,
     }
 
 
 def key_blocks_of(document: object) -> "tuple[dict[str, int], dict[str, dict[str, dict[str, object]]]]":
-    """From a description written: the columns top-coded at 90, and each keyed value column's key blocks' holds and top codes."""
+    """From a description written: the columns top-coded at 90, and each keyed value column's key blocks' holds and top codes.
+
+    Each key block reads as {"identifier": held as identifiers, "top": its
+    top code, "privacy": whether it carries any other privacy mark of its
+    own (`PRIVACY_KEYS`: a year cut, an age's words, a withheld count; or
+    a top code other than 90)} -- every safety mark a nested block keeps
+    reaches the zone (batch 4y's fix round, Codex's review of the batch,
+    item 3: a block's year cut was dropped here). Raises nothing.
+    """
     tops: "dict[str, int]" = {}
     held: "dict[str, dict[str, dict[str, object]]]" = {}
     columns = document["columns"] if isinstance(document, dict) and "columns" in document else None
@@ -1278,9 +1316,29 @@ def key_blocks_of(document: object) -> "tuple[dict[str, int], dict[str, dict[str
             role = inner["role"] if "role" in inner else ""
             structural = inner["structural_role"] if "structural_role" in inner else ""
             top = inner["top_coded"] if "top_coded" in inner and isinstance(inner["top_coded"], int) else 0
-            read[fold(each["key"])] = {"identifier": role == "identifier" or structural == "identifier", "top": top}
+            privacy = top not in (0, TOP_CODE)
+            for mark in PRIVACY_KEYS:
+                if mark in inner and inner[mark]:
+                    privacy = True
+            read[fold(each["key"])] = {"identifier": role == "identifier" or structural == "identifier", "top": top,
+                                       "privacy": privacy}
         held[name] = read
     return tops, held
+
+
+def typed_of(document: object) -> "dict[str, str]":
+    """From a description written: each column it publishes key by key (`by_key`), with the name of its key column."""
+    out: "dict[str, str]" = {}
+    columns = document["columns"] if isinstance(document, dict) and "columns" in document else None
+    if not isinstance(columns, list):
+        return out
+    for block in columns:
+        if not isinstance(block, dict) or "name" not in block or not isinstance(block["name"], str):
+            continue
+        by_key = block["by_key"] if "by_key" in block else None
+        if isinstance(by_key, dict) and "key" in by_key and isinstance(by_key["key"], str):
+            out[block["name"]] = by_key["key"]
+    return out
 
 
 # A column block's keys that keep a column out of the keyed zone, whatever the key does to it: holds the
@@ -1328,6 +1386,16 @@ def zone_of_record(record: object) -> "dict[str, object] | None":
 
 
 # -- the generator ----------------------------------------------------------------------------------------
+#
+# THE DESCRIPTION'S TWIN'S OWN CELLS (lane IN-4b, after batch 4x's outside review, items 1, 2, 5 and 6, and the
+# landing's validation of the keyed tables): the zone writes no person and no spelling of its own choosing. Each
+# column it deals keeps the description's twin's cells for it -- a column the description publishes key by key
+# (`scoped`) on each key level's rows, any other over every row whose key is written -- and the zone decides only
+# which row holds which (`_dealt`, `_numbers_dealt`), as the relations zone does (lane IN-2b). So every count and
+# written form the description publishes for those columns stands, a held block keeps its made-up cells, and the
+# persons are the twin's. Two writings are bounded exceptions: a number a deal leaves on the scale of another label's
+# group is written at its row's place on its own scale in the cell's own written form, never past a top code
+# (`_in_form`); a copy is written by its rule from its source's cells where no level of the source is held.
 
 
 def _object(value: object) -> "dict[str, typing.Any]":
@@ -1373,95 +1441,319 @@ def _level_rows(zone: "dict[str, object]", key_cells: "list[str]") -> "dict[str,
     return out
 
 
-def persons_and_labels(zone: "dict[str, object]", cells: "dict[str, list[str]]", seed: int) -> "dict[str, list[str]]":
-    """Step one: the twin's persons take the census's numbers of rows, and each modelled row its level's label cells.
+def _scoped(zone: "dict[str, object]") -> "list[str]":
+    """The columns the description publishes key by key on this zone's key."""
+    return [_text(name) for name in _list(zone["scoped"])]
 
-    `cells` holds the twin's person column, key column and content columns
-    as written so far. Returns the person column and every label column
-    the zone writes (other cells of a row the zone does not model stay).
-    Raises KeyedError where the zone does not fit the twin.
-    """
-    person = _text(zone["person"])
+
+def _current(out: "dict[str, list[str]]", cells: "dict[str, list[str]]", name: str) -> "list[str]":
+    """A column's cells as the zone has them now: its own writing where it wrote it, the twin's otherwise."""
+    if name in out:
+        return out[name]
+    if name in cells:
+        return cells[name]
+    raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
+
+
+def capped_anywhere(zone: "dict[str, object]", name: str) -> bool:
+    """Whether a level of the zone writes `name` under a top code (a key block the description top-codes at 90)."""
+    for entry in _list(zone["levels"]):
+        level = _object(entry)
+        for kind in ("numbers", "pairs"):
+            entries = _object(level[kind]) if kind in level else {}
+            if name in entries and int(_object(entries[name])["cap"]):
+                return True
+    return False
+
+
+def held_anywhere(zone: "dict[str, object]", name: str) -> bool:
+    """Whether a level of the zone leaves `name` held as identifiers (its block made up in the twin)."""
+    for entry in _list(zone["levels"]):
+        level = _object(entry)
+        for pair in (_list(level["held"]) if "held" in level else []):
+            if _text(_list(pair)[0]) == name and _text(_list(pair)[1]) == KEPT_IDENTIFIER:
+                return True
+    return False
+
+
+def _realigned(value: "list[str]", original: "list[str]", current: "list[str]") -> "list[str]":
+    """A column published key by key, moved with its key (the relations zone deals a key column anew): a row whose key
+    spelling did not move keeps its cell, and a row whose spelling moved takes, in row order, the cells of the rows
+    that left that spelling, which the description's twin wrote under it. Raises KeyedError where the key's
+    spellings are not the same multiset on both sides."""
+    if len(value) != len(original) or len(current) != len(original):
+        raise KeyedError("The inside record's keyed zone does not fit this twin's rows.")
+    leaving: "dict[str, list[int]]" = {}
+    for row in range(len(original)):
+        if original[row] != current[row]:
+            spelling = original[row]
+            if spelling not in leaving:
+                leaving[spelling] = []
+            leaving[spelling] += [row]
+    taken: "dict[str, int]" = {}
+    out = [cell for cell in value]
+    for row in range(len(current)):
+        if original[row] == current[row]:
+            continue
+        spelling = current[row]
+        rows = leaving[spelling] if spelling in leaving else []
+        at = taken[spelling] if spelling in taken else 0
+        if at >= len(rows):
+            raise KeyedError("The inside record's keyed zone does not fit this twin's rows.")
+        out[row] = value[rows[at]]
+        taken[spelling] = at + 1
+    return out
+
+
+def _drawn_rank(key: str, key_cells: "list[str]", seed: int) -> "dict[int, int]":
+    """Each row that holds a key, at its place in the order the seed draws (the order every deal serves rows in)."""
+    rows = [row for row in range(len(key_cells)) if _bare(key_cells[row])]
+    order = _shuffled(rows, inside_trajectories.stream_of(seed, inside_trajectories.name_salt(key + _SEP + "deal")))
+    rank: "dict[int, int]" = {}
+    for place in range(len(order)):
+        rank[order[place]] = place
+    return rank
+
+
+def _in_order(rows: "list[int]", rank: "dict[int, int]") -> "list[int]":
+    """Rows in the drawn order (a row the order does not hold after every one it does, in row order)."""
+    last = len(rank)
+    return [row for _place, row in sorted((rank[row] if row in rank else last + row, row) for row in rows)]
+
+
+def _unmodelled(rank: "dict[int, int]", by_level: "dict[str, list[int]]") -> "list[int]":
+    """The rows that hold a key the zone does not model (past the levels modelled, or a spelling it does not know)."""
+    modelled: "dict[int, int]" = {}
+    for level_name in by_level:
+        for row in by_level[level_name]:
+            modelled[row] = 1
+    return [row for row in sorted(rank) if row not in modelled]
+
+
+def _plan(weights: "list[int]", rows: int, state: "list[int]") -> "list[int]":
+    """Each of `rows` places' entry of `weights`, in exact shares (largest remainders), in the order the stream draws."""
+    if sum(weights) <= 0:
+        return [len(weights) - 1 for _row in range(rows)]
+    dealt = _largest_remainders(weights, rows)
+    plan: "list[int]" = []
+    for place in range(len(dealt)):
+        plan += [place for _count in range(dealt[place])]
+    return _shuffled(plan, state)
+
+
+def _tuple_wants(zone: "dict[str, object]", by_level: "dict[str, list[int]]",
+                 levels: "dict[str, dict[str, typing.Any]]", seed: int) -> "dict[str, dict[int, str]]":
+    """Each modelled row's label cells as its key level's joint table deals them (exact shares, in an order the seed draws)."""
     key = _text(zone["key"])
-    if person not in cells or key not in cells:
-        raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
-    people = cells[person]
-    rows = len(people)
-    out: "dict[str, list[str]]" = {}
-    names: "list[str]" = []
-    seen: "dict[str, int]" = {}
-    filled: "list[int]" = []
-    for row in range(rows):
-        text = _bare(people[row])
-        if not text:
-            continue
-        filled += [row]
-        if text not in seen:
-            seen[text] = 1
-            names += [text]
-    census: "list[int]" = []
-    for pair in _list(zone["census"]):
-        count, persons = int(_list(pair)[0]), int(_list(pair)[1])
-        census += [count for _person in range(persons)]
-    state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(person + _SEP + "persons"))
-    census = _shuffled(census, state)
-    if len(census) > len(names):
-        kept = sorted(census, reverse=True)[: len(names)]
-        census = _shuffled(kept, state)
-    counts = _largest_remainders(census, len(filled)) if census else []
-    written = [cell for cell in people]
-    at = 0
-    for place in range(len(counts)):
-        for _row in range(counts[place]):
-            written[filled[at]] = names[place]
-            at += 1
-    out[person] = written
-    for name in (_list(zone["constant"]) if "constant" in zone else []):
-        column_name = _text(name)
-        if column_name not in cells:
-            continue
-        first_cell: "dict[str, str]" = {}
-        again = [cell for cell in cells[column_name]]
-        for row in filled:
-            owner = written[row]
-            if owner not in first_cell:
-                first_cell[owner] = again[row]
-            again[row] = first_cell[owner]
-        out[column_name] = again
-    by_level = _level_rows(zone, cells[key])
-    levels = _levels_by_spelling(zone)
+    wanted: "dict[str, dict[int, str]]" = {}
     for level_name in sorted(by_level):
         level = levels[level_name]
         rows_k = by_level[level_name]
         label_names = [_text(name) for name in _list(level["labels"])]
         for name in label_names:
-            if name not in out:
-                if name not in cells:
-                    raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
-                out[name] = [cell for cell in cells[name]]
+            if name not in wanted:
+                wanted[name] = {}
         level_state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(key + _SEP + level_name))
         if "tuples" in level:
             table = _list(level["tuples"])
-            dealt = _largest_remainders([int(_list(entry)[1]) for entry in table], len(rows_k))
-            plan: "list[int]" = []
-            for place in range(len(dealt)):
-                plan += [place for _count in range(dealt[place])]
-            plan = _shuffled(plan, level_state)
+            plan = _plan([int(_list(entry)[1]) for entry in table], len(rows_k), level_state)
             for at in range(len(rows_k)):
                 chosen = _list(_list(table[plan[at]])[0])
                 for k in range(len(label_names)):
-                    out[label_names[k]][rows_k[at]] = _text(chosen[k])
+                    wanted[label_names[k]][rows_k[at]] = _text(chosen[k])
         else:
             apart = _object(level["apart"])
             for name in label_names:
                 table = _list(apart[name])
-                dealt = _largest_remainders([int(_list(entry)[1]) for entry in table], len(rows_k))
-                plan = []
-                for place in range(len(dealt)):
-                    plan += [place for _count in range(dealt[place])]
-                plan = _shuffled(plan, level_state)
+                plan = _plan([int(_list(entry)[1]) for entry in table], len(rows_k), level_state)
                 for at in range(len(rows_k)):
-                    out[name][rows_k[at]] = _text(_list(table[plan[at]])[0])
+                    wanted[name][rows_k[at]] = _text(_list(table[plan[at]])[0])
+    return wanted
+
+
+def _spellings_at(level: "dict[str, typing.Any]", name: str) -> "list[str]":
+    """A label's spellings at a level, commonest first: its joint table's, or its flag rule's labels."""
+    counts: "dict[str, int]" = {}
+    label_names = [_text(each) for each in _list(level["labels"])] if "labels" in level else []
+    if "tuples" in level:
+        for k in range(len(label_names)):
+            if label_names[k] != name:
+                continue
+            for entry in _list(level["tuples"]):
+                cell = _text(_list(_list(entry)[0])[k])
+                counts[cell] = (counts[cell] if cell in counts else 0) + int(_list(entry)[1])
+    elif "apart" in level:
+        apart = _object(level["apart"])
+        if name in apart:
+            for pair in _list(apart[name]):
+                cell = _text(_list(pair)[0])
+                counts[cell] = (counts[cell] if cell in counts else 0) + int(_list(pair)[1])
+    intervals = _object(level["intervals"]) if "intervals" in level else {}
+    if name in intervals:
+        groups = _object(_object(intervals[name])["groups"])
+        for joined in sorted(groups):
+            bounds = _object(groups[joined])
+            named = [_text(_list(cut)[1]) for cut in _list(bounds["cuts"])]
+            named += [_text(bounds["last"]), _text(bounds["other"])]
+            for cell in named:
+                counts[cell] = (counts[cell] if cell in counts else 0) + 1
+    return [cell for _count, cell in sorted((-counts[cell], cell) for cell in counts)]
+
+
+def _dealt(rows: "list[int]", wanted: "dict[int, str]", have: "list[str]", level_of: "dict[int, str]",
+           preferred: "dict[str, list[str]]") -> "dict[int, str]":
+    """The cells `have` holds on `rows`, dealt anew among those rows (the same cells, each once).
+
+    In the order `rows` comes in, a row takes the cell it is wanted to hold
+    while one is left; then a row left takes one equal to it once trimmed
+    and folded, else the commonest of its level's own spellings left
+    (`preferred`, by the row's level in `level_of`); the rows still left
+    take the cells left, commonest first. Raises nothing.
+    """
+    pool: "dict[str, int]" = {}
+    for row in rows:
+        cell = have[row]
+        pool[cell] = (pool[cell] if cell in pool else 0) + 1
+    out: "dict[int, str]" = {}
+    left: "list[int]" = []
+    for row in rows:
+        if row in wanted:
+            want = wanted[row]
+            if want in pool and pool[want] > 0:
+                out[row] = want
+                pool[want] -= 1
+                continue
+        left += [row]
+    if not left:
+        return out
+    by_fold: "dict[str, list[str]]" = {}
+    for cell in sorted(pool):
+        folded = fold(cell)
+        if folded not in by_fold:
+            by_fold[folded] = []
+        by_fold[folded] += [cell]
+    rest: "list[int]" = []
+    for row in left:
+        found = ""
+        taken = False
+        if row in wanted:
+            folded = fold(wanted[row])
+            for cell in (by_fold[folded] if folded in by_fold else []):
+                if pool[cell] > 0:
+                    found, taken = cell, True
+                    break
+            if not taken and row in level_of and level_of[row] in preferred:
+                for cell in preferred[level_of[row]]:
+                    if cell in pool and pool[cell] > 0:
+                        found, taken = cell, True
+                        break
+        if taken:
+            out[row] = found
+            pool[found] -= 1
+        else:
+            rest += [row]
+    remaining: "list[str]" = []
+    for _count, cell in sorted((-pool[cell], cell) for cell in pool):
+        for _copy in range(pool[cell]):
+            remaining += [cell]
+    for at in range(len(rest)):
+        out[rest[at]] = remaining[at]
+    return out
+
+
+def _column_dealt(scoped: bool, wanted: "dict[int, str]", have: "list[str]", levels_of_name: "dict[str, list[int]]",
+                  rank: "dict[int, int]", leftover: "list[int]", preferred: "dict[str, list[str]]") -> "list[str]":
+    """One column dealt from the description's twin's own cells (`_dealt`): on each level's rows apart for a column
+    published key by key, else over every listed level's rows at once, the rows of a key the zone does not model
+    taking the cells left (so the cells over the keys the zone models are those its joint tables ask for)."""
+    written = [cell for cell in have]
+    level_of: "dict[int, str]" = {}
+    for level_name in levels_of_name:
+        for row in levels_of_name[level_name]:
+            level_of[row] = level_name
+    groups: "list[list[int]]" = []
+    if scoped:
+        for level_name in sorted(levels_of_name):
+            groups += [_in_order(levels_of_name[level_name], rank)]
+    else:
+        every: "list[int]" = []
+        for level_name in sorted(levels_of_name):
+            every += levels_of_name[level_name]
+        served = _in_order(every, rank)
+        served += _in_order(leftover, rank)
+        groups += [served]
+    for rows in groups:
+        dealt = _dealt(rows, wanted, have, level_of, preferred)
+        for row in rows:
+            written[row] = dealt[row]
+    return written
+
+
+def _flagged(zone: "dict[str, object]") -> "list[str]":
+    """The columns some level rules by the intervals of a number: dealt in step two, once the numbers are."""
+    out: "list[str]" = []
+    for entry in _list(zone["levels"]):
+        level = _object(entry)
+        intervals = _object(level["intervals"]) if "intervals" in level else {}
+        for name in sorted(intervals):
+            if name not in out:
+                out += [name]
+    return out
+
+
+def persons_and_labels(zone: "dict[str, object]", cells: "dict[str, list[str]]", seed: int,
+                       original: "list[str] | None" = None) -> "dict[str, list[str]]":
+    """Step one: each modelled row's label cells, dealt from the description's twin's own cells (lane IN-4b).
+
+    The persons are the twin's as they stand: none is re-cut (batch 4x's
+    outside review, item 5), so every column the relations zone drew
+    against them keeps its sequences and its persons' values. Where the
+    relations zone dealt the key column anew (`original` holds it as the
+    description's twin wrote it), each column published key by key moves
+    with its key first (`_realigned`). Then every label of a level's joint
+    table -- but a column some level rules by a number's intervals, dealt in
+    step two -- holds the same cells, each row taking the one its level's
+    joint table deals it where the cells allow (`_column_dealt`). `cells`
+    holds the twin's key column and the columns the zone deals, as written
+    so far. Returns every column it wrote. Raises KeyedError where the zone
+    does not fit the twin.
+    """
+    key = _text(zone["key"])
+    if key not in cells:
+        raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
+    key_cells = cells[key]
+    scoped = _scoped(zone)
+    out: "dict[str, list[str]]" = {}
+    if original is not None:
+        if len(original) != len(key_cells):
+            raise KeyedError("The inside record's keyed zone does not fit this twin's rows.")
+        moved = False
+        for row in range(len(key_cells)):
+            if original[row] != key_cells[row]:
+                moved = True
+                break
+        if moved:
+            for name in scoped:
+                if name in cells:
+                    out[name] = _realigned(cells[name], original, key_cells)
+    by_level = _level_rows(zone, key_cells)
+    levels = _levels_by_spelling(zone)
+    wanted = _tuple_wants(zone, by_level, levels, seed)
+    later = _flagged(zone)
+    rank = _drawn_rank(key, key_cells, seed)
+    leftover = _unmodelled(rank, by_level)
+    for name in sorted(wanted):
+        if name in later:
+            continue
+        levels_of_name: "dict[str, list[int]]" = {}
+        preferred: "dict[str, list[str]]" = {}
+        for level_name in sorted(by_level):
+            level = levels[level_name]
+            if name in [_text(each) for each in _list(level["labels"])]:
+                levels_of_name[level_name] = by_level[level_name]
+                preferred[level_name] = _spellings_at(level, name)
+        out[name] = _column_dealt(name in scoped, wanted[name], _current(out, cells, name), levels_of_name, rank,
+                                  leftover, preferred)
     return out
 
 
@@ -1499,73 +1791,49 @@ def _drawn_of(entry: "dict[str, typing.Any]") -> _Drawn:
     return _Drawn(low, high, plain, table, grid, decimals, dotted, total)
 
 
-def _drawn_cell(drawn: _Drawn, u: float, state: "list[int]", cap: int) -> str:
-    """The spelling at share `u` of the marginal (an atom, a value of the table, or a value of the grid written in its form)."""
-    if drawn.total <= 0:
-        return ""
-    point = u * drawn.total
-    for cell, count in drawn.low:
-        if point < count:
-            return cell
-        point -= count
-    if point < drawn.plain or not drawn.high:
-        share = min(max(point / drawn.plain, 0.0), 1.0) if drawn.plain else 0.0
-        return _plain_cell(drawn, share, state, cap)
-    point -= drawn.plain
-    for cell, count in drawn.high:
-        if point < count:
-            return cell
-        point -= count
-    return drawn.high[len(drawn.high) - 1][0]
+def _place_of(cell: str) -> float:
+    place = _position(cell)
+    return place if place is not None else 0.0
 
 
-def _plain_cell(drawn: _Drawn, share: float, state: "list[int]", cap: int) -> str:
+def _plain_value(drawn: _Drawn, share: float) -> float:
+    """The plain part's value at `share` of it (its value table by counts, or its grid read between points)."""
     if drawn.table:
         total = 0
         for _value, spellings in drawn.table:
             total += sum(count for _cell, count in spellings)
         point = share * total
-        last = drawn.table[len(drawn.table) - 1][0]
         for value, spellings in drawn.table:
             held = sum(count for _cell, count in spellings)
-            if point < held or value == last:
-                return _capped(_pick(spellings, state), value, cap)
+            if point < held:
+                return value
             point -= held
-    place = share * (len(drawn.grid) - 1)
+        return drawn.table[len(drawn.table) - 1][0]
+    if not drawn.grid:
+        return 0.0
+    place = min(max(share, 0.0), 1.0) * (len(drawn.grid) - 1)
     low = int(place)
     high = low + 1 if low + 1 < len(drawn.grid) else low
-    value = drawn.grid[low] + (drawn.grid[high] - drawn.grid[low]) * (place - low)
-    written = _written(value, _places_drawn(drawn, state))
-    if drawn.dotted and abs(value) < 1.0 and inside_trajectories.next_uniform(state) * 1000000 < drawn.dotted:
-        if written[:2] == "0.":
-            written = written[1:]
-        elif written[:3] == "-0.":
-            written = "-" + written[2:]
-    return _capped(written, value, cap)
+    return drawn.grid[low] + (drawn.grid[high] - drawn.grid[low]) * (place - low)
 
 
-def _places_drawn(drawn: _Drawn, state: "list[int]") -> int:
-    total = sum(count for _places, count in drawn.decimals)
-    if total <= 0:
-        return 0
-    point = inside_trajectories.next_uniform(state) * total
-    for places, count in drawn.decimals:
+def _target(drawn: _Drawn, share: float) -> float:
+    """The place on its line of the marginal's cell at `share` of it: an atom at its place, a plain value at its own."""
+    if drawn.total <= 0:
+        return 0.0
+    point = share * drawn.total
+    for cell, count in drawn.low:
         if point < count:
-            return places
+            return _place_of(cell)
         point -= count
-    return drawn.decimals[len(drawn.decimals) - 1][0]
-
-
-def _pick(spellings: "list[tuple[str, int]]", state: "list[int]") -> str:
-    if len(spellings) == 1:
-        return spellings[0][0]
-    total = sum(count for _cell, count in spellings)
-    point = inside_trajectories.next_uniform(state) * total
-    for cell, count in spellings:
+    if point < drawn.plain or not drawn.high:
+        return _plain_value(drawn, point / drawn.plain if drawn.plain else 0.0)
+    point -= drawn.plain
+    for cell, count in drawn.high:
         if point < count:
-            return cell
+            return _place_of(cell)
         point -= count
-    return spellings[len(spellings) - 1][0]
+    return _place_of(drawn.high[len(drawn.high) - 1][0])
 
 
 def _written(value: float, places: int) -> str:
@@ -1586,6 +1854,40 @@ def _capped(cell: str, value: float, cap: int) -> str:
     if cap and value > cap:
         return str(cap)
     return cell
+
+
+def _in_form(cell: str, value: float, cap: int) -> str:
+    """`value` written in `cell`'s own written form, never past `cap` (an age's top code; lane IN-4b, item 2).
+
+    The form is the cell's: its decimals, a sign written or not, a point
+    with no figure before it. Where the form cannot carry the value (the
+    cell is no plain number, its figures open with a nought that pads them,
+    the value has a sign the cell does not, or a point with no figure
+    before it would hold a value of 1 or more), the cell itself is
+    returned. Raises nothing.
+    """
+    text = _bare(cell)
+    if plain_number(text) is None:
+        return cell
+    if cap and value > cap:
+        value = float(cap)
+    sign = text[:1] if text[:1] in "+-" else ""
+    body = text[len(sign):]
+    whole, _point, _fraction = _point_parts(body)
+    if len(whole) > 1 and whole[:1] == "0":
+        return cell
+    if (sign == "-") != (value < 0.0):
+        return cell
+    places = decimals_of(body)
+    written = _written(abs(value), places)
+    if not whole:
+        if abs(value) >= 1.0 or written[:2] != "0.":
+            return cell
+        written = written[1:]
+    written = sign + written
+    if plain_number(written) is None or decimals_of(written[len(sign):]) != places:
+        return cell
+    return written
 
 
 def _time_axis(zone: "dict[str, object]", cells: "dict[str, list[str]]", owners: "list[int]",
@@ -1645,160 +1947,208 @@ def _latents(model: "dict[str, typing.Any]", rows_k: "list[int]", owners: "list[
     return out
 
 
-def _states_dealt(groups_of: "dict[str, list[int]]", entry: "dict[str, typing.Any]", state: "list[int]",
-                  written: "list[str]") -> "dict[str, list[int]]":
-    """Each group's rows that hold a word or an empty cell (exact shares), written; the rest returned for numbers."""
-    numbered: "dict[str, list[int]]" = {}
-    groups = _object(entry["groups"])
+@dataclasses.dataclass
+class _Want:
+    """A row's part in a number's deal: the state (a word or an empty cell) it is dealt, else its place on its scale's
+    line by the rank of its latent score; and its group's marginal, at which a plain number cell dealt to it is
+    written in its own form (`written`: a number column's, not a pair's)."""
+
+    row: int
+    state: "str | None"
+    place: float
+    latent: float
+    drawn: _Drawn
+    written: bool
+    cap: int
+    share: float
+
+
+def _number_wants(body: "dict[str, typing.Any]", model: "dict[str, typing.Any]", rows_k: "list[int]",
+                  scales: "list[str] | None", owners: "list[int]", times: "list[float]", seed: int, salt: str,
+                  people: "list[str]", cap: int, written: bool) -> "list[_Want]":
+    """Each of a level's rows' part in one number column's deal: its group by the label that sets the number's scale
+    (`scales`, that label's cells), the states its group deals in exact shares, and its place on its group's line
+    at the rank of its latent score (the trend, the person's level, the lag)."""
+    groups = _object(body["groups"])
+    groups_of: "dict[str, list[int]]" = {}
+    for row in rows_k:
+        group = _bare(scales[row]) if scales is not None else ""
+        if group not in groups_of:
+            groups_of[group] = []
+        groups_of[group] += [row]
+    state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(salt))
+    latents = _latents(model, rows_k, owners, times, seed, salt, people)
+    out: "list[_Want]" = []
     for group in sorted(groups_of):
-        rows_g = groups_of[group]
-        if group not in groups:
-            numbered[group] = rows_g
-            continue
-        part = _object(groups[group])
-        marginal = _object(part["marginal"])
+        named = group if group in groups else _largest_name(groups)
+        part = _object(groups[named])
+        drawn = _drawn_of(_object(part["marginal"]))
         states = [(_text(_list(pair)[0]), int(_list(pair)[1])) for pair in _list(part["states"])]
-        weights = [count for _cell, count in states] + [int(marginal["plain"]) + sum(
-            int(_list(pair)[1]) for pair in _list(marginal["low"])) + sum(int(_list(pair)[1]) for pair in _list(marginal["high"]))]
-        dealt = _largest_remainders(weights, len(rows_g))
-        plan: "list[int]" = []
-        for place in range(len(dealt)):
-            plan += [place for _count in range(dealt[place])]
-        plan = _shuffled(plan, state)
-        numbered[group] = []
+        rows_g = groups_of[group]
+        plan = _plan([count for _cell, count in states] + [drawn.total], len(rows_g), state)
+        stated: "dict[int, str]" = {}
         for at in range(len(rows_g)):
             if plan[at] < len(states):
-                written[rows_g[at]] = states[plan[at]][0]
-            else:
-                numbered[group] += [rows_g[at]]
-    return numbered
-
-
-def _ranked_cells(rows_g: "list[int]", latents: "dict[int, float]", drawn: _Drawn, state: "list[int]",
-                  cap: int) -> "dict[int, str]":
-    order = [row for _latent, row in sorted((latents[row], row) for row in rows_g)]
-    out: "dict[int, str]" = {}
-    count = len(order)
-    for rank in range(count):
-        out[order[rank]] = _drawn_cell(drawn, (rank + 0.5) / count, state, cap)
+                stated[rows_g[at]] = states[plan[at]][0]
+        ranked = [row for _latent, row in sorted((latents[row], row) for row in rows_g)]
+        for place in range(len(ranked)):
+            row = ranked[place]
+            share = (place + 0.5) / len(ranked)
+            out += [_Want(row, stated[row] if row in stated else None, _target(drawn, share), latents[row], drawn,
+                          written, cap, share)]
     return out
 
 
-def numbers_and_rules(zone: "dict[str, object]", cells: "dict[str, list[str]]", seed: int) -> "dict[str, list[str]]":
-    """Step two: each modelled row's numbers and pairs from its level's marginal by the latent order, then every flag and copy by its rule.
+def _plain_share(drawn: _Drawn, share: float) -> float:
+    """A share of a marginal read as a share of its plain part (its censoring atoms set aside)."""
+    if drawn.plain <= 0:
+        return 0.0
+    low = 0
+    for _cell, count in drawn.low:
+        low += count
+    return min(max((share * drawn.total - low) / drawn.plain, 0.0), 1.0)
 
-    `cells` holds the twin as written so far (persons, key, label cells,
-    and the anchor's dates written by the dates zone). Returns every
-    column the zone writes. Raises KeyedError where the zone does not fit.
+
+def _cell_place(cell: str) -> "float | None":
+    """A cell's place on its column's line for a number's deal: a number or an atom at itself, a pair at its first part."""
+    place = _position(cell)
+    if place is not None:
+        return place
+    found = pair_of(cell)
+    return plain_number(found[0]) if found is not None else None
+
+
+def _numbers_dealt(wants: "list[_Want]", have: "list[str]", rank: "dict[int, int]") -> "dict[int, str]":
+    """One number column's cells on the wanted rows (the description's twin's), dealt anew among them.
+
+    A row dealt a state takes it while the cells hold one (in the drawn
+    order); the states left go to the rows dealt a state first, then to the
+    others; every row left takes the number cells by rank: the row at the
+    lowest place the lowest cell, and so on. A plain number cell so dealt is
+    written at its row's place on its group's marginal (the record's, on the
+    scale the row's label sets) in the cell's own written form (`_in_form`:
+    its decimals, its sign, a point with no figure before it; never past a
+    top code), so the level's written forms are the description's twin's and
+    its values follow the record; an atom, a word, a pair or a cell whose form
+    cannot carry the value stays the twin's. Raises KeyedError on an
+    internal mismatch.
     """
-    person = _text(zone["person"])
-    key = _text(zone["key"])
-    if person not in cells or key not in cells:
-        raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
-    people = [_bare(cell) for cell in cells[person]]
-    owners, persons = _persons(people)
-    times = _time_axis(zone, cells, owners, persons)
-    out: "dict[str, list[str]]" = {}
-    by_level = _level_rows(zone, cells[key])
-    levels = _levels_by_spelling(zone)
-
-    for level_name in sorted(by_level):
-        level = levels[level_name]
-        rows_k = by_level[level_name]
-        salt = key + _SEP + level_name
-        numbers = _object(level["numbers"])
-        for name in sorted(numbers):
-            entry = _object(numbers[name])
-            written = _column(out, cells, name)
-            scale = _text(entry["scale"])
-            groups_of: "dict[str, list[int]]" = {}
-            for row in rows_k:
-                group = _bare(_column(out, cells, scale)[row]) if scale else ""
-                if group not in groups_of:
-                    groups_of[group] = []
-                groups_of[group] += [row]
-            state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(salt + _SEP + name))
-            numbered = _states_dealt(groups_of, entry, state, written)
-            latents = _latents(_object(entry["model"]), rows_k, owners, times, seed, salt + _SEP + name, people)
-            groups = _object(entry["groups"])
-            for group in sorted(numbered):
-                part = groups[group] if group in groups else _largest_group(groups)
-                drawn = _drawn_of(_object(_object(part)["marginal"]))
-                ranked = _ranked_cells(numbered[group], latents, drawn, state, int(entry["cap"]))
-                for row in ranked:
-                    written[row] = ranked[row]
-        pairs = _object(level["pairs"])
-        for name in sorted(pairs):
-            entry = _object(pairs[name])
-            written = _column(out, cells, name)
-            first = _object(entry["first"])
-            second = _object(entry["second"])
-            scale = _text(first["scale"])
-            groups_of = {}
-            for row in rows_k:
-                group = _bare(_column(out, cells, scale)[row]) if scale else ""
-                if group not in groups_of:
-                    groups_of[group] = []
-                groups_of[group] += [row]
-            state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(salt + _SEP + name))
-            numbered = _states_dealt(groups_of, first, state, written)
-            latents = _latents(_object(entry["model"]), rows_k, owners, times, seed, salt + _SEP + name, people)
-            corr = float(entry["corr"])
-            rest = math.sqrt(max(0.0, 1.0 - corr * corr))
-            spread = _spread_of([latents[row] for row in rows_k])
-            cap = int(entry["cap"])
-            for group in sorted(numbered):
-                rows_g = numbered[group]
-                firsts = _object(first["groups"])
-                seconds = _object(second["groups"])
-                part_one = firsts[group] if group in firsts else _largest_group(firsts)
-                part_two = seconds[group] if group in seconds else _largest_group(seconds)
-                one = _ranked_cells(rows_g, latents, _drawn_of(_object(_object(part_one)["marginal"])), state, cap)
-                second_latents: "dict[int, float]" = {}
-                for row in rows_g:
-                    second_latents[row] = corr * latents[row] / spread + rest * inside_trajectories.next_normal(state)
-                two = _ranked_cells(rows_g, second_latents, _drawn_of(_object(_object(part_two)["marginal"])), state,
-                                    cap)
-                for row in rows_g:
-                    written[row] = one[row] + "/" + two[row]
-        intervals = _object(level["intervals"]) if "intervals" in level else {}
-        for flag_name in sorted(intervals):
-            rule = _object(intervals[flag_name])
-            values = _column(out, cells, _text(rule["of"]))
-            others = [_text(name) for name in _list(rule["by"])]
-            groups = _object(rule["groups"])
-            written = _column(out, cells, flag_name)
-            for row in rows_k:
-                joined = _joined([_bare(_column(out, cells, name)[row]) for name in others])
-                if joined not in groups:
-                    continue
-                bounds = _object(groups[joined])
-                value = plain_number(values[row])
-                if value is None:
-                    written[row] = _text(bounds["other"])
-                    continue
-                label = _text(bounds["last"])
-                for cut in _list(bounds["cuts"]):
-                    if value < float(_list(cut)[0]):
-                        label = _text(_list(cut)[1])
-                        break
-                written[row] = label
-    _gaps_written(zone, cells, out, by_level, levels, seed)
-    for rule_entry in _list(zone["copies"]):
-        rule = _object(rule_entry)
-        source = _column(out, cells, _text(rule["from"]))
-        copy = _column(out, cells, _text(rule["column"]))
-        sentinel = _text(rule["else"])
-        modelled = by_level
-        for level_name in sorted(modelled):
-            for row in modelled[level_name]:
-                copy[row] = _bare(source[row]) if plain_number(source[row]) is not None else sentinel
+    numbers: "list[tuple[float, str]]" = []
+    states: "dict[str, int]" = {}
+    by_row: "dict[int, _Want]" = {}
+    for want in wants:
+        by_row[want.row] = want
+        cell = have[want.row]
+        place = _cell_place(cell)
+        if place is None:
+            states[cell] = (states[cell] if cell in states else 0) + 1
+        else:
+            numbers += [(place, cell)]
+    out: "dict[int, str]" = {}
+    need: "list[int]" = []
+    for row in _in_order([want.row for want in wants], rank):
+        stated = by_row[row].state
+        if stated is not None and stated in states and states[stated] > 0:
+            out[row] = stated
+            states[stated] -= 1
+        else:
+            need += [row]
+    extra: "list[str]" = []
+    for _count, cell in sorted((-states[cell], cell) for cell in states):
+        for _copy in range(states[cell]):
+            extra += [cell]
+    first = [row for row in need if by_row[row].state is not None]
+    first += [row for row in need if by_row[row].state is None]
+    for at in range(len(extra)):
+        out[first[at]] = extra[at]
+    ranked = [row for _place, _latent, row in sorted(
+        (by_row[row].place, by_row[row].latent, row) for row in need if row not in out)]
+    numbers = sorted(numbers)
+    if len(ranked) != len(numbers):
+        raise KeyedError("internal check: a number's deal holds as many cells as rows")
+    for at in range(len(ranked)):
+        want = by_row[ranked[at]]
+        place, cell = numbers[at]
+        if want.written:
+            cell = _in_form(cell, _plain_value(want.drawn, _plain_share(want.drawn, want.share)), want.cap)
+        out[want.row] = cell
     return out
+
+
+def _flags_dealt(zone: "dict[str, object]", cells: "dict[str, list[str]]", out: "dict[str, list[str]]",
+                 by_level: "dict[str, list[int]]", levels: "dict[str, dict[str, typing.Any]]", seed: int,
+                 rank: "dict[int, int]", leftover: "list[int]") -> None:
+    """Each column some level rules by a number's intervals, dealt from the description's twin's own cells: a row
+    of such a level wanted the label its number's interval names, a row of a level whose joint table holds the
+    column wanted the label that table deals it (`_column_dealt`)."""
+    later = _flagged(zone)
+    if not later:
+        return
+    tuples = _tuple_wants(zone, by_level, levels, seed)
+    scoped = _scoped(zone)
+    for name in later:
+        wanted: "dict[int, str]" = {}
+        if name in tuples:
+            for row in tuples[name]:
+                wanted[row] = tuples[name][row]
+        levels_of_name: "dict[str, list[int]]" = {}
+        preferred: "dict[str, list[str]]" = {}
+        for level_name in sorted(by_level):
+            level = levels[level_name]
+            intervals = _object(level["intervals"]) if "intervals" in level else {}
+            if name in intervals:
+                rule = _object(intervals[name])
+                values = _current(out, cells, _text(rule["of"]))
+                others = [_current(out, cells, _text(each)) for each in _list(rule["by"])]
+                groups = _object(rule["groups"])
+                for row in by_level[level_name]:
+                    joined = _joined([_bare(other[row]) for other in others])
+                    if joined not in groups:
+                        continue
+                    bounds = _object(groups[joined])
+                    value = plain_number(values[row])
+                    if value is None:
+                        wanted[row] = _text(bounds["other"])
+                        continue
+                    label = _text(bounds["last"])
+                    for cut in _list(bounds["cuts"]):
+                        if value < float(_list(cut)[0]):
+                            label = _text(_list(cut)[1])
+                            break
+                    wanted[row] = label
+            elif name not in [_text(each) for each in _list(level["labels"])]:
+                continue
+            levels_of_name[level_name] = by_level[level_name]
+            preferred[level_name] = _spellings_at(level, name)
+        out[name] = _column_dealt(name in scoped, wanted, _current(out, cells, name), levels_of_name, rank, leftover,
+                                  preferred)
+
+
+def _gap_at(grid: "list[int]", share: float) -> int:
+    """A gap in minutes at `share` of a level's gap grid, read between its points (a quantile function: the grid's
+    top point, the largest gap seen, weighs no more than the gaps beside it), to the nearest whole minute."""
+    place = min(max(share, 0.0), 1.0) * (len(grid) - 1)
+    low = int(place)
+    high = low + 1 if low + 1 < len(grid) else low
+    return int(grid[low] + (grid[high] - grid[low]) * (place - low) + 0.5)
+
+
+def _month_of(seconds: int) -> "tuple[int, int]":
+    year, month, _day = inside_trajectories.civil_from_days(seconds // 86400)
+    return year, month
 
 
 def _gaps_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", out: "dict[str, list[str]]",
                   by_level: "dict[str, list[int]]", levels: "dict[str, dict[str, typing.Any]]", seed: int) -> None:
-    """Each modelled row's later clocks: its level's gap after the anchor, present where its level (or a label) says so."""
+    """Each modelled row's later clocks moved to its level's gap after the anchor (lane IN-4b, item 6).
+
+    The dates zone's presence stands on every row: an empty cell stays
+    empty and a written one stays written. A written cell in the anchor's
+    minute form is moved to the anchor's moment plus a gap from its level's
+    grid (split by a label where one moves the gap), written in that cell's
+    own form, where the new moment stays in the cell's month; any other cell
+    keeps the dates zone's writing.
+    """
     anchor = _text(zone["anchor"])
     chained = _list(zone["gaps"]) if "gaps" in zone else []
     if not anchor or not chained or anchor not in cells:
@@ -1809,8 +2159,8 @@ def _gaps_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", out:
     anchor_minutes = read[0]
     for pair in chained:
         name = _text(_list(pair)[0])
-        joint = _text(_list(pair)[1])
-        written = _column(out, cells, name)
+        written = [cell for cell in _current(out, cells, name)]
+        moved = False
         for level_name in sorted(by_level):
             level = levels[level_name]
             held = _object(level["gaps"]) if "gaps" in level else {}
@@ -1820,81 +2170,237 @@ def _gaps_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", out:
             pooled = [int(value) for value in _list(entry["grid"])]
             split_by = _text(entry["split_by"]) if "split_by" in entry else ""
             grids = _object(entry["grids"]) if "grids" in entry else {}
-            present, rows_seen = int(_list(entry["present"])[0]), int(_list(entry["present"])[1])
-            rule = _text(entry["by"])
-            shares = _object(entry["present_by"])
+            labels = _current(out, cells, split_by) if split_by else None
             state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(level_name + _SEP + name))
             for row in by_level[level_name]:
+                draw = inside_trajectories.next_uniform(state)
                 start = anchor_minutes[row]
-                u = inside_trajectories.next_uniform(state)
-                if rule:
-                    cell = _bare(_column(out, cells, rule)[row])
-                    split = _list(shares[cell]) if cell in shares else [present, rows_seen]
-                    shown = int(split[0]) * 2 >= int(split[1])
-                else:
-                    shown = u * rows_seen < present
-                if start is None or not shown:
-                    written[row] = ""
+                old = inside_trajectories.moment_of(written[row])
+                if start is None or old is None or old.kind != inside_trajectories.KIND_MINUTE:
+                    continue
+                if inside_trajectories.moment_text(old.seconds, old.kind, old.joint) != written[row]:
                     continue
                 grid = pooled
-                if split_by:
-                    cell = _bare(_column(out, cells, split_by)[row])
-                    if cell in grids:
-                        grid = [int(value) for value in _list(grids[cell])]
-                gap = grid[min(len(grid) - 1, int(inside_trajectories.next_uniform(state) * len(grid)))]
-                written[row] = inside_trajectories.moment_text((start + gap) * 60, inside_trajectories.KIND_MINUTE,
-                                                               joint)
+                if labels is not None and _bare(labels[row]) in grids:
+                    grid = [int(value) for value in _list(grids[_bare(labels[row])])]
+                if not grid:
+                    continue
+                seconds = (start + _gap_at(grid, draw)) * 60
+                if _month_of(seconds) != _month_of(old.seconds):
+                    continue
+                written[row] = inside_trajectories.moment_text(seconds, inside_trajectories.KIND_MINUTE, old.joint)
+                moved = True
+        if moved:
+            out[name] = written
 
 
-def _column(out: "dict[str, list[str]]", cells: "dict[str, list[str]]", name: str) -> "list[str]":
-    """The cells of a column the zone writes: its copy in `out`, made from the twin's cells at first use."""
-    if name not in out:
-        if name not in cells:
-            raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
-        out[name] = [cell for cell in cells[name]]
-    return out[name]
+def _copies_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", out: "dict[str, list[str]]") -> None:
+    """Each copy by its rule: the source's cell where it is a plain number (never past the copy's top code, the
+    whole column's or its row's key level's), its sentinel elsewhere; a row whose two cells are both empty stays
+    so. A copy whose source a level holds as identifiers is not written (its made-up cells would land in a published
+    column), nor one any of whose own key blocks the description holds (batch 4y's fix round), nor one whose
+    sentinel the description's twin does not write, nor one whose source a level writes under a top code while the
+    copy carries no top code of its own for the whole column (lane IN-4c: its capped cells would land in a column
+    published uncapped, whose own facts the copy would then break -- a laboratory value a key block top-codes as a
+    possible age, copied into its numeric copy)."""
+    for rule_entry in _list(zone["copies"]):
+        rule = _object(rule_entry)
+        origin = _text(rule["from"])
+        copy_name = _text(rule["column"])
+        if held_anywhere(zone, origin) or ("held" in rule and rule["held"] is True):
+            continue
+        if capped_anywhere(zone, origin) and not (int(rule["cap"]) if "cap" in rule else 0):
+            continue
+        source = _current(out, cells, origin)
+        current = _current(out, cells, copy_name)
+        sentinel = _text(rule["else"])
+        cap = int(rule["cap"]) if "cap" in rule else 0
+        capped = {_text(level): 1 for level in _list(rule["capped"])} if "capped" in rule else {}
+        key_cells = _current(out, cells, _text(zone["key"])) if capped else []
+        written_somewhere = not sentinel
+        for cell in current:
+            if _bare(cell) == sentinel:
+                written_somewhere = True
+                break
+        if not written_somewhere:
+            continue
+        written = [cell for cell in current]
+        for row in range(len(current)):
+            if not _bare(source[row]) and not _bare(current[row]):
+                continue
+            value = plain_number(source[row])
+            row_cap = TOP_CODE if capped and fold(key_cells[row]) in capped else cap
+            written[row] = sentinel if value is None else _capped(_bare(source[row]), value, row_cap)
+        out[copy_name] = written
 
 
-def _largest_group(groups: "dict[str, typing.Any]") -> object:
-    best, most = None, -1
+def numbers_and_rules(zone: "dict[str, object]", cells: "dict[str, list[str]]", seed: int) -> "dict[str, list[str]]":
+    """Step two: each modelled row's numbers and pairs, dealt from the description's twin's own cells by the latent
+    order; then each flag dealt toward its intervals, each later clock moved to its level's gap, each copy written.
+
+    `cells` holds the twin as written so far (persons, key, label cells,
+    and the dates the dates zone wrote). Returns every column the zone
+    writes. Raises KeyedError where the zone does not fit.
+    """
+    person = _text(zone["person"])
+    key = _text(zone["key"])
+    if person not in cells or key not in cells:
+        raise KeyedError("The inside record's keyed zone names a column this twin does not hold.")
+    people = [_bare(cell) for cell in cells[person]]
+    owners, persons = _persons(people)
+    times = _time_axis(zone, cells, owners, persons)
+    scoped = _scoped(zone)
+    out: "dict[str, list[str]]" = {}
+    key_cells = cells[key]
+    by_level = _level_rows(zone, key_cells)
+    levels = _levels_by_spelling(zone)
+    rank = _drawn_rank(key, key_cells, seed)
+    wants_of: "dict[str, dict[str, list[_Want]]]" = {}
+    for level_name in sorted(by_level):
+        level = levels[level_name]
+        rows_k = by_level[level_name]
+        salt = key + _SEP + level_name
+        for kind in ("numbers", "pairs"):
+            entries = _object(level[kind]) if kind in level else {}
+            for name in sorted(entries):
+                entry = _object(entries[name])
+                body = entry if kind == "numbers" else _object(entry["first"])
+                scale = _text(body["scale"])
+                wants = _number_wants(body, _object(entry["model"]), rows_k,
+                                      _current(out, cells, scale) if scale else None, owners, times, seed,
+                                      salt + _SEP + name, people, int(entry["cap"]), kind == "numbers")
+                scope = level_name if name in scoped else ""
+                if name not in wants_of:
+                    wants_of[name] = {}
+                if scope not in wants_of[name]:
+                    wants_of[name][scope] = []
+                wants_of[name][scope] += wants
+    for name in sorted(wants_of):
+        have = _current(out, cells, name)
+        written = [cell for cell in have]
+        for scope in sorted(wants_of[name]):
+            dealt = _numbers_dealt(wants_of[name][scope], have, rank)
+            for row in dealt:
+                written[row] = dealt[row]
+        out[name] = written
+    # ...each level's pairs joined again at the record's correlation of their parts (lane IN-4c).
+    for level_name in sorted(by_level):
+        level = levels[level_name]
+        entries = _object(level["pairs"]) if "pairs" in level else {}
+        for name in sorted(entries):
+            if name in out:
+                _pairs_rejoined(out[name], by_level[level_name], _object(entries[name]), seed,
+                                key + _SEP + level_name + _SEP + name)
+    _flags_dealt(zone, cells, out, by_level, levels, seed, rank, _unmodelled(rank, by_level))
+    _gaps_written(zone, cells, out, by_level, levels, seed)
+    _copies_written(zone, cells, out)
+    return out
+
+
+def _pairs_rejoined(written: "list[str]", rows_k: "list[int]", entry: "dict[str, typing.Any]", seed: int,
+                    salt: str) -> None:
+    """A level's pair cells, joined again so their two parts move together as the record's do (lane IN-4c).
+
+    The deal keeps each pair cell whole, so the two parts move together
+    only as the description's twin paired them: a rank agreement held to
+    its published value, but a pairing whose correlation fell short of the
+    real one (measured on the battery's charting table: 0.823 against
+    0.852). Here the level's first parts stay where the deal put them and
+    the second parts -- the same spellings, none made -- are dealt again
+    by the rank of a normal score that carries the record's correlation of
+    the two parts' normal scores (`corr`): the first part's normal score
+    times `corr`, plus a fresh normal draw times the rest. The new pairing
+    stands only where it keeps the count of cells whose first part is the
+    larger, and its rank agreement lies within half the validator's window
+    of the record's (`agreement`); otherwise, and for a pair under a top
+    code, a scale label, or a record written before this lane, the cells
+    stay as dealt. Changes ``written`` in place. Raises nothing.
+    """
+    if "agreement" not in entry or int(entry["cap"]) or _text(_object(entry["first"])["scale"]):
+        return
+    corr = float(entry["corr"])
+    target = float(entry["agreement"])
+    rows = [row for row in rows_k if pair_of(written[row]) is not None]
+    if len(rows) < 3:
+        return
+    firsts: "dict[int, tuple[float, str]]" = {}
+    seconds: "list[tuple[float, str]]" = []
+    above_before = 0
+    for row in rows:
+        found = pair_of(written[row])
+        if found is None:
+            return
+        first = plain_number(found[0])
+        second = plain_number(found[1])
+        if first is None or second is None:
+            return
+        firsts[row] = (first, found[0])
+        seconds += [(second, found[1])]
+        above_before += int(first > second)
+    ordered = [row for _first, row in sorted((firsts[row][0], row) for row in rows)]
+    state = inside_trajectories.stream_of(seed, inside_trajectories.name_salt(salt + _SEP + "rejoined"))
+    rest = math.sqrt(max(0.0, 1.0 - corr * corr))
+    scores: "dict[int, float]" = {}
+    for place in range(len(ordered)):
+        lead = chain_walk.normal_score((place + 0.5) / len(ordered))
+        scores[ordered[place]] = corr * lead
+    for row in sorted(rows):
+        scores[row] = scores[row] + rest * inside_trajectories.next_normal(state)
+    seconds = sorted(seconds)
+    by_score = [row for _score, row in sorted((scores[row], row) for row in rows)]
+    joined: "dict[int, tuple[float, str]]" = {}
+    for place in range(len(by_score)):
+        joined[by_score[place]] = seconds[place]
+    above_after = 0
+    for row in rows:
+        above_after += int(firsts[row][0] > joined[row][0])
+    agreement = parsing.rank_agreement([firsts[row][0] for row in rows], [joined[row][0] for row in rows])
+    if above_after != above_before or abs(agreement - target) > parsing.RANK_AGREEMENT_WINDOW / 2.0:
+        return
+    for row in rows:
+        written[row] = firsts[row][1] + "/" + joined[row][1]
+
+
+def _largest_name(groups: "dict[str, typing.Any]") -> str:
+    """The group of a number entry whose plain part holds the most cells (the first on a tie)."""
+    best, most = "", -1
     for name in sorted(groups):
         marginal = _object(_object(groups[name])["marginal"])
         if int(marginal["plain"]) > most:
-            best, most = groups[name], int(marginal["plain"])
+            best, most = name, int(marginal["plain"])
+    if most < 0:
+        raise KeyedError("The inside record's keyed zone is not a zone synthtwin wrote.")
     return best
 
 
-def _spread_of(values: "list[float]") -> float:
-    if len(values) < 2:
-        return 1.0
-    mean = math.fsum(values) / len(values)
-    spread = math.sqrt(math.fsum([(value - mean) * (value - mean) for value in values]) / len(values))
-    return spread if spread > 0.0 else 1.0
-
-
 def read_columns(zone: "dict[str, object]") -> "list[str]":
-    """The columns the zone reads but does not write: the labels that decide a later clock's presence or split its gap."""
+    """The columns the zone reads but does not write: the labels that split a later clock's gap."""
     out: "list[str]" = []
     for entry in _list(zone["levels"]):
         level = _object(entry)
         held = _object(level["gaps"]) if "gaps" in level else {}
         for name in sorted(held):
             gap = _object(held[name])
-            for label in (_text(gap["by"]), _text(gap["split_by"]) if "split_by" in gap else ""):
-                if label and label not in out:
-                    out += [label]
+            label = _text(gap["split_by"]) if "split_by" in gap else ""
+            if label and label not in out:
+                out += [label]
     return out
 
 
+def copy_columns(zone: "dict[str, object]") -> "list[str]":
+    """The columns the zone writes by a copy's rule (their source's cells, not their own)."""
+    return [_text(_object(rule)["column"]) for rule in _list(zone["copies"])]
+
+
 def written_columns(zone: "dict[str, object]") -> "list[str]":
-    """Every column the zone may write: the person column, the content columns and every copy."""
-    out = [_text(zone["person"])]
+    """Every column the zone may write: the content columns, every copy and every later clock (never the persons)."""
+    out: "list[str]" = []
     for name in _list(zone["content"]):
         out += [_text(name)]
     for rule in _list(zone["copies"]):
         out += [_text(_object(rule)["column"])]
     for pair in (_list(zone["gaps"]) if "gaps" in zone else []):
-        out += [_text(_list(pair)[0])]
-    for name in (_list(zone["constant"]) if "constant" in zone else []):
-        out += [_text(name)]
+        name = _text(_list(pair)[0])
+        if name not in out:
+            out += [name]
     return out

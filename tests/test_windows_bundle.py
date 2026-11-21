@@ -1314,6 +1314,10 @@ def test_a_full_trial_on_the_stand_in_passes(tmp_path: pathlib.Path, monkeypatch
     done = REHEARSE.trial(REHEARSE.Route("direct", python="py"), tmp_path / "work", _tables(tmp_path), ("visits",))
     assert done.problems == [] and [step["exit"] for step in done.steps] == [0] * 6
     assert [str(step["typed"]).split()[1] for step in done.steps] == ["--version", "doctor", "profile", "profile", "generate", "validate"]
+    # The answered round types the record's remedy, as its refusal teaches (batch 4y's fix round; mutant: the round
+    # typed without it, the bundle trial refused at the first answered round with the patient layer on).
+    assert str(done.steps[3]["typed"]).split()[-2:] == ["--replace", "--replace-description"], done.steps[3]["typed"]
+    assert "--replace-description" not in str(done.steps[2]["typed"])
 
 
 def test_a_command_that_fails_is_a_problem_of_the_trial(tmp_path: pathlib.Path, monkeypatch) -> None:

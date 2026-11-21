@@ -17,8 +17,8 @@ which reads the table whole, walks it once more where a person column
 repeats and the table holds at most `cli._KEYED_ZONE_MOST_ROWS` rows:
 the one reading is held past that bound (set to 30,000 rows here, so
 the 40,000-row run is past it), and the keyed walk under it is counted,
-the zone's own sub-switch set on in place (off on the shipped route
-since batch 4x, plan P4-D503).
+the zone's own sub-switch set on in place (on for the shipped route
+since lane IN-4b, plan P4-D504).
 
 THE CENSUS. The dates zone's census, a column at a time, keeps a date
 column's days and seconds and a label column's words, each value one
@@ -178,7 +178,7 @@ def two_sizes(tmp_path_factory: pytest.TempPathFactory) -> "dict[int, dict[str, 
             patch.setattr(cli, "_inside_record_written", hook)
             patch.setattr(reading, "column_values", values)
             # The keyed zone's bound between the two sizes: 20,000 rows under it, 40,000 past it (ONE READING); its
-            # own sub-switch on, as the 4x merge measured it (off on the shipped route, plan P4-D503).
+            # own sub-switch on, as shipped since lane IN-4b (plan P4-D504).
             patch.setattr(cli, "_KEYED_ZONE_MOST_ROWS", 30_000)
             patch.setattr(cli, "_KEYED_ZONE_SHIPPED", True)
             described, record = _profiled(folder, _visits(rows, 1))
@@ -190,7 +190,9 @@ def two_sizes(tmp_path_factory: pytest.TempPathFactory) -> "dict[int, dict[str, 
 def test_the_whole_record_keeps_its_size_when_the_rows_double(two_sizes) -> None:  # type: ignore[no-untyped-def]
     small, large = two_sizes[20_000], two_sizes[40_000]
     zones = large["record"]["zones"]
-    assert sorted(zones) == ["dates", "marginals", "relations"], sorted(zones)
+    # ...the trajectories zone among them: the table's person column repeats at the owner's floor, where the shipped
+    # command draws the patient layer (lane W5-PL), and its size is held by the same bound.
+    assert sorted(zones) == ["dates", "marginals", "relations", "trajectories"], sorted(zones)
     assert large["bytes"] <= 1.05 * small["bytes"], f"{small['bytes']} bytes at 20,000 rows, {large['bytes']} at 40,000"
     for rows in (20_000, 40_000):
         longest = max(_lists(two_sizes[rows]["record"]))

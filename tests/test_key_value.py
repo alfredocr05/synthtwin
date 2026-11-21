@@ -1093,7 +1093,7 @@ def test_a_value_column_put_no_question_describes_its_blocks_of_labels(tmp_path:
         assert unput["urine_look"]["role"] == taxonomy.ROLE_CATEGORICAL
         assert unput["glucose"]["role"] == open_put["glucose"]["role"] != taxonomy.ROLE_IDENTIFIER
 
-    _red(unasked, profile, "_values_typed_by_key", lambda *a: _REAL_TYPED(*a[:-1], None))
+    _red(unasked, profile, "_values_typed_by_key", lambda *a, **k: _REAL_TYPED(*a[:-1], None, **k))
 
 
 _REAL_TYPED = profile._values_typed_by_key
@@ -1764,7 +1764,9 @@ def test_at_the_table_floor_the_rare_keys_are_named_only_after_no_and_each_key_k
     for _round in range(4):
         if not _answer(questions, given):
             break
-        assert _run(["profile", f"{source}", "--replace", "--answers", f"{questions}"]) == 0
+        # An answered round may be the first to publish between columns (the patient layer at the floor, lane
+        # W5-PL): the record of earlier descriptions asks for --replace-description, as the first round's screen says.
+        assert _run(["profile", f"{source}", "--replace", "--answers", f"{questions}", "--replace-description"]) == 0
     described = json.loads((tmp_path / "items-profile.json").read_text(encoding="utf-8"))
     names = _block(described, "item_key")["held_back_names"]
     assert isinstance(names, list) and sorted(names) == sorted(rare)

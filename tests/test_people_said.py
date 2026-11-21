@@ -194,10 +194,13 @@ def test_the_person_question_s_answer_says_the_person_across_rounds(
     )
     person[0]["your_answer"] = "identifier"
     questions.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
-    second, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"])
+    # The answered round is the first to publish between columns (the patient layer, lane W5-PL), so the record of
+    # earlier descriptions asks for --replace-description, as the first round's screen says it will.
+    replaced = ["--replace-description"]
+    second, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"] + replaced)
     assert second.verdict == results.NO_MISS, second.refusal
     assert _settings(table.parent)["person_columns"] == ["subject_id"]
-    third, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"])
+    third, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"] + replaced)
     assert third.verdict == results.NO_MISS, third.refusal
     assert _settings(table.parent)["person_columns"] == ["subject_id"]
 
@@ -222,7 +225,10 @@ def test_a_person_said_before_a_second_key_is_declared_still_counts(
         if entry["column"] == "subject_id":
             entry["your_answer"] = "identifier"
     questions.write_text(json.dumps(document, indent=2), encoding="utf-8", newline="\n")
-    second, _screen = _run(["profile", f"{table}", "--answers", f"{questions}"])
+    # The answered rounds publish between columns where the first did not (the patient layer, lane W5-PL): the
+    # record of earlier descriptions asks for --replace-description, as the first round's screen says it will.
+    replaced = ["--replace-description"]
+    second, _screen = _run(["profile", f"{table}", "--answers", f"{questions}"] + replaced)
     assert second.verdict == results.NO_MISS, second.refusal
     kept = json.loads(questions.read_text(encoding="utf-8"))["answered_before"]
     assert [
@@ -230,7 +236,7 @@ def test_a_person_said_before_a_second_key_is_declared_still_counts(
         if any(choice["answer"] == "identifier" and choice["means"].startswith("the people the rows are about")
                for choice in entry["answers_you_can_give"])
     ] == ["subject_id"]
-    third, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"])
+    third, _screen = _run(["profile", f"{table}", "--answers", f"{questions}", "--identifier", "clinician_id"] + replaced)
     assert third.verdict == results.NO_MISS, third.refusal
     assert _settings(table.parent)["person_columns"] == ["subject_id"]
     assert "clinician_id" in _settings(table.parent)["forced_identifiers"]
@@ -303,7 +309,9 @@ def test_a_staff_number_declared_in_a_later_round_puts_the_subject_question(
         "pulse": ("measurement", "no"), "sodium": ("measurement",), "dx": ("code",),
     }
     table, staff = _stays_with_staff(tmp_path / "said", 2000, 100, patient="record_no")
-    said, screen, typist = measures.typed_run(["profile", f"{table}"], plan, person="record_no")
+    # The round after the files publishes between columns where the first did not (the patient layer, lane W5-PL):
+    # the record of earlier descriptions asks for --replace-description, typed up front in each run below.
+    said, screen, typist = measures.typed_run(["profile", f"{table}", "--replace-description"], plan, person="record_no")
     assert typist.subject_put == 1 and (typist.refused, typist.mismatched) == (0, 0)
     assert said.verdict == results.NO_MISS, said.refusal
     settings = _settings(table.parent, "stays")
@@ -314,7 +322,7 @@ def test_a_staff_number_declared_in_a_later_round_puts_the_subject_question(
     )
     assert [one for one in sorted(staff) if one in written] == []
     table, _staff = _stays_with_staff(tmp_path / "enter", 2000, 100, patient="record_no")
-    kept, kept_screen, kept_typist = measures.typed_run(["profile", f"{table}"], plan, person="")
+    kept, kept_screen, kept_typist = measures.typed_run(["profile", f"{table}", "--replace-description"], plan, person="")
     assert kept_typist.subject_put == 1
     assert kept.verdict == results.REFUSED
     assert kept.refusal is not None and "ANY of record_no, staff_no" in kept.refusal.words
@@ -324,7 +332,8 @@ def test_a_staff_number_declared_in_a_later_round_puts_the_subject_question(
     assert "Nothing was written" not in kept_screen and "stand as they were" in kept_screen
     assert ONE_PEOPLE.search(kept_screen) is None
     table, _staff = _stays_with_staff(tmp_path / "ended", 2000, 100, patient="record_no")
-    ended, ended_screen, ended_typist = measures.typed_run(["profile", f"{table}"], plan, person=None)
+    ended, ended_screen, ended_typist = measures.typed_run(["profile", f"{table}", "--replace-description"], plan,
+                                                          person=None)
     assert ended.verdict == results.NO_MISS and ended_typist.subject_put == 1
     assert "You ended the questions here. The files written above stand as they are." in ended_screen
     assert (table.parent / "stays-questions.json").read_bytes() == ended_typist.snapshot

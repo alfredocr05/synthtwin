@@ -48,13 +48,16 @@ def test_a_yes_no_flag_with_a_rare_third_level_is_released_unasked(tmp_path: pat
     # `Y` and `N` by person beside `U` five people hold, through the command at
     # 20,000 rows: one pair in one case, so `U` is pooled and never named, and `Y`
     # and `N` keep their counts with no question put (plan P4-D453 as lane PL
-    # wrote it). Mutant: every column of yes-no letters held.
+    # wrote it). With the patient layer on (plan P4-D507) the flag is fixed within
+    # its person, so its block is described over the 1,000 patients, each counted
+    # once (the five `U` pooled).
+    # Mutant: every column of yes-no letters held.
     found = cases.run(tmp_path / "flag", cases.a_yes_no_flag_with_a_rare_third_level())
     assert found["exits"] == [0, 0], found["exits"]
     assert found["put"] == [[]], found["put"]
     assert found["block"]["role"] == "categorical", found["block"]  # type: ignore[index]
     levels = {entry["label"]: entry["count"] for entry in found["block"]["levels"]}  # type: ignore[index]
-    assert levels == {"n": 9960, "y": 9940}, levels
+    assert levels == {"n": 498, "y": 497}, levels
     assert '"U"' not in found["text"] and '"u"' not in found["text"]  # type: ignore[operator]
 
 

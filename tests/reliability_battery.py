@@ -25,7 +25,11 @@ the person who holds the table answers it, truthfully (`truthful`), and
 `synthtwin profile` again with `--answers`, round by round while a round
 writes an answer (a round the record of earlier descriptions refuses runs
 once more with `--replace-description`, the screen's own remedy, where the
-tree has it); then `synthtwin generate DESCRIPTION --seed K`. Nobody
+tree has it); then `synthtwin generate DESCRIPTION --seed K`. The orders
+table T5, whose patients are the cohort T1's, is described with
+`--linked-to` naming T1's table and built with `--linked-to` naming T1's
+description, in T1's installation (lane W5-F14), as one person who holds
+both tables of a study makes their twins join. Nobody
 is at the keyboard: the commands run in this process through `cli.main`,
 the installation's data folder pointed at a folder of the run's own that
 holds the fixed test key and an empty record, both readable by this
@@ -549,7 +553,17 @@ def _entries(document: object) -> "list[dict]":
     checklist = document.get("checklist")
     if isinstance(checklist, dict):
         found += [e for e in checklist.get("columns") or [] if isinstance(e, dict) and "answers_you_can_give" in e]
+    # ...and each measurement of a long table asked about on its own (plan P4-D514), answered as its value column
+    # is known: `measurement` for a column of readings.
+    measured = document.get("measurements_asked") if ANSWER_MEASUREMENTS else None
+    if isinstance(measured, dict):
+        found += [e for e in measured.get("measurements") or [] if isinstance(e, dict) and "answers_you_can_give" in e]
     return found
+
+
+# Whether the truthful holder answers the questions file's `measurements_asked` section (a gate case sets it off to
+# keep every measurement's own question open).
+ANSWER_MEASUREMENTS = True
 
 
 def _offered(entry: dict) -> "list[str]":
@@ -557,8 +571,23 @@ def _offered(entry: dict) -> "list[str]":
 
 
 def _asks_for_people(entry: dict) -> bool:
-    """Whether an entry is the person question: its `identifier` answer means the people the rows are about."""
-    return any(str(a.get("answer")) == "identifier" and "people" in str(a.get("means", ""))
+    """Whether an entry is the person question: its `identifier` answer means the person the rows are about.
+
+    Both wordings, as `health_zoo._asks_for_people` reads them: the first
+    ("the people the rows are about") and the one every shipped run puts
+    since the switch went on (plan P4-D464), "identifies the person" beside
+    `record` (lane GRa), which holds no word "people". Read as the first
+    alone, the switched question was taken for a record number's: on T7 the
+    guarantor's and the staff member's keys were answered `identifier` there,
+    said to name the person, so profile counted the people by the two keys
+    together (P4-D479), 40 staff numbers joined every row into one person,
+    and the table of 20,000 rows and 11,091 patients was refused at the
+    1,000-people floor. Answered `keep` there, as `truthful` answers every
+    column but the patient's, each is asked next as record numbers and
+    answered `identifier`: held, and joining nobody.
+    """
+    return any(str(a.get("answer")) == "identifier"
+               and ("people" in str(a.get("means", "")) or "identifies the person" in str(a.get("means", "")))
                for a in entry.get("answers_you_can_give", []) if isinstance(a, dict))
 
 
@@ -693,8 +722,23 @@ def held_columns(page: pathlib.Path) -> "list[str]":
     return held
 
 
-def make_twins(folder: pathlib.Path, table: str, text: str, twins: "tuple[int, ...]", below_floor: bool) -> Product:
-    """Route S: profile, the truthful answers round by round, then generate at each twin seed."""
+def linked_product(folder: pathlib.Path, table: str) -> "tuple[pathlib.Path, pathlib.Path, pathlib.Path]":
+    """Where route S left a table's product: its installation's folder, its real table and its description."""
+    source = folder / "table" / T.FILES[table]
+    return folder, source, folder / "out" / f"{source.stem}-profile.json"
+
+
+def make_twins(folder: pathlib.Path, table: str, text: str, twins: "tuple[int, ...]", below_floor: bool,
+               linked: "tuple[pathlib.Path, pathlib.Path, pathlib.Path] | None" = None) -> Product:
+    """Route S: profile, the truthful answers round by round, then generate at each twin seed.
+
+    ``linked`` (lane W5-F14) is the product of the study's other table this
+    one joins by its person column (`linked_product`: its installation's
+    folder, its real table, its description): every `profile` round names
+    that table with `--linked-to`, every `generate` names its description,
+    and the commands run in its installation, where its description's
+    private record stands, as one person's computer holds both.
+    """
     started = time.perf_counter()
     source = folder / "table" / T.FILES[table]
     out = folder / "out"
@@ -709,8 +753,17 @@ def make_twins(folder: pathlib.Path, table: str, text: str, twins: "tuple[int, .
     left: "list[str]" = []
     errors: "dict[int, str]" = {}
     made: "dict[int, str]" = {}
-    with installed(folder):
-        code, said = command(["profile", str(source), "--out-dir", str(out), "--replace"], below_floor)
+    home = folder if linked is None else linked[0]
+    described_with = [] if linked is None else ["--linked-to", str(linked[1])]
+    built_with = [] if linked is None else ["--linked-to", str(linked[2])]
+    with installed(home):
+        first = ["profile", str(source), "--out-dir", str(out), "--replace"] + described_with
+        code, said = command(first, below_floor)
+        if code != 0 and replace_description_known():
+            # A table described before in this installation, its description publishing between columns, refuses a
+            # different one in the record of earlier descriptions; the screen's remedy is the same run with
+            # --replace-description, as the answered rounds below take it (a run made twice in one folder).
+            code, said = command(first + ["--replace-description"], below_floor)
         for _round in range(ROUNDS):
             if code != 0:
                 break
@@ -718,7 +771,7 @@ def make_twins(folder: pathlib.Path, table: str, text: str, twins: "tuple[int, .
             if not written:
                 break
             answered += written
-            again = ["profile", str(source), "--out-dir", str(out), "--answers", str(questions)]
+            again = ["profile", str(source), "--out-dir", str(out), "--answers", str(questions)] + described_with
             code, said = command(again, below_floor)
             if code != 0 and replace_description_known():
                 # The record of earlier descriptions refuses an answered round that publishes relationships between
@@ -737,7 +790,7 @@ def make_twins(folder: pathlib.Path, table: str, text: str, twins: "tuple[int, .
                 errors[k] = f"synthtwin profile exited {code}: {said.strip()[-300:]}"
                 continue
             done, words = command(["generate", str(description), "--out-dir", str(out), "--seed", str(k),
-                                   "--replace"], below_floor)
+                                   "--replace"] + built_with, below_floor)
             twin = out / f"{stem}-twin.csv"
             if done != 0 or not twin.exists():
                 errors[k] = f"synthtwin generate exited {done}: {words.strip()[-300:]}"
@@ -809,7 +862,18 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", folder
     real_text = T.text(table, rows, seed)
     holdout = T.text("T1", rows, holdout_seed(seed)) if table == "T1" else ""
     companions = companions or {}
-    product = make_twins(folder / "product", table, real_text, twins, below_floor)
+    # THE TWO TABLES OF ONE STUDY (lane W5-F14): T1's product is kept beside its folder for T5, whose route S names
+    # T1's real table and description with `--linked-to` in T1's installation, as one person's computer holds both;
+    # T5's run removes it.
+    product_folder = folder / "product"
+    if keep is not None and table == "T1":
+        product_folder = folder.parent / f"{folder.name}-product"
+    linked = None
+    if table == "T5" and "product" in companions:
+        linked = linked_product(pathlib.Path(companions["product"]), "T1")
+    product = make_twins(product_folder, table, real_text, twins, below_floor, linked)
+    if keep is not None and table == "T1":
+        keep["product"] = str(product_folder)
 
     def say(words: str) -> None:
         if log is not None:
@@ -848,6 +912,8 @@ def run_table(table: str, rows: int, seed: int, twins: "tuple[int, ...]", folder
         "describe_seconds": round(product.describe_seconds, 1), "generate_seconds": round(product.generate_seconds, 1),
     }
     shutil.rmtree(folder, ignore_errors=True)
+    if linked is not None:
+        shutil.rmtree(linked[0], ignore_errors=True)
     return TableRun(table, rows, seed, tuple(twins), real, halves, sides, notes, time.perf_counter() - started)
 
 
@@ -862,6 +928,9 @@ def run_tables(tables: "tuple[str, ...]", rows: int, seeds: "tuple[int, ...]", t
             out += [run_table(table, rows, seed, twins, folder / f"{table}-{seed}", below_floor,
                               companions=cohort if table == "T5" else None,
                               keep=cohort if table == "T1" else None, log=log)]
+        # T1's product, kept for T5 (lane W5-F14), goes where no T5 ran to remove it.
+        if "product" in cohort and "T5" not in tables:
+            shutil.rmtree(cohort["product"], ignore_errors=True)
     return out
 
 

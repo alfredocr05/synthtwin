@@ -17,7 +17,8 @@ order, in a fresh copy of the table's folder: synthtwin --version;
 synthtwin doctor TABLE; synthtwin profile TABLE naming the person
 column; the answers written (fill_answers.py: in the questions file, or
 in the plain-text answers file where synthtwin reads one); synthtwin
-profile TABLE --answers FILE; synthtwin generate --seed 7; synthtwin
+profile TABLE --answers FILE --replace --replace-description (the
+record's remedy, `ANSWERED_ROUND`); synthtwin generate --seed 7; synthtwin
 validate --twin. Each command's exit status, seconds and new files are
 recorded, and the run is refused unless every status is 0, the six
 files stand beside the table, synthtwin counted 1,000 people and the
@@ -86,6 +87,15 @@ PERSON = "subject_id"
 # asked next whether they could be ZIP codes, they are not.
 ANSWERS = {"code": ("code", "no"), "age": ("years",), "weight": ("no",)}
 ROUNDS = 3
+# What each answered round types after `--answers FILE` (batch 4y's fix
+# round): `--replace` writes over the round before's files, and
+# `--replace-description` is the record of earlier descriptions' own
+# remedy, which its refusal teaches on the screen. With the patient
+# layer on, a table of several rows a person publishes between columns
+# from the round that answers its person question, and the record holds
+# the round before (which published none) against it; the person types
+# the remedy, as the screen says, on every answered round.
+ANSWERED_ROUND = ("--replace", "--replace-description")
 STEMS = ("visits", "visits-1252")
 PEOPLE = 1000
 SEED = "7"
@@ -361,7 +371,7 @@ def trial(route: Route, work: pathlib.Path, tables: pathlib.Path, stems: "tuple[
                 fill_answers.write_plain(answers, chosen)
             else:
                 fill_answers.write_json(questions, document)
-            if done.run(["profile", table, person, PERSON, "--answers", answers.name, "--replace"]) != 0:
+            if done.run(["profile", table, person, PERSON, "--answers", answers.name, *ANSWERED_ROUND]) != 0:
                 return done
         done.problems += fill_answers.settled(fill_answers.load(questions), written)
         if done.run(["generate", f"{stem}-profile.json", "--seed", SEED]) != 0:

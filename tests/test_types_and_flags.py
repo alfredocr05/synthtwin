@@ -558,8 +558,16 @@ def test_below_the_floor_a_level_few_people_hold_is_pooled_and_publishes_nothing
     assert "common_code" not in found["failing_columns"]  # type: ignore[operator]
 
 
-def test_at_the_floor_integer_codes_keep_their_dtype_spellings_and_filter_shares(tmp_path: pathlib.Path) -> None:
+def test_at_the_floor_integer_codes_keep_their_dtype_spellings_and_filter_shares(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """ONE case per writer at the owner's table floor: the codes form at 20,000 rows, the shipped floor on."""
+    from synthtwin import cli
+
+    # At the floor the shipped command draws the patient layer (lane W5-PL); without the inside record, which no test
+    # writes here, a repeated column it holds is written blank by the description's own twin. This case reads the
+    # codes' writer on the rows, so the layer is left out of it.
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", False)
     table = zoo.tables()[zoo.FORMS.index("codes")]
     result = health_zoo.run_table(table, tmp_path / "codes", health_zoo.KPI_ROWS, zoo.seed_of(table), small_tables_refused=True)
     found = zoo.form_measures(table, result, tmp_path / "codes")

@@ -59,6 +59,7 @@ from synthtwin import (
     progress,
     reading,
     taxonomy,
+    twin_checks,
     workbook,
     writing,
 )
@@ -5581,8 +5582,21 @@ def _key_block(
     pooled: bool,
     owner: str = "",
     pools: "list[str] | None" = None,
+    own: str = "",
+    seen: "list[str] | None" = None,
 ) -> "dict[str, object]":
     """One key block: a key's cells described AS A COLUMN NAMED BY THE KEY (plan P4-D487, rule 0d; K2, K7, K8).
+
+    ITS OWN QUESTION'S ANSWER (lane IN-4c, plan P4-D514): ``own`` is the
+    answer the person gave this block's own question (`measurements_asked`
+    of the questions file), or empty: `measurement` or `code` declares the
+    block so, as the value column's declaration would (no question
+    offering `identifier` holds it then; the age reach, the ZIP reach and
+    every Safe Harbor hold stand); `identifier` holds it whatever else is
+    answered. The caller hands it an answer only where the twin checks do
+    not read the block's cells as an identifier column. ``seen``: where
+    the block is held by a question offering `identifier` it would be put
+    (and by no age reach), that question's words are added to it.
 
     The cells and each person column's cells on the key's rows make a
     table of their own, described by `build_document` under the command's
@@ -5606,8 +5620,8 @@ def _key_block(
     # ...AT THE WHOLE TABLE'S CEILING OF CATEGORIES (`keyed_settings`).
     under = keyed_settings(settings, table.n_rows, tuple(people), owner, name)
     storage = tuple("" for _column in sub.column_names)
-    codes = [name] if asked.code else []
-    measurements = [name] if asked.measurement else []
+    codes = [name] if asked.code or own == asking.ANSWER_CODE else []
+    measurements = [name] if asked.measurement or own == asking.ANSWER_MEASUREMENT else []
     commas = [name] if asked.comma else []
     kept = [name] if asked.kept_identity else []
     # The block's values that read as dates are freed by `no` to the question
@@ -5630,7 +5644,9 @@ def _key_block(
         return build_document(
             sub,
             under,
-            list(people),
+            # ...a block answered `identifier` described as a column so
+            # declared (lane IN-4c, plan P4-D514).
+            list(people) + ([name] if own == asking.ANSWER_IDENTIFIER else []),
             codes,
             measurements,
             commas,
@@ -5674,9 +5690,16 @@ def _key_block(
     # sodium's three-figure results were made up at 901 to 999 whatever was
     # declared). The age reach, the ZIP reach and every Safe Harbor hold
     # stand as they are.
-    hold = name in ages or _asked_as_an_identifier(
-        sub, first, under, people, name, asked.code or asked.measurement
-    )
+    # ...AND THE BLOCK'S OWN ANSWER (lane IN-4c, plan P4-D514): `measurement`
+    # or `code` declares it, as the value column's declaration would;
+    # `identifier` holds it.
+    declared = asked.code or asked.measurement or bool(codes) or bool(measurements)
+    holding = name not in ages and _asked_as_an_identifier(sub, first, under, people, name, declared)
+    hold = name in ages or holding or own == asking.ANSWER_IDENTIFIER
+    if seen is not None and holding:
+        question = _identifier_question(sub, first, under, people, name, declared)
+        if question is not None:
+            seen += [question.shape]
     pool_only = False
     if name in five:
         reason = reasons[name] if name in reasons else ""
@@ -5713,7 +5736,8 @@ def _key_block(
         else:
             hold = asked.question_put and (asked.safe_yes or not (asked.safe_no or asked.dates_no))
     if hold:
-        return _first_block(described([name], [], (), None, None, None, None))
+        held_as = [] if own == asking.ANSWER_IDENTIFIER else [name]
+        return _first_block(described(held_as, [], (), None, None, None, None))
     if _pool_released(asked, pool_only):
         pooled_block = _first_block(described([], [name], (), None, None, None, None))
         if pools is not None:
@@ -5784,6 +5808,25 @@ def _asked_as_an_identifier(
     before (the command's `already_answered`), so no such question is put
     to it, as to a wide column so declared.
     """
+    return _identifier_question(table, document, settings, people, name, declared) is not None
+
+
+def _identifier_question(
+    table: Table,
+    document: "dict[str, object]",
+    settings: taxonomy.Settings,
+    people: "list[str]",
+    name: str,
+    declared: bool = False,
+) -> "asking.Question | None":
+    """The question `synthtwin profile` would put that holds the column until answered, or None (`_asked_as_an_identifier`'s rule).
+
+    The first question offering `identifier` put to the column, where
+    that question holds it (`asking.unanswered_identities`): its words are
+    what a key block's own question says it saw (lane IN-4c, plan
+    P4-D514). Guarantees: a fixed function of its arguments. Raises what
+    `questions_of` raises. No I/O beyond the table's own access.
+    """
     asked = questions_of(
         table,
         document,
@@ -5798,9 +5841,13 @@ def _asked_as_an_identifier(
         (),
         False,
     )
-    return name in asking.unanswered_identities(
-        asked.asked + list(asked.codes_seen.questions), document, tuple(people)
-    )
+    put = asked.asked + list(asked.codes_seen.questions)
+    if name not in asking.unanswered_identities(put, document, tuple(people)):
+        return None
+    for question in put:
+        if question.name == name and asking.offers_identifier(question):
+            return question
+    return None
 
 
 def _rare_key_spellings(
@@ -6047,6 +6094,30 @@ def _keyed_value_held(
     return value in described_identifiers and value not in withheld_names and value not in held_in_people
 
 
+def _block_answer(answered: "tuple[tuple[str, str, str], ...]", value: str, label: str) -> str:
+    """The answer a key block's own question was given (lane IN-4c, plan P4-D514): the first answer naming the value column and, folded, the block's key; empty where none does."""
+    for column, measurement, answer in answered:
+        if column == value and parsing.folded(measurement) == label:
+            return answer
+    return ""
+
+
+def _reads_as_identifiers_to_the_checks(name: str, cells: "list[str]") -> bool:
+    """Whether a key block's cells look like identifiers to the twin checks (lane IN-4c, plan P4-D514): C4's own reading of a column of that name and those cells (`twin_checks.reads_as_an_identifier`), or -- whatever they are read as, numbers included -- different values covering the checks' `KEY_LIKE_SHARE` of the present cells (a run of record numbers is read as numbers there and would pass that reading)."""
+    if twin_checks.reads_as_an_identifier(name, cells):
+        return True
+    present = [cell for cell in cells if not parsing.is_missing_text(cell)]
+    return bool(present) and len(set(present)) * 1000 >= twin_checks.KEY_LIKE_SHARE * len(present)
+
+
+def _held_block(block: "dict[str, object]") -> bool:
+    """Whether a key block is described as record numbers: held, its values unpublished (lane IN-4c)."""
+    return (
+        ("role" in block and block["role"] == taxonomy.ROLE_IDENTIFIER)
+        or ("structural_role" in block and block["structural_role"] == taxonomy.ROLE_IDENTIFIER)
+    )
+
+
 def _written_key(entry: "dict[str, object]") -> str:
     """A published key level's commonest spelling, the key block's name (`_commonest_written`)."""
     return _commonest_written(entry)
@@ -6084,8 +6155,22 @@ def _values_typed_by_key(
     dates_held: "tuple[str, ...]" = (),
     made_up_held: "tuple[str, ...]" = (),
     harbor_put: "frozenset[str] | None" = None,
+    answered_blocks: "tuple[tuple[str, str, str], ...]" = (),
+    blocks_asked: "list[asking.MeasurementAsked] | None" = None,
 ) -> "list[tuple[str, str]]":
     """VALUES TYPED BY A KEY (lane KV, plan P4-D487): each keyed value column described key by key, in place; returns each such value column with the role of its own block.
+
+    A KEY BLOCK'S OWN QUESTION (lane IN-4c, plan P4-D514): each common
+    key's block takes the answer its own question was given
+    (``answered_blocks``: value column, measurement, answer; the
+    measurement matched folded) -- `identifier` always, `measurement` and
+    `code` only where the twin checks do not read the block's cells as an
+    identifier column (`twin_checks.reads_as_an_identifier`); and a block
+    held by a question offering `identifier` that `measurement` or `code`
+    would describe, unanswered and not so read, is added to
+    ``blocks_asked`` with the answers that would describe it, for the
+    questions file (`asking.measurement_section`). A pooled block puts no
+    question (K6).
 
     A VALUE COLUMN `made_up_spellings_named` NAMED (``made_up_held``; batch
     4t's fix round, item 1, plan P4-D489): its key blocks of numbers too
@@ -6255,15 +6340,31 @@ def _values_typed_by_key(
             rows = rows_of[label]
             if not rows:
                 continue
-            blocks += [{
-                "key": label,
-                "block": _key_block(
-                    table, settings, written[label],
-                    [value_cells[place] for place in rows],
-                    [(subject, [cells[place] for place in rows]) for subject, cells in subjects_raw],
-                    asked, False, value, pooled_blocks,
-                ),
-            }]
+            block_cells = [value_cells[place] for place in rows]
+            block_subjects = [(subject, [cells[place] for place in rows]) for subject, cells in subjects_raw]
+            answer = _block_answer(answered_blocks, value, label)
+            # ...ITS OWN ANSWER, never where the twin checks read its cells
+            # as an identifier column: there the block stays held and is
+            # asked nothing (lane IN-4c, HIPAA first).
+            looks = _reads_as_identifiers_to_the_checks(written[label], block_cells)
+            own = answer if answer == asking.ANSWER_IDENTIFIER or not looks else ""
+            seen: "list[str]" = []
+            block = _key_block(
+                table, settings, written[label], block_cells, block_subjects,
+                asked, False, value, pooled_blocks, own, seen,
+            )
+            if blocks_asked is not None and not answer and not looks and seen and _held_block(block):
+                releases: "list[tuple[str, str]]" = []
+                for word in (asking.ANSWER_MEASUREMENT, asking.ANSWER_CODE):
+                    tried = _key_block(
+                        table, settings, written[label], block_cells, block_subjects,
+                        asked, False, value, None, word,
+                    )
+                    if not _held_block(tried):
+                        releases += [(word, f"{tried['role']}")]
+                if releases:
+                    blocks_asked += [asking.MeasurementAsked(value, key, written[label], seen[0], tuple(releases))]
+            blocks += [{"key": label, "block": block}]
         by_key: "dict[str, object]" = {"key": key, "key_blocks": blocks}
         if rare_rows:
             # ...ITS PLACES SET ASIDE: no property of a few rare keys (K6).
@@ -6406,8 +6507,16 @@ def build_document(
     keyed_open: "list[str] | None" = None,
     keyed_described: "dict[str, str] | None" = None,
     keyed_named: "list[str] | None" = None,
+    keyed_answered: "tuple[tuple[str, str, str], ...]" = (),
+    keyed_asked: "list[asking.MeasurementAsked] | None" = None,
 ) -> dict[str, object]:
     """Describe a whole table: the profile document, ready to serialize.
+
+    - A KEY BLOCK'S OWN QUESTION (lane IN-4c, plan P4-D514):
+      ``keyed_answered`` holds each answer a key block's own question was
+      given (value column, measurement, answer) and ``keyed_asked``, where
+      given, gathers the blocks that question is put to
+      (`_values_typed_by_key`); both empty describe every table as before.
 
     - A COLUMN OF SENTENCES IS DESCRIBED AS FREE TEXT (lane NOTES, plan
       P4-D481): a column whose reading would publish its levels and half
@@ -8662,6 +8771,10 @@ def build_document(
                 | frozenset([] if ages_held is None else ages_held)
                 | frozenset([] if dated_values is None else dated_values)
             ),
+            # ...and each key block's own question's answer, and the blocks
+            # that question is put to (lane IN-4c, plan P4-D514).
+            answered_blocks=keyed_answered,
+            blocks_asked=keyed_asked,
         )
         # ...each value column so described recorded as held exactly where
         # its own block is (S8d, A1): its old block's hold goes with it.

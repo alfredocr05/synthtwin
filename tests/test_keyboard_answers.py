@@ -96,8 +96,11 @@ def test_the_keyboard_is_the_file_at_the_table_floor(tmp_path: pathlib.Path) -> 
     # The person at the keyboard types the key the screen shows beside each
     # answer, in the first round and after the files alike, and the real
     # reader reads it (`measures.Typist`).
-    result, out, _described, typist = measures._keyboard_route(
-        keyed, {key: _ANSWERS[key].lower() for key in _ANSWERS}
+    # The answered round publishes between columns where the first did not (the patient layer at the floor, lane
+    # W5-PL), so the record of earlier descriptions asks for --replace-description, inside one run as in a later
+    # one: typed up front on both routes.
+    result, out, typist = measures.typed_run(
+        ["profile", f"{keyed}", "--replace-description"], {key: _ANSWERS[key].lower() for key in _ANSWERS}, ""
     )
     err = ""
     assert result.verdict == results.NO_MISS, result.refusal
@@ -108,10 +111,13 @@ def test_the_keyboard_is_the_file_at_the_table_floor(tmp_path: pathlib.Path) -> 
     shown = out + err + (keyed.parent / "clinic-questions.json").read_text(encoding="utf-8")
     assert [value for value in sorted(real) if value in shown] == []
     filed = _copied(table, tmp_path / "filed")
-    first, _out, _err = _run(["profile", f"{filed}"])
+    # ...and the file route's runs, judged against the keyboard route's description of this same table (the same
+    # name, the same installation), type it as well.
+    first, _out, _err = _run(["profile", f"{filed}", "--replace-description"])
     assert first.verdict == results.NO_MISS, first.refusal
     _answer_file(filed.parent / "clinic-questions.json", _ANSWERS)
-    again, _out, _err = _run(["profile", f"{filed}", "--answers", f"{filed.parent / 'clinic-questions.json'}"])
+    again, _out, _err = _run(["profile", f"{filed}", "--answers", f"{filed.parent / 'clinic-questions.json'}",
+                              "--replace-description"])
     assert again.verdict == results.NO_MISS, again.refusal
     assert (keyed.parent / "clinic-profile.json").read_bytes() == (filed.parent / "clinic-profile.json").read_bytes()
 
@@ -724,6 +730,9 @@ def test_the_repeat_line_repeats_every_answer(
 ) -> None:
     """Safe Harbor answers no option repeats: the repeat line names the questions file, and repeating it describes the table byte for byte."""
     table, _real = small
+    # The floors are lowered part way below, where the shipped command would draw the patient layer its first
+    # description did not (lane W5-PL): the layer is left out, so every description here is the same table's.
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", False)
     _run(["profile", f"{table}"])
     questions = table.parent / "clinic-questions.json"
     _answer_file(questions, {"subject_id": "identifier", "service_code": "code", "blood_pressure": "keep",

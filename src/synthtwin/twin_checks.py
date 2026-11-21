@@ -846,6 +846,25 @@ def _kind_of(column: ColumnPlan, cells: "list[str]") -> ColumnPlan:
     return dataclasses.replace(column, kind=KIND_TEXT)
 
 
+def reads_as_an_identifier(name: str, cells: "list[str]") -> bool:
+    """Whether C4 reads a column of this name and these cells as an identifier column (`_kind_of`, the one reading).
+
+    Lane IN-4c (plan P4-D514): a long table's key block -- one
+    measurement's cells -- is released by its own question's answer only
+    where the checks would NOT read it as an identifier column: its name
+    names no identifier element, its different values cover less than
+    `KEY_LIKE_SHARE` of its present cells, and fewer than `DETAILS_SHARE`
+    of them hold a person's details. Guarantees: a fixed function of the
+    two. Raises TypeError for a name or a cell that is not text. No I/O.
+    """
+    if not isinstance(name, str):
+        raise TypeError(_NOT_TEXT)
+    for cell in cells:
+        if not isinstance(cell, str):
+            raise TypeError(_NOT_TEXT)
+    return _kind_of(ColumnPlan(name), cells).kind == KIND_IDENTIFIER
+
+
 def _spread_places(count: int, wanted: int) -> "list[int]":
     """Up to `wanted` places spread evenly over `count` (every place when there are fewer)."""
     if count <= wanted:

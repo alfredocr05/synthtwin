@@ -308,6 +308,42 @@ def test_the_person_answers_truthfully() -> None:
     assert B.truthful("T6", "test", ["no", "yes"], False) == "no"
 
 
+def test_the_switched_person_question_is_read_as_the_person_question() -> None:
+    """The person question every shipped run puts ("identifies the person", beside `record`) is the person question.
+
+    Read as a record number's question, its `identifier` was given to the
+    guarantor's and the staff member's keys of T7, which said both name the
+    person: the people were counted by the two together and the table was
+    refused at the 1,000-people floor (lane W5-ACC). The patient's key is
+    still answered `identifier` there, every other key `keep`.
+    """
+    from synthtwin import asking
+
+    def entry(*means: "tuple[str, str]") -> "dict":
+        return {"answers_you_can_give": [{"answer": answer, "means": words} for answer, words in means]}
+
+    switched = entry(("keep", "not a person -- it repeats for some other reason"),
+                     ("identifier", asking.PERSON_ANSWER_MEANS), ("record", asking.RECORD_ANSWER_MEANS))
+    first = entry(("keep", "not a person"), ("identifier", "the people the rows are about -- rows sharing a value"))
+    record_numbers = entry(("keep", "measurements or counts"), ("code", "codes of a coding system"),
+                           ("identifier", "record numbers -- each value names one record, report, sample, visit "
+                                          "or person, and it is a key nothing should publish"))
+    assert B._asks_for_people(switched) and B._asks_for_people(first)
+    assert not B._asks_for_people(record_numbers)
+    # Lane MU's route S harness reads the question the same way.
+    import twin_routes
+
+    assert twin_routes.asks_for_people(switched) and twin_routes.asks_for_people(first)
+    assert not twin_routes.asks_for_people(record_numbers)
+    offered = B._offered(switched)
+    others = [name for name in T.COLUMNS["T7"] if T.KNOWS["T7"].get(name) == "identifier" and name != T.PERSON["T7"]]
+    assert len(others) == 4
+    for column in others:
+        assert B.truthful("T7", column, offered, B._asks_for_people(switched)) == "keep", column
+        assert B.truthful("T7", column, B._offered(record_numbers), B._asks_for_people(record_numbers)) == "identifier"
+    assert B.truthful("T7", T.PERSON["T7"], offered, B._asks_for_people(switched)) == "identifier"
+
+
 def test_f0_is_read_from_the_zoo_s_own_entry() -> None:
     ledger = kpi_rules.load_ledger()
     f0 = B.f0_from_ledger(ledger)

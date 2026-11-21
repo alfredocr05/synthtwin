@@ -143,6 +143,12 @@ SCALE_LINEAR = "linear"
 SCALE_NORMAL = "normal"
 # A number column is read on the linear scale where its skew is under this.
 SKEW_CUT = 0.2
+# A repeated number whose one commonest value holds at least this share of its present cells (an atom, such as an
+# amount that is nought on most rows) is not dealt by the zone (lane W5-PL): read on one scale, its two parts (whether
+# a row holds the atom, and how large the rest are) lose what the columns before it in the relations zone carry, an
+# arm's effect on a blood loss's amount halved on the battery's visits table (-0.15 against -0.31), so its cells stay
+# where the relations zone dealt them.
+ATOM_SHARE = 0.3
 # Cells read as no value whatever the column.
 NO_VALUE = ("", "na", "n/a", "nan", "null", "none", ".", "-")
 _MASK = (1 << 64) - 1
@@ -2307,7 +2313,8 @@ def needed_columns(zone_given: object) -> "list[str]":
 
 
 def applied(zone_given: object, names: "list[str]", cells_of: "dict[str, list[str]]", seed: int, *,
-            timing: bool = True, dealing: bool = True, dates_kept: bool = False) -> Applied:
+            timing: bool = True, dealing: bool = True, dates_kept: bool = False,
+            kept: "typing.Collection[str]" = ()) -> Applied:
     """The twin's columns rewritten by a trajectories zone (see the module's text).
 
     `cells_of` holds at least the columns `needed_columns` names, in the
@@ -2325,6 +2332,8 @@ def applied(zone_given: object, names: "list[str]", cells_of: "dict[str, list[st
     cells, moved with their rows (the generate step's setting,
     `twin_with_zone`: the twin's dates are the dates zone's, with the day of
     the month made up, never the real calendar's days this zone holds).
+    The dealing step deals no column `kept` names (lane W5-PL): each such
+    cell stays on its row, with the row's dates.
     """
     zone = checked_zone(zone_given)
     if zone is None:
@@ -2366,17 +2375,24 @@ def applied(zone_given: object, names: "list[str]", cells_of: "dict[str, list[st
     if timing and not dates_kept and anchor_name in work and isinstance(gaps, dict):
         _dates_again(gaps, typing.cast("list[str]", order["dates"]), anchor_name, work, members, seed)
     if dealing:
+        held = frozenset(kept)
         # (4) and (5) the repeated numbers and the yes/no outcomes.
-        _numbers_dealt(zone, work, members, fixed, anchor_name, seed)
-        _binaries_dealt(zone, work, members, anchor_name, seed)
+        _numbers_dealt(zone, work, members, fixed, anchor_name, seed, held)
+        _binaries_dealt(zone, work, members, anchor_name, seed, held)
         # (6) each key's values, with the content of their rows, on a keyed long table.
-        _keys_dealt(zone, work, members, anchor_name, seed)
+        _keys_dealt(zone, work, members, anchor_name, seed, held)
     return Applied(work, layout, [])
 
 
 def _keys_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", members: "list[list[int]]", anchor_name: str,
-                seed: int) -> None:
-    """Each key level's rows: their latent scores under the level's trajectory, and the rows' content (the value and every cell that stands with it) dealt to them in that order, inside each group of the level's scale label."""
+                seed: int, held: "frozenset[str]" = frozenset()) -> None:
+    """Each key level's rows: their latent scores under the level's trajectory, and the rows' content (the value and every cell that stands with it) dealt to them in that order, inside each group of the level's scale label.
+
+    A column `held` names stays on its row (lane W5-PL): a date the dates
+    zone wrote, or a label its clocks are drawn by (on a charting table, the
+    device whose rows are entered as they are charted and on the minute),
+    keeps its row's dates; a level whose value column is held is not dealt.
+    """
     if "keys" not in zone or "key" not in zone or "bundle" not in zone:
         return
     entries = zone["keys"]
@@ -2384,7 +2400,7 @@ def _keys_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", members
     bundle = zone["bundle"]
     if not isinstance(entries, list) or not isinstance(key, str) or not isinstance(bundle, list) or key not in work:
         return
-    content = [name for name in bundle if isinstance(name, str) and name in work]
+    content = [name for name in bundle if isinstance(name, str) and name in work and name not in held]
     patient_columns = _patient_columns_of(zone)
     patient_cells = _patient_cells(patient_columns, work, members)
     rows_scores = mid_scores([float(len(rows_of)) for rows_of in members])
@@ -2394,7 +2410,7 @@ def _keys_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", members
         level = _text(entry["level"])
         value_name = _text(entry["column"])
         unit = _text(entry["unit"])
-        if value_name not in work or (unit and unit not in work):
+        if value_name not in work or (unit and unit not in work) or value_name in held:
             continue
         read = _read_entry(entry)
         pair_lower = cholesky([[1.0, read.corr], [read.corr, 1.0]], 1e-9)
@@ -2914,10 +2930,30 @@ def _deal(cells: "list[str]", latent: "dict[int, float]") -> "list[str]":
     return out
 
 
+def _with_an_atom(cells: "list[str]") -> bool:
+    """Whether one value holds at least `ATOM_SHARE` of a number column's present cells (lane W5-PL); a fixed function of the cells."""
+    counts: "dict[str, int]" = {}
+    present = 0
+    for cell in cells:
+        if _absent(cell):
+            continue
+        value = _number(cell)
+        text = f"{value}" if value is not None else _bare(cell)
+        counts[text] = counts[text] + 1 if text in counts else 1
+        present += 1
+    if not present:
+        return False
+    most = 0
+    for text in counts:
+        most = max(most, counts[text])
+    return most >= ATOM_SHARE * present
+
+
 def _numbers_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", members: "list[list[int]]",
-                   fixed: "list[str]", anchor_name: str, seed: int) -> None:
+                   fixed: "list[str]", anchor_name: str, seed: int, held: "frozenset[str]" = frozenset()) -> None:
     entries = [entry for entry in typing.cast("list[dict[str, object]]", zone["numbers"])
-               if isinstance(entry, dict) and _text(entry["column"]) in work]
+               if isinstance(entry, dict) and _text(entry["column"]) in work and _text(entry["column"]) not in held
+               and not _with_an_atom(work[_text(entry["column"])])]
     if not entries:
         return
     patient_columns = _patient_columns_of(zone)
@@ -3022,9 +3058,9 @@ def _entry_time(entry: "dict[str, object]", work: "dict[str, list[str]]", rows_o
 
 
 def _binaries_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", members: "list[list[int]]",
-                    anchor_name: str, seed: int) -> None:
+                    anchor_name: str, seed: int, held: "frozenset[str]" = frozenset()) -> None:
     entries = [entry for entry in typing.cast("list[dict[str, object]]", zone["binaries"])
-               if isinstance(entry, dict) and _text(entry["column"]) in work]
+               if isinstance(entry, dict) and _text(entry["column"]) in work and _text(entry["column"]) not in held]
     if not entries:
         return
     patient_columns = _patient_columns_of(zone)
@@ -3252,7 +3288,13 @@ def twin_with_zone(twin: "typing.Any", profile: "typing.Any", zone: "dict[str, o
         middle: "dict[str, list[str]]" = {}
         for name in needed:
             middle[name] = dated[name] if name in dated else first.columns[name]
-        got = Applied(applied(zone, needed, middle, seed, timing=False).columns, first.order, [])
+        # THE ROW'S DATES AND WHAT THEY ARE DRAWN BY STAY TOGETHER (lane W5-PL): the dealing moves no date column
+        # the dates zone wrote, nor any label its clocks and gaps are drawn by, from its row. Dealt with a key's
+        # values, a charting table's device flag left the rows it is entered at once and charted on the minute
+        # (rows entered at once 1.0 to 0.66, the five-minute difference 0.63 to 0.18 against the real 1.0 and
+        # 0.63), and a universal clock left its local one (six hours apart on every row to 52 in 100).
+        stay = list(rewritten) + [label for label in _dates_labels(dates) if label in place_of]
+        got = Applied(applied(zone, needed, middle, seed, timing=False, kept=stay).columns, first.order, [])
     if not got.columns:
         return twin
     every_hole = generation.every_hole_spelling(profile)

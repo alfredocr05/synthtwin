@@ -3871,7 +3871,9 @@ the chain over fewer columns, those whose pairs carry the most
 dependence, where the whole chain would take the projected run past
 its time or memory, and draws none only where not even two columns fit;
 and while the generator reads no patient layer, `grain` stays `null` on
-every shipped description (4.6c's amendment of this date).
+every shipped description (4.6c's amendment of this date; since lane
+W5-PL the shipped command publishes it on a table at the owner's floor,
+4.6c's amendment of 2026-11-20).
 
 **What it replaces.** The held page of plan P4-D394 (a section 4.6a
 publishing every pair's table, a forest and a latent matrix; held at
@@ -8407,6 +8409,27 @@ several rows, the person named), until lane GRb's generator reads the
 layer and flips it in one line. The holds of 4.6c.12 ship as built:
 the person question with its `record` answer, the subject question,
 and a held column that repeats.
+
+*Amended Friday 2026-11-20 (lane W5-PL, plan P4-D507; batch 4y's fix round, plan P4-D513):* the
+sub-switch is on. The shipped command publishes `grain` on a table at
+the owner's floor (20,000 rows holding a value, 1,000 people where a
+person column repeats) where one person stands on several rows and the
+person is named; a table under the floor, described under a test's
+internal switch, publishes none, and a table the inside record's keyed
+zone models is described without the layer. The shipped generator
+makes its twin by the patient walk, and where the inside record stands
+beside the description its trajectories zone and its dates zone set
+each patient's rows to the real census, number its visits in order and
+write its dates as one timeline. The validator holds a position-like
+column to its list alone, its block's counts listed as not checkable
+(4.6c.6 (c)), lists a held column's emptied block the same way, and
+withholds a repetition pattern the layer withholds (4.6c.3 (c)) and a
+held column's layouts over rows beside it. A key block's own
+description carries no layer. The record of descriptions reads the
+rounds of one run as before: the round that answers the person or
+subject question is the first to publish between columns and is
+refused unless `--replace-description`, its answers kept and the
+command taught.
 
 **What is written first.** The owner's answer of 2026-10-18 (ruling R7
 of the December plan) brought change over visits into December, and

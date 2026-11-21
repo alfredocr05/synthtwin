@@ -226,8 +226,9 @@ def test_the_bundle_s_visits_table_validates_on_the_inside_record_s_route(tmp_pa
                 if not chosen:
                     break
                 answers.write_json(questions, document)
+                # ...each answered round as the trial types it, the record's remedy with it (batch 4y's fix round).
                 assert _command(["profile", f"{source}", *person, "--out-dir", f"{work}", "--answers",
-                                 f"{questions}", "--replace"]) == 0
+                                 f"{questions}", *rehearse.ANSWERED_ROUND]) == 0
             assert _command(["generate", f"{description}", "--out-dir", f"{work}", "--seed", rehearse.SEED]) == 0
             code = _command(["validate", f"{description}", "--twin", f"{twin}"])
     report = (work / f"{stem}-twin-report.txt").read_text(encoding="utf-8")

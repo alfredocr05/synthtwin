@@ -27,6 +27,8 @@ import json
 import pathlib
 import random
 
+import pytest
+
 from synthtwin import cli, parsing, taxonomy
 
 FLOOR = 11
@@ -291,7 +293,9 @@ def _nobody_at_the_keyboard():  # type: ignore[no-untyped-def]
         cli._there_is_somebody_to_ask = asked
 
 
-def test_at_the_owner_floor_a_rare_code_equal_to_the_start_is_not_written(tmp_path: pathlib.Path) -> None:
+def test_at_the_owner_floor_a_rare_code_equal_to_the_start_is_not_written(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """`88`, and in a second column `8888`, for person 0 beside levels `1` to `5`, 1,000 people of 20 rows, answered `no`: no rare value in the description or the twin, and the second column's five levels published with a start on a free opening.
 
     Red on 820d55c3 (the start `88` printed, 20 twin cells), on the mutant
@@ -300,6 +304,9 @@ def test_at_the_owner_floor_a_rare_code_equal_to_the_start_is_not_written(tmp_pa
     whole as record numbers where the line before published its five
     levels; lane HB2's repair 1, skeptic 1's item 5).
     """
+    # At the floor the shipped command draws the patient layer (lane W5-PL), whose published blocks and twin are
+    # read in patients; this case reads the rows' own blocks and twin, so the layer is left out of it.
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", False)
     rows = [
         [f"{100000 + who}", "88" if who == 0 else f"{1 + (who * 20 + row) % 5}",
          "8888" if who == 0 else f"{1 + (who * 20 + row) % 5}"]
@@ -320,8 +327,10 @@ def test_at_the_owner_floor_a_rare_code_equal_to_the_start_is_not_written(tmp_pa
                 entry["your_answer"] = "no"
         answers = tmp_path / "answers.json"
         answers.write_text(json.dumps(document), encoding="utf-8", newline="\n")
-        assert cli.main(["profile", f"{source}", "--out-dir", f"{tmp_path}", "--replace", "--answers", f"{answers}"]
-                        + declared) == 0
+        # The answered round publishes between columns where the first did not (the patient layer at the floor,
+        # lane W5-PL): the record of earlier descriptions asks for --replace-description.
+        assert cli.main(["profile", f"{source}", "--out-dir", f"{tmp_path}", "--replace", "--answers", f"{answers}",
+                         "--replace-description"] + declared) == 0
         assert cli.main(["generate", f"{tmp_path / 't-profile.json'}", "--out-dir", f"{tmp_path}", "--seed", "0", "--replace"]) == 0
     blocks = {one["name"]: one for one in json.loads((tmp_path / "t-profile.json").read_text(encoding="utf-8"))["columns"]}
     with open(tmp_path / "t-twin.csv", encoding="utf-8", newline="") as handle:

@@ -418,8 +418,8 @@ _PROFILE_DECLARATIONS = (
 # (`_RECORD_SENTENCE`), each said in full on the whole-tool page.
 _RECORD_OPTIONS = ("--name", "--replace-description", "--new-key", "--private-folder")
 _READ_BY = {
-    _PROFILE: ("--out-dir", "--replace") + _PROFILE_DECLARATIONS + _RECORD_OPTIONS,
-    _GENERATE: ("--seed", "--out-dir", "--replace"),
+    _PROFILE: ("--out-dir", "--replace") + _PROFILE_DECLARATIONS + ("--linked-to",) + _RECORD_OPTIONS,
+    _GENERATE: ("--seed", "--out-dir", "--replace", "--linked-to"),
     _VALIDATE: ("--twin", "--out-dir", "--sheet", "--replace"),
     _DOCTOR: ("--out-dir",),
     _TWIN: ("--out-dir", "--replace", "--seed") + _PROFILE_DECLARATIONS + _RECORD_OPTIONS,
@@ -453,10 +453,16 @@ _SHORT_HELP = {
     "--replace-description": ("", ""),
     "--new-key": ("", ""),
     "--private-folder": ("FOLDER", ""),
+    "--linked-to": ("FILE", "another table's description, to join its twin"),
 }
 # ...and the one sentence that names them on the pages of `profile` and
 # `twin` (kept within `K-S8-05`'s 60 lines a page).
 _RECORD_SENTENCE = "--name, --replace-description, --new-key, --private-folder: see --help"
+# ...and on the page of `profile`, which reads `--linked-to` too (lane W5-F14), the five in one line, so the page
+# stays within `K-S8-05`'s 60 lines (it stood at 60 before the option).
+_RECORD_SENTENCES = {_PROFILE: "--name --replace-description --new-key --private-folder --linked-to: --help"}
+# The options a page names in its record sentence rather than on a line of its own.
+_IN_THE_SENTENCE = {_PROFILE: ("--linked-to",)}
 _LONG_HELP = {"--keep-value": _KEEP_VALUE_HELP, "--missing-value": _MISSING_VALUE_HELP}
 
 _PAGE_WIDTH = 79
@@ -598,6 +604,15 @@ _EXAMPLES_PAGE = """examples:
   synthtwin generate data-profile.json --seed 7
       build a different twin from the same description
 
+  synthtwin profile orders.csv --linked-to cohort.csv
+      describe orders.csv, whose person column names persons of the
+      cohort.csv table of the same study, and keep how the two tables
+      join in this computer's private record
+
+  synthtwin generate orders-profile.json --linked-to cohort-profile.json
+      build the twin of orders.csv over the persons of the twin of
+      cohort.csv at the same seed, so the two twins join as the tables do
+
   synthtwin validate data-profile.json
       measure data-twin.csv against that description and write
       data-twin-quality.txt beside it
@@ -667,12 +682,14 @@ def command_page(command: str) -> str:
     usage, said = _PAGE_HEADS[command]
     page = f"{usage}\n\n" + _wrapped(said, "") + "\noptions:\n"
     prose = _PAGE_PROSE[command] if command in _PAGE_PROSE else ""
+    sentence_names = _IN_THE_SENTENCE[command] if command in _IN_THE_SENTENCE else ()
     for option in _READ_BY[command]:
-        if option in _LONG_HELP or (prose and option in _PROSE_NAMES) or option in _RECORD_OPTIONS:
+        if (option in _LONG_HELP or (prose and option in _PROSE_NAMES) or option in _RECORD_OPTIONS
+                or option in sentence_names):
             continue
         page = page + _option_line(option)
     if any(option in _RECORD_OPTIONS for option in _READ_BY[command]):
-        page = page + _wrapped(_RECORD_SENTENCE, "  ")
+        page = page + _wrapped(_RECORD_SENTENCES[command] if command in _RECORD_SENTENCES else _RECORD_SENTENCE, "  ")
     if prose:
         page = page + "\n" + _wrapped(prose, "")
     for option in _READ_BY[command]:
@@ -1020,6 +1037,9 @@ class _Session:
     # ...and whether this run put the subject question of the questions
     # file's `between_columns` entry at the keyboard (item 6).
     subject_entry_put: bool = False
+    # LANE W5-F14: the file `--linked-to` named on a `profile` or `generate`
+    # line ('' where none): the study's other table, or its description.
+    linked_to: str = ""
 
 
 @dataclasses.dataclass
@@ -1169,6 +1189,33 @@ def _asked_at_a_prompt() -> "tuple[tuple[str, str, str], ...]":
     """The questions this run put at a prompt, by column, role and reason, in the order put."""
     session = _current()
     return () if session is None else tuple(session.put)
+
+
+def _measurements_waiting(asked: "list[asking.MeasurementAsked]") -> "list[str]":
+    """The value columns with a key block whose own question is open, each once, in the order found (lane IN-4c, plan P4-D514): the describe puts that question only to a block no answer names."""
+    found: "list[str]" = []
+    for one in asked:
+        if one.column not in found:
+            found += [one.column]
+    return found
+
+
+def _measurements_waiting_said(
+    column: str, asked: "list[asking.MeasurementAsked]", questions: str
+) -> str:
+    """The caution naming the measurements of one value column held until their own question is answered (lane IN-4c, plan P4-D514)."""
+    names = [one.measurement for one in asked if one.column == column]
+    listed = ""
+    for name in names:
+        listed = f"'{_shown(name)}'" if not listed else f"{listed}, '{_shown(name)}'"
+    return (
+        f"\nIn the column '{_shown(column)}', the measurement(s) {listed} are "
+        f"written the way record numbers are also written, so their values "
+        f"are held back and the twin writes made-up values there. Say "
+        f"whether each is a measurement, a code or record numbers under "
+        f"'{asking.MEASUREMENTS_ASKED}' in {questions}, then run synthtwin "
+        f"profile again with --answers naming that file."
+    )
 
 
 def _questions_put_in_the_result(
@@ -1896,6 +1943,9 @@ class _Options:
     replace_description: bool = False
     new_key: bool = False
     private_folder: "str | None" = None
+    # -- lane W5-F14: the other table of the study (`profile`) or its
+    # description (`generate`) this table's person column joins.
+    linked_to: "str | None" = None
 
 
 def _typed_floor(typed: str) -> int:
@@ -1989,6 +2039,7 @@ _LONG_OPTIONS = (
     "--replace-description",
     "--new-key",
     "--private-folder",
+    "--linked-to",
 )
 # THE ABBREVIATIONS THE BASE READ AS `--replace` KEEP THAT MEANING (lane
 # CHON, plan P4-D464). argparse takes a word that begins one long option
@@ -2662,6 +2713,22 @@ def _parse_arguments(
             "by 'profile' and 'twin'"
         ),
     )
+    # -- lane W5-F14: two tables of one study joined by the person column.
+    parser.add_argument(
+        "--linked-to",
+        default=None,
+        metavar="FILE",
+        help=(
+            "another table of the same study whose person column names the "
+            "same persons, so the two twins join as the two tables do. For "
+            "'profile', FILE is that other table (a cohort beside its orders): "
+            "how the two tables join is kept in this computer's private record "
+            "of this table. For 'generate', FILE is that other table's "
+            "description: its twin at the same --seed is built again, and this "
+            "twin's persons are written as persons of that twin, with its keys. "
+            "Used by 'profile' and 'generate'"
+        ),
+    )
     # parse_known_args rather than parse_args: argparse's own report of
     # words it did not recognize copies them to the error stream exactly
     # as typed, so a word carrying an escape sequence would instruct the
@@ -2836,6 +2903,7 @@ def _parse_arguments(
         replace_description=bool(args.replace_description),
         new_key=bool(args.new_key),
         private_folder=None if args.private_folder is None else f"{args.private_folder}",
+        linked_to=None if args.linked_to is None else f"{args.linked_to}",
     )
 
 
@@ -5772,16 +5840,39 @@ class ChainRun:
     private_folder: "str | None" = None
     # THE PATIENT LAYER'S SUB-SWITCH (LANE CHON RULINGS 1 (6)): a run that
     # leaves it True may publish `grain`, the patient layer (lane GRa, plan
-    # P4-D449); the shipped run reads `_PATIENT_LAYER_SHIPPED`, False until
-    # the generator reads the layer (lane GRb flips it in one line), so a
-    # table of several rows a person publishes no chain until then.
+    # P4-D449); the shipped run reads `_PATIENT_LAYER_SHIPPED`, True since
+    # lane W5-PL (the generator reads the layer through the patient walk, lane
+    # GRb, and the inside record's trajectories zone, lane IN-3), so a table of
+    # several rows a person at the owner's floor publishes its chain over patients.
     patient_layer: bool = True
+    # THE LAYER ON THE INSIDE PATH (lane W5-PL): where True, the layer is
+    # drawn only on a table at the owner's floor (`_below_the_table_floor`
+    # false: 20,000 rows holding a value, and 1,000 people where a person
+    # column repeats), the tables the inside record is written for
+    # (`_inside_record_written`) and the only ones the command twins. The
+    # shipped run sets it (`_shipped_chain`); a table under the floor,
+    # described under a test's internal switch, keeps its description's
+    # bytes, as the record's own floor keeps its twin (THE OWNER'S TABLE
+    # FLOOR, point 3). A run handed in keeps the layer wherever it asks.
+    layer_at_the_floor: bool = False
 
 
-# THE ONE LINE LANE GRb FLIPS (LANE CHON RULINGS 1 (6)): whether the shipped
-# command publishes the patient layer (`grain`). False: no shipped
-# description carries what the shipped generator does not yet read.
-_PATIENT_LAYER_SHIPPED = False
+# THE ONE LINE THAT TURNS THE PATIENT LAYER ON (LANE CHON RULINGS 1 (6)),
+# FLIPPED BY LANE W5-PL: the shipped command publishes the patient layer
+# (`grain`) on a table at the owner's floor where one person stands on several
+# rows and the person is named (`_PATIENT_LAYER_AT_THE_FLOOR`), the shipped
+# generator makes its twin through the patient walk (`patient_walk`), and where
+# the inside record stands beside the description its trajectories zone and its
+# dates zone time and deal each patient's visits. False would leave such a table
+# with no chain at all, so its mixed models would read a shuffled table.
+_PATIENT_LAYER_SHIPPED = True
+
+# THE LAYER ON THE INSIDE PATH, AT THE OWNER'S FLOOR (lane W5-PL): whether the
+# shipped run draws the layer on a table at the floor alone
+# (`ChainRun.layer_at_the_floor`), the tables the inside record is written for
+# and the command twins. A gate file that draws the layer on a smaller table
+# through the shipped command sets it in place; the product reads no environment.
+_PATIENT_LAYER_AT_THE_FLOOR = True
 
 
 @dataclasses.dataclass
@@ -5846,6 +5937,14 @@ class _ChainState:
     # The columns the open person question holds, which the hold's paragraph
     # names (lane CHON's repair 1, F2).
     person_held: "tuple[str, ...]" = ()
+    # Whether the table is under the owner's floor, as the run last counted
+    # it (`_floor_noted`); a run's `layer_at_the_floor` draws no layer then
+    # (lane W5-PL).
+    below_the_floor: bool = False
+    # Whether the inside record will hold a keyed zone for this table
+    # (`_keyed_zone_stands`, read before the chain); the layer then leaves
+    # the table alone (batch 4y's fix round).
+    keyed_zone_stands: bool = False
 
 
 def _subject_named(chain_state: "_ChainState | None") -> "list[str]":
@@ -5915,6 +6014,21 @@ def _persons_settled(chain_state: _ChainState, repeating: "tuple[str, ...]") -> 
     chain_state.subject_keys = unread
     chain_state.rows_per_person = chain.ROWS_OPEN
     return repeating
+
+
+def _floor_noted(
+    chain_state: "_ChainState | None", rows: int, person_columns: "tuple[str, ...]", people: int
+) -> None:
+    """Note on a switched run whether its table is under the owner's floor, as `_below_the_table_floor` reads the three (lane W5-PL).
+
+    Read where the run counts its people (`_population_settled`'s two
+    calls), whatever its own refusal does with it: a run under a test's
+    internal switch goes on below the floor, and its layer then stays off
+    where its switch asks for the layer at the floor alone
+    (`ChainRun.layer_at_the_floor`). Raises nothing; no I/O.
+    """
+    if chain_state is not None:
+        chain_state.below_the_floor = _below_the_table_floor(rows, person_columns, people)
 
 
 def _population_settled(
@@ -6411,7 +6525,12 @@ def _chained_description(
                 kept_identities,
                 rules=run.rules,
                 ages_counted_in=tuple(answered),
-                patient_layer=run.patient_layer,
+                # ...the layer on the inside path, at the owner's floor alone
+                # where the run asks so (lane W5-PL, `ChainRun.layer_at_the_floor`),
+                # and never on a table the inside record's keyed zone models
+                # (batch 4y's fix round, `_keyed_zone_stands`).
+                patient_layer=(run.patient_layer and not (run.layer_at_the_floor and chain_state.below_the_floor)
+                               and not chain_state.keyed_zone_stands),
                 columns_at_most=sized.drawn if sized.degraded else 0,
                 every_partner=sized.every_partner,
             ),
@@ -7047,14 +7166,13 @@ def _inside_record_switched_on() -> bool:
     return _INSIDE_RECORD_SHIPPED
 
 
-# THE KEYED ZONE'S OWN SUB-SWITCH (batch 4x, plan P4-D503): the keyed zone (lane IN-4, plan P4-D499) is merged behind
-# it and it is OFF on the shipped route. The zone writes cells of its own over the drawn twin (it re-cuts the persons
-# to the record's census of rows a person and rewrites its numbers, flags, pairs and later clocks), so the drawn
-# twin's columns are no longer the description's twin's cells and validate misses published facts on a long keyed
-# table; batch 4x's outside review also found a held identifier level and an age past 89 it could write. While it is
-# off the record is written without the zone and a record holding one is drawn without it; a gate file sets it in
-# place, and the product reads no environment. Turning it on waits for the IN-4 follow-up named in plan P4-D503.
-_KEYED_ZONE_SHIPPED = False
+# THE KEYED ZONE'S OWN SUB-SWITCH (batch 4x, plan P4-D503; lane IN-4b, plan P4-D504): the keyed zone (lane IN-4, plan
+# P4-D499) is merged behind it, and it is ON on the shipped route since lane IN-4b. The zone deals the description's
+# twin's own cells (it writes no person and no spelling of its own choosing), never models a key block the
+# description holds as identifiers, writes nothing past a top code, and keeps a later clock's presence, form and
+# month, so validate holds the twin to every published fact as before. Set off in place, the record is written
+# without the zone and a record holding one is drawn without it; the product reads no environment.
+_KEYED_ZONE_SHIPPED = True
 
 
 def _keyed_zone_switched_on() -> bool:
@@ -7078,7 +7196,8 @@ def _record_without_keyed_zone(record: "dict[str, object]") -> "dict[str, object
     return out
 
 
-def _inside_record_written(read: object, published: "dict[str, object]", written: pathlib.Path) -> None:
+def _inside_record_written(read: object, published: "dict[str, object]", written: pathlib.Path,
+                           rows_described: "dict[str, object] | None" = None) -> None:
     """Write the inside record of a table just described (lane IN-2, plan P4-D496): its marginals and its relations.
 
     THE TWIN IS BUILT FROM IT. Once the description is written, the table
@@ -7089,7 +7208,11 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     (`inside_relations.fit_zone`, the fitted responses), bound to the
     description by the digest of its bytes. `synthtwin generate` of that
     description then draws the twin from it. Nothing of the record is
-    shown: one line names its path and its size.
+    shown: one line names its path and its size. A column the patient
+    layer holds (its block emptied, contract 4.6c.5) is read with its holds
+    as `rows_described`, the same run's description before the layer, wrote
+    them (`inside_relations.record_document`; batch 4y's fix round): its age
+    top code, its year cut, its identifier reading stand in the record.
 
     Where the guard refuses the private folder, the record is not written
     and the twin is built from the description alone; the refusal is said
@@ -7123,7 +7246,10 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     # repeats); a table under it, described under a test's internal switch, keeps the twin of its description.
     if rows < parsing.TABLE_ROW_FLOOR:
         return
-    specs = inside_relations.specs_of(published)
+    # THE HOLDS OF A COLUMN THE LAYER EMPTIES (batch 4y's fix round, Codex's review of the batch, item 1): every reading
+    # of a column's holds below reads them off the rows' description where the layer emptied its block.
+    holding = inside_relations.record_document(published, rows_described)
+    specs = inside_relations.specs_of(holding)
     if len(specs) != len(read.column_names):
         return
     # THE PERSONS FIRST, where a person column repeats: a column held once a
@@ -7137,6 +7263,16 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
                 persons, person = found_persons, specs[place].name
     if persons is not None and len(persons.rows_of) < parsing.TABLE_PEOPLE_FLOOR:
         return
+    # THE LINKED TABLE'S KEY (lane W5-F14): the column that names the person,
+    # whether or not it repeats, read below with the others and kept for the
+    # links zone where `--linked-to` named the study's other table.
+    session = _current()
+    linking = session.linked_to if session is not None else ""
+    link_key = ""
+    for place in range(len(specs)):
+        if linking and not link_key and specs[place].why_kept == inside_relations.NAMES_THE_PERSON:
+            link_key = specs[place].name
+    key_cells: "list[str]" = []
     sample = inside_relations.sample_rows(rows, persons=persons)
     marginals: "dict[str, object]" = {}
     encoded: "list[inside_relations.Encoded]" = []
@@ -7145,7 +7281,8 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     # pass: each kept column with empty and filled cells enough, for the
     # missing-values zone fitted on the relations zone's frames below.
     kept: "list[inside_missing.Kept]" = []
-    blocks = published["columns"] if "columns" in published and isinstance(published["columns"], list) else []
+    held_blocks = holding["columns"] if isinstance(holding, dict) and "columns" in holding else None
+    blocks = held_blocks if isinstance(held_blocks, list) else []
     settings_block = published["settings"] if "settings" in published else None
     frames: "dict[str, inside_relations.Frame]" = {}
     owners: "list[int] | None" = None
@@ -7170,6 +7307,8 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
                 return
             names += [name]
             cells = reading.column_values(read, place)
+            if link_key and name == link_key:
+                key_cells = cells
             marginals[name] = inside.column_entry(cells, specs[place].why_kept in inside_relations.RECORD_NUMBERS)
             # THE HOLDS NARROWED (lane IN-7, plan P4-D501): a column the person
             # answered a measurement is modelled though the description holds it
@@ -7239,7 +7378,7 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     # bound both zones kept before lane IN-8 read the dates a column at a
     # time); a larger table's twin keeps the description's keyed values. It is
     # written only where its own sub-switch is on (`_keyed_zone_switched_on`,
-    # off on the shipped route since batch 4x, plan P4-D503).
+    # on for the shipped route since lane IN-4b, plan P4-D504).
     keyed_zone: "dict[str, object] | None" = None
     if person and rows <= _KEYED_ZONE_MOST_ROWS and _keyed_zone_switched_on():
         whole: "dict[str, list[str]] | None" = None
@@ -7250,9 +7389,9 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
                      for place, name in enumerate(read.column_names)}
             dated = (tuple(str(each) for each in typing.cast("list[object]", dates_zone["order"]))
                      if dates_zone is not None else ())
-            tops, held = inside_keyed.key_blocks_of(published)
-            keyed_zone = inside_keyed.build_zone(whole, person, skipped + inside_keyed.kept_by_description(published),
-                                                 dated, tops, held)
+            tops, held = inside_keyed.key_blocks_of(holding)
+            keyed_zone = inside_keyed.build_zone(whole, person, skipped + inside_keyed.kept_by_description(holding),
+                                                 dated, tops, held, inside_keyed.typed_of(holding))
         except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
             keyed_zone = None
         whole = None
@@ -7274,6 +7413,22 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
         record["zones"][inside_missing.ZONE] = missing_zone  # type: ignore[index]
     if keyed_zone is not None:
         record["zones"]["keyed"] = keyed_zone  # type: ignore[index]
+    # THE LINKS ZONE (lane W5-F14): how this table joins the study's other
+    # table `--linked-to` named, fitted on both real tables here.
+    links_zone: "dict[str, object] | None" = None
+    if linking:
+        # ...read with the description's smallest group, as the table itself was (batch 4y merge).
+        floor: object = None
+        if isinstance(settings_block, dict) and "small_cell_floor" in settings_block:
+            floor = settings_block["small_cell_floor"]
+        if not isinstance(floor, int) or isinstance(floor, bool):
+            floor = parsing.DEFAULT_SMALL_CELL_FLOOR
+        links_zone = _links_zone_of(link_key, key_cells, linking, floor)
+        if links_zone is not None:
+            from synthtwin import inside_links
+
+            record["zones"][inside_links.ZONE] = links_zone  # type: ignore[index]
+    key_cells = []
     try:
         made = inside.write_record(record, target, places)
     except (inside.InsideError, OSError) as failed:
@@ -7284,6 +7439,147 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
         )
         return
     _say(f"The {inside.describe(made.path)}. synthtwin generate builds the twin from it.")
+    if links_zone is not None:
+        _say(
+            f"It also holds how this table's {_shown(link_key)} joins {_shown(linking)}. To make the two twins join "
+            f"as the two tables do, build that table's twin first, then this one with  --linked-to  and that "
+            f"table's description, at the same --seed."
+        )
+
+
+def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
+    """Whether the inside record of this table will hold a keyed zone (batch 4y's fix round): the layer then leaves it alone.
+
+    THE LAYER LEAVES A KEYED TABLE ALONE. With the patient layer and the
+    keyed zone both on a long table typed by a key, the battery's charting
+    and orders tables lost what the keyed zone alone holds (dose units 9
+    of 9 runs to 0, item values 9 to 5, the heart-rate trend 9 to 7, at
+    20,000 rows): the layer holds a keyed content column whose block it
+    empties (the orders' dose), so the description's twin holds no cell of
+    it for the keyed zone to deal, and the trajectories zone deals the
+    keyed values again after the keyed zone. Until the two are made to
+    compose, a table the keyed zone models is described without the layer.
+
+    Read before the chain, on the description as the run wrote it before
+    the layer, with the conditions `_inside_record_written` builds the
+    zone on: the record's sub-switch on, a private folder the guard
+    takes, a table of `parsing.TABLE_ROW_FLOOR` to
+    `_KEYED_ZONE_MOST_ROWS` rows whose person column repeats over
+    `parsing.TABLE_PEOPLE_FLOOR` people or more, and a key found by
+    `inside_keyed.build_zone` on the same columns (record numbers, privacy
+    holds and the dates zone's date columns left out). The keyed zone's
+    own sub-switch is not read: a description is the same whichever way
+    that internal switch stands, and only the record and its draw follow
+    it (tests/test_review_4x.py holds a twin drawn without the zone equal
+    to one written without it). A table above
+    `_KEYED_ZONE_MOST_ROWS` rows keeps the layer (its record holds no keyed
+    zone, and the walk keeps each key level's values on its rows). Reads
+    the table's columns; writes nothing; prints nothing. Raises nothing:
+    a reading that fails answers False.
+    """
+    from synthtwin import inside, inside_keyed, inside_relations, reading
+
+    if not isinstance(read, reading.Table) or not _inside_record_switched_on():
+        return False
+    rows = read.n_rows
+    if rows < parsing.TABLE_ROW_FLOOR or rows > _KEYED_ZONE_MOST_ROWS:
+        return False
+    places = inside.default_places()
+    if inside.place_refusal(pathlib.Path(f"{places.private}", f"keyed-zone{inside.SUFFIX}"), places):
+        return False
+    try:
+        specs = inside_relations.specs_of(published)
+        if len(specs) != len(read.column_names):
+            return False
+        person = ""
+        for place in range(len(specs)):
+            if specs[place].why_kept == inside_relations.NAMES_THE_PERSON and not person:
+                found = inside_relations.persons_of(reading.column_values(read, place))
+                if found.repeats:
+                    if len(found.rows_of) < parsing.TABLE_PEOPLE_FLOOR:
+                        return False
+                    person = specs[place].name
+        if not person:
+            return False
+        readings = _inside_date_readings(published)
+        dated = tuple(name for name in read.column_names if name in readings)
+        skipped = tuple(spec.name for spec in specs if spec.why_kept in inside_relations.RECORD_NUMBERS)
+        whole = {name: [str(cell) for cell in reading.column_values(read, place)]
+                 for place, name in enumerate(read.column_names)}
+        tops, held = inside_keyed.key_blocks_of(published)
+        zone = inside_keyed.build_zone(whole, person, skipped + inside_keyed.kept_by_description(published), dated,
+                                       tops, held, inside_keyed.typed_of(published))
+    except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+        return False
+    return zone is not None
+
+
+def _links_zone_of(key: str, key_cells: "list[str]", named: str, floor: int) -> "dict[str, object] | None":
+    """The links zone of a table whose person column ``key`` holds ``key_cells``, fitted on the table ``named`` (lane W5-F14).
+
+    The study's other table is read here, inside, as `synthtwin profile`
+    reads a table (`reading.read_table` in groups of columns): its person
+    column whole, then each other column a column at a time, keeping one
+    cell a person the fit reads (`inside_links.fit_sample`, at most
+    `inside_links.FIT_CAP`), so memory follows the persons kept, not the
+    table. Where the table cannot be read, holds no column ``key``, or
+    the fit cannot be made, a caution says so, naming the table and the
+    column and never a value, and None is returned: the record is written
+    without the zone. Where ``key`` is '' (no column of this table names
+    the person), the caution says how to name it. ``floor`` is the
+    description's smallest group, handed to the reader as `synthtwin
+    profile` hands it for the table itself.
+    """
+    from synthtwin import inside_links, reading
+
+    shown = _shown(named)
+    if not key:
+        _warn(
+            f"--linked-to {shown} was not used: no column of this table is said to name the person. Name it with "
+            f"--person COLUMN, or answer the person question in the questions file, and describe the table again.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return None
+    try:
+        source = validate_local_path(named, purpose="input")
+        table = reading.read_table(f"{source}", in_groups=True, small_cell_floor=floor)
+        names = [f"{each}" for each in table.column_names]
+        place = -1
+        for at in range(len(names)):
+            if place < 0 and names[at] == key:
+                place = at
+        if place < 0:
+            _warn(
+                f"--linked-to {shown} was not used: that table holds no column named {_shown(key)}, the column "
+                f"that names the person here. The two tables join only by a column of one name.",
+                caution=results.CAUTION_CHAIN,
+            )
+            return None
+        parents = inside_links.persons_in(reading.column_values(table, place))
+        sample = inside_links.fit_sample(len(parents.keys))
+        wanted = [parents.first[at] for at in sample]
+        first_cells: "dict[str, list[str]]" = {}
+        for at in range(len(names)):
+            if at == place:
+                continue
+            cells = reading.column_values(table, at)
+            first_cells[names[at]] = [cells[row] for row in wanted]
+            del cells
+        return inside_links.fit_zone(key, key_cells, parents, sample, first_cells, names,
+                                     pathlib.Path(f"{source}").name)
+    except PathValidationError as refused:
+        said = f"{_shown(refused)}"
+    except errors.ProfileError as refused:
+        said = f"{_shown(refused)}"
+    except (inside_links.LinksError, OSError, ValueError, ArithmeticError, IndexError, KeyError, TypeError,
+            MemoryError):
+        said = "it could not be read as a table of persons"
+    _warn(
+        f"--linked-to {shown} was not used ({said}). The description and the record are written without the link; "
+        f"the twin is built without it.",
+        caution=results.CAUTION_CHAIN,
+    )
+    return None
 
 
 def _inside_report_head(drawn: "list[str]") -> str:
@@ -8537,6 +8833,9 @@ def _profile_again(questions: str, replacing: bool = False) -> str:
     typed = _options_left(typed, session.typed_replaced)
     words = _twin_again(f"{typed.given}", dataclasses.replace(typed, answers=questions, seed="0", replace=False))
     words[1] = _PROFILE
+    # ...and the study's other table `--linked-to` named (lane W5-F14), which the twin command does not read.
+    if typed.linked_to is not None:
+        words += _option_words("--linked-to", typed.linked_to)
     if replacing:
         if typed.name is not None:
             words += _option_words("--name", typed.name)
@@ -9262,6 +9561,11 @@ def _run_profile_body(
     # neither is put the question again.
     values_keyed: "list[str]" = []
     values_kept_whole: "list[str]" = []
+    # -- lane IN-4c (P4-D514): each key block's own question's answer, as
+    # (value column, measurement, answer), and the blocks the describe
+    # puts that question to.
+    measurement_answered: "tuple[tuple[str, str, str], ...]" = ()
+    blocks_asked: "list[asking.MeasurementAsked]" = []
     # ...and the columns whose question offering `identifier` the file
     # answered `keep` (plan P4-D401): nothing is declared, and their
     # values are published as their reading publishes them.
@@ -9360,6 +9664,10 @@ def _run_profile_body(
                 ),
                 _shown(answers_path),
             )
+            # -- lane IN-4c (P4-D514): ...and each key block's own question.
+            measurement_answered = asking.measurement_answers(
+                handed_back, _shown(answers_path)
+            )
         except ValueError as error:
             _warn(_shown(f"{error}"))
             return results.UNUSABLE
@@ -9446,6 +9754,9 @@ def _run_profile_body(
             # -- lane KV (P4-D487): ...and to Q-KEYED, either way.
             + list(written.values_keyed)
             + list(written.values_kept_whole)
+            # -- lane IN-4c (P4-D514): ...and the value columns whose key
+            # blocks' own questions it answered.
+            + [one_value for one_value, _measurement, _answer in measurement_answered]
             # ...and the columns answered `no` or `yes` to the Safe Harbor
             # question (plan P4-D427; Codex's review of lane SH, item 7):
             # an answer beside a correction of the reading is refused, as
@@ -10266,6 +10577,7 @@ def _run_profile_body(
             storage,
         )
     )
+    _floor_noted(chain_state, held_rows, person_columns, floor_people)
     # THE OWNER'S TABLE FLOOR (plan P4-D425), asked before today's
     # population floor, which it is above: no twin of a small table.
     if small_tables_refused and _below_the_table_floor(
@@ -10383,6 +10695,9 @@ def _run_profile_body(
         # answered: ANY YES HOLDS (the orchestrator's LANE KV RULINGS 6 (1)).
         keyed_yes=list(safe_harbor_yes) + list(safe_harbor_dates_yes),
         keyed_named=keyed_named,
+        # -- lane IN-4c (P4-D514): each key block's own question.
+        keyed_answered=measurement_answered,
+        keyed_asked=blocks_asked,
     )
     # Handed over once: the description has taken the reading as its own.
     census_readings = ()
@@ -10816,6 +11131,7 @@ def _run_profile_body(
                         storage,
                     )
                 )
+                _floor_noted(chain_state, held_rows, person_columns, floor_people)
                 # The table floor again, with the final person columns
                 # (plan P4-D425): a column just answered as naming
                 # people is where the people floor starts to apply.
@@ -10862,6 +11178,7 @@ def _run_profile_body(
                 dated_values = []
                 keyed_found = []
                 keyed_named = []
+                blocks_asked = []
                 document = profile.build_document(
                     read,
                     settings,
@@ -10901,6 +11218,8 @@ def _run_profile_body(
                     keyed_found=keyed_found,
                     keyed_yes=list(safe_harbor_yes) + list(safe_harbor_dates_yes),
                     keyed_named=keyed_named,
+                    keyed_answered=measurement_answered,
+                    keyed_asked=blocks_asked,
                 )
                 census_readings = ()
                 # And the role check is asked again of the rebuilt
@@ -11373,6 +11692,7 @@ def _run_profile_body(
         while True:
             counted_in_people = []
             counted_in_rows = []
+            blocks_asked = []
             published = profile.build_document(
                 read,
                 settings,
@@ -11424,6 +11744,9 @@ def _run_profile_body(
                 keyed_kept=list(values_kept_whole),
                 keyed_yes=list(safe_harbor_yes) + list(safe_harbor_dates_yes),
                 keyed_open=list(withheld) + list(candidates),
+                # -- lane IN-4c (P4-D514): each key block's own question.
+                keyed_answered=measurement_answered,
+                keyed_asked=blocks_asked,
             )
             unheld = [name for name in waiting if name not in counted_in_people]
             named_again, unmade_again = _made_up_spellings_held(
@@ -11514,6 +11837,7 @@ def _run_profile_body(
     # THE CHAIN BETWEEN COLUMNS, behind its switch (lane CHa, plan
     # P4-D418; contract 4.6b, in force since plan P4-D464): every shipped
     # run reaches this; the internal unswitched setting alone does not.
+    rows_described: "dict[str, object] | None" = None
     if chain_state is not None:
         # THE OUTPUT'S NAMES ARE SETTLED BEFORE THE KEY (lane CHON's repair
         # 1, LANE CHON RULINGS 5 (2)): every refusal of the outputs step --
@@ -11522,6 +11846,11 @@ def _run_profile_body(
         # would be made.
         if _outputs_refused_before_the_chain(table, out_dir):
             return results.REFUSED
+        # The description before the layer, whose blocks the inside record reads a layer-held column's holds from
+        # (`_inside_record_written`; batch 4y's fix round).
+        rows_described = published
+        # A table the inside record's keyed zone will model draws no patient layer (`_keyed_zone_stands`).
+        chain_state.keyed_zone_stands = _keyed_zone_stands(read, published)
         published = _chained_description(
             chain_state,
             pathlib.Path(table),
@@ -11834,7 +12163,7 @@ def _run_profile_body(
     _described_carried(profile_path, chain_state is not None)
     # THE INSIDE RECORD (lane IN-2, plan P4-D496): the table, still open, read
     # into the record the twin is built from, once the description is written.
-    _inside_record_written(read, published, profile_path)
+    _inside_record_written(read, published, profile_path, rows_described)
     # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
     # where the patient layer stands in the description written, its
     # patients' visits as a model, joining that record (Codex's review of
@@ -12322,6 +12651,11 @@ def _run_profile_body(
                         if chain_state is not None
                         else ((), ())
                     ),
+                    # -- lane IN-4c (P4-D514): each key block's own question,
+                    # open, and every one answered, written back.
+                    measurements_asked=asking.measurement_section(
+                        blocks_asked, measurement_answered, settings.small_cell_floor
+                    ),
                 )
             ),
             sources=guarded_questions,
@@ -12355,6 +12689,14 @@ def _run_profile_body(
             _warn(
                 _hold_paragraph(chain_state.waiting, shown_questions_path, chain_state.person_held),
                 caution=results.CAUTION_CHAIN,
+            )
+        # -- lane IN-4c (P4-D514): the measurements held until their own
+        # question is answered, named with the file they are asked in.
+        for asked_value in _measurements_waiting(blocks_asked):
+            _warn(
+                _measurements_waiting_said(asked_value, blocks_asked, shown_questions_path),
+                caution=results.CAUTION_WITHHELD,
+                column=asked_value,
             )
         if left_questions:
             # The same caution the pair above prints, for the same
@@ -12523,6 +12865,177 @@ def _already_there(target: pathlib.Path) -> bool:
     return place.exists()
 
 
+def _twin_drawn(description: str, loaded: "typing.Any", record: "dict[str, object] | None",
+                seed: int) -> "tuple[typing.Any, list[str]]":
+    """The twin of a loaded description at a seed, and the columns drawn from its inside record ([] where none).
+
+    The record's draw where one stands (lane IN-2, plan P4-D496), the
+    description's own twin where it is None or its draw is refused (a
+    caution says so), then the record's trajectories zone (lane IN-3, plan
+    P4-D498). What `synthtwin generate` builds, and what a twin linked to
+    this description builds again (lane W5-F14). Raises what the
+    generator raises.
+    """
+    from synthtwin import generation
+
+    drawn_inside: "list[str]" = []
+    twin = None
+    if record is not None:
+        from synthtwin import inside_relations
+
+        try:
+            twin = generation.generate_inside(loaded, record, seed)
+            drawn_inside = [each.column for each in twin.remarks if each.subject == generation.INSIDE_DRAWN_SUBJECT]
+        except inside_relations.RelationsError as refused:
+            _warn(f"{_shown(str(refused))} The twin is built from the description alone.",
+                  caution=results.CAUTION_CHAIN)
+        except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
+            twin = None
+            _warn("The twin could not be drawn from the inside record, a mistake in synthtwin; please report it. "
+                  "It is built from the description alone.", caution=results.CAUTION_CHAIN)
+    if twin is None:
+        twin = generation.generate_held(loaded, seed)
+    # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
+    # where the patient walk made the twin's patients and the record bound
+    # to this description (its place and bytes, Codex's review of batch
+    # 4w, item 14) holds the zone, their visits follow it. It times no
+    # date (item 2): the date columns the dates zone wrote are written by
+    # it again over the patients the rows then form.
+    if loaded.relationships.grain is not None:
+        from synthtwin import inside_trajectories
+
+        zone = _inside_trajectories_for(description, list(twin.names), twin.n_rows)
+        if zone is not None:
+            dates_zone, dates_written = _dates_drawn(record, drawn_inside)
+            # ...an addition: a zone the twin cannot take leaves the twin as the walk made it.
+            try:
+                twin = inside_trajectories.twin_with_zone(twin, loaded, zone, seed, dates=dates_zone,
+                                                          written=dates_written)
+            except (ArithmeticError, IndexError, KeyError, TypeError, ValueError):
+                pass
+    return twin, drawn_inside
+
+
+def _linked_twin(twin: "typing.Any", loaded: "typing.Any", record: "dict[str, object] | None", named: str,
+                 seed: int, least_floor: int, chain: bool, description: str = "") -> "tuple[typing.Any, str]":
+    """The twin with its persons written as persons of the linked description's twin, and the report's paragraph (lane W5-F14).
+
+    The record's links zone (`inside_links`), fitted when the table was
+    described with `--linked-to` naming the study's other table, says how
+    the two tables join; ``named`` is that other table's DESCRIPTION, whose
+    twin at ``seed`` is built again here from it and its own record
+    (`_twin_drawn`, no file of rows is read), the twin `synthtwin generate
+    NAMED --seed SEED` writes. This twin's person column is then written
+    over that twin's persons (`inside_links.link`): the keys come from that
+    twin, only where each is written wider, merged, than every real key
+    this description's person column can hold (`taxonomy.spill_bound`), so
+    no twin key is a real one. Where anything stands in the way -- no
+    record or no links zone, a description that cannot be loaded or is
+    refused, a twin that lacks the columns, a key not wide enough -- a
+    caution says why, naming files and columns and never a value, and the
+    twin comes back as it was with ''. ``description`` is this twin's own
+    description, whose file name salts the link's draws (two tables linked
+    to one twin draw apart). Raises nothing but what the generator raises
+    for the other description.
+    """
+    from synthtwin import contract, generation, inside_links, taxonomy, twinstore
+
+    shown = _shown(named)
+    not_linked = f"The twin is not linked to the twin of {shown}"
+    zone = None
+    try:
+        zone = inside_links.zone_of(record) if record is not None else None
+    except inside_links.LinksError as refused:
+        _warn(f"{not_linked}: {_shown(refused)}", caution=results.CAUTION_CHAIN)
+        return twin, ""
+    if zone is None:
+        _warn(
+            f"{not_linked}: this description's private record holds no link. Describe this table again with "
+            f"--linked-to and that table's own file (not its description), then build this twin again.",
+            caution=results.CAUTION_CHAIN,
+        )
+        return twin, ""
+    names = [f"{each}" for each in twin.names]
+    place = -1
+    for at in range(len(names)):
+        if place < 0 and names[at] == zone.key:
+            place = at
+    bound = 0
+    for column in loaded.columns:
+        if f"{column.name}" == zone.key and isinstance(column.facts, contract.IdentifierFacts):
+            bound = taxonomy.spill_bound(column.facts.layout_exclusions, column.facts.layout_prefixes)
+    if place < 0 or twin.held_columns is None:
+        _warn(f"{not_linked}: this twin holds no column {_shown(zone.key)}.", caution=results.CAUTION_CHAIN)
+        return twin, ""
+    try:
+        other = contract.load_profile(named, chain=None if chain else False)
+    except (errors.ProfileError, PathValidationError, OSError) as refused:
+        _warn(f"{not_linked}: {_shown(refused)}", caution=results.CAUTION_CHAIN)
+        return twin, ""
+    if other.settings.small_cell_floor < least_floor:
+        _warn(f"{not_linked}: that description records a smallest group under {least_floor}.",
+              caution=results.CAUTION_CHAIN)
+        return twin, ""
+    other_record = None if other.source.workbook is not None else _inside_record_for(named)
+    try:
+        other_twin, _drawn = _twin_drawn(named, other, other_record, seed)
+    except (errors.ProfileError, ValueError, ArithmeticError, IndexError, KeyError, TypeError) as refused:
+        _warn(f"{not_linked}: its twin could not be built ({_shown(refused)}).", caution=results.CAUTION_CHAIN)
+        return twin, ""
+    other_names = [f"{each}" for each in other_twin.names]
+    columns: "dict[str, list[str]]" = {}
+    for wanted in inside_links.needed_columns(zone):
+        for at in range(len(other_names)):
+            if other_names[at] == wanted and wanted not in columns:
+                columns[wanted] = list(generation.twin_column(other_twin, at))
+    # THE OTHER TABLE'S OWN BOUND (batch 4y's fix round, Codex's review of the batch, item 4): a key the link writes
+    # anew for a block left unfound clears every real key of BOTH tables, so no twin key is a real key of the other.
+    other_bound = 0
+    for column in other.columns:
+        if f"{column.name}" == zone.key and isinstance(column.facts, contract.IdentifierFacts):
+            other_bound = taxonomy.spill_bound(column.facts.layout_exclusions, column.facts.layout_prefixes)
+    try:
+        linked = inside_links.link(zone, twinstore.column_cells(twin.held_columns[place]), columns, seed, bound,
+                                   pathlib.Path(f"{description}").name, other_bound)
+    except inside_links.LinksError as refused:
+        _warn(f"{not_linked}: {_shown(refused)}", caution=results.CAUTION_CHAIN)
+        return twin, ""
+    if linked.refused:
+        why = {
+            inside_links.REFUSED_NO_KEY: f"that twin holds no column {_shown(zone.key)}",
+            inside_links.REFUSED_NO_BOUND: (f"this description publishes no width every real key of "
+                                            f"{_shown(zone.key)} stays under, so a key taken from that twin could "
+                                            f"be a real one here"),
+            inside_links.REFUSED_NOT_WIDER: (f"a key of that twin is not written wider than every real key of "
+                                             f"{_shown(zone.key)} here, so it could be a real one"),
+            inside_links.REFUSED_NO_PERSONS: "one of the two twins names no person",
+        }
+        _warn(f"{not_linked}: {why[linked.refused] if linked.refused in why else linked.refused}.",
+              caution=results.CAUTION_CHAIN)
+        return twin, ""
+    held = list(twin.held_columns)
+    held[place] = twinstore.held_column(linked.cells)
+    outcomes = list(twin.outcomes)
+    for column in loaded.columns:
+        if f"{column.name}" == zone.key and place < len(outcomes):
+            counted = generation.recounted(
+                linked.cells, tuple(generation.holes_reserved(column, generation.every_hole_spelling(loaded))),
+                generation.declared_a_decimal_comma(column, loaded),
+            )
+            outcomes[place] = dataclasses.replace(outcomes[place], n_present=counted[0], n_missing=counted[1],
+                                                  n_distinct=counted[2], n_distinct_folded=counted[3])
+    said = (
+        f"THIS TWIN'S PERSONS ARE PERSONS OF THE TWIN OF {shown} at seed {seed}.\n"
+        f"{linked.found} of its {linked.persons} persons in {_shown(zone.key)} are persons of that twin, with its keys,\n"
+        f"chosen so that how many rows a person holds here follows that person's columns\n"
+        f"there as it does on the real tables; {linked.own} keep keys of their own. Build\n"
+        f"that twin with the same seed to join the two.\n\n"
+    )
+    _say(f"This twin's {_shown(zone.key)} is linked to the twin of {shown} at seed {seed}: {linked.found} of its "
+         f"{linked.persons} persons are persons of that twin.")
+    return dataclasses.replace(twin, held_columns=tuple(held), outcomes=tuple(outcomes)), said
+
+
 def _run_generate(
     description: str,
     out_dir: "str | None",
@@ -12568,7 +13081,6 @@ def _run_generate(
     """
     from synthtwin import (
         contract,
-        generation,
         rendering,
         sheetwriting,
         writing,
@@ -12646,41 +13158,19 @@ def _run_generate(
         _say(_first_line("Building the twin from", description))
     _counting_switched_on("building")
     drawn_inside: "list[str]" = []
+    link_said = ""
     try:
-        twin = None
-        if record is not None:
-            from synthtwin import inside_relations
-
-            try:
-                twin = generation.generate_inside(loaded, record, seed)
-                drawn_inside = [each.column for each in twin.remarks if each.subject == generation.INSIDE_DRAWN_SUBJECT]
-            except inside_relations.RelationsError as refused:
-                _warn(f"{_shown(str(refused))} The twin is built from the description alone.",
-                      caution=results.CAUTION_CHAIN)
-            except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
-                twin = None
-                _warn("The twin could not be drawn from the inside record, a mistake in synthtwin; please report it. "
-                      "It is built from the description alone.", caution=results.CAUTION_CHAIN)
-        if twin is None:
-            twin = generation.generate_held(loaded, seed)
-        # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
-        # where the patient walk made the twin's patients and the record bound
-        # to this description (its place and bytes, Codex's review of batch
-        # 4w, item 14) holds the zone, their visits follow it. It times no
-        # date (item 2): the date columns the dates zone wrote are written by
-        # it again over the patients the rows then form.
-        if loaded.relationships.grain is not None:
-            from synthtwin import inside_trajectories
-
-            zone = _inside_trajectories_for(description, list(twin.names), twin.n_rows)
-            if zone is not None:
-                dates_zone, dates_written = _dates_drawn(record, drawn_inside)
-                # ...an addition: a zone the twin cannot take leaves the twin as the walk made it.
-                try:
-                    twin = inside_trajectories.twin_with_zone(twin, loaded, zone, seed, dates=dates_zone,
-                                                              written=dates_written)
-                except (ArithmeticError, IndexError, KeyError, TypeError, ValueError):
-                    pass
+        twin, drawn_inside = _twin_drawn(description, loaded, record, seed)
+        # THE LINK (lane W5-F14): where `--linked-to` names the description of
+        # the study's other table, this twin's persons are written as persons
+        # of that table's twin at this seed, as the record's links zone says.
+        session = _current()
+        if session is not None and session.linked_to and not packaged:
+            twin, link_said = _linked_twin(twin, loaded, record, session.linked_to, seed, least_floor, chain,
+                                           description)
+        elif session is not None and session.linked_to:
+            _warn(f"The twin is not linked to the twin of {_shown(session.linked_to)}: a workbook's twin is built "
+                  f"from its description alone.", caution=results.CAUTION_CHAIN)
         progress.stage("writing the twin and its report")
     finally:
         progress.switch_off()
@@ -12728,7 +13218,7 @@ def _run_generate(
             )
             return results.REFUSED
         twin_stream = rendering.twin_csv_pieces(twin)
-    report_text = parsing.visible_lines(_inside_report_head(drawn_inside) + rendering.report(loaded, twin))
+    report_text = parsing.visible_lines(_inside_report_head(drawn_inside) + link_said + rendering.report(loaded, twin))
 
     # THE RESULT TAKES THE TWIN'S MISSES AS ITS REPORT IS SHOWN (plan
     # P4-D395 part 1): a run stopped after this keeps them, one stopped
@@ -14151,6 +14641,14 @@ def _run_twin(
     if seed is None:
         _warn(refusal)
         return results.UNUSABLE
+    # LANE W5-F14: the twin command does not read --linked-to; it says so rather than make a twin that does not join.
+    if options.linked_to is not None:
+        _warn(
+            "synthtwin twin does not read --linked-to. To make two tables' twins join, describe this table with  "
+            "synthtwin profile TABLE --linked-to OTHER_TABLE  and build its twin with  synthtwin generate "
+            "DESCRIPTION --linked-to OTHER_DESCRIPTION  at the seed of the other table's twin.",
+            caution=results.CAUTION_CHAIN,
+        )
     try:
         source = pathlib.Path(validate_local_path(table, purpose="input"))
     except PathValidationError as error:
@@ -14889,6 +15387,8 @@ def _dispatch(
 
     generating = options.command == _GENERATE
     validating = options.command == _VALIDATE
+    # LANE W5-F14: the study's other table (profile) or its description (generate).
+    session.linked_to = "" if options.linked_to is None or validating else f"{options.linked_to}"
     try:
         if generating:
             return _run_generate(
@@ -14993,7 +15493,7 @@ def _dispatch(
 
 
 def _shipped_chain(options: _Options) -> ChainRun:
-    """The switch of a typed `profile` run (lane CHON, plan P4-D464): its four options, the rule steps on, the layer's sub-switch."""
+    """The switch of a typed `profile` run (lane CHON, plan P4-D464): its four options, the rule steps on, the layer's sub-switch, at the owner's floor (lane W5-PL)."""
     return ChainRun(
         name=options.name,
         replace_description=options.replace_description,
@@ -15001,6 +15501,7 @@ def _shipped_chain(options: _Options) -> ChainRun:
         private_folder=options.private_folder,
         rules=True,
         patient_layer=_PATIENT_LAYER_SHIPPED,
+        layer_at_the_floor=_PATIENT_LAYER_AT_THE_FLOOR,
     )
 
 

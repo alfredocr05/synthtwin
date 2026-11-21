@@ -426,6 +426,52 @@ def column_spec(block: object, place: int, persons: "tuple[str, ...]") -> Column
     return ColumnSpec(name, place, "", top, (), why or f"its kind ({role}) is drawn by the description")
 
 
+def record_document(document: object, rows_described: object) -> object:
+    """The description the inside record reads its columns' holds from: `document`, each column the patient layer
+    holds read as the rows' description wrote it (batch 4y's fix round, Codex's review of the batch, item 1).
+
+    The patient layer empties the block of a repeated column no row family
+    carries (contract 4.6c.5, S30: no key but its name, place and role), so
+    its age top code, its year cut, its identifier reading and every other
+    hold were lost to the record, and the twin's writer drew it from the
+    record's model uncapped (981 ages past 90 on a table of ages fixed but
+    once a person). `rows_described` is the description of the same run
+    before the layer (its `columns` blocks, one a column, the rows' own);
+    each column `document`'s `grain` classes `held` takes that block, so
+    the record keeps it as the rows' description held it. A document with
+    no `grain`, or no `rows_described`, comes back as it is. Raises
+    nothing; reads the documents alone; no I/O.
+    """
+    if not isinstance(document, dict) or not isinstance(rows_described, dict):
+        return document
+    relationships = document["relationships"] if "relationships" in document else None
+    grain = relationships["grain"] if isinstance(relationships, dict) and "grain" in relationships else None
+    classes = grain["classes"] if isinstance(grain, dict) and "classes" in grain else None
+    held: "set[str]" = set()
+    if isinstance(classes, list):
+        for entry in classes:
+            if not isinstance(entry, dict) or "class" not in entry or "column" not in entry:
+                continue
+            if entry["class"] == "held" and isinstance(entry["column"], str):
+                held = held | {entry["column"]}
+    columns = document["columns"] if "columns" in document else None
+    rows_columns = rows_described["columns"] if "columns" in rows_described else None
+    if not held or not isinstance(columns, list) or not isinstance(rows_columns, list):
+        return document
+    by_name: "dict[str, object]" = {}
+    for block in rows_columns:
+        if isinstance(block, dict) and "name" in block and isinstance(block["name"], str):
+            by_name[block["name"]] = block
+    read: "list[object]" = []
+    for block in columns:
+        name = block["name"] if isinstance(block, dict) and "name" in block else None
+        read += [by_name[name] if isinstance(name, str) and name in held and name in by_name else block]
+    out: "dict[str, object]" = {}
+    for key in document:
+        out[key] = read if key == "columns" else document[key]
+    return out
+
+
 def specs_of(document: object) -> "list[ColumnSpec]":
     """Every column of a description written, read by `column_spec`, with the persons its settings name."""
     columns = document["columns"] if isinstance(document, dict) and "columns" in document else None
@@ -2567,7 +2613,21 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
                                                                   endpoint=True)]
             strict = twinstore.column_cells(held[name])
             dealing = by_person if held_once else by_row
-            if kind == NUMBER:
+            if not _holds_a_cell(strict):
+                # A COLUMN THE DESCRIPTION PUBLISHES NOTHING OF (lane W5-PL): the patient layer empties the block of a
+                # repeated column no row family carries (contract 4.6c.5, S30), so the description's twin writes it
+                # blank on every row and there is no written form to keep; the zone's own writer draws it from the
+                # record's model, every modelled level written as the record holds it, rather than a blank column
+                # (two of the battery's orders table's eight columns, every analysis of a dose or an action stopped).
+                if kind == NUMBER:
+                    drawn = draw_number(entry, frames, rows, words, owners if held_once else None,
+                                        owners if split else None)
+                else:
+                    allowed: "set[str]" = set()
+                    for modelled in _list(_get(entry, "levels")):
+                        allowed = allowed | {_text(modelled)}
+                    drawn = draw_label(entry, frames, rows, words, allowed, owners if held_once else None)
+            elif kind == NUMBER:
                 drawn = redeal_number(entry, frames, words, strict, dealing, owners if split else None)
             else:
                 drawn = redeal_label(entry, frames, words, strict, dealing)
@@ -2589,6 +2649,47 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
     return out
 
 
+def _holds_a_cell(cells: "list[str]") -> bool:
+    """Whether any cell holds more than blanks (lane W5-PL). Raises nothing."""
+    for cell in cells:
+        if _bare(cell):
+            return True
+    return False
+
+
 def held_cells(column: twinstore.HeldColumn) -> "list[str]":
     """A held column's cells (the description's twin), as a list."""
     return twinstore.column_cells(column)
+
+
+# -- the fitting helpers another zone fits with (lane W5-F14's links zone) -------------------------------------------
+
+
+def predictor(columns: "list[list[float]]", beta: "list[float]", rows: int) -> "list[float]":
+    """The linear predictor of ``columns`` at ``beta`` over ``rows`` rows, the terms added in their order."""
+    return _predictor(columns, beta, rows)
+
+
+def information(columns: "list[list[float]]", weights: "list[float]") -> "tuple[list[list[float]], list[bool]]":
+    """The ridged weighted information's lower factor and its dropped terms (a pivot under `_PIVOT` of its diagonal)."""
+    return _cholesky(_ridged(_gram(columns, weights)))
+
+
+def solved(lower: "list[list[float]]", dropped: "list[bool]", rhs: "list[float]") -> "list[float]":
+    """The system of a lower factor solved for ``rhs``, a dropped term at nought."""
+    return _solve(lower, dropped, rhs)
+
+
+def dot(first: "list[float]", second: "list[float]") -> float:
+    """The sum of the products, by `math.fsum`."""
+    return _dot(first, second)
+
+
+def mixed(value: int) -> int:
+    """SplitMix64's finaliser of a whole number (`_mix`)."""
+    return _mix(value)
+
+
+def share_of(word: int) -> float:
+    """A share strictly between nought and one from a 64-bit word (`_uniform`)."""
+    return _uniform(word)

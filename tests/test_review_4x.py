@@ -5,14 +5,15 @@ on a mutant of its fix (named in the case; the fix round's report lists
 each run).
 
 * THE KEYED ZONE'S OWN SUB-SWITCH (items 1, 2, 5 and 6 and the merged
-  head's validate misses on the long keyed tables). On the shipped route,
-  the battery's charting table at the table floor: the inside record is
-  written without the keyed zone (lane IN-4, plan P4-D499), validate
-  exits 0 and misses nothing of the person column's repetition pattern,
-  and a record that does hold a keyed zone (written with the switch set
-  on in place) is drawn without it: the twin is the shipped one, byte for
-  byte, while the switch on draws another. Mutants: the record written
-  with the zone whatever the switch; the zone drawn whatever the switch.
+  head's validate misses on the long keyed tables, which lane IN-4b
+  closed, plan P4-D504). On the shipped route, the battery's charting
+  table at the table floor: the switch is on, the inside record holds
+  the keyed zone (lane IN-4, plan P4-D499), validate exits 0 and misses
+  nothing of the person column's repetition pattern; set off in place,
+  a record that holds the zone is drawn without it, byte for byte the
+  twin of a record written with the switch off, which holds none.
+  Mutants: the record written with the zone whatever the switch; the
+  zone drawn whatever the switch.
 * ITEM 3. A number held once a person and worn inside a unit (`72.5 kg`)
   keeps its unit on every twin cell. Mutant: the person-level writer
   drops the wrapper.
@@ -101,37 +102,37 @@ def _validated(folder: pathlib.Path, description: pathlib.Path) -> "tuple[int, l
     return code, seen["missed"]
 
 
-def test_the_keyed_zone_is_merged_behind_its_own_switch_and_off_on_the_shipped_route(tmp_path: pathlib.Path) -> None:
+def test_the_keyed_zone_has_its_own_switch_and_is_on_on_the_shipped_route(tmp_path: pathlib.Path) -> None:
     folder = tmp_path / "product"
     text = T.text("T3", ROWS, 1)
     person = T.PERSON["T3"]
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(inside, "default_places", lambda: _places(folder))
-        # The shipped route: the inside record on, the keyed zone's own switch as shipped.
-        assert cli._inside_record_switched_on() and not cli._keyed_zone_switched_on()
+        # The shipped route: the inside record on and the keyed zone's own switch on (lane IN-4b, plan P4-D504).
+        assert cli._inside_record_switched_on() and cli._keyed_zone_switched_on()
         product = B.make_twins(folder, "T3", text, (0,), False)
         assert not product.errors, product.errors
         description = pathlib.Path(folder, "out", "charting-profile.json")
         records = _records(folder)
         assert len(records) == 1
         zones = inside.load_record(records[0])["zones"]
-        assert "relations" in zones and "keyed" not in zones, sorted(zones)
+        assert "relations" in zones and "keyed" in zones, sorted(zones)
         shipped = product.twins[0]
         code, missed = _validated(folder, description)
         assert (person, "identifier.n_distinct_by_occurrences") not in missed, missed
         assert code == 0, missed
-        # A record holding the keyed zone (written with its switch on) is drawn without it while the switch is off.
-        patch.setattr(cli, "_KEYED_ZONE_SHIPPED", True)
+        # The switch off in place: a record holding the keyed zone is drawn without it ...
+        patch.setattr(cli, "_KEYED_ZONE_SHIPPED", False)
+        drawn_without = _generated(folder, description, 0)
+        # ... and the record is written without it.
         again = B.make_twins(folder, "T3", text, (0,), False)
         assert not again.errors, again.errors
         zones = inside.load_record(_records(folder)[0])["zones"]
-        assert "keyed" in zones, sorted(zones)
-        keyed_on = again.twins[0]
-        patch.setattr(cli, "_KEYED_ZONE_SHIPPED", False)
-        keyed_off = _generated(folder, description, 0)
+        assert "keyed" not in zones, sorted(zones)
+        written_without = again.twins[0]
     # Compared as truth values: pytest's account of two unequal twins of a megabyte would take minutes.
-    changed = keyed_on != shipped
-    same = keyed_off == shipped
+    changed = drawn_without != shipped
+    same = drawn_without == written_without
     assert changed, "the keyed zone changed nothing: the case would not see it drawn"
     assert same, "a record's keyed zone was drawn with its switch off"
 

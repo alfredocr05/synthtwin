@@ -2875,8 +2875,9 @@ class RelationshipManifest:
     set_aside: "tuple[str, ...]" = ()
     # THE PATIENT LAYER, READ BEHIND THE SAME SWITCH (lane GRb, plan P4-D465;
     # contract 4.6c.9, method G16.13): `grain` and the patient chain it
-    # stands beside, which the patient walk deals. None on every
-    # description a shipped command loads, and wherever `grain` is null.
+    # stands beside, which the patient walk deals. None wherever `grain` is
+    # null; since lane W5-PL the shipped command publishes it on a table at
+    # the owner's floor where one person stands on several rows.
     grain: "PatientGrain | None" = None
 
 
@@ -3388,6 +3389,48 @@ def patient_counted(grain: "PatientGrain | None") -> "tuple[str, ...]":
         if kind == "patient_fixed" and column != grain.person:
             counted += [column]
     return tuple(counted)
+
+
+def position_like(grain: "PatientGrain | None") -> "tuple[str, ...]":
+    """The position-like columns of `grain`, in schema order; empty where no `grain` stands (lane W5-PL).
+
+    Each publishes no key of its block but its name, place and role
+    (contract 4.6c.6 (c), S30; the loader types it as a column of no value,
+    `_emptied_column`), and its rows are written by the patient walk from
+    its list of one value a position (method G16.13 step 5), a whole-number
+    run going on past the list, and numbered 1, 2, ... again where the
+    inside record's trajectories zone times the patients' visits. So no
+    count of its block is one a twin holds: the validator reads its list
+    alone (V12.7's `positions` line) and lists the block's obligations as
+    not checkable. Raises nothing. No I/O.
+    """
+    if grain is None:
+        return ()
+    found: "list[str]" = []
+    for column, kind in grain.classes:
+        if kind == "position_like":
+            found += [column]
+    return tuple(found)
+
+
+def held_by_the_layer(grain: "PatientGrain | None") -> "tuple[str, ...]":
+    """The columns `grain` classes held, in schema order; empty where no `grain` stands (lane W5-PL).
+
+    A repeated column no row family carries publishes no key of its block
+    but its name, place and role (contract 4.6c.5, S30; the loader types it
+    as a column of no value, `_emptied_column`): the description's own twin
+    writes it blank, and a twin drawn with the inside record writes it from
+    the record's model (`inside_relations.draw_columns`). So no count of its
+    block is one a twin holds, and the validator lists the block's
+    obligations as not checkable. Raises nothing. No I/O.
+    """
+    if grain is None:
+        return ()
+    found: "list[str]" = []
+    for column, kind in grain.classes:
+        if kind == "held":
+            found += [column]
+    return tuple(found)
 
 
 def _grain_whole(value: object) -> int:
@@ -9763,9 +9806,11 @@ def keyed_profile(profile: "Profile", owner: ColumnBlock, block: ColumnBlock) ->
                 (block.name, member) for name, member in settings.forced_date_counts if name == owner.name and not held
             ),
         ),
+        # ...and no patient layer (lane W5-PL): a key block is one column of its own, so the generator never takes the
+        # patient walk's branch for it (with the layer on at the floor it did, and raised on the person it names).
         relationships=dataclasses.replace(
             profile.relationships,
-            ladder=(), families=0, chain=(), moments=None, rules=(), words=(), switched=False,
+            ladder=(), families=0, chain=(), moments=None, rules=(), words=(), switched=False, grain=None,
         ),
         publication_notes=(),
         columns=(block,),
@@ -25754,6 +25799,13 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
     of its two answers that name no column, whatever its capitals, or the
     name of the column that identifies the person, as written (the command
     checks that the column exists, as it checks a typed one). One line.
+
+    A MEASUREMENT ASKED ON ITS OWN (lane IN-4c, plan P4-D514): where no
+    question or kept answer of the file names the line's name as a column, a
+    line naming a measurement of the file's `measurements_asked` section
+    exactly as the file writes it answers that measurement's question, with
+    an answer it offers, whatever its capitals; a name two value columns
+    share as a measurement is refused, as two lines for one measurement are.
     """
     if not isinstance(text, str):
         raise TypeError("internal check: an answers file's text was not text")
@@ -25771,6 +25823,8 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
     if [entry for entry in pool if _named_by(entry) == _ROWS_PER_PERSON]:
         subject = None
     subject_line = 0
+    measured = _measurement_entries(document)
+    measured_bound: "dict[int, int]" = {}
     line_number = 0
     for raw in text.split("\n"):
         line_number = line_number + 1
@@ -25791,6 +25845,10 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
             found = _answer_offered(word, [one for one in _offered_words(subject) if one in _ROWS_PER_PERSON_WORDS])
             subject["your_answer"] = found if found else word
             continue
+        if not [entry for entry in pool if _named_by(entry) == name] and _measurement_line(
+            measured, measured_bound, name, word, shown, line_number
+        ):
+            continue
         targets, changes = _line_targets(pool, len(asked), held_as, asked, name, word, shown, line_number)
         # ...and an open question and the kept answer of the same question
         # (one column, the same answers offered) are one question here too:
@@ -25808,6 +25866,61 @@ def _answers_written_as_lines(text: str, shown: str, questions_beside: str) -> "
             entry = pool[targets[0]]
             entry["your_answer"] = _answer_offered(word, _offered_words(entry))
     return document
+
+
+# The questions file's section of the measurements a long table asks about on
+# their own (lane IN-4c, plan P4-D514; `asking.MEASUREMENTS_ASKED`).
+_MEASUREMENTS_ASKED = "measurements_asked"
+_MEASUREMENTS_ENTRIES = "measurements"
+
+
+def _measurement_entries(document: "dict[str, object]") -> "list[dict[object, object]]":
+    """The entries of a questions file's `measurements_asked` section that take an answer, in its order; none where it holds none."""
+    section = document[_MEASUREMENTS_ASKED] if _MEASUREMENTS_ASKED in document else None
+    listed = section[_MEASUREMENTS_ENTRIES] if isinstance(section, dict) and _MEASUREMENTS_ENTRIES in section else None
+    if not isinstance(listed, list):
+        return []
+    return [entry for entry in listed if isinstance(entry, dict) and "answers_you_can_give" in entry]
+
+
+def _measured_by(entry: "dict[object, object]") -> str:
+    """The measurement an entry of `measurements_asked` asks about, as the file writes it."""
+    name = entry["measurement"] if "measurement" in entry else ""
+    return name if isinstance(name, str) else ""
+
+
+def _measurement_line(
+    measured: "list[dict[object, object]]",
+    bound: "dict[int, int]",
+    name: str,
+    word: str,
+    shown: str,
+    line_number: int,
+) -> bool:
+    """Whether one text line answers a measurement asked on its own (lane IN-4c, plan P4-D514), its answer written into that entry; or a refusal.
+
+    The measurement named exactly as the file writes it; an answer the
+    entry offers, whatever its capitals; one line for one measurement; a
+    name two value columns share as a measurement refused as ambiguous.
+    False where no entry names it. Changes the entry in place.
+    """
+    mine = [place for place in range(len(measured)) if _measured_by(measured[place]) == name]
+    if not mine:
+        return False
+    if len(mine) > 1:
+        which: "list[str]" = []
+        for place in mine:
+            which += [f"the measurement of the column {_named_by(measured[place])}"]
+        raise errors.ProfileError(errors.answers_line_asks_twice(shown, line_number, name, which))
+    entry = measured[mine[0]]
+    found = _answer_offered(word, _offered_words(entry))
+    if not found:
+        raise errors.ProfileError(errors.answers_line_not_offered(shown, line_number, name, _offered_words(entry)))
+    if mine[0] in bound:
+        raise errors.ProfileError(errors.answers_line_answers_again(shown, line_number, name, bound[mine[0]]))
+    bound[mine[0]] = line_number
+    entry["your_answer"] = found
+    return True
 
 
 def _answers_mapping(

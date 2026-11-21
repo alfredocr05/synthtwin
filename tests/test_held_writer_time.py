@@ -1111,10 +1111,13 @@ def test_the_held_exam_column_is_generated_at_the_floor(
     more work than its meter holds, and its walk stopped on the work with
     steps left (4,629 steps on lane HB3-b's repair 1), so the re-packing
     allocator answered and the twin met every count; the seconds are
-    judged on the quiet reference machine only (`STATED_SECONDS`).
+    judged on the quiet reference machine only (`STATED_SECONDS`). The
+    patient layer, which the shipped command draws at the floor (lane
+    W5-PL), makes the column within its own row run: left out here.
     Mutant: the work no longer stops the walk -- it then runs out of
     steps (`test_each_mutant_turns_a_check_red`, on the cliff's question).
     """
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", False)
     header, rows = tables.exam_rows(20000)
     source = tmp_path / "exams.csv"
     tables.write_csv(source, header, rows)
@@ -1130,7 +1133,10 @@ def test_the_held_exam_column_is_generated_at_the_floor(
         if entry["column"] == "person_id":
             entry["your_answer"] = "identifier"
     questions.write_text(json.dumps(document), encoding="utf-8", newline="\n")
-    assert typed(["profile", str(source), "--out-dir", str(tmp_path), "--replace", "--answers", str(questions)]) == 0
+    # The answered round is the first to publish between columns (the patient layer at the floor, lane W5-PL): the
+    # record of earlier descriptions asks for --replace-description, as the first round's screen says.
+    assert typed(["profile", str(source), "--out-dir", str(tmp_path), "--replace", "--answers", str(questions),
+                  "--replace-description"]) == 0
     described = json.loads((tmp_path / "exams-profile.json").read_text(encoding="utf-8"))
     exam = [column for column in described["columns"] if column["name"] == "exam"][0]
     assert exam["role"] == "identifier"

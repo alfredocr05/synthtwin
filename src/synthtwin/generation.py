@@ -76841,22 +76841,25 @@ def _names_under_by(found: object) -> "set[str]":
 
 
 def _keyed_step(zone: "dict[str, object]", finished: "list[twinstore.HeldColumn]", places: "dict[str, int]",
-                step: str, seed: int) -> "set[str]":
+                step: str, seed: int, original: "list[str] | None" = None) -> "set[str]":
     """One step of the keyed zone (lane IN-4, plan P4-D499) on the twin's columns held so far: the names it wrote.
 
-    `step` is "labels" (`inside_keyed.persons_and_labels`) or "numbers"
-    (`inside_keyed.numbers_and_rules`); the zone reads its person, key,
-    content and anchor columns and every column it writes is held again.
+    `step` is "labels" (`inside_keyed.persons_and_labels`, handed
+    `original`, the key column as the description's twin wrote it) or
+    "numbers" (`inside_keyed.numbers_and_rules`); the zone reads its person,
+    key, content and anchor columns and every column it writes is held
+    again. The persons are never written (lane IN-4b).
     """
     from synthtwin import inside_keyed
 
-    wanted = inside_keyed.written_columns(zone) + inside_keyed.read_columns(zone) + [str(zone["key"]), str(zone["anchor"])]
+    wanted = inside_keyed.written_columns(zone) + inside_keyed.read_columns(zone) + [
+        str(zone["key"]), str(zone["anchor"]), str(zone["person"])]
     current: "dict[str, list[str]]" = {}
     for name in wanted:
         if name in places and name not in current:
             current[name] = twinstore.column_cells(finished[places[name]])
     if step == "labels":
-        written = inside_keyed.persons_and_labels(zone, current, seed)
+        written = inside_keyed.persons_and_labels(zone, current, seed, original)
     else:
         written = inside_keyed.numbers_and_rules(zone, current, seed)
     current = {}
@@ -76950,10 +76953,11 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
       made by every rule it keeps, Safe Harbor's among them, except where
       another zone of the record writes it, in this order: the keyed zone
       (lane IN-4; the command hands a record holding it only where the
-      zone's own sub-switch is on, `cli._KEYED_ZONE_SHIPPED`, off on the
-      shipped route since batch 4x) re-cuts a long table's persons and writes each row's
-      key-level labels, then, after the dates, its numbers, pairs, flags,
-      later clocks and copies; the dates zone (lane IN-5) makes up each
+      zone's own sub-switch is on, `cli._KEYED_ZONE_SHIPPED`) deals a long
+      table's key-level labels from the description's twin's own cells, its
+      persons as they stand (lane IN-4b), then, after the dates, its numbers,
+      pairs and flags the same way, its later clocks within the dates zone's
+      presence, forms and months, and its copies by rule; the dates zone (lane IN-5) makes up each
       date column; the missing-values zone (lane IN-7) moves a kept
       column's own cells onto the rows its model leaves filled (a date
       column's presence with them; that twin's all-empty records kept as
@@ -76971,7 +76975,8 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
       of them (its cells are that twin's), with one remark more
       (`INSIDE_DRAWN_NOTE`); a date column the dates zone wrote carries
       `INSIDE_DATES_NOTE` in place of that twin's notes, which no longer
-      describe its values; a column the keyed zone wrote is recounted and
+      describe its values; a column the keyed zone dealt is recounted and
+      keeps them, with `INSIDE_DRAWN_NOTE`, and a copy it wrote by its rule
       carries `INSIDE_DRAWN_NOTE` in place of them; a column the
       missing-values zone moved keeps them, with `INSIDE_MISSING_NOTE`.
     - Determinism: a fixed function of the description, the record and
@@ -77040,10 +77045,12 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
         )
         del cells
     zones = record["zones"] if "zones" in record else {}
-    # THE KEYED ZONE, STEP ONE (lane IN-4, plan P4-D499): on a long table typed
-    # by a key, the twin's persons take the real census of rows a person and
-    # each row its key level's label cells (a unit, a flag, a printed range),
-    # before the dates zone reads the persons and the labels.
+    # THE KEYED ZONE, STEP ONE (lane IN-4, plan P4-D499; lane IN-4b): on a
+    # long table typed by a key, each row's key-level label cells (a unit, a
+    # flag, a printed range) dealt from the description's twin's own cells,
+    # the persons as they stand, before the dates zone reads the labels; a
+    # column published key by key moves with its key where the relations
+    # zone dealt the key anew (the key as the description's twin wrote it).
     keyed_zone: "dict[str, object] | None" = None
     keyed: "set[str]" = set()
     if isinstance(zones, dict) and "keyed" in zones:
@@ -77052,7 +77059,10 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
         try:
             keyed_zone = inside_keyed.zone_of_record(record)
             if keyed_zone is not None:
-                keyed |= _keyed_step(keyed_zone, finished, places, "labels", seeds[1])
+                key_name = str(keyed_zone["key"])
+                original = twinstore.column_cells(held[places[key_name]]) if key_name in places else None
+                keyed |= _keyed_step(keyed_zone, finished, places, "labels", seeds[1], original)
+                original = None
         except (inside_keyed.KeyedError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
             keyed_zone = None
     # Each carried column's latent emptiness, over the twin's drawn columns and
@@ -77146,7 +77156,8 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
         from synthtwin import inside_keyed
 
         try:
-            keyed_writes = keyed_writes | set(inside_keyed.written_columns(keyed_zone))
+            # ...and its key, whose cells the zone's levels are read on (lane IN-4b).
+            keyed_writes = keyed_writes | set(inside_keyed.written_columns(keyed_zone)) | {str(keyed_zone["key"])}
         except (inside_keyed.KeyedError, KeyError, ValueError, IndexError, TypeError):
             keyed_writes = keyed_writes | set(places)
     moved: "set[str]" = set()
@@ -77167,17 +77178,21 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
             added += [remark]
             old = outcomes[place]
             outcomes[place] = dataclasses.replace(old, remarks=old.remarks + (remark,))
-    # THE KEYED ZONE, STEP TWO (lane IN-4, plan P4-D499): each modelled row's
-    # numbers from its key level's marginal in the order of a latent score
-    # (the trend over the person's time the dates zone wrote, the person's
-    # level, a lag-one series), then every pair, flag and copy by its rule.
+    # THE KEYED ZONE, STEP TWO (lane IN-4, plan P4-D499; lane IN-4b): each
+    # modelled row's numbers dealt from the description's twin's own cells in
+    # the order of a latent score (the trend over the person's time the dates
+    # zone wrote, the person's level, a lag-one series), every flag dealt
+    # toward its intervals, each later clock moved to its level's gap where
+    # the dates zone's presence, form and month allow, and each copy by its rule.
+    ruled: "set[str]" = set()
     if keyed_zone is not None:
         from synthtwin import inside_keyed
 
         try:
             keyed |= _keyed_step(keyed_zone, finished, places, "numbers", seeds[1])
+            ruled = set(inside_keyed.copy_columns(keyed_zone)) & keyed
         except (inside_keyed.KeyedError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
-            pass
+            ruled = set(keyed)
     for name in sorted(keyed):
         place = places[name]
         cells = twinstore.column_cells(finished[place])
@@ -77187,10 +77202,13 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
         if name not in names and name not in dated:
             remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=INSIDE_DRAWN_NOTE)
             added += [remark]
-            remarks = (remark,)
+            remarks = (remark,) if name in ruled else remarks + (remark,)
+        # A column the zone deals holds the description's twin's own cells (lane IN-4b), so what that twin's outcome
+        # says of them stands; a copy written by its rule holds its source's, so its notes go.
         outcomes[place] = dataclasses.replace(
             old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
-            deviations=(), approximations=(), remarks=remarks,
+            deviations=() if name in ruled else old.deviations,
+            approximations=() if name in ruled else old.approximations, remarks=remarks,
         )
         del cells
     replaced = set(names) | dated | keyed
@@ -77206,11 +77224,12 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
     return dataclasses.replace(
         strict,
         outcomes=tuple(outcomes),
-        # A drawn column's cells are the description's twin's (lane IN-2b), so its notes stand; a date column the
-        # dates zone made up and a column the keyed zone wrote (lane IN-4) hold cells of their own, so theirs go.
-        deviations=tuple([each for each in strict.deviations if each.column not in (dated | keyed)]),
-        approximations=tuple([each for each in strict.approximations if each.column not in (dated | keyed)]),
-        remarks=tuple([each for each in strict.remarks if each.column not in (dated | keyed)] + added),
+        # A drawn or dealt column's cells are the description's twin's (lanes IN-2b, IN-4b), so its notes stand; a
+        # date column the dates zone made up and a copy the keyed zone wrote by its rule hold cells of their own,
+        # so theirs go.
+        deviations=tuple([each for each in strict.deviations if each.column not in (dated | ruled)]),
+        approximations=tuple([each for each in strict.approximations if each.column not in (dated | ruled)]),
+        remarks=tuple([each for each in strict.remarks if each.column not in (dated | ruled)] + added),
         words_drawn=strict.words_drawn + 2,
         seed=seed,
         held_columns=tuple(finished),

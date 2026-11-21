@@ -470,6 +470,13 @@ CASES: "dict[str, tuple[object, ...]]" = {
     # both ways (the Codex review of lane R1, item 8): the path and the
     # column name, both the person's own.
     "one_column_answered_both_ways": ("/data/clinic-questions.json", "seen_at"),
+    # ...and the same of one measurement of a long table asked on its own
+    # (lane IN-4c, plan P4-D514): the path, the value column and the
+    # measurement, a level the description publishes, never a value.
+    "measurement_answered_both_ways": ("/data/clinic-questions.json", "value", "BP"),
+    # An entry of those measurements that lost its measurement's name:
+    # its place in the file, as an entry naming no column is told.
+    "answers_measurement_names_none": ("measurements_asked[2]",),
     # ...and the refusal of two such answers that make one spelling a
     # value and "no value" at once. It takes the file's path and the
     # clashing pair as `taxonomy.contradictory_declarations` words it.

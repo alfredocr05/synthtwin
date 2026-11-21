@@ -45,11 +45,14 @@ def test_given_names_of_two_letters_are_held_and_asked(tmp_path: pathlib.Path) -
 
 def test_given_names_answered_no_are_released_as_before(tmp_path: pathlib.Path) -> None:
     # The answer is the person's: `no` publishes the names many people hold, the
-    # rare one pooled and never named (plan P4-D453 as lane PL wrote it).
+    # rare one pooled and never named (plan P4-D453 as lane PL wrote it). With the
+    # patient layer on (plan P4-D507) a name is fixed within its person, so its
+    # block is described over the 1,000 patients, each counted once (person 0's
+    # `Ed` pooled).
     found = cases.run(tmp_path / "no", cases.given_names(), ("no",))
     assert found["exits"] == [0, 0, 0], found["exits"]
     levels = {entry["label"]: entry["count"] for entry in found["block"]["levels"]}  # type: ignore[index]
-    assert levels == {"al": 4980, "bo": 5000, "jo": 5000, "li": 5000}, levels
+    assert levels == {"al": 249, "bo": 250, "jo": 250, "li": 250}, levels
     assert '"Ed"' not in found["text"] and '"ed"' not in found["text"]  # type: ignore[operator]
 
 

@@ -1497,8 +1497,10 @@ def test_at_the_table_floor_no_held_date_or_count_names_a_real_day(tmp_path: pat
             if entry.get("column") == "person_ref" and "identifier" in offered:
                 entry["your_answer"] = "identifier"
         questions.write_text(json.dumps(asked, indent=2), encoding="utf-8", newline="\n")
+        # The answered round is the first to publish between columns (the patient layer at the floor, lane W5-PL):
+        # the record of earlier descriptions asks for --replace-description, as the first round's screen says.
         assert cli.main(["profile", f"{small / 't.csv'}", "--out-dir", f"{small}", "--replace", *typed,
-                         "--answers", f"{questions}"]) == 0
+                         "--answers", f"{questions}", "--replace-description"]) == 0
         assert cli.main(["generate", f"{small / 't-profile.json'}", "--out-dir", f"{small}", "--seed", "0",
                          "--replace"]) == 0
         declared_exit = cli.main(["validate", f"{small / 't-profile.json'}", "--twin", f"{small / 't-twin.csv'}",

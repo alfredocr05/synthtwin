@@ -505,6 +505,19 @@ _NOT_CHECKABLE_HELD_WRITTEN_BLANK = (
     "P4-D488, remark NF137), so what the description says of its present "
     "cells is the real table's and is not one the twin holds"
 )
+_NOT_CHECKABLE_POSITION_LIST = (
+    "the patient layer publishes this column only as its list of one value "
+    "a position (contract 4.6c.6 (c)): its block holds no count, and a "
+    "twin writes each patient's rows from that list, so no count of the "
+    "block is one a file is held to; the list itself is checked between "
+    "columns, on each patient's rows"
+)
+_NOT_CHECKABLE_HELD_BY_THE_LAYER = (
+    "the patient layer publishes no count of this repeated column, which no "
+    "family between columns carries (contract 4.6c.5): the description's own "
+    "twin writes it blank and a twin drawn with the inside record writes it "
+    "from the record's model, so no count of the block is one a file is held to"
+)
 _NOT_CHECKABLE_COUNTED_IN_THE_ROOM = (
     "a held column of dates written as counts has its made-up counts drawn "
     "in years no real date of it takes (plan P4-D488), so their lengths, "
@@ -1013,6 +1026,14 @@ _NO_NAMES_HERE = (
 _GATE_CLOSED = (
     "describing this file on its own would not publish what this check "
     "measures, so neither the measurement nor its outcome is shown"
+)
+
+# A repetition pattern the patient layer withholds (lane W5-PL; contract
+# 4.6c.3 (c)): the description publishes none, so no file is held to one.
+_WITHHELD_BY_THE_PATIENT_LAYER = (
+    "the patient layer withholds this column's repetition pattern, which "
+    "would count the rows one patient's value covers, so the description "
+    "publishes none and no file is held to one"
 )
 
 # The same sentence where the chain's lines stand in V5.3's place (V12.3;
@@ -5656,6 +5677,10 @@ def measure(
     # merge of lane GRb): empty and None unless `grain` stands, below.
     in_patients: "tuple[str, ...]" = ()
     patients_view: "tuple[reading.Table, dict[str, object], dict[str, object]] | None" = None
+    # ...AND THE POSITION-LIKE COLUMNS, whose blocks publish no count (lane
+    # W5-PL; `contract.position_like`): none unless `grain` stands.
+    position_listed = contract.position_like(description.relationships.grain)
+    layer_held = contract.held_by_the_layer(description.relationships.grain)
     try:
         declared = _declared_here(description, table)
         declared_codes = _declared_codes_here(description, table)
@@ -5971,6 +5996,18 @@ def measure(
         # sentence saying why, as one decision, the description unchanged.
         elif held_written_blank(column):
             why = _NOT_CHECKABLE_HELD_WRITTEN_BLANK
+        # ...AND A POSITION-LIKE COLUMN OF THE PATIENT LAYER (lane W5-PL): its
+        # block, emptied but for its name, place and role (S30), publishes no
+        # count; the patient walk writes its rows from its list and V12.7's
+        # `positions` line checks that list, so the block's obligations are
+        # listed with the sentence saying why, its place still checked.
+        elif column.name in position_listed:
+            why = _NOT_CHECKABLE_POSITION_LIST
+        # ...AND A REPEATED COLUMN THE LAYER HOLDS (lane W5-PL): its block is
+        # emptied as a position-like column's is, and a twin drawn with the
+        # inside record writes it from the record's model.
+        elif column.name in layer_held:
+            why = _NOT_CHECKABLE_HELD_BY_THE_LAYER
         if not why and patients_view is not None and column.name in in_patients:
             checks = checks + _column_checks(
                 description, column, patients_view[0], patients_view[1], patients_view[2], headed
@@ -23669,6 +23706,7 @@ def _text_checks(
             "free_text.n_distinct_by_occurrences",
             facts.n_distinct_by_occurrences,
             block,
+            column.n_present,
         )
     ]
     checks = checks + _form_checks(
@@ -24294,6 +24332,17 @@ def _identifier_checks(
         facts,
         bound,
     )
+    # THE LAYOUTS OVER ROWS OF A HELD COLUMN WHOSE REPETITION THE LAYER WITHHOLDS (lane W5-PL): where `grain`
+    # stands, a held column's made-up values are written on the rows the patient walk's even map gives each value
+    # (method G16.13 step 8), the pattern that would place them withheld (`_WITHHELD_BY_THE_PATIENT_LAYER`), so its
+    # layouts counted over rows follow that map and a miss there is withheld, never MISSED (a weight held and
+    # top-coded beside its person at the floor: 554 three-figure cells against the rows' 580, of 20,000).
+    if not facts.n_distinct_by_occurrences and column.n_present > 0:
+        checks = [
+            dataclasses.replace(check, verdict=WITHHELD, citation=_WITHHELD_BY_THE_PATIENT_LAYER)
+            if check.verdict == MISSED and check.fact == "identifier.layout_forms" else check
+            for check in checks
+        ]
     checks = checks + _prefix_checks(name, facts, present)
     checks = checks + _uid_grammar_checks(name, facts, present)
     if CORNER_IDENTIFIER_INFEASIBLE in mine:
@@ -24306,6 +24355,7 @@ def _identifier_checks(
             "identifier.n_distinct_by_occurrences",
             facts.n_distinct_by_occurrences,
             block,
+            column.n_present,
         )
     ]
     return checks
@@ -24725,6 +24775,7 @@ def _unrepresentable_checks(
             "numeric_unrepresentable.n_distinct_by_occurrences",
             facts.n_distinct_by_occurrences,
             block,
+            column.n_present,
         )
     ]
     return checks
@@ -24748,12 +24799,16 @@ def _occurrences(
     fact: str,
     published: "dict[str, int]",
     block: "dict[str, object]",
+    present: int = 0,
 ) -> Check:
     """The multiplicity map, compared whole and never spelled out.
 
     The identifier corner never reaches here: in that corner this fact
     is REPORT-ONLY and is a listing entry, so the caller does not build
-    the check at all (review item P3-V1-F4).
+    the check at all (review item P3-V1-F4). ``present`` is the published
+    block's count of present cells: a column holding values whose
+    published pattern is empty is one whose pattern the patient layer
+    withholds (`_WITHHELD_BY_THE_PATIENT_LAYER`).
     """
     subcheck = "distinct.n_distinct_by_occurrences"
     # The map's keys are group SIZES and its values how many values wore
@@ -24767,6 +24822,19 @@ def _occurrences(
     found = _map_at(block, "n_distinct_by_occurrences")
     if found is None:
         return Check(name, fact, subcheck, WITHHELD, shown, "", _GATE_CLOSED)
+    # A PATTERN THE PATIENT LAYER WITHHOLDS (lane W5-PL; contract 4.6c.3
+    # (c), S29): where `grain` stands, a column's pattern that would count
+    # the rows one patient's value covers is published null, and the loader
+    # reads it as an empty pattern that closes nothing; no pattern of a
+    # column holding values is empty otherwise (U3). So there is nothing to
+    # hold a file to, and the check is withheld, never missed against the
+    # patient walk's own repetition (batch 4u's merge measured 3 such misses
+    # on the zoo's exports, and a declared second key beside the person).
+    if not published and present > 0:
+        return Check(
+            name, fact, subcheck, WITHHELD, "the repetition pattern the patient layer withholds", "",
+            _WITHHELD_BY_THE_PATIENT_LAYER,
+        )
     if found == published:
         return Check(name, fact, subcheck, HELD, shown)
     return Check(

@@ -3987,6 +3987,266 @@ def keyed_questions(
     return asked
 
 
+# -- one measurement's own question (lane IN-4c, plan P4-D514) ---------------
+#
+# A long table's key block -- one measurement's cells under the column that
+# says which measurement each row holds -- is described as a column of its
+# name would be, and a key block puts no question of its own (P4-D487, K7):
+# where a column of that name and those values would be held until a
+# question offering `identifier` is answered (figures of one width, two
+# numbers joined by a slash), the block stays in that question's unanswered
+# state, held, its twin made up. Nobody could answer it, so a blood
+# pressure or a sodium result stayed made up after every truthful answer.
+# Such a block is now put ITS OWN QUESTION, in a section of the questions
+# file of its own (`MEASUREMENTS_ASKED`), only where the description cannot
+# decide: the open question is the block's one hold, `measurement` or
+# `code` would describe it, and the twin checks would not read its cells as
+# an identifier column (`twin_checks.reads_as_an_identifier`; where they
+# would, the block stays held and nothing is asked). Its answers:
+# `identifier` (Enter: unanswered, the block stays held), and `measurement`
+# and `code` where each would describe the block. ONE QUESTION A KEY BLOCK,
+# never asked again once answered: an answered entry is written back with
+# its answer. The section holds nothing beyond its own blocks: no other
+# question reads it, and an open one is not a question offering
+# `identifier` on the table (rule U (c) is not moved by it).
+MEASUREMENTS_ASKED = "measurements_asked"
+MEASUREMENTS_ENTRIES = "measurements"
+BECAUSE_KEY_BLOCK = "one-measurement-written-as-record-numbers-are"
+MEASUREMENTS_QUESTION = (
+    "Is each of these a measurement, a code, or record numbers?"
+)
+MEASUREMENTS_WHY = (
+    "In a long table one column holds every measurement, and the column "
+    "beside it says which measurement each row is. The values of these "
+    "measurements are written the way record numbers are also written -- "
+    "figures of one width, or numbers joined by a slash -- so synthtwin "
+    "holds them back until you say which they are. Answer `measurement` "
+    "for a reading such as a blood pressure or a sodium result, `code` for "
+    "a code, and `identifier` for record numbers. A blank answer keeps "
+    "them held back. Answer them here, or in a plain-text answers file by "
+    "a line naming the measurement exactly as this file writes it, then "
+    "`= measurement`; the keyboard does not put these questions."
+)
+MEASUREMENT_ANSWERS = (ANSWER_IDENTIFIER, ANSWER_MEASUREMENT, ANSWER_CODE)
+
+
+@dataclasses.dataclass(frozen=True)
+class MeasurementAsked:
+    """One key block's own question, as the describe found it (lane IN-4c, plan P4-D514).
+
+    ``column`` the value column; ``key`` the column that says which
+    measurement each row holds; ``measurement`` the key block's name as
+    the description writes it (a level it publishes); ``shape`` what the
+    question holding the block saw, in its own words (a shape, never a
+    value); ``releases`` each answer that would describe the block, with
+    the role it would take.
+    """
+
+    column: str
+    key: str
+    measurement: str
+    shape: str
+    releases: "tuple[tuple[str, str], ...]"
+
+
+def _measurement_choices(
+    releases: "tuple[tuple[str, str], ...]", floor: int
+) -> "list[Choice]":
+    """A key block's offers: `identifier` first (Enter keeps it), then each answer that would describe it, with what that description publishes."""
+    found = [
+        Choice(
+            ANSWER_IDENTIFIER,
+            "record numbers -- a key nothing should publish; the "
+            "measurement stays held back",
+            _publishes_under(ANSWER_IDENTIFIER, "", floor),
+        )
+    ]
+    for answer, role in releases:
+        if answer == ANSWER_MEASUREMENT:
+            found += [
+                Choice(
+                    ANSWER_MEASUREMENT,
+                    "measurements -- readings somebody took, such as a blood "
+                    "pressure or a sodium result",
+                    _publishes_under(
+                        ANSWER_JOINED if role == taxonomy.ROLE_JOINED else ANSWER_MEASUREMENT,
+                        role,
+                        floor,
+                    ),
+                )
+            ]
+        elif answer == ANSWER_CODE:
+            found += [
+                Choice(
+                    ANSWER_CODE,
+                    "codes -- a coding system, where the value stands for a "
+                    "thing rather than counting one",
+                    _publishes_under(ANSWER_CODE, role, floor),
+                )
+            ]
+    return found
+
+
+def _measurement_entry(
+    column: str,
+    key: str,
+    measurement: str,
+    saw: str,
+    choices: "list[Choice]",
+    answer: str,
+) -> "dict[str, object]":
+    """One entry of the `MEASUREMENTS_ASKED` section: open (``answer`` empty, read as `identifier`) or answered."""
+    offered: "list[dict[str, str]]" = []
+    for choice in choices:
+        offered += [
+            {
+                "answer": choice.answer,
+                "means": choice.means,
+                "then_the_description_publishes": choice.publishes,
+            }
+        ]
+    return {
+        "column": column,
+        "measurement": measurement,
+        "measurement_named_by": key,
+        "what_synthtwin_saw": saw,
+        "read_as_now": answer if answer else ANSWER_IDENTIFIER,
+        "answers_you_can_give": offered,
+        "your_answer": answer,
+    }
+
+
+def measurement_section(
+    asked: "list[MeasurementAsked]",
+    answered: "tuple[tuple[str, str, str], ...]",
+    floor: int,
+) -> "dict[str, object] | None":
+    """The questions file's `MEASUREMENTS_ASKED` section, or None where it holds no entry (lane IN-4c, plan P4-D514).
+
+    Every answer the run was given (``answered``: value column,
+    measurement, answer, as `measurement_answers` read them), written back
+    answered, in the order given, so the next round reads it again; then
+    each block this run's describe put its own question (``asked``) that no
+    answer names, open. The words name the value column, the key column
+    and the measurement -- a level the description publishes -- and the
+    shape the holding question saw; no value of the table. Guarantees: a
+    fixed function of its arguments. Raises nothing. No I/O.
+    """
+    entries: "list[dict[str, object]]" = []
+    named: "dict[tuple[str, str], bool]" = {}
+    for column, measurement, answer in answered:
+        folded = (column, parsing.folded(measurement))
+        if folded in named:
+            continue
+        named[folded] = True
+        key = ""
+        for one in asked:
+            if one.column == column and parsing.folded(one.measurement) == folded[1]:
+                key = one.key
+        entries += [
+            _measurement_entry(
+                column,
+                key,
+                measurement,
+                f"{ANSWERED_BEFORE_SAW} It is about the rows of the "
+                f"measurement {measurement} in the column {column}.",
+                _measurement_choices(
+                    ((ANSWER_MEASUREMENT, ""), (ANSWER_CODE, "")), floor
+                ),
+                answer,
+            )
+        ]
+    for one in asked:
+        if (one.column, parsing.folded(one.measurement)) in named:
+            continue
+        saw = (
+            f"in the rows where {one.key} is {one.measurement}, "
+            f"{one.shape}; until this question is answered those values "
+            f"are held back: described as record numbers, none of them "
+            f"published, and the twin writes made-up values there. "
+            f"Leaving the answer blank keeps them so"
+        )
+        entries += [
+            _measurement_entry(
+                one.column,
+                one.key,
+                one.measurement,
+                saw,
+                _measurement_choices(one.releases, floor),
+                "",
+            )
+        ]
+    if not entries:
+        return None
+    return {
+        "question": MEASUREMENTS_QUESTION,
+        "why": MEASUREMENTS_WHY,
+        MEASUREMENTS_ENTRIES: entries,
+    }
+
+
+def measurement_answers(
+    document: object, shown: str
+) -> "tuple[tuple[str, str, str], ...]":
+    """Each key block's own question answered in a handed-back questions file: (value column, measurement, answer), in the file's order (lane IN-4c, plan P4-D514).
+
+    Read from the `MEASUREMENTS_ASKED` section alone; nothing where the
+    file has none. A blank answer is no answer (the block stays held). An
+    answer is taken whatever its capitals and outer spaces; one the entry
+    does not offer, or that is not `identifier`, `measurement` or `code`,
+    is refused, as is an entry naming no column or no measurement, and
+    two different answers for one measurement. Raises ValueError with a
+    message written for a person. No I/O.
+    """
+    if not isinstance(document, dict) or MEASUREMENTS_ASKED not in document:
+        return ()
+    section = document[MEASUREMENTS_ASKED]
+    listed = (
+        section[MEASUREMENTS_ENTRIES]
+        if isinstance(section, dict) and MEASUREMENTS_ENTRIES in section
+        else None
+    )
+    if not isinstance(listed, list):
+        raise ValueError(errors.answers_file_is_not_one(shown))
+    found: "list[tuple[str, str, str]]" = []
+    said: "dict[tuple[str, str], str]" = {}
+    place = 0
+    for entry in listed:
+        place += 1
+        where = f"{MEASUREMENTS_ASKED}[{place}]"
+        read = _entry_answer(entry, where)
+        if read is None:
+            continue
+        name, written, offered = read
+        measurement = (
+            entry["measurement"]
+            if isinstance(entry, dict) and "measurement" in entry
+            else None
+        )
+        if not isinstance(measurement, str) or not parsing.trimmed(measurement):
+            raise ValueError(errors.answers_measurement_names_none(where))
+        chosen = ""
+        for word in offered:
+            if parsing.folded(word) == parsing.folded(written):
+                chosen = word
+        if not chosen or chosen not in MEASUREMENT_ANSWERS:
+            raise ValueError(
+                errors.answers_answer_is_not_offered(
+                    shown, f"{name} ({measurement})", written, list(offered)
+                )
+            )
+        folded = (name, parsing.folded(measurement))
+        if folded in said:
+            if said[folded] != chosen:
+                raise ValueError(
+                    errors.measurement_answered_both_ways(shown, name, measurement)
+                )
+            continue
+        said[folded] = chosen
+        found += [(name, measurement, chosen)]
+    return tuple(found)
+
+
 def file_questions(
     metadata_shape: bool,
     declared_unseen: int = 0,
@@ -10802,8 +11062,14 @@ def questions_document_of(
     chain_requests: "tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]" = ((), ()),
     chain_subject: "dict[str, object] | None" = None,
     chain_said: "tuple[tuple[str, ...], tuple[str, ...]]" = ((), ()),
+    measurements_asked: "dict[str, object] | None" = None,
 ) -> "dict[str, object]":
     """The questions file's whole content, as plain data, rendered from its records.
+
+    ...AND, WHERE A LONG TABLE'S KEY BLOCK IS PUT ITS OWN QUESTION OR ONE
+    WAS ANSWERED (lane IN-4c, plan P4-D514), the `MEASUREMENTS_ASKED`
+    section (`measurement_section`); absent otherwise, so every other file
+    is written as before, byte for byte.
 
     TWO SECTIONS, AND THE ORDER IS THE POINT (amendment A-P4-58; owner
     ruling 2026-09-10). `asked` holds the columns synthtwin could read
@@ -10933,6 +11199,8 @@ def questions_document_of(
         if chain_said[0] or chain_said[1]:
             chain_entry[COLUMNS_SAID] = {"person": list(chain_said[0]), ANSWER_RECORD: list(chain_said[1])}
         written[BETWEEN_COLUMNS] = chain_entry
+    if measurements_asked is not None:
+        written[MEASUREMENTS_ASKED] = measurements_asked
     return written
 
 

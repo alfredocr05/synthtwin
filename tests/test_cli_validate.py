@@ -1417,8 +1417,14 @@ def test_no_module_a_validate_run_can_reach_holds_a_random_source() -> None:
     assert len(closure) >= 8, f"the closure walk found only {closure}"
 
 
+# The generate branch's own functions of `cli`: `_run_generate`, and `_twin_drawn`, which it calls and which reads the
+# generator since lane W5-F14 factored the drawing out of it (batch 4y). The walk below is the one the validate
+# branch is read with, one function's syntax at a time.
+_GENERATE_BRANCH = ("_run_generate", "_twin_drawn")
+
+
 def test_the_closure_walk_can_fail() -> None:
-    """The same walk, pointed at `generate`, finds what it must find.
+    """The same walk, pointed at `generate` (`_GENERATE_BRANCH`), finds what it must find.
 
     A static reachability check passes trivially when the walk is wrong:
     a renamed function, a changed prefix, a loop that never runs. The
@@ -1429,7 +1435,7 @@ def test_the_closure_walk_can_fail() -> None:
     tree = _parsed("cli")
     inside: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "_run_generate":
+        if isinstance(node, ast.FunctionDef) and node.name in _GENERATE_BRANCH:
             inside = inside + _named_in(ast.walk(node))
     assert "synthtwin.generation" in inside, (
         "the walk no longer finds the generator where it certainly is, "

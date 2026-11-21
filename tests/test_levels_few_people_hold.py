@@ -55,7 +55,9 @@ def test_the_form_at_600_rows_meets_the_bar(tmp_path: pathlib.Path) -> None:
     _meets_the_bar(_run(tmp_path))
 
 
-def test_a_table_at_the_floor_size_pools_and_blanks_through_the_command(tmp_path: pathlib.Path) -> None:
+def test_a_table_at_the_floor_size_pools_and_blanks_through_the_command(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # The one 20,000-row case, through the shipped command's table floor, on a
     # few columns: the whole form at this size is K-HZ-19's, under kpi_run --slow.
     # Mutant: the table floor's rule for rows, the pool, the blank column.
@@ -74,6 +76,10 @@ def test_a_table_at_the_floor_size_pools_and_blanks_through_the_command(tmp_path
         ]
     table.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     from synthtwin import cli
+
+    # The blocks read here are the rows' own. At the floor the shipped command draws the patient layer (lane W5-PL),
+    # which publishes a column fixed by each patient over the patient table, one row a patient: left out of this case.
+    monkeypatch.setattr(cli, "_PATIENT_LAYER_SHIPPED", False)
 
     arguments = [
         "--identifier", "record_key", "--identifier", "patient_key", "--identifier", "ref_col", "--code", "code_col", "--code", "code_eight",

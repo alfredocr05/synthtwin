@@ -635,6 +635,8 @@ _VALUES: "dict[str, list[str]]" = {
     "--replace-description": [],
     "--new-key": [],
     "--private-folder": ["@private"],
+    # -- lane W5-F14: the study's other table, never read for a table the floor refuses.
+    "--linked-to": ["@linked"],
 }
 _STOPS_FIRST = ("-h", "--help", "--version")
 # Refused before the table is read, in 4.6b.4's words: a new key where this
@@ -663,6 +665,7 @@ def test_no_option_of_the_command_lets_a_small_table_through(
         "@out": f"{tmp_path / 'out'}",
         "@twin": f"{tmp_path / 'twin.csv'}",
         "@private": f"{tmp_path / 'private'}",
+        "@linked": f"{tmp_path / 'linked' / 'cohort.csv'}",
     }
     for option in options:
         given = [places.get(value, value) for value in _VALUES.get(option, [])]

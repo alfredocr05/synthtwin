@@ -816,6 +816,7 @@ jobs:
           wheel required synthtwin/inside_missing.py
           wheel required synthtwin/inside_holds.py
           wheel required synthtwin/inside_keyed.py
+          wheel required synthtwin/inside_links.py
           wheel required synthtwin/installation.py
           wheel required synthtwin/offset_rules.py
           wheel required synthtwin/parsing.py
@@ -883,6 +884,7 @@ jobs:
           sdist required ROOT/src/synthtwin/inside_missing.py
           sdist required ROOT/src/synthtwin/inside_holds.py
           sdist required ROOT/src/synthtwin/inside_keyed.py
+          sdist required ROOT/src/synthtwin/inside_links.py
           sdist required ROOT/src/synthtwin/installation.py
           sdist required ROOT/src/synthtwin/offset_rules.py
           sdist required ROOT/src/synthtwin/parsing.py

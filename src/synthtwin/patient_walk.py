@@ -1,10 +1,11 @@
 """THE PATIENT WALK: the twin of a description whose `grain` stands (method G16.13 to G16.17; lane GRb, plan P4-D465).
 
-NOT IN FORCE. Only a description loaded behind the chain's switch can
-carry `grain` (contract 4.6c, invariants S29 to S33), and no shipped
-command loads one so: `generation.generate_held` reaches this module from
-its one branch where `relationships.grain` stands, and every other twin is
-made exactly as before (S12; the switch at its default moves no byte).
+IN FORCE ON A SHIPPED RUN SINCE LANE W5-PL (the patient layer's
+sub-switch on, `cli._PATIENT_LAYER_SHIPPED`, on a table at the owner's
+floor). Only a description loaded behind the chain's switch can carry
+`grain` (contract 4.6c, invariants S29 to S33): `generation.generate_held`
+reaches this module from its one branch where `relationships.grain`
+stands, and every other twin is made exactly as before.
 
 What runs, in G16.13's order, reading the description only (never the
 key's `R*`, never a real row):
@@ -1961,23 +1962,62 @@ def twin(profile: contract.Profile, seed: int, rows_box: "list[generation.Twin]"
     held = rows_made.held_columns if rows_made.held_columns is not None else ()
     rows = _Rows(patient_of_row, position, {}, {})
     by_name: "dict[str, contract.ColumnBlock]" = {}
+    # A VALUE COLUMN TYPED BY A KEY FOLLOWS ITS KEY (batch 4y's fix round):
+    # the row run writes each key level's values on that level's rows
+    # (`by_key`), and the walk deals the key column as a row family's child
+    # while the value column, published key by key and dealt by no family,
+    # stays where the run put it; so the levels' values landed on other
+    # levels' rows (a table keyed by a measure: ages written on a provider's
+    # rows, names on an age's, ages past 89 on the age rows). Such a column
+    # takes its key's rows here and is moved with its key once the walk ends
+    # (`_following`).
+    followers = _followers(profile, grain)
+    followed: "dict[str, bool]" = {}
+    for name in followers:
+        followed[followers[name]] = True
+    splits: "dict[str, tuple[list[int], list[int]]]" = {}
     for at in range(len(profile.columns)):
         column = profile.columns[at]
         by_name[column.name] = column
         if contract.class_in(grain, column.name) in (patient_rules.CLASS_PERSON, patient_rules.CLASS_FIXED):
             continue
+        if column.name in followers:
+            continue
+        cells = twinstore.column_cells(held[at])
+        if column.name in followed:
+            splits[column.name] = _split_rows(cells, blank_records, tabled)
+            rows.cells[column.name] = twinstore.held_column([cells[row] for row in splits[column.name][0]])
+            rows.spare[column.name] = [cells[row] for row in splits[column.name][1]]
+            del cells
+            continue
         kept: "list[str]" = []
         spare: "list[str]" = []
-        for cell in twinstore.column_cells(held[at]):
+        for cell in cells:
             if len(spare) < blank_records and dialect.holds_nothing(cell):
                 spare += [cell]
             else:
                 kept += [cell]
+        del cells
         if len(kept) > tabled:
             spare = spare + kept[tabled:]
             kept = kept[:tabled]
         rows.cells[column.name] = twinstore.held_column(kept)
         rows.spare[column.name] = spare
+    for at in range(len(profile.columns)):
+        column = profile.columns[at]
+        if column.name not in followers:
+            continue
+        cells = twinstore.column_cells(held[at])
+        split = splits[followers[column.name]] if followers[column.name] in splits else None
+        if split is None or not all([dialect.holds_nothing(cells[row]) for row in split[1][:blank_records]]):
+            split = _split_rows(cells, blank_records, tabled)
+        rows.cells[column.name] = twinstore.held_column([cells[row] for row in split[0]])
+        rows.spare[column.name] = [cells[row] for row in split[1]]
+        del cells
+    splits = {}
+    keys_before: "dict[str, twinstore.HeldColumn]" = {}
+    for name in followers:
+        keys_before[followers[name]] = rows.cells[followers[name]]
     # THE ROW RUN'S COLUMNS RELEASED: their cells now live in `rows.cells`
     # alone; the run keeps its outcomes and notes for the twin's report.
     rows_made = dataclasses.replace(rows_made, held_columns=None)
@@ -2150,7 +2190,89 @@ def twin(profile: contract.Profile, seed: int, rows_box: "list[generation.Twin]"
                 name, "grain.trend", "every published Q_P met", f"{unmet} cell(s) outside their window",
                 "Exchanges of this column's readings within each patient could not bring every published cell's trend moment into its window.",
             )]
+    # -- step 7': each value column typed by a key moved with its key (batch 4y's fix round, `_followers`) --
+    for name in sorted(followers):
+        key = followers[name]
+        moved_with = _following(
+            twinstore.column_cells(rows.cells[name]), twinstore.column_cells(keys_before[key]),
+            twinstore.column_cells(rows.cells[key]),
+        )
+        if moved_with is not None:
+            rows.cells[name] = twinstore.held_column(moved_with)
+        moved_with = None
+    keys_before = {}
     return _assembled(profile, table, patients, rows, (rows_made, patients_made), deviations, drawn, seed)
+
+
+def _followers(profile: contract.Profile, grain: contract.PatientGrain) -> "dict[str, str]":
+    """Each value column typed by a key (`keyed_by`) that no step of the walk deals, with its key column (batch 4y's fix round).
+
+    A column the description publishes key by key, of the classes the walk
+    leaves where the row run put it (`ineligible`, `held`), whose key is a
+    column the walk writes over the rows (not the person, not a
+    patient-fixed column). Raises nothing; no I/O.
+    """
+    dealt: "set[str]" = {family.child for family in grain.rows}
+    dealt = dealt | {entry.column for entry in grain.trajectory} | {cell.column for cell in grain.trend}
+    out: "dict[str, str]" = {}
+    for column in profile.columns:
+        key = column.keyed_by
+        if not key or key == column.name or column.name in dealt:
+            continue
+        if contract.class_in(grain, column.name) not in (patient_rules.CLASS_INELIGIBLE, patient_rules.CLASS_HELD):
+            continue
+        if contract.class_in(grain, key) in ("", patient_rules.CLASS_PERSON, patient_rules.CLASS_FIXED):
+            continue
+        out[column.name] = key
+    return out
+
+
+def _split_rows(cells: "list[str]", blank_records: int, tabled: int) -> "tuple[list[int], list[int]]":
+    """The row run's rows a column keeps for the patients' rows, and those it gives the records holding nothing.
+
+    The first `blank_records` cells holding nothing go to those records,
+    then every kept row past `tabled`; the step the walk's other row
+    columns take, as rows rather than cells. Raises nothing.
+    """
+    kept: "list[int]" = []
+    spare: "list[int]" = []
+    for row in range(len(cells)):
+        if len(spare) < blank_records and dialect.holds_nothing(cells[row]):
+            spare += [row]
+        else:
+            kept += [row]
+    if len(kept) > tabled:
+        spare = spare + kept[tabled:]
+        kept = kept[:tabled]
+    return kept, spare
+
+
+def _following(cells: "list[str]", before: "list[str]", after: "list[str]") -> "list[str] | None":
+    """A column's cells moved with its key's: the k-th row holding a key spelling before takes the k-th row holding it after.
+
+    So each cell stays beside the key spelling it was written for, and the
+    cells beside each spelling are the same cells. None where the key's
+    cells after are not those before, moved (the column then stays as it
+    is). Raises nothing; a fixed function of its arguments.
+    """
+    if len(cells) != len(before) or len(after) != len(before):
+        return None
+    rows_of: "dict[str, list[int]]" = {}
+    for row in range(len(before)):
+        spelling = before[row]
+        if spelling not in rows_of:
+            rows_of[spelling] = []
+        rows_of[spelling] += [row]
+    taken: "dict[str, int]" = {}
+    out: "list[str]" = []
+    for spelling in after:
+        found = rows_of[spelling] if spelling in rows_of else []
+        at = taken[spelling] if spelling in taken else 0
+        if at >= len(found):
+            return None
+        out += [cells[found[at]]]
+        taken[spelling] = at + 1
+    return out
 
 
 def _with_patient_term(

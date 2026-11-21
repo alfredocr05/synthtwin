@@ -21,7 +21,8 @@
 # reaches the network; the in-process guard of tools/bundle/guard_run.py);
 # then the trial runs as a person types it, on both zips through the
 # guard as well: --version, doctor, profile with the person column, the
-# questions answered, profile with --answers, generate, validate. The
+# questions answered, profile with --answers (and the record's remedy,
+# --replace-description, which its refusal teaches), generate, validate. The
 # backup's Python is installed fresh by the installer it carries (the
 # runner's own 3.14 is removed first). The
 # rehearsal jobs fetch nothing at all once their checkout and artifact
