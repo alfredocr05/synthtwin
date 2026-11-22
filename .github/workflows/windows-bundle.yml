@@ -558,10 +558,39 @@ jobs:
             if ($removed.ExitCode -notin 0, 3010) { throw "the runner's $($entry.DisplayName) could not be removed (exit $($removed.ExitCode))" }
           }
           $parts = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.WindowsInstaller -eq 1 -and $_.PSChildName -match '^\{[0-9A-Fa-f-]+\}$' })
+          # The parts go in the order the bundle itself removes them, the
+          # reverse of the order it installs them: every other part first
+          # (pip Bootstrap among them, whose removal runs the interpreter),
+          # then the Standard Library, the Executables, the Development
+          # Libraries and the Core Interpreter, last. In the order of their
+          # keys the Documentation came after the Core Interpreter and its
+          # removal stopped with exit 1603 (push 31's run).
+          $last = @('Standard Library', 'Executables', 'Development Libraries', 'Core Interpreter')
+          $parts = @($parts | Sort-Object -Property @{ Expression = { [array]::IndexOf($last, ($_.DisplayName -replace '^Python 3\.14\.\d+ (.+) \((?:32|64)-bit\)$', '$1')) } }, PSChildName)
           foreach ($part in $parts) {
             "removing the runner's own $($part.DisplayName) $($part.PSChildName) by the key it is registered under"
-            $removed = Start-Process -FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart')
-            if ($removed.ExitCode -notin 0, 1605, 3010) { throw "the runner's $($part.DisplayName) could not be removed (exit $($removed.ExitCode))" }
+            # Each removal writes a log of its own, read out when it fails.
+            # Exit 1618 says another installation is running (Windows
+            # Installer takes one at a time): the removal waits and tries
+            # again, four tries at most; any other exit is final.
+            $removal = Join-Path $env:RUNNER_TEMP "python-removal-$($part.PSChildName).log"
+            $tries = 0
+            do {
+              if ($tries -gt 0) { Start-Sleep -Seconds 20 }
+              $removed = Start-Process -FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart', '/l*v', $removal)
+              $tries += 1
+            } while ($removed.ExitCode -eq 1618 -and $tries -lt 4)
+            "  msiexec exited $($removed.ExitCode)"
+            # Done: 0; 1605, not installed (the check below still finds a
+            # key left behind); 3010, removed with a restart owed for a file
+            # in use, while the carried Python goes to a folder of its own.
+            if ($removed.ExitCode -notin 0, 1605, 3010) {
+              if (Test-Path $removal) {
+                $stopped = @(Select-String -Path $removal -SimpleMatch -Pattern 'Return value 3.' -Context 25, 0)
+                if ($stopped.Count -gt 0) { $stopped[0].Context.PreContext; $stopped[0].Line } else { Get-Content -Tail 40 $removal }
+              }
+              throw "the runner's $($part.DisplayName) could not be removed (exit $($removed.ExitCode))"
+            }
           }
           $left = @(Get-ItemProperty -Path $roots -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like 'Python 3.14*' })
           if ($left.Count -gt 0) { $left | ForEach-Object { $_.DisplayName }; throw 'a Python 3.14 is still registered on this runner, so the carried installer would not install fresh' }

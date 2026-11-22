@@ -1600,7 +1600,7 @@ FALLBACK_LINES = (
     "InstallAllUsers=0",
     "Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.BundleCachePath }",
     "-ArgumentList @('/uninstall', '/quiet')",
-    "-FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart')",
+    "-FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart', '/l*v', $removal)",
     "throw 'a Python 3.14 is still registered on this runner, so the carried installer would not install fresh'",
     "if ((Test-Path $target) -or (Test-Path $log)) { throw ",
     "if (-not (Test-Path $log)) { throw ",
@@ -1617,6 +1617,91 @@ FALLBACK_LINES = (
     "--expect record",
     "golden --python",
 )
+# The removal of the parts a runner image registers with no bundle above
+# them, line by line in the order the install step must hold them (push
+# 31's run stopped at the Documentation, removed after the Core
+# Interpreter in the order of the parts' keys, exit 1603): the parts
+# read, sorted by the step's own list of the parts removed last, removed
+# one at a time with a log each, a wait on exit 1618 alone and four tries
+# at most, done only on exit 0, 1605 or 3010, and a removal that stops
+# reads its log out before the step fails; then the check that no 3.14
+# is left, and the carried installer done on exit 0 alone, its Python
+# the release it carries.
+REMOVAL_LINES = (
+    "$parts = @(Get-ItemProperty -Path $roots ",
+    r"$parts = @($parts | Sort-Object -Property @{ Expression = { [array]::IndexOf($last, ($_.DisplayName -replace "
+    r"'^Python 3\.14\.\d+ (.+) \((?:32|64)-bit\)$', '$1')) } }, PSChildName)",
+    "foreach ($part in $parts) {",
+    '$removal = Join-Path $env:RUNNER_TEMP "python-removal-$($part.PSChildName).log"',
+    "} while ($removed.ExitCode -eq 1618 -and $tries -lt 4)",
+    "if ($removed.ExitCode -notin 0, 1605, 3010) {",
+    "$stopped = @(Select-String -Path $removal -SimpleMatch -Pattern 'Return value 3.' -Context 25, 0)",
+    'throw "the runner\'s $($part.DisplayName) could not be removed (exit $($removed.ExitCode))"',
+    "$left = @(Get-ItemProperty -Path $roots ",
+    "if ($run.ExitCode -ne 0) { Get-Content -Tail 60 $log; exit 1 }",
+    "if ($said -ne $release) { throw ",
+)
+# The only exits the step takes as a removal done: the bundle's, then a part's.
+REMOVAL_DONE = ["0, 3010", "0, 1605, 3010"]
+# The eight parts of Python 3.14.10 that push 27's runner held with no
+# bundle above them, in the order of their keys, as that run listed them.
+# The first four keys are those push 31's run printed; the last four
+# stand in, in the same order, for keys no log printed.
+RUNNER_PARTS = (
+    ("Python 3.14.10 pip Bootstrap (64-bit)", "{04AB0737-B64C-48B5-8A40-C891E30F77DC}"),
+    ("Python 3.14.10 Executables (64-bit)", "{0D0BD025-7CEC-44ED-AC9F-06B8A57F1CBA}"),
+    ("Python 3.14.10 Core Interpreter (64-bit)", "{1D701FC9-914A-48C9-B78E-73B8939A194F}"),
+    ("Python 3.14.10 Documentation (64-bit)", "{1E4641CE-4DCA-410D-AB23-0393727AF45A}"),
+    ("Python 3.14.10 Development Libraries (64-bit)", "{2A000000-0000-0000-0000-000000000000}"),
+    ("Python 3.14.10 Tcl/Tk Support (64-bit)", "{2B000000-0000-0000-0000-000000000000}"),
+    ("Python 3.14.10 Test Suite (64-bit)", "{2C000000-0000-0000-0000-000000000000}"),
+    ("Python 3.14.10 Standard Library (64-bit)", "{2D000000-0000-0000-0000-000000000000}"),
+)
+# The parts the bundle removes last, in its own order: the reverse of the
+# order it installs them, the Core Interpreter last of all.
+REMOVED_LAST = ("Standard Library", "Executables", "Development Libraries", "Core Interpreter")
+
+
+def removal_order(step: str, parts: "tuple[tuple[str, str], ...]" = RUNNER_PARTS) -> "list[str]":
+    """The titles of ``parts`` (each a registered name and its key) in the order the install step's sort puts them, mirrored.
+
+    The step sorts by `[array]::IndexOf($last, title)`, then by the key: a
+    part its `$last` list names goes by its place there, after every part
+    the list does not name (whose index is -1). With no `$last` list in
+    the step, the parts keep the order of their keys.
+    """
+    found = re.search(r"\$last = @\(([^)]*)\)", step)
+    last = re.findall(r"'([^']*)'", found.group(1)) if found else []
+    titled = [(re.sub(r"^Python 3\.14\.\d+ (.+) \((?:32|64)-bit\)$", r"\1", name), key) for name, key in parts]
+    ranked = sorted(titled, key=lambda part: (last.index(part[0]) if part[0] in last else -1, part[1]))
+    return [title for title, _ in ranked]
+
+
+def removal_problems(fallback: str) -> "list[str]":
+    """Every way the backup's install step removes the runner's own 3.14 out of order or lets a failed removal by."""
+    install = next((step for step in _steps(fallback) if step.startswith("name: Install the carried Python")), "")
+    if not install:
+        return ["rehearse-fallback has no step installing the carried Python"]
+    problems: "list[str]" = []
+    places = [install.find(line) for line in REMOVAL_LINES]
+    for line, place in zip(REMOVAL_LINES, places):
+        if place < 0:
+            problems += [f"the install step lacks {line!r}"]
+    found = [place for place in places if place >= 0]
+    if found != sorted(found):
+        problems += ["the install step's removal lines stand out of order (sorted before the loop, the log read before the throw)"]
+    # The keys fall as the installer's build made them, so the order is
+    # read with the parts' keys as listed and with them reversed: the
+    # parts removed last must stand last whichever way the keys sort.
+    names, keys = [name for name, _ in RUNNER_PARTS], [key for _, key in RUNNER_PARTS]
+    for parts in (RUNNER_PARTS, tuple(zip(names, keys[::-1]))):
+        order = removal_order(install, parts)
+        if order[-len(REMOVED_LAST) :] != list(REMOVED_LAST):
+            problems += [f"the install step removes the runner's parts in the order {order}, not with {list(REMOVED_LAST)} last"]
+    done = re.findall(r"-notin ([0-9, ]+)\)", install)
+    if done != REMOVAL_DONE:
+        problems += [f"the install step takes these exits as a removal done: {done}, not {REMOVAL_DONE}"]
+    return problems
 
 
 def _shapes(interpreter: str) -> "list[re.Pattern[str]]":
@@ -1847,6 +1932,7 @@ def workflow_problems(text: str, ci: str) -> "list[str]":
     for needed in FALLBACK_LINES:
         if needed not in fallback:
             problems += [f"rehearse-fallback lacks {needed!r}"]
+    problems += removal_problems(fallback)
     # The backup's interpreter is the one its carried installer made, fresh
     # (LANE WIN RULINGS 5, item 5): never one the runner already held.
     for stale in ("hostedtoolcache", "$candidates", "already installed on this runner"):
@@ -1914,6 +2000,15 @@ _KEPT_EARLY = (
 _INSTALL_CHECK = (
     "          if (-not (Select-String -Path (Join-Path $env:RUNNER_TEMP 'install.log') -SimpleMatch"
     " -Pattern $env:BASE_PYTHON -Quiet)) { throw 'install.bat used another Python than the carried one' }\n"
+)
+_SORTED = "          " + REMOVAL_LINES[1] + "\n"
+_PARTS_DONE = "              " + REMOVAL_LINES[7] + "\n            }\n          }\n"
+_READ_OUT = (
+    "              if (Test-Path $removal) {\n"
+    "                " + REMOVAL_LINES[6] + "\n"
+    "                if ($stopped.Count -gt 0) { $stopped[0].Context.PreContext; $stopped[0].Line }"
+    " else { Get-Content -Tail 40 $removal }\n"
+    "              }\n"
 )
 # Lines a rehearsal step may never hold once the network is denied: each
 # fetches, or runs another interpreter, or points the step at one.
@@ -2044,6 +2139,22 @@ def test_every_foreign_line_after_the_denial_is_red() -> None:
         # The verify's carry C4: install.bat must take the carried Python.
         ("          $env:PATH = (Split-Path $env:BASE_PYTHON) + ';' + $env:PATH\n", ""),
         (_INSTALL_CHECK, ""),
+        # Push 31's stop: the runner's parts removed in the bundle's order,
+        # the Core Interpreter last, each failure loud and read out.
+        (_SORTED, ""),
+        ("'Development Libraries', 'Core Interpreter')", "'Core Interpreter', 'Development Libraries')"),
+        ("'Development Libraries', 'Core Interpreter')", "'Development Libraries', 'Core Interpreter', 'pip Bootstrap')"),
+        ("          $last = @('Standard Library', 'Executables', ", "          $last = @('Executables', "),
+        ("[array]::IndexOf($last, ", "[array]::IndexOf(@(), "),
+        ("-notin 0, 1605, 3010) {", "-notin 0, 1603, 1605, 3010) {"),
+        ("-notin 0, 1605, 3010) {", "-ne 0 -and $false) {"),
+        ("if ($removed.ExitCode -notin 0, 3010) { throw", "if ($removed.ExitCode -notin 0, 1605, 3010) { throw"),
+        ("while ($removed.ExitCode -eq 1618 -and $tries -lt 4)", "while ($removed.ExitCode -ne 0 -and $tries -lt 4)"),
+        ("while ($removed.ExitCode -eq 1618 -and $tries -lt 4)", "while ($removed.ExitCode -eq 1618)"),
+        ("'/norestart', '/l*v', $removal)", "'/norestart')"),
+        (_READ_OUT, ""),
+        ("          if ($run.ExitCode -ne 0) { Get-Content", "          if ($run.ExitCode -notin 0, 3010) { Get-Content"),
+        ("          if ($said -ne $release) { throw ", "          if ($false) { throw "),
     ],
 )
 def test_a_workflow_short_of_the_plan_is_red(old: str, new: str) -> None:
@@ -2060,6 +2171,30 @@ def test_a_trial_moved_before_the_denial_is_red() -> None:
     denied = next(step for step in steps if "guard_run.py --denied" in step)
     moved = jobs["rehearse-ready"].replace("\n      - " + trial, "").replace("\n      - " + denied, "\n      - " + trial + "\n      - " + denied)
     assert workflow_problems(text.replace(jobs["rehearse-ready"], moved), CI.read_text(encoding="utf-8"))
+
+
+def test_the_runners_parts_go_in_the_bundles_order_the_core_interpreter_last() -> None:
+    """Push 31's stop: in the order of their keys the Documentation came after the Core Interpreter (exit 1603)."""
+    install = next(step for step in _steps(MODELS.jobs_of(WORKFLOW.read_text(encoding="utf-8"))["rehearse-fallback"])
+                   if step.startswith("name: Install the carried Python"))
+    order = removal_order(install)
+    assert order[-len(REMOVED_LAST) :] == list(REMOVED_LAST), order
+    assert order.index("pip Bootstrap") < order.index("Standard Library"), order
+    assert sorted(order) == sorted(name.split(" ", 2)[2].rsplit(" (", 1)[0] for name, _ in RUNNER_PARTS)
+    # Without the step's sort, the order of the keys alone: the Core
+    # Interpreter third, before the Documentation, as push 31's run had it.
+    keyed = removal_order("", RUNNER_PARTS)
+    assert keyed.index("Core Interpreter") < keyed.index("Documentation"), keyed
+    assert removal_problems("\n      - name: Install the carried Python per user\n        run: |\n") != []
+
+
+def test_a_sort_moved_after_the_removals_is_red() -> None:
+    """The parts sorted only once each was removed are removed in the order of their keys: red."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert text.count(_SORTED) == 1 and text.count(_PARTS_DONE) == 1
+    moved = text.replace(_SORTED, "", 1).replace(_PARTS_DONE, _PARTS_DONE + _SORTED, 1)
+    assert workflow_problems(moved, CI.read_text(encoding="utf-8"))
+    assert any("out of order" in line for line in removal_problems(MODELS.jobs_of(moved)["rehearse-fallback"]))
 
 
 def test_the_workflow_is_yaml_where_a_reader_is_installed() -> None:
