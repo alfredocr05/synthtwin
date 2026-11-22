@@ -887,6 +887,39 @@ def test_every_program_file_must_be_signed_by_an_allowed_signer() -> None:
     assert "python.exe was not among" in " ".join(PYTHON.signature_problems(records[1:], expected))
 
 
+def test_the_runtime_files_may_carry_windows_own_signer_and_nothing_else_may() -> None:
+    """Plan P4-D515: push 29's build read the embeddable of 3.14.10 with the SHA-256 push 27's had, and Windows named
+    the signer of its two C runtime files 'Microsoft Windows' (its own catalog's), where it had named 'Microsoft
+    Windows Software Compatibility Publisher'. The same bytes pass on both images; a Microsoft signer stands on those
+    two files alone, and every signer only for its own organisation. Mutants, each red: the new signer left out;
+    the organisation not read; a Microsoft signer allowed on any file."""
+    psf = "CN=Python Software Foundation, O=Python Software Foundation, L=Beaverton, S=Oregon, C=US"
+    windows = "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+    expected = ["python.exe", "python314.dll", "python-3.14.10-amd64.exe"]
+    records = [
+        {"Path": "D:\\a\\e\\python.exe", "Status": "Valid", "Signer": psf},
+        {"Path": "D:\\a\\e\\python314.dll", "Status": "Valid", "Signer": psf},
+        {"Path": "D:\\a\\o\\python-3.14.10-amd64.exe", "Status": "Valid", "Signer": psf},
+        {"Path": "D:\\a\\e\\vcruntime140.dll", "Status": "Valid", "Signer": windows},
+        {"Path": "D:\\a\\e\\vcruntime140_1.dll", "Status": "Valid", "Signer": windows},
+    ]
+    assert PYTHON.signature_problems(records, expected) == []
+    elsewhere = records + [{"Path": "D:\\a\\e\\_socket.pyd", "Status": "Valid", "Signer": windows}]
+    assert PYTHON.signature_problems(elsewhere, expected) == [
+        "D:\\a\\e\\_socket.pyd: signed by 'Microsoft Windows', a signer that stands only on vcruntime140.dll and vcruntime140_1.dll"
+    ]
+    for kind, subject in (("Microsoft Windows", "CN=Microsoft Windows, O=Someone Else, C=US"), ("Python Software Foundation", "CN=Python Software Foundation, O=Someone Else")):
+        other = [dict(record) for record in records]
+        other[3 if kind == "Microsoft Windows" else 0]["Signer"] = subject
+        problems = PYTHON.signature_problems(other, expected)
+        assert len(problems) == 1 and f"signed by '{kind}' for 'Someone Else'" in problems[0], problems
+    unnamed = [dict(record) for record in records]
+    unnamed[4]["Signer"] = "CN=Microsoft Windows"
+    assert PYTHON.signature_problems(unnamed, expected) == [
+        "D:\\a\\e\\vcruntime140_1.dll: signed by 'Microsoft Windows' for 'no organisation', not for Microsoft Corporation"
+    ]
+
+
 def _questions(asked: "list[tuple[str, list[str]]]", before: "list[tuple[str, str]]" = ()) -> "dict[str, object]":  # type: ignore[assignment]
     return {
         "asked": [
@@ -1263,13 +1296,23 @@ def test_start_here_alone_in_a_folder_must_say_to_unzip_first(tmp_path: pathlib.
 
 
 def _person(
-    monkeypatch, people: int = 1000, keep_open: bool = False, failing: str = "", twin: "bytes | None" = None
+    monkeypatch,
+    people: int = 1000,
+    keep_open: bool = False,
+    failing: str = "",
+    twin: "bytes | None" = None,
+    shared: "pathlib.Path | None" = None,
 ) -> "list[dict[str, object]]":
     """subprocess.run stood in for synthtwin on the direct route: each command writes what synthtwin writes.
 
     ``failing`` names the command that exits 1; ``keep_open`` leaves the
     question open after every answer; ``people`` is how many people the
     description counts and the twin holds; ``twin`` the twin's bytes.
+    With ``shared``, profile keeps the record of earlier descriptions as
+    synthtwin does, in the data folder the command's environment names
+    (``shared`` where it names none, as one account's folder): a round
+    whose description differs from the one recorded for its table is
+    refused, exit 1, unless it types --replace-description.
     """
     calls: "list[dict[str, object]]" = []
 
@@ -1282,6 +1325,15 @@ def _person(
         if verb == failing:
             return subprocess.CompletedProcess(command, 1, b"", b"")
         stem = words[1].split(".")[0].replace("-profile", "") if len(words) > 1 else ""
+        if verb == "profile" and shared is not None:
+            given = named.get("env") or {}
+            named_folder = given.get(REHEARSE.ACCOUNT_VARIABLE) if isinstance(given, dict) else None
+            record = pathlib.Path(str(named_folder) if named_folder else shared) / "synthtwin" / f"{stem}-described"
+            published = b"answered" if "--answers" in words else b"unanswered"
+            if record.exists() and record.read_bytes() != published and "--replace-description" not in words:
+                return subprocess.CompletedProcess(command, 1, b"This table was described before", b"")
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_bytes(published)
         if verb == "profile":
             answered = "--answers" in words and not keep_open
             asked = [] if answered else [{"column": "code", "your_answer": "", "answers_you_can_give": [{"answer": "code"}]}]
@@ -1310,14 +1362,74 @@ def _tables(tmp_path: pathlib.Path) -> pathlib.Path:
 
 def test_a_full_trial_on_the_stand_in_passes(tmp_path: pathlib.Path, monkeypatch) -> None:
     """The stand-in writes what a passing run writes, so each case below changes one thing only."""
-    _person(monkeypatch)
-    done = REHEARSE.trial(REHEARSE.Route("direct", python="py"), tmp_path / "work", _tables(tmp_path), ("visits",))
-    assert done.problems == [] and [step["exit"] for step in done.steps] == [0] * 6
-    assert [str(step["typed"]).split()[1] for step in done.steps] == ["--version", "doctor", "profile", "profile", "generate", "validate"]
+    calls = _person(monkeypatch)
+    work = tmp_path / "work"
+    done = REHEARSE.trial(REHEARSE.Route("direct", python="py"), work, _tables(tmp_path), ("visits",))
+    assert done.problems == [] and [step["exit"] for step in done.steps] == [0] * 7
+    verbs = ["--version", "doctor", "profile", "profile", "generate", "validate", "generate"]
+    assert [str(step["typed"]).split()[1] for step in done.steps] == verbs
     # The answered round types the record's remedy, as its refusal teaches (batch 4y's fix round; mutant: the round
     # typed without it, the bundle trial refused at the first answered round with the patient layer on).
     assert str(done.steps[3]["typed"]).split()[-2:] == ["--replace", "--replace-description"], done.steps[3]["typed"]
     assert "--replace-description" not in str(done.steps[2]["typed"])
+    # The last generate builds the twin of a copy of the description in WORK-moved, where its inside record is not
+    # (plan P4-D515; `again` holds another system's twin to it): typed as the first, run there.
+    moved = REHEARSE.moved_place(work)
+    assert moved == tmp_path / "work-moved" and str(done.steps[6]["typed"]).endswith("--seed 7  (in work-moved)")
+    assert calls[6]["present"] == ["visits-profile.json"], calls[6]["present"]
+    assert (moved / "visits-profile.json").read_bytes() == (work / "visits-profile.json").read_bytes()
+    assert (moved / "visits-twin.csv").is_file()
+
+
+def test_each_run_is_a_first_run_on_a_data_folder_of_its_own(tmp_path: pathlib.Path, monkeypatch) -> None:
+    """Plan P4-D515: two runs of one table in a row, as the wheel job's Python 3.11 runs after its 3.14 and the
+    Command Prompt and guard routes after the PowerShell one, each on one account: both pass, because each run names
+    a fresh data folder of its own, beside its work folder and removed after it, in the one variable synthtwin reads.
+
+    Mutants, each red: no folder named (the second run's first, unanswered round meets the first run's answered
+    description in the account's record and is refused, exit 1, as push 30's wheel job was); the folder made inside
+    the work folder (synthtwin refuses a data folder in the table's folder); the folder left behind (it holds the
+    run's key and inside records, and the runs are kept as artifacts); the redirected run on the account's folder.
+    """
+    monkeypatch.delenv(REHEARSE.ACCOUNT_VARIABLE, raising=False)
+    shared = tmp_path / "the account's own data folder"
+    calls = _person(monkeypatch, shared=shared)
+    route = REHEARSE.Route("direct", python="py")
+    tables = _tables(tmp_path)
+    runs = [tmp_path / "runs" / "linux-314", tmp_path / "runs" / "linux-311"]
+    named: "list[set[str]]" = []
+    for work in runs:
+        before = len(calls)
+        done = REHEARSE.trial(route, work, tables, ("visits",))
+        assert done.problems == [], (work.name, done.problems)
+        folders = {str(call["env"][REHEARSE.ACCOUNT_VARIABLE]) for call in calls[before:]}  # type: ignore[index]
+        assert folders == {str(REHEARSE.account_place(work))}, folders
+        assert REHEARSE.account_place(work).parent == work.parent and not REHEARSE.account_place(work).exists()
+        named += [folders]
+    assert named[0] != named[1] and not shared.exists(), "each run its own folder, the account's never written"
+    status, made = REHEARSE.redirect(route, tmp_path / "runs" / "redirect", tables)
+    assert status == 0 and "visits-profile.json" in made
+    assert str(calls[-1]["env"][REHEARSE.ACCOUNT_VARIABLE]) == str(REHEARSE.account_place(tmp_path / "runs" / "redirect"))  # type: ignore[index]
+    # The stand-in refuses as synthtwin does: the same two runs with no folder named, on the account's one folder,
+    # pass the first and refuse the second at its first round.
+
+    @REHEARSE.contextlib.contextmanager
+    def no_folder(work: pathlib.Path):  # type: ignore[no-untyped-def]
+        yield {}
+
+    monkeypatch.setattr(REHEARSE, "own_account", no_folder)
+    _person(monkeypatch, shared=tmp_path / "one account")
+    done = [REHEARSE.trial(route, work, tables, ("visits",)).problems for work in runs]
+    assert done == [[], ["synthtwin profile visits.csv --person subject_id exited 1, not 0"]], done
+
+
+def test_the_rehearsal_names_the_data_folder_synthtwin_reads() -> None:
+    """The variable `own_account` sets is the one synthtwin's installation reads on this system (plan P4-D515)."""
+    installation = pytest.importorskip("synthtwin.installation")
+    wanted = "LOCALAPPDATA" if installation.system_name() == "nt" else "XDG_DATA_HOME"
+    assert REHEARSE.ACCOUNT_VARIABLE == wanted
+    place = pathlib.Path("C:\\runs\\guard-account" if wanted == "LOCALAPPDATA" else "/runs/linux-311-account")
+    assert installation.data_folder(environ={wanted: str(place)}) == place / "synthtwin"
 
 
 def test_a_command_that_fails_is_a_problem_of_the_trial(tmp_path: pathlib.Path, monkeypatch) -> None:
@@ -1361,12 +1473,26 @@ def test_the_windows_routes_plant_decoys_where_the_window_opens(tmp_path: pathli
 
 
 def test_again_holds_the_twin_to_the_other_systems(tmp_path: pathlib.Path, monkeypatch) -> None:
-    """L05: a twin made here that differs from the other system's is a problem; the same twin is none."""
+    """L05: a twin made here that differs from the other system's is a problem; the same twin is none.
+
+    The other system's twin is the one its moved copy of the description built (plan P4-D515): the twin beside
+    the table was drawn from the inside record, which a description copied to another computer never finds
+    (mutant: held to the twin beside the table, red on the third call). Run on a data folder of its own.
+    """
     source = _full_run(tmp_path / "windows")
-    _person(monkeypatch, twin=b"subject_id,age\r\nother,1\r\n")
+    moved = REHEARSE.moved_place(source)
+    moved.mkdir()
+    (moved / "visits-twin.csv").write_bytes(b"subject_id,age\r\nS00001,41\r\n")
+    calls = _person(monkeypatch, twin=b"subject_id,age\r\nother,1\r\n")
     assert REHEARSE.again("py", source, tmp_path / "again", ("visits",)) == ["visits-twin.csv differs"]
-    _person(monkeypatch, twin=(source / "visits-twin.csv").read_bytes())
+    assert {str(call["env"][REHEARSE.ACCOUNT_VARIABLE]) for call in calls} == {str(tmp_path / "again-account")}  # type: ignore[index]
+    assert not (tmp_path / "again-account").exists()
+    _person(monkeypatch, twin=(moved / "visits-twin.csv").read_bytes())
     assert REHEARSE.again("py", source, tmp_path / "again", ("visits",)) == []
+    _person(monkeypatch, twin=(source / "visits-twin.csv").read_bytes())
+    assert REHEARSE.again("py", source, tmp_path / "again", ("visits",)) == ["visits-twin.csv differs"]
+    shutil.rmtree(moved)
+    assert REHEARSE.again("py", source, tmp_path / "again", ("visits",)) == [f"visits-twin.csv is missing from {moved}"]
 
 
 def test_an_asserted_comparison_holds_the_description_as_well(tmp_path: pathlib.Path) -> None:

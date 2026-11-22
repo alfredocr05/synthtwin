@@ -17,8 +17,10 @@ until a repair commits the pin printed by that run.
 
 THE SIGNERS. Every .exe, .dll and .pyd of the embeddable zip, and the
 installer, must carry a Valid Authenticode signature whose subject's
-common name is one of ``SIGNERS``: python.org signs its own files, and
-the Visual C++ runtime DLLs it ships are signed by Microsoft.
+common name is one of ``SIGNERS``, held by that signer's own organisation
+(``ORGANISATIONS``): python.org signs its own files, and the Visual C++
+runtime DLLs it ships are signed by Microsoft. A Microsoft signer stands
+on those runtime files alone (``RUNTIME``).
 
     python tools/bundle/windows_python.py version
     python tools/bundle/windows_python.py urls VERSION
@@ -42,7 +44,19 @@ SIGNERS = (
     "Microsoft Corporation",
     # the C runtime files python.org ships (vcruntime140.dll, vcruntime140_1.dll) carry this Microsoft signer
     "Microsoft Windows Software Compatibility Publisher",
+    # ...and this one, for the same bytes, on a later runner image: push 29's build read the embeddable of 3.14.10
+    # with the very SHA-256 push 27's had, and Windows named its own catalog's signer for those two files
+    "Microsoft Windows",
 )
+# Each signer's certificate is held by its own organisation (the subject's O=).
+ORGANISATIONS = {
+    "Python Software Foundation": "Python Software Foundation",
+    "Microsoft Corporation": "Microsoft Corporation",
+    "Microsoft Windows Software Compatibility Publisher": "Microsoft Corporation",
+    "Microsoft Windows": "Microsoft Corporation",
+}
+# The only files a Microsoft signer stands on: the C runtime python.org ships beside its own.
+RUNTIME = ("vcruntime140.dll", "vcruntime140_1.dll")
 _BASE = "https://www.python.org/ftp/python/{version}/"
 EMBEDDABLE = "python-{version}-embed-amd64.zip"
 INSTALLER = "python-{version}-amd64.exe"
@@ -136,18 +150,28 @@ def signature_problems(records: "list[dict[str, object]]", expected: "list[str]"
         seen.add(pathlib.PureWindowsPath(path).name.lower())
         status = str(record.get("Status", ""))
         subject = str(record.get("Signer", "") or "")
-        common = re.search(r"(?:^|,\s*)CN=(\"[^\"]*\"|[^,]*)", subject)
-        name = common.group(1).strip('"').strip() if common else ""
+        name = _subject_part(subject, "CN")
+        held_by = _subject_part(subject, "O")
         if status != "Valid":
             problems.append(f"{path}: the signature is {status or 'missing'}, not Valid")
         elif name not in SIGNERS:
             problems.append(f"{path}: signed by {name or subject!r}, not by {' or '.join(SIGNERS)}")
+        elif held_by != ORGANISATIONS[name]:
+            problems.append(f"{path}: signed by {name!r} for {held_by or 'no organisation'!r}, not for {ORGANISATIONS[name]}")
+        elif ORGANISATIONS[name] != "Python Software Foundation" and pathlib.PureWindowsPath(path).name.lower() not in RUNTIME:
+            problems.append(f"{path}: signed by {name!r}, a signer that stands only on {' and '.join(RUNTIME)}")
     if not records:
         problems.append("no program file was checked")
     for name in expected:
         if name.lower() not in seen:
             problems.append(f"{name} was not among the files checked")
     return problems
+
+
+def _subject_part(subject: str, key: str) -> str:
+    """The value of ``key`` (CN, O) in a certificate's subject as PowerShell writes it, '' where it has none."""
+    found = re.search(r"(?:^|,\s*)" + key + r"=(\"[^\"]*\"|[^,]*)", subject)
+    return found.group(1).strip('"').strip() if found else ""
 
 
 def _records(text: str) -> "list[dict[str, object]]":

@@ -19,11 +19,16 @@ column; the answers written (fill_answers.py: in the questions file, or
 in the plain-text answers file where synthtwin reads one); synthtwin
 profile TABLE --answers FILE --replace --replace-description (the
 record's remedy, `ANSWERED_ROUND`); synthtwin generate --seed 7; synthtwin
-validate --twin. Each command's exit status, seconds and new files are
+validate --twin; and, last, synthtwin generate --seed 7 once more on a
+copy of the description in the folder beside, WORK-moved, where its
+inside record is not (`again` holds another system's twin to that one).
+Each command's exit status, seconds and new files are
 recorded, and the run is refused unless every status is 0, the six
 files stand beside the table, synthtwin counted 1,000 people and the
 twin holds 1,000, nothing answered is open again and the verdict holds
-no missed obligation. ROUTE is how the person reaches synthtwin:
+no missed obligation. Each run is a person's first on a computer of
+their own: it is given a data folder of its own (`own_account`). ROUTE
+is how the person reaches synthtwin:
 
     powershell  the function START-HERE.bat defines in its PowerShell
                 window (taken from the folder's scripts\\check_folder.py)
@@ -60,11 +65,14 @@ Explorer runs it from inside the zip, which must say to unzip first;
 runs the golden tests with that interpreter, pytest put on its path by
 a -c line (the folder's ._pth file ignores PYTHONPATH); `again`
 generates and validates from another system's description and holds
-its twin to that system's; `compare` holds the descriptions and twins
+its twin to the twin that system built from its moved copy (a
+description away from its inside record builds its twin from itself
+alone, on any system); `compare` holds the descriptions and twins
 of two runs to each other, byte for byte, or reports how they differ.
 """
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -96,6 +104,22 @@ ROUNDS = 3
 # the round before (which published none) against it; the person types
 # the remedy, as the screen says, on every answered round.
 ANSWERED_ROUND = ("--replace", "--replace-description")
+# THE ACCOUNT'S DATA FOLDER, ONE A RUN. synthtwin keeps, in the account's
+# data folder, its private key, the record of the descriptions it
+# published (which refuses a different description of a table it
+# described before, where either publishes between columns) and each
+# table's inside record. Every run of the trial is a person's FIRST run
+# on a computer of their own, so each is given a data folder of its own,
+# made fresh beside the work folder (never inside it: synthtwin refuses a
+# data folder in the table's folder) and removed when the run ends, so its
+# key and records are never kept with the runs. It is named by the one
+# variable synthtwin reads for it: LOCALAPPDATA on Windows, XDG_DATA_HOME
+# elsewhere. Without it a second run of the same table on one account --
+# the wheel job's Python 3.11 after its 3.14, the Command Prompt and guard
+# routes after the PowerShell one -- met the first run's answered
+# description at its own first, unanswered round, and was refused (exit
+# 1), as a person who described the table before is.
+ACCOUNT_VARIABLE = "LOCALAPPDATA" if sys.platform == "win32" else "XDG_DATA_HOME"
 STEMS = ("visits", "visits-1252")
 PEOPLE = 1000
 SEED = "7"
@@ -230,30 +254,46 @@ class Route:
 class Trial:
     """One route's run of the person's commands, recorded step by step."""
 
-    def __init__(self, route: Route, work: pathlib.Path) -> None:
+    def __init__(self, route: Route, work: pathlib.Path, account: "dict[str, str] | None" = None) -> None:
         self.route = route
         self.work = work
+        self.account = dict(account or {})
         self.steps: "list[dict[str, object]]" = []
         self.problems: "list[str]" = []
 
-    def run(self, words: "list[str]", into: "str | None" = None, expect: "int | None" = 0) -> int:
-        before = {path.name for path in self.work.iterdir()}
+    def environment(self) -> "dict[str, str]":
+        """The route's environment with the run's own data folder (`own_account`) in it."""
+        given = self.route.environment()
+        given.update(self.account)
+        return given
+
+    def run(
+        self,
+        words: "list[str]",
+        into: "str | None" = None,
+        expect: "int | None" = 0,
+        place: "pathlib.Path | None" = None,
+    ) -> int:
+        where = place if place is not None else self.work
+        before = {path.name for path in where.iterdir()}
         command = self.route.command(words, into)
         log = self.work.parent / f"{self.work.name}-screen-{len(self.steps) + 1:02d}.txt"
         began = time.perf_counter()
         with open(log, "wb") as screen:
             done = subprocess.run(
                 command,
-                cwd=self.work,
-                env=self.route.environment(),
+                cwd=where,
+                env=self.environment(),
                 stdin=subprocess.DEVNULL,
                 stdout=screen,
                 stderr=subprocess.STDOUT,
                 check=False,
             )
         seconds = time.perf_counter() - began
-        made = sorted({path.name for path in self.work.iterdir()} - before)
+        made = sorted({path.name for path in where.iterdir()} - before)
         typed = "synthtwin " + " ".join(words) + (f" > {into}" if into else "")
+        if where != self.work:
+            typed += f"  (in {where.name})"
         self.steps += [{"typed": typed, "exit": done.returncode, "seconds": round(seconds, 1), "new": made}]
         print(f"[{self.route.kind}] {typed}  -> exit {done.returncode}, {seconds:.1f} s, new: {made}", flush=True)
         if expect is not None and done.returncode != expect:
@@ -268,6 +308,29 @@ def proxied() -> "dict[str, str]":
     given = dict(os.environ)
     given.update(PROXIES)
     return given
+
+
+def account_place(work: pathlib.Path) -> pathlib.Path:
+    """The run's own data folder: WORK-account, beside the work folder (`ACCOUNT_VARIABLE`)."""
+    return work.parent / f"{work.name}-account"
+
+
+def moved_place(work: pathlib.Path) -> pathlib.Path:
+    """Where the run builds a twin from a moved copy of its description: WORK-moved, beside the work folder."""
+    return work.parent / f"{work.name}-moved"
+
+
+@contextlib.contextmanager
+def own_account(work: pathlib.Path):  # type: ignore[no-untyped-def]
+    """A fresh data folder for one run, named in `ACCOUNT_VARIABLE`, and removed when the run ends (see above)."""
+    place = account_place(work)
+    if place.exists():
+        shutil.rmtree(place)
+    place.mkdir(mode=0o700, parents=True)
+    try:
+        yield {ACCOUNT_VARIABLE: str(place)}
+    finally:
+        shutil.rmtree(place, ignore_errors=True)
 
 
 def person_option(source: pathlib.Path = REPO) -> str:
@@ -336,11 +399,25 @@ def plant_decoys(work: pathlib.Path) -> "list[str]":
 
 
 def trial(route: Route, work: pathlib.Path, tables: pathlib.Path, stems: "tuple[str, ...]") -> Trial:
-    """The person's commands for each table, in ``work`` (made fresh; the windows' routes with the decoys in it)."""
-    if work.exists():
-        shutil.rmtree(work)
-    work.mkdir(parents=True)
-    done = Trial(route, work)
+    """The person's commands for each table, in ``work`` (made fresh; the windows' routes with the decoys in it).
+
+    The run has a data folder of its own (`own_account`), so the record of
+    earlier descriptions holds no run but this one; and each description
+    builds its twin once more from a copy in WORK-moved (`moved_place`).
+    """
+    for place in (work, moved_place(work)):
+        if place.exists():
+            shutil.rmtree(place)
+        place.mkdir(parents=True)
+    with own_account(work) as account:
+        done = Trial(route, work, account)
+        _commands(done, tables, stems)
+    return done
+
+
+def _commands(done: Trial, tables: pathlib.Path, stems: "tuple[str, ...]") -> None:
+    """The commands of `trial`, run by ``done`` and recorded in it."""
+    route, work = done.route, done.work
     if route.kind in ("powershell", "cmd"):
         print(f"[{route.kind}] decoys in the work folder: {plant_decoys(work)}", flush=True)
     person = person_option()
@@ -351,18 +428,18 @@ def trial(route: Route, work: pathlib.Path, tables: pathlib.Path, stems: "tuple[
         table = f"{stem}.csv"
         questions = work / f"{stem}-questions.json"
         if done.run(["doctor", table]) != 0 or done.run(["profile", table, person, PERSON]) != 0:
-            return done
+            return
         written: "list[tuple[str, str]]" = []
         for _ in range(ROUNDS):
             try:
                 document = fill_answers.load(questions)
             except (OSError, ValueError) as error:
                 done.problems += [f"{questions.name} could not be read: {error}"]
-                return done
+                return
             chosen, problems = fill_answers.choose(document, ANSWERS)
             if problems:
                 done.problems += problems
-                return done
+                return
             if not chosen:
                 break
             written += chosen
@@ -372,14 +449,19 @@ def trial(route: Route, work: pathlib.Path, tables: pathlib.Path, stems: "tuple[
             else:
                 fill_answers.write_json(questions, document)
             if done.run(["profile", table, person, PERSON, "--answers", answers.name, *ANSWERED_ROUND]) != 0:
-                return done
+                return
         done.problems += fill_answers.settled(fill_answers.load(questions), written)
         if done.run(["generate", f"{stem}-profile.json", "--seed", SEED]) != 0:
-            return done
+            return
         if done.run(["validate", f"{stem}-profile.json", "--twin", f"{stem}-twin.csv"]) != 0:
-            return done
+            return
         done.problems += outcome_problems(work, stem)
-    return done
+        # The twin this description builds where its inside record is not, as on any
+        # other computer: `again` holds another system's twin of the same description to it.
+        moved = moved_place(work)
+        shutil.copyfile(work / f"{stem}-profile.json", moved / f"{stem}-profile.json")
+        if done.run(["generate", f"{stem}-profile.json", "--seed", SEED], place=moved) != 0:
+            return
 
 
 def outcome_problems(work: pathlib.Path, stem: str) -> "list[str]":
@@ -422,21 +504,29 @@ def compare(first: pathlib.Path, second: pathlib.Path, stems: "tuple[str, ...]",
 
 
 def again(python: str, source: pathlib.Path, work: pathlib.Path, stems: "tuple[str, ...]") -> "list[str]":
-    """Generate and validate from ``source``'s descriptions here; the twin must be ``source``'s, byte for byte."""
+    """Generate and validate from ``source``'s descriptions here, on a data folder of this run's own.
+
+    A description copied away from the computer that made it finds no
+    inside record, so its twin is built from it alone, here as there: the
+    twin must be the one ``source``'s system built from its moved copy
+    (`moved_place`), byte for byte. The twin of ``source`` itself was drawn
+    from the inside record, which stays on that computer.
+    """
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
-    done = Trial(Route("direct", python=python), work)
-    for stem in stems:
-        shutil.copyfile(source / f"{stem}-profile.json", work / f"{stem}-profile.json")
-        if done.run(["generate", f"{stem}-profile.json", "--seed", SEED]) != 0:
-            continue
-        if done.run(["validate", f"{stem}-profile.json", "--twin", f"{stem}-twin.csv"]) != 0:
-            continue
-        verdict = missed((work / f"{stem}-twin-quality.txt").read_text(encoding="utf-8", errors="replace"))
-        if verdict != 0:
-            done.problems += [f"{stem}: the verdict's missed obligations read {verdict}, not 0"]
-    return done.problems + compare(source, work, stems, ("{stem}-twin.csv",))
+    with own_account(work) as account:
+        done = Trial(Route("direct", python=python), work, account)
+        for stem in stems:
+            shutil.copyfile(source / f"{stem}-profile.json", work / f"{stem}-profile.json")
+            if done.run(["generate", f"{stem}-profile.json", "--seed", SEED]) != 0:
+                continue
+            if done.run(["validate", f"{stem}-profile.json", "--twin", f"{stem}-twin.csv"]) != 0:
+                continue
+            verdict = missed((work / f"{stem}-twin-quality.txt").read_text(encoding="utf-8", errors="replace"))
+            if verdict != 0:
+                done.problems += [f"{stem}: the verdict's missed obligations read {verdict}, not 0"]
+    return done.problems + compare(moved_place(source), work, stems, ("{stem}-twin.csv",))
 
 
 def redirect(route: Route, work: pathlib.Path, tables: pathlib.Path) -> "tuple[int, list[str]]":
@@ -445,19 +535,20 @@ def redirect(route: Route, work: pathlib.Path, tables: pathlib.Path) -> "tuple[i
         shutil.rmtree(work)
     work.mkdir(parents=True)
     shutil.copyfile(tables / "visits.csv", work / "visits.csv")
-    done = Trial(route, work)
     words = ["profile", "visits.csv", person_option(), PERSON]
-    if route.kind == "direct":
-        before = {path.name for path in work.iterdir()}
-        with open(work / "screen.txt", "wb") as screen:
-            status = subprocess.run(
-                route.command(words), cwd=work, env=route.environment(), stdin=subprocess.DEVNULL,
-                stdout=screen, stderr=subprocess.PIPE, check=False,
-            ).returncode
-        made = sorted({path.name for path in work.iterdir()} - before)
-        print(f"[direct] synthtwin {' '.join(words)} > screen.txt  -> exit {status}, new: {made}", flush=True)
-        return status, made
-    status = done.run(words, into="screen.txt", expect=None)
+    with own_account(work) as account:
+        done = Trial(route, work, account)
+        if route.kind == "direct":
+            before = {path.name for path in work.iterdir()}
+            with open(work / "screen.txt", "wb") as screen:
+                status = subprocess.run(
+                    route.command(words), cwd=work, env=done.environment(), stdin=subprocess.DEVNULL,
+                    stdout=screen, stderr=subprocess.PIPE, check=False,
+                ).returncode
+            made = sorted({path.name for path in work.iterdir()} - before)
+            print(f"[direct] synthtwin {' '.join(words)} > screen.txt  -> exit {status}, new: {made}", flush=True)
+            return status, made
+        status = done.run(words, into="screen.txt", expect=None)
     return status, list(done.steps[-1]["new"])  # type: ignore[arg-type]
 
 
