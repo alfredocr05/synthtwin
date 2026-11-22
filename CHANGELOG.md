@@ -6,6 +6,12 @@ exists).
 
 ## [Unreleased]
 
+### The Windows bundle workflow's fix after push 32: the Development Libraries removed before the Executables, each part handed its folder as the bundle hands it, and Windows Installer waited for (2026-11-22)
+
+- **Cause** (plan P4-D530; no product file changes). Push 32's run stopped again at the backup's fresh install: the Development Libraries, removed right after the Executables, exited 1601. In CPython 3.14's installer every part but the Core Interpreter and the Executables finds the folder it was installed in by searching for the Executables' `python.exe`, and the bundle hands each part that folder itself; removed by its key after the Executables, such a part finds none. Push 31's Documentation (exit 1603) was the first such part there too. P4-D516's order put the Executables before the Development Libraries, against 3.14's own chain.
+- **The fix.** `.github/workflows/windows-bundle.yml`, the backup's install step: the Standard Library, the Development Libraries, the Executables and the Core Interpreter are removed last, in that order; the folder is read where the Executables registered it before any removal and handed to each as `TARGETDIR`; the step waits for Windows Installer to be idle before each removal and before the carried installer; exits 1601 and 1618 are tried again (five tries at most, the service restarted once when 1601 comes twice); each removal's log is flushed line by line, and a failure prints the installer's recent events. Every check after the removals is unchanged.
+- **Gate file** `tests/test_windows_bundle.py`: 25 cases more (172), red on each of 30 mutants of the step and on push 32's own step; the mirror of the sort reads push 32's removals in the order its run printed them.
+
 ### The Windows bundle workflow's fix after push 31: the runner's own Python 3.14 removed in the bundle's own order, the Core Interpreter last (2026-11-22)
 
 - **Cause** (plan P4-D516; no product file changes). Push 31's run was the first to reach the backup's fresh install since batch 4x's repair, and stopped there. The runner holds Python 3.14.10 as eight Windows Installer parts with no bundle above them, and the step removed them in the order of their keys: pip Bootstrap, the Executables, the Core Interpreter, then the Documentation, whose removal stopped with exit 1603 (Windows Installer's fatal error). The step refused it, as it should. The bundle removes its own parts in the reverse of the order it installs them, the Core Interpreter last.

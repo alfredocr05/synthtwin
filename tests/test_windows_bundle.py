@@ -1600,7 +1600,7 @@ FALLBACK_LINES = (
     "InstallAllUsers=0",
     "Where-Object { $_.DisplayName -like 'Python 3.14*' -and $_.BundleCachePath }",
     "-ArgumentList @('/uninstall', '/quiet')",
-    "-FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart', '/l*v', $removal)",
+    "-FilePath 'msiexec.exe' -Wait -PassThru -ArgumentList @('/x', $part.PSChildName, '/quiet', '/norestart', '/l*v!', $removal, \"TARGETDIR=`\"$folder`\"\")",
     "throw 'a Python 3.14 is still registered on this runner, so the carried installer would not install fresh'",
     "if ((Test-Path $target) -or (Test-Path $log)) { throw ",
     "if (-not (Test-Path $log)) { throw ",
@@ -1619,47 +1619,98 @@ FALLBACK_LINES = (
 )
 # The removal of the parts a runner image registers with no bundle above
 # them, line by line in the order the install step must hold them (push
-# 31's run stopped at the Documentation, removed after the Core
-# Interpreter in the order of the parts' keys, exit 1603): the parts
-# read, sorted by the step's own list of the parts removed last, removed
-# one at a time with a log each, a wait on exit 1618 alone and four tries
-# at most, done only on exit 0, 1605 or 3010, and a removal that stops
-# reads its log out before the step fails; then the check that no 3.14
-# is left, and the carried installer done on exit 0 alone, its Python
-# the release it carries.
+# 31's run stopped at the Documentation, push 32's at the Development
+# Libraries, each the first part removed after the Executables): the
+# wait for Windows Installer defined, the parts read and sorted by the
+# step's own list of the parts removed last, the folder they were
+# installed in read before any is removed, removed one at a time with a
+# log each, exits 1601 and 1618 alone tried again, five tries at most,
+# the service restarted once in the step when 1601 comes twice, done only
+# on exit 0, 1605 or 3010, and a removal that stops reads its log and
+# the installer's events out before the step fails; then the check that
+# no 3.14 is left, and the carried installer done on exit 0 alone, its
+# Python the release it carries.
 REMOVAL_LINES = (
+    "function Wait-Installer {",
+    "$service = Get-CimInstance -ClassName Win32_Service -Filter \"Name='msiserver'\"",
+    "$others = @(Get-Process -Name 'msiexec' -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne $service.ProcessId })",
+    "if ($service.State -notlike '*Pending' -and $others.Count -eq 0) { return }",
     "$parts = @(Get-ItemProperty -Path $roots ",
     r"$parts = @($parts | Sort-Object -Property @{ Expression = { [array]::IndexOf($last, ($_.DisplayName -replace "
     r"'^Python 3\.14\.\d+ (.+) \((?:32|64)-bit\)$', '$1')) } }, PSChildName)",
+    "$folder = ''",
+    '$found = Get-ItemProperty -Path "$hive\\SOFTWARE\\Python\\PythonCore\\3.14\\InstallPath" -ErrorAction SilentlyContinue',
+    "if (-not $folder -and $found) { $folder = ([string]$found.'(default)').TrimEnd('\\') }",
+    "$restarted = $false",
     "foreach ($part in $parts) {",
     '$removal = Join-Path $env:RUNNER_TEMP "python-removal-$($part.PSChildName).log"',
-    "} while ($removed.ExitCode -eq 1618 -and $tries -lt 4)",
+    "if ($lost -ge 2 -and -not $restarted) {",
+    "Restart-Service -Name 'msiserver' -Force",
+    "$restarted = $true",
+    "if ($removed.ExitCode -eq 1601) { $lost += 1 }",
+    "} while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 5)",
     "if ($removed.ExitCode -notin 0, 1605, 3010) {",
     "$stopped = @(Select-String -Path $removal -SimpleMatch -Pattern 'Return value 3.' -Context 25, 0)",
+    "Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'MsiInstaller', 'Application Error' }",
     'throw "the runner\'s $($part.DisplayName) could not be removed (exit $($removed.ExitCode))"',
     "$left = @(Get-ItemProperty -Path $roots ",
+    "$run = Start-Process -FilePath $env:INSTALLER ",
     "if ($run.ExitCode -ne 0) { Get-Content -Tail 60 $log; exit 1 }",
     "if ($said -ne $release) { throw ",
+)
+# The wait itself, line for line: a minute's worth of checks, two
+# seconds apart, of the service's state and of any msiexec but its own.
+WAIT_LINES = (
+    "function Wait-Installer {",
+    "for ($second = 0; $second -lt 60; $second += 2) {",
+    REMOVAL_LINES[1],
+    REMOVAL_LINES[2],
+    REMOVAL_LINES[3],
+    "Start-Sleep -Seconds 2",
+    "}",
+    "'  Windows Installer was still busy after a minute; the exit decides'",
+    "}",
+)
+# The three programs that start Windows Installer (the bundle's own
+# removal, a part's, the carried installer), each of which the wait must
+# stand right before.
+WAITED_FOR = (
+    "$removed = Start-Process -FilePath $entry.BundleCachePath ",
+    "$removed = Start-Process -FilePath 'msiexec.exe' ",
+    "$run = Start-Process -FilePath $env:INSTALLER ",
 )
 # The only exits the step takes as a removal done: the bundle's, then a part's.
 REMOVAL_DONE = ["0, 3010", "0, 1605, 3010"]
 # The eight parts of Python 3.14.10 that push 27's runner held with no
-# bundle above them, in the order of their keys, as that run listed them.
-# The first four keys are those push 31's run printed; the last four
-# stand in, in the same order, for keys no log printed.
+# bundle above them, in the order of their keys, as that run listed them,
+# each with the key push 31's or push 32's run printed for it.
 RUNNER_PARTS = (
     ("Python 3.14.10 pip Bootstrap (64-bit)", "{04AB0737-B64C-48B5-8A40-C891E30F77DC}"),
     ("Python 3.14.10 Executables (64-bit)", "{0D0BD025-7CEC-44ED-AC9F-06B8A57F1CBA}"),
     ("Python 3.14.10 Core Interpreter (64-bit)", "{1D701FC9-914A-48C9-B78E-73B8939A194F}"),
     ("Python 3.14.10 Documentation (64-bit)", "{1E4641CE-4DCA-410D-AB23-0393727AF45A}"),
-    ("Python 3.14.10 Development Libraries (64-bit)", "{2A000000-0000-0000-0000-000000000000}"),
-    ("Python 3.14.10 Tcl/Tk Support (64-bit)", "{2B000000-0000-0000-0000-000000000000}"),
-    ("Python 3.14.10 Test Suite (64-bit)", "{2C000000-0000-0000-0000-000000000000}"),
-    ("Python 3.14.10 Standard Library (64-bit)", "{2D000000-0000-0000-0000-000000000000}"),
+    ("Python 3.14.10 Development Libraries (64-bit)", "{4BFB652A-E510-4B01-B7A4-B532E2721FAE}"),
+    ("Python 3.14.10 Tcl/Tk Support (64-bit)", "{66674362-34AE-4C92-854B-AEF1C07E3F15}"),
+    ("Python 3.14.10 Test Suite (64-bit)", "{9C215D62-3658-4D50-B518-9BF0C2B225B8}"),
+    ("Python 3.14.10 Standard Library (64-bit)", "{D9B9D8D6-119C-492B-B7CE-CDA816C5DBCD}"),
 )
 # The parts the bundle removes last, in its own order: the reverse of the
-# order it installs them, the Core Interpreter last of all.
-REMOVED_LAST = ("Standard Library", "Executables", "Development Libraries", "Core Interpreter")
+# order its chain installs them (3.14's chain: the Core Interpreter, the
+# Executables, the Development Libraries, the Standard Library, then the
+# rest), the Core Interpreter last of all.
+REMOVED_LAST = ("Standard Library", "Development Libraries", "Executables", "Core Interpreter")
+# The two parts that do not find their folder through the Executables'
+# python.exe. Every other part of the 3.14 installer reads it there (the
+# TARGETDIR search of CPython's Tools/msi/common.wxs, which each of their
+# .wxs files refers to, and pip Bootstrap's own search for python.exe),
+# so each must be removed while the Executables are still installed.
+OWN_FOLDER = ("Executables", "Core Interpreter")
+# Push 32's own list of the parts removed last, and the order its run
+# printed: the mirror of the sort must read the run as it went.
+PUSH_32_LAST = "          $last = @('Standard Library', 'Executables', 'Development Libraries', 'Core Interpreter')\n"
+PUSH_32_ORDER = [
+    "pip Bootstrap", "Documentation", "Tcl/Tk Support", "Test Suite", "Standard Library", "Executables", "Development Libraries",
+]
 
 
 def removal_order(step: str, parts: "tuple[tuple[str, str], ...]" = RUNNER_PARTS) -> "list[str]":
@@ -1689,15 +1740,33 @@ def removal_problems(fallback: str) -> "list[str]":
             problems += [f"the install step lacks {line!r}"]
     found = [place for place in places if place >= 0]
     if found != sorted(found):
-        problems += ["the install step's removal lines stand out of order (sorted before the loop, the log read before the throw)"]
+        problems += [
+            "the install step's removal lines stand out of order (the wait defined first, the folder read and the parts"
+            " sorted before the loop, the log read before the throw)"
+        ]
+    # Each start of Windows Installer comes right after the wait, in the
+    # same run of the step: no other line stands between them.
+    lines = _run_lines(install)
+    begun = lines.index(WAIT_LINES[0]) if WAIT_LINES[0] in lines else -1
+    if begun < 0 or tuple(lines[begun : begun + len(WAIT_LINES)]) != WAIT_LINES:
+        problems += ["the install step's wait for Windows Installer is not the one the plan holds, line for line"]
+    for started in WAITED_FOR:
+        at = [index for index, line in enumerate(lines) if line.startswith(started)]
+        if len(at) != 1 or lines[at[0] - 1] != "Wait-Installer":
+            problems += [f"the install step does not wait for Windows Installer right before {started.strip()!r}"]
     # The keys fall as the installer's build made them, so the order is
     # read with the parts' keys as listed and with them reversed: the
-    # parts removed last must stand last whichever way the keys sort.
+    # parts removed last must stand last whichever way the keys sort, and
+    # every part that finds its folder through the Executables must go
+    # before them.
     names, keys = [name for name, _ in RUNNER_PARTS], [key for _, key in RUNNER_PARTS]
     for parts in (RUNNER_PARTS, tuple(zip(names, keys[::-1]))):
         order = removal_order(install, parts)
         if order[-len(REMOVED_LAST) :] != list(REMOVED_LAST):
             problems += [f"the install step removes the runner's parts in the order {order}, not with {list(REMOVED_LAST)} last"]
+        after = [title for title in order[order.index("Executables") + 1 :] if title not in OWN_FOLDER]
+        if after:
+            problems += [f"the install step removes {after} after the Executables, whose python.exe they find their folder by"]
     done = re.findall(r"-notin ([0-9, ]+)\)", install)
     if done != REMOVAL_DONE:
         problems += [f"the install step takes these exits as a removal done: {done}, not {REMOVAL_DONE}"]
@@ -2001,15 +2070,29 @@ _INSTALL_CHECK = (
     "          if (-not (Select-String -Path (Join-Path $env:RUNNER_TEMP 'install.log') -SimpleMatch"
     " -Pattern $env:BASE_PYTHON -Quiet)) { throw 'install.bat used another Python than the carried one' }\n"
 )
-_SORTED = "          " + REMOVAL_LINES[1] + "\n"
-_PARTS_DONE = "              " + REMOVAL_LINES[7] + "\n            }\n          }\n"
+_SORTED = "          " + REMOVAL_LINES[5] + "\n"
+_PARTS_DONE = "              " + REMOVAL_LINES[20] + "\n            }\n          }\n"
 _READ_OUT = (
     "              if (Test-Path $removal) {\n"
-    "                " + REMOVAL_LINES[6] + "\n"
+    "                " + REMOVAL_LINES[18] + "\n"
     "                if ($stopped.Count -gt 0) { $stopped[0].Context.PreContext; $stopped[0].Line }"
     " else { Get-Content -Tail 40 $removal }\n"
     "              }\n"
 )
+_FOLDER_READ = (
+    "          foreach ($hive in @('HKLM:', 'HKCU:')) {\n"
+    "            " + REMOVAL_LINES[7] + "\n"
+    "            " + REMOVAL_LINES[8] + "\n"
+    "          }\n"
+)
+_RESTART = (
+    "              if ($lost -ge 2 -and -not $restarted) {\n"
+    "                '  the Windows Installer service could not be reached twice: restarting it, once'\n"
+    "                Restart-Service -Name 'msiserver' -Force\n"
+    "                $restarted = $true\n"
+    "              }\n"
+)
+_WAIT_BODY = "              if ($service.State -notlike '*Pending' -and $others.Count -eq 0) { return }\n"
 # Lines a rehearsal step may never hold once the network is denied: each
 # fetches, or runs another interpreter, or points the step at one.
 FOREIGN = (
@@ -2142,19 +2225,50 @@ def test_every_foreign_line_after_the_denial_is_red() -> None:
         # Push 31's stop: the runner's parts removed in the bundle's order,
         # the Core Interpreter last, each failure loud and read out.
         (_SORTED, ""),
-        ("'Development Libraries', 'Core Interpreter')", "'Core Interpreter', 'Development Libraries')"),
-        ("'Development Libraries', 'Core Interpreter')", "'Development Libraries', 'Core Interpreter', 'pip Bootstrap')"),
-        ("          $last = @('Standard Library', 'Executables', ", "          $last = @('Executables', "),
+        ("'Executables', 'Core Interpreter')", "'Core Interpreter', 'Executables')"),
+        ("'Executables', 'Core Interpreter')", "'Executables', 'Core Interpreter', 'pip Bootstrap')"),
+        ("          $last = @('Standard Library', 'Development Libraries', ", "          $last = @('Development Libraries', "),
         ("[array]::IndexOf($last, ", "[array]::IndexOf(@(), "),
         ("-notin 0, 1605, 3010) {", "-notin 0, 1603, 1605, 3010) {"),
         ("-notin 0, 1605, 3010) {", "-ne 0 -and $false) {"),
         ("if ($removed.ExitCode -notin 0, 3010) { throw", "if ($removed.ExitCode -notin 0, 1605, 3010) { throw"),
-        ("while ($removed.ExitCode -eq 1618 -and $tries -lt 4)", "while ($removed.ExitCode -ne 0 -and $tries -lt 4)"),
-        ("while ($removed.ExitCode -eq 1618 -and $tries -lt 4)", "while ($removed.ExitCode -eq 1618)"),
-        ("'/norestart', '/l*v', $removal)", "'/norestart')"),
+        ("while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 5)", "while ($removed.ExitCode -ne 0 -and $tries -lt 5)"),
+        ("while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 5)", "while ($removed.ExitCode -in 1601, 1618)"),
+        ("'/norestart', '/l*v!', $removal, ", "'/norestart', "),
         (_READ_OUT, ""),
         ("          if ($run.ExitCode -ne 0) { Get-Content", "          if ($run.ExitCode -notin 0, 3010) { Get-Content"),
         ("          if ($said -ne $release) { throw ", "          if ($false) { throw "),
+        # Push 32's stop: the Development Libraries removed after the
+        # Executables, whose python.exe they find their folder by (exit
+        # 1601); the folder handed as the bundle hands it, Windows
+        # Installer waited for, 1601 tried again and the service restarted
+        # once, every line of a removal's log kept.
+        ("          $last = @('Standard Library', 'Development Libraries', 'Executables', 'Core Interpreter')\n", PUSH_32_LAST),
+        ("          $last = @('Standard Library', 'Development Libraries', 'Executables', 'Core Interpreter')\n",
+         "          $last = @('Development Libraries', 'Standard Library', 'Core Interpreter', 'Executables')\n"),
+        (", $removal, \"TARGETDIR=`\"$folder`\"\")", ", $removal)"),
+        (", $removal, \"TARGETDIR=`\"$folder`\"\")", ", $removal, \"TARGETDIR=`\"`\"\")"),
+        (_FOLDER_READ, ""),
+        ("          $folder = ''\n", ""),
+        ("'/norestart', '/l*v!', $removal", "'/norestart', '/l*v', $removal"),
+        ("while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 5)", "while ($removed.ExitCode -eq 1618 -and $tries -lt 5)"),
+        ("while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 5)", "while ($removed.ExitCode -in 1601, 1603, 1618 -and $tries -lt 5)"),
+        ("while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 5)", "while ($removed.ExitCode -in 1601, 1618 -and $tries -lt 50)"),
+        ("-notin 0, 1605, 3010) {", "-notin 0, 1601, 1605, 3010) {"),
+        ("              if ($removed.ExitCode -eq 1601) { $lost += 1 }\n", ""),
+        (_RESTART, ""),
+        ("if ($lost -ge 2 -and -not $restarted) {", "if ($lost -ge 2) {"),
+        ("                $restarted = $true\n", ""),
+        ("              Wait-Installer\n              $removed = Start-Process", "              $removed = Start-Process"),
+        ("          Wait-Installer\n          $run = Start-Process", "          $run = Start-Process"),
+        ("            Wait-Installer\n            $removed = Start-Process -FilePath $entry", "            $removed = Start-Process -FilePath $entry"),
+        ("              Wait-Installer\n              $removed = Start-Process",
+         "              Wait-Installer\n              Start-Sleep -Seconds 1\n              $removed = Start-Process"),
+        (_WAIT_BODY, ""),
+        ("-notlike '*Pending' -and $others.Count -eq 0) { return }", "-notlike '*Pending' -or $others.Count -eq 0) { return }"),
+        ("          function Wait-Installer {\n", "          function Wait-Installer {\n            return\n"),
+        ("for ($second = 0; $second -lt 60; $second += 2) {", "for ($second = 0; $second -lt 4; $second += 2) {"),
+        ("                Get-WinEvent -FilterHashtable", "                Get-Date"),
     ],
 )
 def test_a_workflow_short_of_the_plan_is_red(old: str, new: str) -> None:
@@ -2173,19 +2287,40 @@ def test_a_trial_moved_before_the_denial_is_red() -> None:
     assert workflow_problems(text.replace(jobs["rehearse-ready"], moved), CI.read_text(encoding="utf-8"))
 
 
+def _install_step(text: str) -> str:
+    return next(step for step in _steps(MODELS.jobs_of(text)["rehearse-fallback"]) if step.startswith("name: Install the carried Python"))
+
+
 def test_the_runners_parts_go_in_the_bundles_order_the_core_interpreter_last() -> None:
-    """Push 31's stop: in the order of their keys the Documentation came after the Core Interpreter (exit 1603)."""
-    install = next(step for step in _steps(MODELS.jobs_of(WORKFLOW.read_text(encoding="utf-8"))["rehearse-fallback"])
-                   if step.startswith("name: Install the carried Python"))
-    order = removal_order(install)
+    """Push 31's stop: in the order of their keys the Documentation came after the Executables and the Core Interpreter (exit 1603)."""
+    order = removal_order(_install_step(WORKFLOW.read_text(encoding="utf-8")))
     assert order[-len(REMOVED_LAST) :] == list(REMOVED_LAST), order
     assert order.index("pip Bootstrap") < order.index("Standard Library"), order
+    assert all(order.index(title) < order.index("Executables") for title in order if title not in OWN_FOLDER), order
     assert sorted(order) == sorted(name.split(" ", 2)[2].rsplit(" (", 1)[0] for name, _ in RUNNER_PARTS)
-    # Without the step's sort, the order of the keys alone: the Core
-    # Interpreter third, before the Documentation, as push 31's run had it.
+    # Without the step's sort, the order of the keys alone: the Executables
+    # second, before the Documentation, as push 31's run had it.
     keyed = removal_order("", RUNNER_PARTS)
-    assert keyed.index("Core Interpreter") < keyed.index("Documentation"), keyed
+    assert keyed.index("Executables") < keyed.index("Core Interpreter") < keyed.index("Documentation"), keyed
     assert removal_problems("\n      - name: Install the carried Python per user\n        run: |\n") != []
+
+
+def test_push_32s_order_is_read_as_its_run_went_and_is_red() -> None:
+    """Push 32's stop: its list put the Executables before the Development Libraries, removed after them with exit 1601.
+
+    The mirror of the sort, given push 32's own list, reads the seven
+    removals in the order that run printed them (each key as it printed
+    it), and the gate file names the part removed after the Executables.
+    """
+    text = WORKFLOW.read_text(encoding="utf-8")
+    ours = "          $last = @('Standard Library', 'Development Libraries', 'Executables', 'Core Interpreter')\n"
+    assert text.count(ours) == 1
+    pushed = text.replace(ours, PUSH_32_LAST, 1)
+    order = removal_order(_install_step(pushed))
+    assert order[: len(PUSH_32_ORDER)] == PUSH_32_ORDER, order
+    said = removal_problems(MODELS.jobs_of(pushed)["rehearse-fallback"])
+    assert any("['Development Libraries'] after the Executables" in line for line in said), said
+    assert removal_problems(MODELS.jobs_of(text)["rehearse-fallback"]) == []
 
 
 def test_a_sort_moved_after_the_removals_is_red() -> None:
