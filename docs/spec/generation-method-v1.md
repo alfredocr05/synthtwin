@@ -5103,9 +5103,26 @@ already fixed by G5.2:
   whether the identities still to come will cover the count on their
   own, and spending a zero that was not needed carries the count PAST
   the published one — a miss in the other direction, and just as
-  visible to somebody grouping rows by the column. Cells are visited in
-  the order of G6.4, and each that raises its order takes the lowest
-  order whose folded identity is new.
+  visible to somebody grouping rows by the column. **The cells that
+  raise their order are SPREAD, one a value before two** (lane ZOO-Y,
+  plan P4-D517; owner decision 8 as amended). Every identity's cells
+  after its first, in the order of G6.4 with the cells carrying no mark
+  first (P4-D265), are the cells that may raise; the owed count is then
+  taken in rounds, the first raising at most one cell of each repeated
+  identity, the next at most one more of each that still has a cell, and
+  a round with more identities than the count left takes them at an
+  even stride over them in cell order (the `k`-th of `m` owed is the
+  identity at place `floor((2k + 1) L / 2m)` of the round's `L`). The
+  unmarked cells are spread first, the marked after. Each raised cell
+  takes the lowest order, from where the last raised cell of its value,
+  style, width, pad, mark, notation and plus stopped, whose folded
+  identity no cell of the column writes yet -- every cell's base
+  identity counted before any is raised. MEASURED BEFORE THIS (lane
+  ZOO-X): the walk raised every repeated cell in turn, so a column of
+  percents written `45%` beside `45.0%` at 20,000 rows spent its 84
+  owed identities on three values, up to 67 zeros in front of one
+  (`0000...006.8%`); it now raises 84 cells of 84 values, one zero
+  each.
 
   **A cell at a named field width does not raise its order** — every
   order writes one more figure (G6.3) — **so before any zero is spent,
@@ -5484,7 +5501,19 @@ would change whether its value is whole (on a column that writes some
 cells with no point) or has a point-free spelling (on a column whose
 styles map asks for a point-free cell); the next mover is then asked. Of
 the two ways, each with its first mover not refused, the one moving
-fewer strata is taken, the DOWNWARD one on a tie. A collision with no way
+fewer strata is taken, the DOWNWARD one on a tie. **On a column that
+writes some cells with no point BESIDE cells with one** (not
+`integer_valued`), **a whole stratum is no mover** (lane ZOO-Y, plan
+P4-D517): its whole values are the heaps the point-free cells share, and
+a whole mover walks the whole points, moving every whole stratum between
+it and a free one by a unit. Measured before this rule on a percent
+column written `45%` beside `45.0%` at 20,000 rows: the pushes moved the
+heaps of sixteen whole values up into the high tail, and the 95th
+percentile came back at 85 against a published 69.7; with the rule,
+71.6 on that table, inside its rung window, and 73.0 on a second table
+of the same shape, outside its window (66.9 to 72.75) by 0.25. A fraction holding the same text
+is still a mover, and the count of different values may then fall short
+where whole strata collide (measured: 804 of 810), which rule B1 names. A collision with no way
 is found immovable and the next is taken; the push ends when the count is
 reached or no collision is left to take. Each push gives the column one
 more different number and moves every stratum it touches by exactly one

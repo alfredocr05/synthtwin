@@ -6363,9 +6363,12 @@ def pushed_apart(
     no point) or has a point-free spelling (on a column whose styles ask
     for a point-free cell).  Of the two ways, each with its first mover
     not refused, the one moving fewer strata is taken, downward on a tie;
-    a collision with neither is immovable.  Grid points are held as exact
-    fractions of one unit of the last figure, and a point is compared with
-    the published edges as the number its text reads back as.
+    a collision with neither is immovable.  On a column writing some cells
+    with no point beside cells with one (``keep_whole`` and not
+    ``integer_valued``), a whole stratum is no mover (lane ZOO-Y, plan
+    P4-D517).  Grid points are held as exact fractions of one unit of the
+    last figure, and a point is compared with the published edges as the
+    number its text reads back as.
     """
     total = len(moved)
     if not pushing_on(figures) or ladder is None or wanted is None or figures < 0:
@@ -6447,10 +6450,15 @@ def pushed_apart(
             ceiling = min(ceiling, -unit)
         else:
             floor = max(floor, unit)
+        # A WHOLE STRATUM IS NO MOVER on a column writing some cells with no
+        # point beside cells with one (lane ZOO-Y, plan P4-D517): its whole
+        # values are the heaps the point-free cells share, and moving one
+        # moves every whole stratum between it and a free whole point.
         holders = [
             place for place in range(total)
             if texts[place] == collision and bands[place] != "zero"
             and place not in (0, total - 1)
+            and not (keep_whole and not integer_valued and float(moved[place]).is_integer())
         ]
         ways = []
         for step in (-1, 1):
@@ -34244,11 +34252,19 @@ def _numeric_content(column):
     # first.  Count the identities the base spellings already hold; the
     # shortfall against the folded budget is how many cells raise their
     # order, and no more, because spending a zero that was not needed
-    # carries the count PAST the published one.  Cells are visited in the
-    # order of G6.4 and each that raises its order takes the lowest order
-    # whose folded identity is new.  A cell can raise only inside a style
-    # that carries the family, which is every style but ``plain``.
+    # carries the count PAST the published one.  A cell can raise only
+    # inside a style that carries the family, which is every style but
+    # ``plain``, and not at a NAMED field width (G6.3: every further order
+    # writes one more figure).  THE RAISED CELLS ARE SPREAD, ONE A VALUE
+    # BEFORE TWO (lane ZOO-Y, plan P4-D517): each identity's cells after
+    # its first, in the visiting order of P4-D265 (the unmarked before the
+    # marked), are taken in rounds -- at most one of each repeated identity
+    # a round, the identities in the order their first cells stand -- and a
+    # round with more identities than the shortfall left takes the
+    # (2k + 1) L // 2m-th of its L for k < m; each raised cell takes the
+    # lowest order whose folded identity is new.
     held = set()
+    ids = []
     repeats = []
     for index, text in enumerate(content):
         identity = folded(text)
@@ -34256,33 +34272,52 @@ def _numeric_content(column):
             repeats.append(index)
         else:
             held.add(identity)
-    shortfall = max(0, folded_budget - len(held))
-    for index in unmarked_duplicates_first(repeats, marks):
-        if not shortfall:
+            ids.append(identity)
+    # The visiting order of P4-D265 (unmarked duplicates first), the cells
+    # that cannot raise left out; the rounds are walked over its cells up
+    # to its first marked one, then over the rest.
+    visiting = [
+        index for index in unmarked_duplicates_first(repeats, marks)
+        if styles[index] != "plain" and pads[index] < 0
+    ]
+    split = len(visiting)
+    for place, index in enumerate(visiting):
+        if marks[index]:
+            split = place
             break
-        if styles[index] == "plain":
-            continue
-        # A cell at a NAMED field width has spent its family (G6.3): every
-        # further order writes one more figure, so it is not raised.
-        if pads[index] >= 0:
-            continue
-        order = 1
-        while True:
-            raised = styled_spelling(
-                styles[index],
-                cell_values[index],
-                integer_valued,
-                order,
-                marks[index],
-                notations[index],
-                plussed[index],
-            )
-            if folded(raised) not in held:
-                break
-            order += 1
-        content[index] = raised
-        held.add(folded(raised))
-        shortfall -= 1
+    pools = ({identity: [] for identity in ids}, {identity: [] for identity in ids})
+    for place, index in enumerate(visiting):
+        pools[0 if place < split else 1][folded(content[index])].append(index)
+    shortfall = max(0, folded_budget - len(held))
+    for pool in pools:
+        standing = [identity for identity in ids if pool[identity]]
+        step = 0
+        while shortfall > 0 and standing:
+            if len(standing) > shortfall:
+                chosen = [standing[(2 * k + 1) * len(standing) // (2 * shortfall)] for k in range(shortfall)]
+            else:
+                chosen = standing
+            for identity in chosen:
+                index = pool[identity][step]
+                order = 1
+                while True:
+                    raised = styled_spelling(
+                        styles[index],
+                        cell_values[index],
+                        integer_valued,
+                        order,
+                        marks[index],
+                        notations[index],
+                        plussed[index],
+                    )
+                    if folded(raised) not in held:
+                        break
+                    order += 1
+                content[index] = raised
+                held.add(folded(raised))
+                shortfall -= 1
+            step += 1
+            standing = [identity for identity in standing if len(pool[identity]) > step]
     content.extend(_straggler_cells(column, content))
     return content, chain, missed
 

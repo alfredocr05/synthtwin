@@ -94,6 +94,8 @@ KEY_LEVELS_LEAST = 3
 KEY_LEVELS_MOST = 1000
 MODELLED_LEVELS_MOST = 300
 KEY_SAMPLE = 20000
+# The written cells a key level holds before its reading counts toward the key typing a column (`key_of`).
+TYPED_WRITTEN_LEAST = 20
 FIXED_SHARE = 0.9
 KEYED_SHARE = 0.5
 MOVED_SHARE = 0.1
@@ -396,8 +398,18 @@ def _by_level(key_cells: "list[str]", cells: "list[str]") -> "dict[str, list[str
     return by
 
 
-def _typed_by(key_cells: "list[str]", cells: "list[str]") -> bool:
-    """Whether a key types a column's value: its reading (number or word) or its scale (the logarithm of its number) set by the key."""
+def _typed_by(key_cells: "list[str]", cells: "list[str]", written_least: int = 0) -> bool:
+    """Whether a key types a column's value: its reading (number or word) or its scale (the logarithm of its number) set by the key.
+
+    A level is read only where it holds ``written_least`` written cells
+    or more (nought: every level, as `_moved_by` reads it), and its share
+    of numbers only where it holds 20 rows; `key_of` asks
+    `TYPED_WRITTEN_LEAST` (lane W5-302), so a level whose cells are all or
+    nearly all empty, which says nothing of how the column's values are
+    written, never makes a key: neither by a share of nought among no
+    written cell nor by the spread of three or four values between a few
+    such levels.
+    """
     by = _by_level(key_cells, cells)
     shares: "list[float]" = []
     groups: "dict[str, list[float]]" = {}
@@ -405,15 +417,82 @@ def _typed_by(key_cells: "list[str]", cells: "list[str]") -> bool:
     present = 0
     for level in sorted(by):
         level_cells = by[level]
-        if len(level_cells) >= 20:
-            shares += [_numeric_share(level_cells)]
         values: "list[float]" = []
+        written = 0
         for cell in level_cells:
             if _bare(cell):
-                present += 1
+                written += 1
             value = _leading(cell)
             if value is not None:
                 values += [_log_size(value)]
+        if written < written_least:
+            continue
+        if len(level_cells) >= 20:
+            shares += [_numeric_share(level_cells)]
+        present += written
+        numbered += len(values)
+        groups[level] = values
+    if shares and max(shares) >= NUMERIC_SHARE and min(shares) <= 1.0 - NUMERIC_SHARE:
+        return True
+    return present > 0 and numbered >= 0.5 * present and _between_share(groups) >= KEYED_SHARE
+
+
+@dataclasses.dataclass(frozen=True)
+class _Read:
+    """A column's cells as `_typed_by` reads them, each read once: written, numeric where written, the logarithm of its number."""
+
+    written: "list[bool]"
+    numeric: "list[bool]"
+    sized: "list[float | None]"
+
+
+def _read(cells: "list[str]") -> _Read:
+    written: "list[bool]" = []
+    numeric: "list[bool]" = []
+    sized: "list[float | None]" = []
+    for cell in cells:
+        bare = _bare(cell)
+        written += [bool(bare)]
+        numeric += [bool(bare) and _position(cell) is not None]
+        value = _leading(cell)
+        sized += [_log_size(value) if value is not None else None]
+    return _Read(written, numeric, sized)
+
+
+def _places_by_level(key_cells: "list[str]") -> "list[tuple[str, list[int]]]":
+    """Each level of a key with its rows in order, the levels sorted (as `_typed_by` walks them)."""
+    by: "dict[str, list[int]]" = {}
+    for row in range(len(key_cells)):
+        level = key_cells[row]
+        if level not in by:
+            by[level] = []
+        by[level] += [row]
+    return [(level, by[level]) for level in sorted(by)]
+
+
+def _typed_by_read(places: "list[tuple[str, list[int]]]", read: _Read, written_least: int = 0) -> bool:
+    """`_typed_by` of a key whose levels' rows are `places` (`_places_by_level`) and a column `_read` once: the same answer."""
+    shares: "list[float]" = []
+    groups: "dict[str, list[float]]" = {}
+    numbered = 0
+    present = 0
+    for level, rows in places:
+        values: "list[float]" = []
+        written = 0
+        numeric = 0
+        for row in rows:
+            if read.written[row]:
+                written += 1
+                if read.numeric[row]:
+                    numeric += 1
+            value = read.sized[row]
+            if value is not None:
+                values += [value]
+        if written < written_least:
+            continue
+        if len(rows) >= 20:
+            shares += [numeric / written if written else 0.0]
+        present += written
         numbered += len(values)
         groups[level] = values
     if shares and max(shares) >= NUMERIC_SHARE and min(shares) <= 1.0 - NUMERIC_SHARE:
@@ -476,7 +555,20 @@ def _constant_within(cells: "list[str]", owners: "list[int]") -> bool:
 
 
 def key_of(columns: "dict[str, list[str]]", content: "list[str]", owners: "list[int]") -> str:
-    """The key of a long table: the content label of `KEY_LEVELS_LEAST` to `KEY_LEVELS_MOST` levels, moving within persons, that types a value (`_typed_by`) and moves the most other content columns (`_moved_by`); '' where none does."""
+    """The key of a long table: the content label of `KEY_LEVELS_LEAST` to `KEY_LEVELS_MOST` levels, moving within persons, that types a value (`_typed_by`) and moves the most other content columns (`_moved_by`); '' where none does.
+
+    A label types a value only where its levels are written
+    (`TYPED_WRITTEN_LEAST` written cells a level, lane W5-302):
+    a column empty on most rows -- a test written for a few patients --
+    holds levels with no written cell, and those once read as a column
+    "typed" by every label beside it, so a wide table without any key
+    took a clock or a code for one. A label that types no column is no
+    key, and the columns it moves are not counted (the count decides
+    only between labels that type one), so a wide table spends one pass
+    a label instead of two. Guarantees: a fixed function of the columns'
+    cells on `key_sample_rows` and their persons; reads nothing else;
+    raises nothing but what its helpers raise on a cell that is not text.
+    """
     rows = len(owners)
     sample = _spread_rows(rows, KEY_SAMPLE)
     cut: "dict[str, list[str]]" = {}
@@ -484,6 +576,9 @@ def key_of(columns: "dict[str, list[str]]", content: "list[str]", owners: "list[
         whole = columns[name]
         cut[name] = [_bare(whole[row]) for row in sample]
     cut_owners = [owners[row] for row in sample]
+    # Each column's cells read once (`_Read`), not once a label (lane W5-302): the typing of a column by every label
+    # is then a pass over row places.
+    readings: "dict[str, _Read]" = {}
     best, best_score = "", 0
     for key in content:
         cells = cut[key]
@@ -492,18 +587,57 @@ def key_of(columns: "dict[str, list[str]]", content: "list[str]", owners: "list[
             continue
         if _numeric_share(cells) >= 0.5 or not _varies_within(cells, cut_owners):
             continue
-        score = 0
+        places = _places_by_level(cells)
         typed = False
         for other in content:
             if other == key:
                 continue
-            if _typed_by(cells, cut[other]):
+            if other not in readings:
+                readings[other] = _read(cut[other])
+            if _typed_by_read(places, readings[other], TYPED_WRITTEN_LEAST):
                 typed = True
-            if _moved_by(cells, cut[other]):
+                break
+        if not typed:
+            continue
+        score = 0
+        for other in content:
+            if other != key and _moved_by(cells, cut[other]):
                 score += 1
-        if typed and score > best_score:
+        if score > best_score:
             best, best_score = key, score
     return best
+
+
+def key_sample_rows(rows: int) -> "list[int]":
+    """The rows of a table of ``rows`` rows that `key_of` reads: every row up to `KEY_SAMPLE`, else that many spread evenly."""
+    return _spread_rows(rows, KEY_SAMPLE)
+
+
+def sampled_key(person_cells: "list[str]", sampled: "dict[str, list[str]]", person: str,
+                skipped: "tuple[str, ...]" = (), dated: "tuple[str, ...]" = ()) -> str:
+    """The key `build_zone` would find, read from the person column whole and each column's cells on `key_sample_rows` alone.
+
+    THE TABLE IS NOT HELD WHOLE TO LEARN IT HOLDS NO KEY (lane W5-302).
+    `build_zone` reads every column of the table whole as text, and most
+    tables -- a wide export of 302 columns among them, 3.6 GB of text at
+    200,000 rows -- hold no key, which `key_of` decides from at most
+    `KEY_SAMPLE` rows. ``sampled`` holds each column of the table, in its
+    order, at the rows `key_sample_rows(len(person_cells))` names;
+    ``skipped`` and ``dated`` are `build_zone`'s. Returns the key
+    `build_zone` reads at the same arguments with every column whole, or
+    '' where it would return None for want of a person that repeats or of
+    a key. Raises TypeError where a sampled column holds another number
+    of rows; nothing else.
+    """
+    if not person or person not in sampled or not _repeats(person_cells):
+        return ""
+    owners, _persons_counted = _persons(person_cells)
+    sample = _spread_rows(len(person_cells), KEY_SAMPLE)
+    content = [name for name in sampled if name != person and name not in skipped and name not in dated]
+    for name in content:
+        if len(sampled[name]) != len(sample):
+            raise TypeError("internal check: a sampled column holds another number of rows")
+    return key_of(sampled, content, [owners[row] for row in sample])
 
 
 def _copies(columns: "dict[str, list[str]]", content: "list[str]", rows: int) -> "list[dict[str, object]]":

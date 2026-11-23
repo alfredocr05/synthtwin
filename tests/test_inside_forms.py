@@ -55,7 +55,9 @@ PERSON = B.PATIENT
 ROWS = 20000
 KNOWS = {PERSON: "identifier", "age": "measurement", "reading": "measurement", "amount": "measurement",
          "share": "measurement", "assay": "measurement"}
-DATE_FACTS = frozenset(fact for fact in cli._INSIDE_EXCUSED_DATE_FACTS)
+# The date facts the excusal of a drawn twin may move: excused, or judged in their sampling window (the owner's
+# ruling of 2026-11-22, batch 4z's fix round).
+DATE_FACTS = frozenset(fact for fact in cli._INSIDE_EXCUSED_DATE_FACTS | cli._INSIDE_WINDOWED_DATE_FACTS)
 
 
 def _logistic(x: float) -> float:
@@ -185,7 +187,37 @@ def test_every_drawn_column_is_dealt_inside_its_own_twins_cells(made) -> None:  
         strict = _strict_cells(made, name)
         if entry.get("level") == R.PATIENT and entry["kind"] == R.NUMBER:
             continue
-        assert collections.Counter(twin[name]) == collections.Counter(strict), name
+        # ...BUT A CELL PAST THE REAL ENDS IS DRAWN BACK INSIDE THEM (lane ZOO-Y's real-range pass, plan P4-D517, run
+        # after the deal): the description's twin's cells inside the record's real least and greatest values are
+        # dealt as they are, and each spelling past an end becomes one spelling inside, every cell of it the same.
+        ends = _real_ends(made, name)
+        inside = [cell for cell in strict if not _past(cell, ends)]
+        past = [cell for cell in strict if _past(cell, ends)]
+        dealt = collections.Counter(cell for cell in twin[name] if cell in set(inside))
+        assert dealt == collections.Counter(inside), name
+        moved = [cell for cell in twin[name] if cell not in set(inside)]
+        # (a spelling with no free value inside keeps its cells where they were: `_free_inside`'s last resort)
+        assert len(moved) == len(past) and not [cell for cell in moved if _past(cell, ends) and cell not in past], name
+        assert len(set(moved)) == len(set(past)), name
+
+
+def _real_ends(made: "dict[str, typing.Any]", name: str) -> "tuple[float, float] | None":
+    """The real least and greatest values the record's marginals keep of a number column, or None."""
+    marginals = made["record"]["zones"].get("marginals", {})
+    entry = marginals.get(name) if isinstance(marginals, dict) else None
+    if not isinstance(entry, dict) or entry.get("kind") != "number" or not entry.get("quantiles"):
+        return None
+    return float(entry["quantiles"][0]), float(entry["quantiles"][-1])
+
+
+def _past(cell: str, ends: "tuple[float, float] | None") -> bool:
+    if ends is None:
+        return False
+    try:
+        value = float(cell)
+    except ValueError:
+        return False
+    return not ends[0] <= value <= ends[1]
 
 
 def _validated(made: "dict[str, typing.Any]", measured: "pathlib.Path | None") -> "tuple[int, list[tuple[str, str]], list[tuple[str, str]]]":

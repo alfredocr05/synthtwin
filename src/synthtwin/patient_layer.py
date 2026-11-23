@@ -137,10 +137,13 @@ class _RowColumn:
     place: int
     block: "dict[str, object]"
     ladder: rules.Ladder
-    codes: "tuple[list[int], list[int], list[int]]"
+    # Its `L0` codes (lane W5-2M): a coarser level's are read through `_codes_at_level`.
+    codes: "tuple[bytes | list[int]]"
     groups: "frozenset[int]"
-    texts: "list[str]"
-    readings: "list[fractions.Fraction | None]"
+    # Its rows' cells as described and their exact readings, held as places in a palette of their pairs (lane
+    # W5-2M, `pi.HeldCells`): read a row's with `pi.text_at` and `pi.reading_at`, every row's with `pi.texts_of`
+    # and `pi.readings_of`.
+    cells: pi.HeldCells
     fine: bool
     key_read: bool
 
@@ -253,6 +256,35 @@ def _eligible_ladder(ladder: "rules.Ladder | None", role: object) -> "str | None
 def _reading(role: str, value: object, block: "dict[str, object]") -> "fractions.Fraction | None":
     """A cell's reading as an exact number in the column's own order (`pr.reading_of`)."""
     return pr.reading_of(role, value, block)
+
+
+def _held_once(cells: "list[str]") -> "list[str]":
+    """The same cells, each different text one object (lane W5-2M): a pointer a row. A fixed function of the cells."""
+    first: "dict[str, str]" = {}
+    out: "list[str]" = []
+    for cell in cells:
+        if cell not in first:
+            first[cell] = cell
+        out += [first[cell]]
+    return out
+
+
+def _readings_once(texts: "list[str]", meaning: "dict[str, tuple[str, object]]", role: str,
+                   block: "dict[str, object]") -> "list[fractions.Fraction | None]":
+    """Each row's reading (`_reading` of its cell's meaning, None where the cell holds no value), one object a different cell (lane W5-2M).
+
+    The readings `[_reading(role, meaning[text][1], block) ...]` made a row
+    at a time, equal row for row: `_reading` is a fixed function of the
+    cell's value, so each different cell's is made once and shared.
+    """
+    made: "dict[str, fractions.Fraction | None]" = {}
+    out: "list[fractions.Fraction | None]" = []
+    for text in texts:
+        if text not in made:
+            kind, value = meaning[text] if text in meaning else ("missing", None)
+            made[text] = _reading(role, value, block) if kind == "value" else None
+        out += [made[text]]
+    return out
 
 
 # -- THE CLASSES (4.6c.5, 4.6c.6) -----------------------------------------
@@ -368,6 +400,26 @@ def _first_positions(patients: _Patients) -> "list[int]":
 
 def _codes_three(ladder: rules.Ladder, first: "list[int]") -> "tuple[list[int], list[int], list[int]]":
     return first, [ladder.maps[1][code] for code in first], [ladder.maps[2][code] for code in first]
+
+
+def _codes_held(ladder: rules.Ladder, first: "list[int]") -> "tuple[bytes | list[int]]":
+    """A row column's `L0` codes, one byte a row where they fit (`chain.codes_at`), else as numbers (lane W5-2M).
+
+    A row column's codes stand until the layer is described; three lists
+    of numbers held its three levels in 24 bytes a row. Its `L0` codes
+    alone are held, a byte a row, and each coarser level is read from them
+    through the ladder's maps where it is asked for (`_codes_at_level`),
+    the numbers `_codes_three` gives.
+    """
+    return (chain.codes_at(first),)
+
+
+def _codes_at_level(row: _RowColumn, level: int) -> "bytes | list[int]":
+    """A row column's codes at `level` (0, 1 or 2): its `L0` codes through the ladder's map, `_codes_three`'s numbers."""
+    if level == 0:
+        return row.codes[0]
+    mapped = row.ladder.maps[level]
+    return chain.codes_at([mapped[code] for code in row.codes[0]])
 
 
 def _column(name: str, ladder: rules.Ladder, first: "list[int]", groups: "frozenset[int]", blank: int) -> "chain.Column":
@@ -680,6 +732,7 @@ def _row_family(ctx: _Ctx, grain: _Grain, row: _RowColumn, index: int, derived: 
     kept: "list[tuple[dict[frozenset[int], int], list[tuple[tuple[int, int], ...]] | None, tuple[list[list[int]], list[int], int, bool, pr.Restriction | None, tuple[int | None, bool]]]]" = []
     scores: "list[fractions.Fraction]" = [fractions.Fraction(0)]
     read = 0
+    level_codes = {level: _codes_at_level(row, level) for level in levels}
     for chosen in _parent_options(ctx, grain, derived):
         parent_of, width = _parent_cells(ctx, grain, chosen)
         members: "list[list[int]]" = [[] for _cell in range(width)]
@@ -693,7 +746,7 @@ def _row_family(ctx: _Ctx, grain: _Grain, row: _RowColumn, index: int, derived: 
                 continue
             bands = row.ladder.counts[level]
             table = [0] * (width * bands)
-            codes = row.codes[level]
+            codes = level_codes[level]
             for k in range(len(ctx.patients.tabled)):
                 table[parent_of[grain.of_patient[ctx.patients.of_row[k]]] * bands + codes[k]] += 1
             ctx.counts["tables_counted"] += 1
@@ -772,7 +825,7 @@ def _trends(ctx: _Ctx, grain: _Grain, placed: "list[rules.Family]", row: _RowCol
     code total and no world holds `f` rows outside them in bands of two or
     more codes (`pr.free_rows`).
     """
-    if any(value is None for value in row.readings):
+    if any(value is None for value in pi.palette_readings(row.cells)):
         return []
     level, table, bands, chosen = row_table
     if bands != 2 or pr.R_NAME not in {name for name, _level in grain.members}:
@@ -808,6 +861,7 @@ def _trends(ctx: _Ctx, grain: _Grain, placed: "list[rules.Family]", row: _RowCol
         found = _restriction_of(ctx, grain, row, level, derived, grid)
         edges = list(found.edges) if found is not None else []
     out: "list[dict[str, object]]" = []
+    readings = pi.readings_of(row.cells)
     for at in range(len(one_r)):
         cell, rho = one_r[at]
         held = by_cell[cell]
@@ -816,7 +870,7 @@ def _trends(ctx: _Ctx, grain: _Grain, placed: "list[rules.Family]", row: _RowCol
         for patient in held:
             positions = ctx.patients.rows[patient]
             for j in range(rho):
-                reading = row.readings[positions[j]]
+                reading = readings[positions[j]]
                 total += pr.grid_code(grid, reading if reading is not None else grid.low) * (2 * (j + 1) - rho - 1)
         q_value = total // 2
         swing = pr.swing_classes(grain, sorted({grain.of_patient[patient] for patient in held}), len(held), rho, table, bands, ranges, grid, list(edges), place, parent_of)
@@ -1090,8 +1144,9 @@ def _own_mean(row: _RowColumn, patients: _Patients, grid: pr.Grid, floor: int) -
     band but the first.
     """
     means: "list[fractions.Fraction]" = []
+    readings = pi.readings_of(row.cells)
     for rows in patients.rows:
-        present = [row.readings[k] for k in rows if row.readings[k] is not None]
+        present = [readings[k] for k in rows if readings[k] is not None]
         if not present:
             return None
         total = fractions.Fraction(0)
@@ -1210,22 +1265,24 @@ def _first_date(row: _RowColumn, patients: _Patients, floor: int) -> "tuple[int,
     and every residual difference (the source's rows in a band less its
     patients there) is 0 or at least `f` rows.
     """
+    readings = pi.readings_of(row.cells)
     for level in range(3):
         bands = row.ladder.counts[level]
         totals = [0] * bands
         first_of: "list[int]" = []
+        codes = _codes_at_level(row, level)
         for rows in patients.rows:
-            dated = [k for k in rows if row.readings[k] is not None]
+            dated = [k for k in rows if readings[k] is not None]
             if dated:
                 earliest = dated[0]
                 for k in dated:
-                    here = row.readings[k]
-                    best = row.readings[earliest]
+                    here = readings[k]
+                    best = readings[earliest]
                     if here is not None and best is not None and (here, k) < (best, earliest):
                         earliest = k
-                band = row.codes[level][earliest]
+                band = codes[earliest]
             else:
-                band = row.codes[level][rows[0]]
+                band = codes[rows[0]]
             first_of += [band]
             totals[band] += 1
         source = rules.totals_at(row.ladder, level)
@@ -1400,7 +1457,7 @@ def describe(
     position_texts: "dict[str, list[str]]" = {}
     # The cells, as described, of each column offered to the counting
     # process although the layer leaves it ineligible (repair 1, item 4).
-    offered: "dict[str, list[str]]" = {}
+    offered: "dict[str, pi.HeldCells]" = {}
     # Each dealt date column's canonical texts on the tabled rows, for a
     # patient's own trajectory's years axis (lane GRb2-c, plan P4-D491 part c).
     date_texts: "dict[str, list[str | None]]" = {}
@@ -1426,7 +1483,14 @@ def describe(
             notes += [f"the recount of column {name} disagreed with its published counts"]
             return _off(OFF_RECOUNT, notes, counts)
         ladder, first = _ladder_in(read, tabled, name, floor)
-        texts = [values[row] for row in tabled]
+        # EACH DIFFERENT CELL AND EACH DIFFERENT READING HELD ONCE (lane W5-2M): a repeated column's cells
+        # and readings stand for every row until the layer is described, so a cell is a pointer to the one
+        # text of its value and a reading a pointer to the one exact number of its cell. Read a group of
+        # columns at a time, a cell had kept its own text object from the reader (about fifty bytes), and
+        # each reading was an exact number of its own (about a hundred): at 500,000 rows by 50 columns
+        # the layer passed 1.9 GB before its rows were read, at 2,000,000 about 9 GB. Equal values stay
+        # equal, so nothing below can tell the two apart.
+        texts = _held_once([values[row] for row in tabled])
         role = f"{_get(block, 'role')}"
         readings: "list[fractions.Fraction | None]" = []
         # A FINE NUMBER COLUMN IS READ BEFORE ITS LADDER DECIDES ANYTHING: a
@@ -1434,9 +1498,7 @@ def describe(
         # bands it merges to (departure (16) of contract 4.6c.12).
         if role in rules.NUMBER_ROLES and moments.fine(block) and _two_cells(texts, first_patients) > threshold:
             meaning = chain.reading_of(block, values, settings, declared, storage)
-            for text in texts:
-                kind, value = meaning[text] if text in meaning else ("missing", None)
-                readings += [_reading(role, value, block) if kind == "value" else None]
+            readings = _readings_once(texts, meaning, role, block)
             if _not_a_run(readings, first_patients) <= threshold:
                 classes[name] = pr.CLASS_POSITION
                 position_like += [name]
@@ -1453,7 +1515,7 @@ def describe(
             # sequence column reaches here) keeps its cells as described,
             # for the end-event and switch rules alone; its class stays.
             if offered_to_counting(_eligible_ladder(ladder, _get(block, "role")), role):
-                offered[name] = texts
+                offered[name] = pi.held_cells(texts, [None for _text in texts])
             continue
         if _two_cells(texts, first_patients) <= threshold:
             classes[name] = pr.CLASS_FIXED
@@ -1462,16 +1524,20 @@ def describe(
             continue
         if not readings:
             meaning = chain.reading_of(block, values, settings, declared, storage)
-            canonical: "list[str | None]" = []
-            for text in texts:
-                kind, value = meaning[text] if text in meaning else ("missing", None)
-                readings += [_reading(role, value, block) if kind == "value" else None]
-                canonical += [value if kind == "value" and isinstance(value, str) else None]
-            if role == rules.ROLE_DATETIME:
+            readings = _readings_once(texts, meaning, role, block)
+            # THE CANONICAL DATES OF THE FIRST DEALT DATE COLUMN ALONE (lane W5-2M): the position (d) is the
+            # first dealt date column in schema order, every date column reaching here is dealt, and only the
+            # position's are read (a patient's own trajectory's years axis); another's were held for nothing.
+            if role == rules.ROLE_DATETIME and not date_texts:
+                canonical: "list[str | None]" = []
+                for text in texts:
+                    kind, value = meaning[text] if text in meaning else ("missing", None)
+                    canonical += [value if kind == "value" and isinstance(value, str) else None]
                 date_texts[name] = canonical
         key_read = pr.key_read(block)
         groups = rules.small_group_bands(block, read.start, ladder, floor) | chain.value_run_bands(block, read.start, ladder, floor, read.readings)
-        row_columns[name] = _RowColumn(name, place, block, ladder, _codes_three(ladder, first), frozenset(groups), texts, readings, moments.fine(block), key_read)
+        row_columns[name] = _RowColumn(name, place, block, ladder, _codes_held(ladder, first), frozenset(groups),
+                                       pi.held_cells(texts, readings), moments.fine(block), key_read)
         if role == rules.ROLE_DATETIME:
             classes[name] = pr.CLASS_DEALT
             continue
@@ -1490,7 +1556,7 @@ def describe(
     dealt = [name for name in names if classes[name] == pr.CLASS_DEALT]
     position = dealt[0] if dealt else None
     if position is not None:
-        stamps = row_columns[position].readings
+        stamps = pi.readings_of(row_columns[position].cells)
         ordered_rows: "list[list[int]]" = []
         for rows in patient_rows:
             present = sorted((stamp, k) for k in rows for stamp in (stamps[k],) if stamp is not None)
@@ -1655,8 +1721,8 @@ def describe(
     counted: "dict[str, object] | None" = None
     interval_columns: "set[str]" = set()
     found_intervals = pi.found_on(
-        [pi.RowColumn(name, classes[name], f"{_get(row_columns[name].block, 'role')}", row_columns[name].texts, row_columns[name].readings)
-         if name in row_columns else pi.RowColumn(name, pr.CLASS_INELIGIBLE, f"{_get(blocks[pr.place_in(names, name)], 'role')}", offered[name], [None for _cell in offered[name]])
+        [pi.RowColumn(name, classes[name], f"{_get(row_columns[name].block, 'role')}", row_columns[name].cells)
+         if name in row_columns else pi.RowColumn(name, pr.CLASS_INELIGIBLE, f"{_get(blocks[pr.place_in(names, name)], 'role')}", offered[name])
          for name in names if (classes[name] == pr.CLASS_REPEATED and name in row_columns) or name in offered],
         patients.rows, floor,
     ) if counting else None
@@ -1717,9 +1783,9 @@ def describe(
         # patient's own line leaves less (`patient_trajectory.chosen`).
         linear = role_read == rules.ROLE_DATETIME or not _skewed(row_columns[name].block)
         if classes[name] == pr.CLASS_REPEATED and years is not None:
-            found_trajectory = pt.measured_on_both(name, row_columns[name].readings, patients.rows, groupings, floor, years, linear)
+            found_trajectory = pt.measured_on_both(name, pi.readings_of(row_columns[name].cells), patients.rows, groupings, floor, years, linear)
         else:
-            found_trajectory = pt.measured(name, row_columns[name].readings, patients.rows, groupings, floor, None, linear)
+            found_trajectory = pt.measured(name, pi.readings_of(row_columns[name].cells), patients.rows, groupings, floor, None, linear)
         if found_trajectory is not None:
             trajectory += [found_trajectory]
             walked = walked | {name}

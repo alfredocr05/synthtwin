@@ -43,6 +43,7 @@ import inspect
 import io
 import itertools
 import json
+import os
 import pathlib
 import random
 import re
@@ -135,6 +136,14 @@ def _zip_escapes(folder: pathlib.Path, stem: str, screen: str, real: "set[str]")
     column = _column(json.loads(described.read_text(encoding="utf-8")), "zip")
     if column["role"] != "identifier":
         escapes += [f"role {column['role']}"]
+    # THE RUN'S OWN FOLDERS ARE NO VALUE (lane W5-302): the screen names the files written and the private report's
+    # place, and a folder the session numbered `installation2569` read as the real ZIP 02569 once the session had made
+    # that many in one run of the gate files. Each folder, the longest first, is said as a placeholder before the
+    # search; a ZIP written anywhere else on the screen is still read.
+    owns = [f"{folder}", os.environ.get("XDG_DATA_HOME", ""), os.environ.get("LOCALAPPDATA", "")]
+    for own in sorted(owns, key=len, reverse=True):
+        if own:
+            screen = screen.replace(own, "<the run's own folder>")
     texts = {"screen": screen}
     for ending in ("-profile.json", "-profile.txt", "-questions.json"):
         texts[f"{stem}{ending}"] = (folder / f"{stem}{ending}").read_text(encoding="utf-8")
@@ -2119,3 +2128,26 @@ def test_close_6_is_recorded_in_the_decision() -> None:
             "numbers of four or five figures), the first a live exposure on this page until SH lands, the second path "
             "(iii)'s (ZS.10).") in decision
     assert decision.index("**Close 5 (2026-10-23).**") < decision.index("**Close 6 (2026-10-23).**")
+
+
+def test_the_run_s_own_folders_are_no_zip_on_the_screen(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A folder the session numbered like a ZIP is not read as one; a ZIP written on the screen still is (lane W5-302).
+
+    Mutant: the run's own folders left in the screen's text (`installation2569` read as 02569).
+    """
+    draw = random.Random(11)
+    zips = [f"0{2100 + 7 * k:04d}" for k in range(70)]
+    weights = [1.0 / (k + 1) ** 1.1 for k in range(70)]
+    lines = ["pid,zip"]
+    for k in range(600):
+        code = draw.choices(zips, weights)[0]
+        lines += [f"P{k:06d},{'UNKNOWN' if k < 1 else (f'{code}-{draw.randint(1000, 9999)}' if k % 2 else code)}"]
+    _document, screen = _profiled_seen(tmp_path, "zipword.csv", "\n".join(lines) + "\n")
+    assert _zip_escapes(tmp_path, "zipword", screen, set(zips)) == []
+    place = tmp_path / "installation2569"
+    place.mkdir()
+    monkeypatch.setenv("XDG_DATA_HOME", f"{place}")
+    named = f"The private report, for you alone: {place}/synthtwin/private-reports/zipword\n"
+    assert _zip_escapes(tmp_path, "zipword", named + screen, set(zips)) == []
+    assert _zip_escapes(tmp_path, "zipword", named + "a cell 02569 on the screen\n" + screen, set(zips)) == [
+        "screen: 02569"]

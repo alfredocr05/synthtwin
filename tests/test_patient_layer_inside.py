@@ -46,7 +46,9 @@ TABLE = "T2"
 ROWS = 20000
 SEED = 3
 PERSON = T.PERSON[TABLE]
-DATE_FACTS = frozenset(fact for fact in cli._INSIDE_EXCUSED_DATE_FACTS)
+# The date facts the excusal of a drawn twin may move: excused, or judged in their sampling window (the owner's
+# ruling of 2026-11-22, batch 4z's fix round).
+DATE_FACTS = frozenset(fact for fact in cli._INSIDE_EXCUSED_DATE_FACTS | cli._INSIDE_WINDOWED_DATE_FACTS)
 
 
 def _places(folder: pathlib.Path) -> inside.Places:

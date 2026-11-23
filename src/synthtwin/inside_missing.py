@@ -214,13 +214,17 @@ def fit_zone(kept: "list[Kept]", frames: "dict[str, inside_relations.Frame]", on
     first = _first_rows(owners, sample)
     person_level = set(once)
     columns: "list[object]" = []
+    # Each parent's main block made once (lane W5-302): a frame never changes once made.
+    main_of: "dict[str, inside_relations.Block | None]" = {}
+    for parent in frames:
+        main_of[parent] = inside_relations.main_block(parent, frames[parent])
     for column in kept:
         held_once = column.level == PATIENT and first is not None
         candidates: "list[inside_relations.Block]" = []
         for parent in frames:
             if held_once and parent not in person_level:
                 continue
-            block = inside_relations.main_block(parent, frames[parent])
+            block = main_of[parent]
             if block is not None:
                 candidates += [block]
         fitted = [row for row in range(sample) if first is None or not held_once or first[row]]
@@ -233,6 +237,7 @@ def fit_zone(kept: "list[Kept]", frames: "dict[str, inside_relations.Frame]", on
         }]
         name = frame_name(column.name)
         frames[name] = inside_relations.Frame(inside_relations.LABEL, [], [], column.codes)
+        main_of[name] = inside_relations.main_block(name, frames[name])
         if held_once:
             person_level = person_level | set([name])
     return {"version": ZONE_VERSION, "rows": rows, "sample_rows": sample, "columns": columns}

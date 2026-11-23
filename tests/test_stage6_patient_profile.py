@@ -55,6 +55,7 @@ from synthtwin import (
     cli,
     contract,
     errors,
+    patient_intervals,
     patient_layer,
     patient_rules,
     profile,
@@ -2097,7 +2098,8 @@ def test_a_first_date_band_of_one_to_f_minus_one_patients_takes_a_coarser_level(
     for patient in range(30):
         l0 += [first[patient], 2]
         readings += [frac(patient), frac(1000 + patient)]
-    row = types.SimpleNamespace(ladder=ladder, codes=(l0, [ladder.maps[1][one] for one in l0], [ladder.maps[2][one] for one in l0]), readings=readings)
+    row = types.SimpleNamespace(ladder=ladder, codes=(l0, [ladder.maps[1][one] for one in l0], [ladder.maps[2][one] for one in l0]),
+                                cells=patient_intervals.held_cells([f"{one}" for one in readings], readings))
     patients = types.SimpleNamespace(rows=[[2 * patient, 2 * patient + 1] for patient in range(30)])
     level, _first_of, totals = patient_layer._first_date(row, patients, FLOOR)
     assert level == 1 and totals == [17, 13]

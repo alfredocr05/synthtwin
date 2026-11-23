@@ -108,7 +108,7 @@ def _column(name: str, texts: "list[str]") -> patient_intervals.RowColumn:
         except ValueError:
             readings += [None]
     role = "count" if all(one is not None for one in readings) else "categorical"
-    return patient_intervals.RowColumn(name, patient_rules.CLASS_REPEATED, role, texts, readings)
+    return patient_intervals.row_column(name, patient_rules.CLASS_REPEATED, role, texts, readings)
 
 
 def _small_table(draw: random.Random, patients: int) -> "list[list[tuple[int, int, str, str]]]":
@@ -1697,7 +1697,7 @@ def test_a_tie_of_the_roles_is_broken_by_the_column_names_whatever_their_order()
         found = patient_intervals.found_on(offered, rows_of, FLOOR)
         assert found is not None and found.end is not None and found.switch is not None, order
         assert (found.end[0], found.switch[0]) == ("end_a", "a_treated"), (order, found.end[0], found.switch[0])
-        ordered = [patient_intervals._in_start_order(rows, columns[0].readings) for rows in rows_of]
+        ordered = [patient_intervals._in_start_order(rows, patient_intervals.readings_of(columns[0].cells)) for rows in rows_of]
         roles = patient_intervals.roles_of(offered, ordered, columns[0], {"start_day", "stop_day"}, FLOOR)
         assert roles.tied == 4, (order, roles.tied)
         blocks, scales = _blocks_scales()

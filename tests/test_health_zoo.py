@@ -1020,9 +1020,13 @@ def test_the_driver_prints_only_what_it_measured(
     module = _driver(monkeypatch, "kpi_health_zoo_printing")
     monkeypatch.setattr(crosscheck, "present", lambda: reader)
     sizes: "list[tuple[int, int]]" = []
+    routes: "list[pathlib.Path | None]" = []
 
-    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None) -> "list[dict]":
+    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None,
+                private_beside: "pathlib.Path | None" = None) -> "list[dict]":
         sizes.extend([(n, len(tables))])  # type: ignore[arg-type]
+        # The shipped route (lane ZOO-Y): every walk's data folder outside the temporary folders.
+        routes.extend([private_beside])
         return [_result(t.name, rows=n) for t in zoo.runnable_tables(tables)]  # type: ignore[arg-type]
 
     monkeypatch.setattr(zoo, "run_zoo", run_zoo)
@@ -1038,6 +1042,7 @@ def test_the_driver_prints_only_what_it_measured(
     shards = module.run_shards()  # type: ignore[attr-defined]
     assert len(shards) == len(zoo.shards()) - 1 == zoo._wide().DRIVER_SHARDS == zoo._wide().SUITE_SHARDS + 1  # type: ignore[attr-defined]
     assert sizes == [(600, len(shard)) for shard in shards] + [(20_000, len(shard)) for shard in shards]
+    assert routes and all(route == module.DEFAULT_PRIVATE for route in routes), routes  # type: ignore[attr-defined]
     run = [table for shard in shards for table in shard]
     delimited = [table for table in run if table.suffix != ".xlsx"]
     delimited_kinds = sum(len(table.kinds) for table in delimited)
@@ -1072,7 +1077,8 @@ def test_a_kind_whose_smoke_stops_does_not_pass(
     module = _driver(monkeypatch, "kpi_health_zoo_smoke")
     monkeypatch.setattr(crosscheck, "present", lambda: True)
 
-    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None) -> "list[dict]":
+    def run_zoo(folder: pathlib.Path, n: int, seed: int = 0, tables: "object" = None,
+                private_beside: "pathlib.Path | None" = None) -> "list[dict]":
         made = [_result(t.name, rows=n) for t in zoo.runnable_tables(tables)]  # type: ignore[arg-type]
         for result in made:
             if n == zoo.SMOKE_ROWS and result["table"] == "labs":

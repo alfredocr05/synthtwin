@@ -80,6 +80,39 @@ DELIMITER_WORDS = {
     "|": "a vertical bar",
 }
 
+# THE WORDS A ROW OF TOTALS OPENS WITH (lane ZOO-X), compared case-folded
+# and trimmed (`parsing.folded`): a file whose last row, and no other,
+# opens with one is refused as a report with a total under its table.
+TOTAL_WORDS = frozenset({"total", "totals", "total:", "grand total", "grand total:", "grand totals"})
+# The most lines under a table that are named as such rather than as rows
+# with their last values left off (`_lines_under`), and the fewest rows of
+# the table above them: a report's footer stands under a table of rows, and
+# a file of a few lines is read, or refused, as it always was.
+LINES_UNDER_MOST = 3
+ROWS_ABOVE_LINES_LEAST = 100
+
+
+def _rows_above(rows: int, lines: int) -> int:
+    """`rows` where at least `ROWS_ABOVE_LINES_LEAST` rows stand above the last `lines`, else 0 (no lines under a table)."""
+    return rows if rows - lines >= ROWS_ABOVE_LINES_LEAST else 0
+
+
+def _lines_under(offenders: "list[tuple[int, int]]", short: int, rows: int) -> bool:
+    """Whether the short rows are lines written under the table: at most `LINES_UNDER_MOST`, one value each, the file's last rows.
+
+    ``offenders`` holds up to three (data-row number, value count) pairs
+    of the short rows, ``short`` how many there are and ``rows`` the rows
+    read after the first; at least `ROWS_ABOVE_LINES_LEAST` rows must stand
+    above them. Guarantees: a fixed function of the three. Raises nothing.
+    No I/O.
+    """
+    if short < 1 or short > LINES_UNDER_MOST or short != len(offenders) or not _rows_above(rows, short):
+        return False
+    for number, count in offenders:
+        if count != 1 or number <= rows - short:
+            return False
+    return True
+
 # How a line ends. `crcrlf` is what Python's own csv writer produces on
 # Windows in text mode, and a file of them is one terminator per record,
 # not a record and a blank line.
@@ -4750,6 +4783,14 @@ class Survey:
     # where the person declared them -- and it is here so that the
     # questions file can ask about a file that has it.
     metadata_shape: bool = False
+    # WHETHER THE ROW UNDER THE NAMES NAMES THE COLUMNS' UNITS (lane ZOO-Y,
+    # plan P4-D517; `_units_row_shape`): `,mg/dL,mmHg,kg` over columns of
+    # numbers, as instrument exports write it. Unlike the survey shape it is
+    # ACTED ON unless the person answered that the row is a record: such a
+    # row holds no figure and no value of a column that is not a number, so
+    # it can be nobody's record, and read as one it turned three columns of
+    # numbers into text on the twin.
+    units_shape: bool = False
     # EVERY DELIMITER THE FILE READS EQUALLY WELL UNDER, where more than
     # one does and nobody said which (review item CODEX-4, plan P4-D110):
     # the one it was read with first, then the others. Empty where one
@@ -5319,6 +5360,79 @@ def holds_order_in(columns: "list[list[str]]", order: RowOrder) -> bool:
     return holds_order(kept[0], order)
 
 
+# A units row is one row (`_units_row_shape`), and the records it is read
+# against: how many are peeked under it, how many of them a column needs,
+# the share of a column's cells there that must read as numbers, and the
+# longest unit a cell may hold.
+UNITS_ROWS = 1
+UNITS_PEEKED = 64
+UNITS_LEAST_RECORDS = 20
+UNITS_NUMBER_SHARE = 0.9
+UNITS_LONGEST = 16
+_UNIT_MARKS = frozenset("/^*.-()[]\u00b7")
+# The marks that stand for a letter of a unit: percent, degree, micro (both signs).
+_UNIT_LETTERS = frozenset("%\u00b0\u00b5\u03bc")
+
+
+def _a_unit(text: str) -> bool:
+    """Whether a trimmed cell reads as a unit: short, a letter or a percent or degree mark in it, no number, no missing word."""
+    if not isinstance(text, str):
+        raise TypeError("internal check: a cell was not text")
+    if not text or len(text) > UNITS_LONGEST:
+        return False
+    if parsing.parse_number(text) is not None or parsing.is_missing_text(text):
+        return False
+    lettered = False
+    spaces = 0
+    for character in text:
+        if "a" <= character <= "z" or "A" <= character <= "Z" or character in _UNIT_LETTERS:
+            lettered = True
+        elif character == " ":
+            spaces = spaces + 1
+        elif not ("0" <= character <= "9" or character in _UNIT_MARKS):
+            return False
+    return lettered and spaces <= 1
+
+
+def _units_row_shape(header: "list[str]", stream: "_Stream") -> bool:
+    """Whether the record under the names names the columns' units (lane ZOO-Y, plan P4-D517).
+
+    It does where it is as wide as the header (two columns or more), at
+    least one of its cells is not blank, every cell that is not blank is a
+    unit (`_a_unit`: `mg/dL`, `mmHg`, `kg`, `%`, `10^9/L`) over a column whose
+    cells in the records peeked under it (`UNITS_PEEKED`, at least
+    `UNITS_LEAST_RECORDS` of the header's width) read as numbers on at least
+    `UNITS_NUMBER_SHARE` of those not blank, and every column that does not
+    read so is blank in it. Such a record holds no value of any column that
+    is not a number, but a unit may hold figures (`10^9/L`) and so may an
+    identifier (`A123`), so the shape is a question and never a reading:
+    the row is taken only where the person answers `units-row` (batch 4z's
+    fix round). Peeks and takes nothing.
+    """
+    first = _peek(stream, 0)
+    if first is None or len(header) < 2 or len(first.fields) != len(header):
+        return False
+    cells = [parsing.trimmed(_text(value)) for value in first.fields]
+    if not any(cells):
+        return False
+    below: "list[list[str]]" = []
+    for offset in range(1, UNITS_PEEKED + 1):
+        ahead = _peek(stream, offset)
+        if ahead is None:
+            break
+        if len(ahead.fields) == len(header):
+            below += [[parsing.trimmed(_text(value)) for value in ahead.fields]]
+    if len(below) < UNITS_LEAST_RECORDS:
+        return False
+    for place in range(len(header)):
+        present = [record[place] for record in below if record[place]]
+        numbers = sum(1 for cell in present if parsing.parse_number(cell) is not None)
+        numeric = bool(present) and numbers >= UNITS_NUMBER_SHARE * len(present)
+        if cells[place] and not (numeric and _a_unit(cells[place])):
+            return False
+    return True
+
+
 def _is_import_row(fields: "list[str]") -> bool:
     """A survey export's second metadata row: every cell an ImportId object."""
     if not fields:
@@ -5595,6 +5709,7 @@ def survey(
     header_rows: list[tuple[str, ...]] = []
     header_row_flags: list[bool] = []
     metadata_shape = False
+    units_shape = False
     if not first_row_is_data:
         found = _take(stream)
         if found is None:
@@ -5655,6 +5770,15 @@ def survey(
         wanted_rows = metadata_rows
         if metadata_rows and not metadata_shape and not metadata_rows_confirmed:
             wanted_rows = 0
+        # A UNITS ROW IS SEEN AND ASKED ABOUT, AND TAKEN ONLY ON THE PERSON'S
+        # ANSWER (lane ZOO-Y, plan P4-D517; batch 4z's fix round, the outside
+        # review's item 1): the answer `units-row` is one row declared and
+        # confirmed, which the lines above take. Taken unasked, a record whose
+        # first cell was a patient's identifier (`A123` over a column of
+        # numeric keys, the rest blank) read as a unit and was written back
+        # whole under the twin's names -- the CODEX-2 failure again, which is
+        # why an unanswered shape leaves the row a record.
+        units_shape = not metadata_shape and _units_row_shape(header, stream)
         taken = 0
         while taken < wanted_rows and len(header) >= 2:
             ahead = _peek(stream, 0)
@@ -5728,6 +5852,10 @@ def survey(
     short_inconsistent = False
     full_ending_empty = 0
     ends_empty = 0
+    # ROWS OF TOTALS (lane ZOO-X): the rows whose first value is a word
+    # naming a total, and the last of them (`TOTAL_WORDS`).
+    totals_seen = 0
+    total_at = -1
     blanks: list[BlankPlace] = []
     empty_rows: list[int] = []
     while True:
@@ -6020,6 +6148,9 @@ def survey(
             ends_empty = ends_empty + 1
         if every_empty and width >= 2:
             empty_rows += [n_rows]
+        if parsing.folded(fields[0]) in TOTAL_WORDS:
+            totals_seen = totals_seen + 1
+            total_at = n_rows
         n_rows = n_rows + 1
     _flush_ending(walk, shown)
     if header_record is not None and not decided:
@@ -6033,6 +6164,19 @@ def survey(
     if short:
         if short_inconsistent or full_ending_empty:
             ragged = ragged + short
+        elif not ragged and width >= 3 and _lines_under(offenders, short, n_rows):
+            # LINES UNDER THE TABLE ARE NOT ROWS WITH THEIR LAST VALUES LEFT
+            # OFF (lane ZOO-X). A report's closing line -- `Report generated
+            # ...`, one value under columns of three or more, the only short
+            # rows and the file's last -- was read as a row of the table,
+            # its sentence a value of the first column and every other
+            # column blank there. It is refused in the words that name it.
+            raise errors.ProfileError(
+                errors.ragged_rows(
+                    shown, width, offenders, short, DELIMITER_WORDS[delimiter],
+                    n_rows,
+                )
+            )
         else:
             short_rows = True
             offenders = []
@@ -6087,9 +6231,19 @@ def survey(
             )
         raise errors.ProfileError(
             errors.ragged_rows(
-                shown, width, offenders, ragged, DELIMITER_WORDS[delimiter]
+                shown, width, offenders, ragged, DELIMITER_WORDS[delimiter],
+                # Lines under the table are named as such (lane ZOO-X).
+                _rows_above(n_rows, ragged),
             )
         )
+    # A ROW OF TOTALS UNDER THE TABLE IS NO ROW OF IT (lane ZOO-X). A
+    # report's last row whose first value is a word naming a total, the
+    # only such row of the file, was read as one more row: its sum of a
+    # charges column became the column's largest value by far, moving the
+    # mean and the spread a twin is drawn to. It is refused in words that
+    # name it, and nothing of it is shown.
+    if totals_seen == 1 and total_at == n_rows - 1 and _rows_above(n_rows, 1):
+        raise errors.ProfileError(errors.total_row_under_the_table(shown))
     if width == 1:
         for standing in blanks:
             if standing.after < n_rows:
@@ -6328,6 +6482,7 @@ def survey(
         escapes=escapes,
         initial_space_broken=spaces_broken,
         metadata_shape=metadata_shape,
+        units_shape=units_shape,
         delimiter_tie=tie,
         every_blank_place=tuple(blanks),
         ending_census=census,

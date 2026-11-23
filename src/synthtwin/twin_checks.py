@@ -86,7 +86,9 @@ order written out.
 
 import argparse
 import dataclasses
+import json
 import math
+import os
 import pathlib
 import sys
 
@@ -183,6 +185,9 @@ _MASK = (1 << 64) - 1
 _NOT_TEXT = "a cell must be text"
 # One code for every spelling of "no value".
 _MISSING = "\x00no value"
+# The money marks `read_number` reads off in front of an amount's figures:
+# the dollar, the euro, the pound and the yen.
+_MONEY_MARKS = ("$", "€", "£", "¥")
 _SECONDS_A_DAY = 86400
 # A memo's largest size: a column of many different values is read cell
 # by cell rather than held twice.
@@ -370,7 +375,10 @@ def read_number(text: str) -> "NumberRead | None":
     EXPONENT IS WRITTEN OUT (the batch 4w Codex review, item 18): its
     figures with the point moved by it (`_point_moved`), so `1e3`,
     `1.0E+03` and `1000` are one spelling, `1000`, and `1.999e-6` is
-    `0.000001999`, its decimals the written-out fraction's.
+    `0.000001999`, its decimals the written-out fraction's. AN AMOUNT AND
+    A SHARE ARE NUMBERS (lane ZOO-X): one money mark of `_MONEY_MARKS`
+    after the sign and one percent sign at the end are read off, so
+    `$1,234.56`, `($45.00)` and `45.5%` read as 1234.56, -45 and 45.5.
     Guarantees: a fixed function of the text. Raises TypeError for a
     cell that is not text. No I/O.
     """
@@ -381,6 +389,14 @@ def read_number(text: str) -> "NumberRead | None":
     if core[:1] in ("+", "-"):
         sign = core[:1]
         core = core[1:]
+    # Read as anything but numbers, a column of charges -- nearly every
+    # cell different -- was read as keys, and C4 counted every amount a
+    # twin happened to share with the real column as a copied identifier:
+    # 3,857 of 20,000 cells on a charges column, the twin quarantined.
+    if core[:1] in _MONEY_MARKS:
+        core = core[1:]
+    if core[len(core) - 1 : len(core)] == "%":
+        core = core[: len(core) - 1]
     mantissa = core
     exponent = ""
     for mark in ("e", "E"):
@@ -1005,6 +1021,43 @@ def _encoded(value: "float | None", units: "tuple[int, float, float]") -> int:
     return min(max(code, 0), _TOP)
 
 
+# THE RUNNING DIGESTS HELD AS WORDS ONCE A WALK ENDS (lane W5-2M): each row's running digest of a walk (C1's row,
+# C3's readings and dates, C5's combination) is a list of whole numbers while the walk folds its columns in, and
+# as soon as the walk ends each is held as its eight bytes, the 64-bit two's complement, low byte first, in one
+# bytearray a digest (`_side_held`), not as a whole number of the interpreter's own and a pointer to it (about 44
+# bytes a row each): at 2,000,000 rows the real table's four digests took about 350 MB while the twin was walked,
+# 64 MB as words. Each is read back as the very number written.
+_WORD_MASK = (1 << 64) - 1
+
+
+def _word(words: "list[int] | bytes | bytearray", row: int) -> int:
+    """Row ``row``'s digest of a store of words: its eight bytes, low byte first, read as a 64-bit two's complement."""
+    if isinstance(words, list):
+        return words[row]
+    at = 8 * row
+    value = (words[at] | (words[at + 1] << 8) | (words[at + 2] << 16) | (words[at + 3] << 24) | (words[at + 4] << 32)
+             | (words[at + 5] << 40) | (words[at + 6] << 48) | (words[at + 7] << 56))
+    return value - (1 << 64) if value >> 63 else value
+
+
+def _words_listed(words: "list[int] | bytes | bytearray") -> "list[int]":
+    """Every row's digest of a store of words, in row order."""
+    if isinstance(words, list):
+        return words
+    return [_word(words, row) for row in range(len(words) // 8)]
+
+
+def _words_held(values: "list[int]") -> bytearray:
+    """Digests (each a hash, within 64 bits signed) held as a store of words: each its 64-bit two's complement."""
+    out = bytearray(8 * len(values))
+    for row in range(len(values)):
+        value = values[row] & _WORD_MASK
+        at = 8 * row
+        for place in range(8):
+            out[at + place] = (value >> (8 * place)) & 255
+    return out
+
+
 def _fold_in(running: "list[int]", column: "list[int]") -> "list[int]":
     """Each row's running digest with one more column's digest folded in."""
     return [hash((before, digest)) for before, digest in zip(running, column)]
@@ -1070,12 +1123,13 @@ class _Side:
     """What one table's walk gathers, a list a row: digests for C1, C3 and C5, flags of present readings and dates, the person; and C2's encoded columns."""
 
     rows: int
-    row_digest: "list[int]"
-    reading_digest: "list[int]"
+    # A list while the walk folds its columns in, words once it ends (`_side_held`).
+    row_digest: "list[int] | bytearray"
+    reading_digest: "list[int] | bytearray"
     reading_present: bytearray
-    date_digest: "list[int]"
+    date_digest: "list[int] | bytearray"
     date_present: bytearray
-    combination: "list[int]"
+    combination: "list[int] | bytearray"
     combined: int
     unit: "list[int]"
     held: bytearray
@@ -1305,20 +1359,33 @@ def _combination_part(column: ColumnPlan, read: _Cells) -> "list[int] | None":
     return None
 
 
+def _held_words(digests: "list[int] | bytearray") -> bytearray:
+    """A walk's running digests as words (a list made words, words kept as they are)."""
+    return digests if isinstance(digests, bytearray) else _words_held(digests)
+
+
+def _side_held(side: _Side) -> None:
+    """The walk's four running digests held as words, as soon as the walk ends (lane W5-2M)."""
+    side.row_digest = _held_words(side.row_digest)
+    side.reading_digest = _held_words(side.reading_digest)
+    side.date_digest = _held_words(side.date_digest)
+    side.combination = _held_words(side.combination)
+
+
 def _take_common(side: _Side, column: ColumnPlan, read: _Cells) -> None:
     """The digests every walk folds in: the row's (C1, every column but the identifiers, which C4 reads), the readings' and the dates' (C3), the combination's (C5)."""
     if column.kind != KIND_IDENTIFIER:
-        side.row_digest = _fold_in(side.row_digest, read.digests)
+        side.row_digest = _fold_in(_words_listed(side.row_digest), read.digests)
     side.held = _present_flags(side.held, read.digests)
     if column.kind == KIND_NUMBER:
-        side.reading_digest = _fold_in(side.reading_digest, read.digests)
+        side.reading_digest = _fold_in(_words_listed(side.reading_digest), read.digests)
         side.reading_present = _present_flags(side.reading_present, read.digests)
     if column.kind == KIND_DATE:
-        side.date_digest = _fold_in(side.date_digest, read.digests)
+        side.date_digest = _fold_in(_words_listed(side.date_digest), read.digests)
         side.date_present = _present_flags(side.date_present, read.digests)
     part = _combination_part(column, read)
     if part is not None:
-        side.combination = _fold_in(side.combination, part)
+        side.combination = _fold_in(_words_listed(side.combination), part)
         side.combined += 1
 
 
@@ -1373,6 +1440,7 @@ def _walk_real(table: reading.Table, plan: "Plan | None", person: str, seed: int
                 real.element_sets[at] = _held_elements(cells, read, details)
             columns += [column]
     real.plan = Plan(tuple(columns), person_at, real.plan.source)
+    _side_held(side)
     return side, real
 
 
@@ -1423,6 +1491,7 @@ def _walk_twin(table: reading.Table, real: _Real, chosen: "list[int]") -> "tuple
             if column.kind == KIND_LABEL:
                 label_codes = real.label_codes[at]
                 found.labels += [[_label_code(label_codes, read.digests[row]) for row in chosen]]
+    _side_held(side)
     return side, found
 
 
@@ -1490,15 +1559,15 @@ def _rate_check(what: str, tally: _Tally, strict: bool) -> "tuple[bool, tuple[st
     return twin <= allowed, lines
 
 
-def _halves_sets(digests: "list[int]", halves: bytearray, rows: "list[int]") -> "tuple[set[int], set[int]]":
+def _halves_sets(digests: "list[int] | bytearray", halves: bytearray, rows: "list[int]") -> "tuple[set[int], set[int]]":
     """The digests of the given rows of each half."""
     first: "set[int]" = set()
     second: "set[int]" = set()
     for row in rows:
         if halves[row] == 0:
-            first |= {digests[row]}
+            first |= {_word(digests, row)}
         else:
-            second |= {digests[row]}
+            second |= {_word(digests, row)}
     return first, second
 
 
@@ -1512,7 +1581,7 @@ def _check_rows(real_side: _Side, real: _Real, twin_side: _Side) -> Check:
     matched: "dict[int, int]" = {}
     read: "dict[int, int]" = {}
     for row in every:
-        digest = real_side.row_digest[row]
+        digest = _word(real_side.row_digest, row)
         hit = digest in (second if real.halves[row] == 0 else first)
         if real.halves[row] == 0:
             tally.first_total += 1
@@ -1524,7 +1593,7 @@ def _check_rows(real_side: _Side, real: _Real, twin_side: _Side) -> Check:
         _count_in(matched, real_side.unit[row], 1 if hit else 0)
     tally.design = _design_effect(matched, read)
     either = 0
-    for digest in twin_side.row_digest:
+    for digest in _words_listed(twin_side.row_digest):
         tally.twin_total += 1
         inside_first = digest in first
         inside_second = digest in second
@@ -1542,7 +1611,7 @@ def _check_rows(real_side: _Side, real: _Real, twin_side: _Side) -> Check:
     return Check("C1", "exact row copy", True, passed, tuple([head] + list(lines) + [rule]))
 
 
-def _patients(side: _Side, digests: "list[int]", present: bytearray) -> "dict[int, int]":
+def _patients(side: _Side, words: "list[int] | bytearray", present: bytearray) -> "dict[int, int]":
     """Each person of at least `PATIENT_ROWS_LEAST` rows with a present value: the digest of their rows' digests taken as a set.
 
     A SET, its repeats read once (the batch 4w Codex review, item 6): a
@@ -1552,6 +1621,7 @@ def _patients(side: _Side, digests: "list[int]", present: bytearray) -> "dict[in
     """
     rows_of: "dict[int, list[int]]" = {}
     shown: "set[int]" = set()
+    digests = _words_listed(words)
     for row in range(side.rows):
         unit = side.unit[row]
         if unit in rows_of:
@@ -1660,8 +1730,9 @@ def _check_combinations(real_side: _Side, real: _Real, twin_side: _Side) -> Chec
         return Check("C5", "rare combination", False, True, ("No label, age, place or few-valued number column was read.",))
     counts: "list[dict[int, int]]" = [{}, {}]
     whole: "dict[int, int]" = {}
+    combined = _words_listed(real_side.combination)
     for row in range(real_side.rows):
-        digest = real_side.combination[row]
+        digest = combined[row]
         held = counts[real.halves[row]]
         held[digest] = 2 if digest in held else 1
         whole[digest] = 2 if digest in whole else 1
@@ -1669,7 +1740,7 @@ def _check_combinations(real_side: _Side, real: _Real, twin_side: _Side) -> Chec
     matched: "dict[int, int]" = {}
     read: "dict[int, int]" = {}
     for row in range(real_side.rows):
-        digest = real_side.combination[row]
+        digest = combined[row]
         other = counts[1 - real.halves[row]]
         hit = digest in other and other[digest] == 1
         if real.halves[row] == 0:
@@ -1683,7 +1754,8 @@ def _check_combinations(real_side: _Side, real: _Real, twin_side: _Side) -> Chec
     tally.design = _design_effect(matched, read)
     unique = sum(1 for digest in whole if whole[digest] == 1)
     holding = 0
-    for digest in twin_side.combination:
+    del combined
+    for digest in _words_listed(twin_side.combination):
         tally.twin_total += 1
         unique_first = digest in counts[0] and counts[0][digest] == 1
         unique_second = digest in counts[1] and counts[1][digest] == 1
@@ -1935,6 +2007,58 @@ def _read(raw_path: str, first_row: str) -> reading.Table:
     )
 
 
+QUESTIONS_SUFFIX = "-questions.json"
+
+
+def place_names_answered(real_path: str, names: "list[str]") -> "tuple[str, ...]":
+    """The columns named as places that the questions file beside the real table answers a code, a measurement or `no`.
+
+    The questions file `synthtwin profile` writes beside the table
+    (`<stem>-questions.json`, contract 4.6b) holds the person's answers,
+    each under its column, and no value of the table. A column whose name
+    reads as a place smaller than a state (`taxonomy.named_as_a_place`) is
+    returned where the file answers it a code, a measurement or Safe
+    Harbor `no` and never an identifier or Safe Harbor `yes`: the
+    description then publishes its values as codes or measurements, as no
+    place is published. Where the file is not there, cannot be read or
+    holds no such answer, nothing is returned and the column is read by its
+    name as before.
+
+    ONLY SYNTHTWIN'S OWN FILE, ABOUT THIS TABLE, AND ONLY A LOCAL ONE
+    (batch 4z's fix round; the outside review's items 4 and 5). The file
+    is read the way `synthtwin profile --answers` reads it
+    (`asking.answers_in`: a questions file of synthtwin's own shape, each
+    answer one its entry offered), its `table` must name this table's
+    file, and its path is checked as every path the checks open is
+    (`validate_local_path`) before anything looks at it. Measured before
+    this: a file beside the table holding only
+    `{"arbitrary": [{"column": "zip_code", "your_answer": "no"}]}` turned
+    C4 green on a twin holding the real table's 20,000 ZIP codes. A file
+    that is not synthtwin's, names another table, or cannot be checked
+    frees nothing. Guarantees: reads that one file, writes nothing,
+    raises nothing.
+    """
+    beside = pathlib.Path(f"{real_path}")
+    target = f"{pathlib.Path(f'{beside.parent}', f'{beside.stem}{QUESTIONS_SUFFIX}')}"
+    try:
+        checked = validate_local_path(target, purpose="questions file")
+        if not os.path.isfile(f"{checked}"):
+            return ()
+        document = json.loads(pathlib.Path(f"{checked}").read_text(encoding="utf-8"))
+        if not isinstance(document, dict) or "table" not in document or document["table"] != beside.name:
+            return ()
+        answers = asking.answers_in(document, target)
+    except (OSError, ValueError, UnicodeDecodeError):
+        return ()
+    publishing = set(answers.codes) | set(answers.measurements) | set(answers.safe_harbor_no)
+    holding = set(answers.identifiers) | set(answers.safe_harbor_yes)
+    found: "list[str]" = []
+    for name in names:
+        if taxonomy.named_as_a_place(name) and name in publishing and name not in holding:
+            found += [name]
+    return tuple(found)
+
+
 def run_checks(
     real_path: str,
     twin_path: str,
@@ -1971,7 +2095,10 @@ def run_checks(
     words, for a file the reader refuses, a twin whose columns are not
     the real table's, a person column the real table does not hold, or
     a table under the floor; PathValidationError for a path that is not
-    a local file. Reads the two files; writes nothing.
+    a local file. Reads the two files, and where no ``plan`` is given the
+    questions file beside the real table, whose answers free a column
+    named as a place that the person answered a code and that no answer
+    of this run names (`place_names_answered`); writes nothing.
     """
     names: "dict[str, str]" = {}
     for name in identifiers:
@@ -1979,6 +2106,18 @@ def run_checks(
     for name in not_identifiers:
         names[name] = ROLE_NOT_IDENTIFIER
     real_table = _read(real_path, first_row)
+    # A COLUMN NAMED AS A PLACE THAT THE PERSON ANSWERED A CODE IS NO PLACE
+    # (lane ZOO-Y, plan P4-D517): the questions file beside the real table
+    # holds the person's answers, so a first run of the checks reads them
+    # as the description did. Measured on a claims table of 20,000 rows: a
+    # column of two-figure codes named `place_code`, answered `code` in the
+    # questions file, was read by its name as a place, and C4 counted each
+    # of its 20,000 twin codes as a copied identifier, every one the
+    # published code it is.
+    if plan is None:
+        for name in place_names_answered(real_path, real_table.column_names):
+            if name not in names:
+                names[name] = ROLE_NOT_IDENTIFIER
     if plan is None and names:
         plan = plan_from_roles(real_table.column_names, names, person)
         plan = Plan(plan.columns, plan.person if person else -2, "answered")

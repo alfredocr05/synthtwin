@@ -276,7 +276,8 @@ def test_item_7_the_twin_keeps_the_all_empty_records_the_description_keeps(tmp_p
 
 
 def _outcome(column: str) -> validation.Outcome:
-    checks = (validation.Check(column, "datetime.weekday_census", "Monday", validation.MISSED),
+    # A day-of-month count: still excused under the owner's ruling of 2026-11-22 (a weekday count no longer is).
+    checks = (validation.Check(column, "datetime.day_of_month_census", "day_of_month_census.groups", validation.MISSED),
               validation.Check("age", "numeric.mean", "mean", validation.HELD))
     census = validation.Census(held=1, within_bound=0, authorized_deviation=0, withheld=0, missed=1, not_checkable=0)
     return validation.Outcome(checks=checks, listings=(), census=census, measured_name="visits-twin.csv")

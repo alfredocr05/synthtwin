@@ -108,14 +108,160 @@ def _internal(detail: str) -> errors.ProfileError:
 
 
 @dataclasses.dataclass(frozen=True)
+class HeldCells:
+    """A column's cells as described and their exact readings, a tabled row each, held as places in a palette (lane W5-2M).
+
+    The palette holds each different cell with its reading once, in the
+    order the rows first hold them (`texts[k]` read as `readings[k]`);
+    each row is its pair's place, `width` bytes, little-endian, in
+    `places`. A repeated column of 2,000,000 rows was two lists of
+    pointers, sixteen bytes a row; held here, one to four. `text_at`,
+    `reading_at`, `texts_of` and `readings_of` give back each row's very
+    cell and reading. A palette of more than `WHOLE_FROM` pairs whose
+    readings are all whole numbers within 64 bits (a date's or a stamp's
+    ordinal, a different one nearly every row) holds them in `whole`, nine
+    bytes each (a byte that says whether there is one, then the number),
+    in place of an exact number object each (about ninety bytes); read
+    back, each is the exact number it was (`palette_reading`), and
+    `readings` is then empty.
+    """
+
+    places: bytes
+    width: int
+    texts: "tuple[str, ...]"
+    readings: "tuple[fractions.Fraction | None, ...]"
+    rows: int
+    whole: bytes = b""
+
+
+# A palette of more pairs than this, every reading a whole number, holds its readings as numbers in bytes.
+WHOLE_FROM = 4096
+_WHOLE_LEAST = -(1 << 63)
+_WHOLE_MOST = (1 << 63) - 1
+
+
+def _put_unsigned(data: bytearray, at: int, width: int, value: int) -> None:
+    """Writes the whole number ``value`` (0 to 256 ** width - 1) as ``width`` bytes, low byte first, at ``at``."""
+    for place in range(width):
+        data[at + place] = (value >> (8 * place)) & 255
+
+
+def _get_unsigned(data: "bytes | bytearray", at: int, width: int) -> int:
+    """The whole number of ``width`` bytes, low byte first, at ``at``."""
+    value = 0
+    for place in range(width):
+        value = value | (data[at + place] << (8 * place))
+    return value
+
+
+def _whole_readings(readings: "list[fractions.Fraction | None]") -> "bytes | None":
+    """The readings as nine bytes each where every one is None or a whole exact number within 64 bits, else None.
+
+    Each is a byte that says whether there is one (1) or not (0), then the
+    number as its 64-bit two's complement, low byte first.
+    """
+    out = bytearray(9 * len(readings))
+    for at in range(len(readings)):
+        value = readings[at]
+        if value is None:
+            continue
+        if not isinstance(value, fractions.Fraction) or value.denominator != 1:
+            return None
+        if not _WHOLE_LEAST <= value.numerator <= _WHOLE_MOST:
+            return None
+        out[9 * at] = 1
+        _put_unsigned(out, 9 * at + 1, 8, value.numerator & ((1 << 64) - 1))
+    return bytes(out)
+
+
+def palette_reading(cells: "HeldCells", at: int) -> "fractions.Fraction | None":
+    """The reading of the palette's ``at``-th pair."""
+    if not cells.whole:
+        return cells.readings[at]
+    if not cells.whole[9 * at]:
+        return None
+    value = _get_unsigned(cells.whole, 9 * at + 1, 8)
+    return fractions.Fraction(value - (1 << 64) if value >> 63 else value)
+
+
+def palette_readings(cells: "HeldCells") -> "list[fractions.Fraction | None]":
+    """Every pair's reading, in the palette's order."""
+    return [palette_reading(cells, at) for at in range(len(cells.texts))]
+
+
+def held_cells(texts: "list[str]", readings: "list[fractions.Fraction | None]") -> HeldCells:
+    """The rows' cells and readings (one each a row, the same number of both) held as places in a palette of their pairs."""
+    if len(texts) != len(readings):
+        raise ValueError("a reading for every cell")
+    place_of: "dict[tuple[str, fractions.Fraction | None], int]" = {}
+    palette_texts: "list[str]" = []
+    palette_readings: "list[fractions.Fraction | None]" = []
+    places: "list[int]" = []
+    for row in range(len(texts)):
+        pair = (texts[row], readings[row])
+        if pair not in place_of:
+            place_of[pair] = len(palette_texts)
+            palette_texts += [texts[row]]
+            palette_readings += [readings[row]]
+        places += [place_of[pair]]
+    width = 1
+    while len(palette_texts) > 1 << (8 * width):
+        width += 1
+    if width == 1:
+        packed = bytes(places)
+    else:
+        wide = bytearray(width * len(places))
+        for row in range(len(places)):
+            _put_unsigned(wide, width * row, width, places[row])
+        packed = bytes(wide)
+    whole = _whole_readings(palette_readings) if len(palette_texts) > WHOLE_FROM else None
+    if whole is not None:
+        return HeldCells(packed, width, tuple(palette_texts), (), len(texts), whole)
+    return HeldCells(packed, width, tuple(palette_texts), tuple(palette_readings), len(texts))
+
+
+def place_at(cells: HeldCells, row: int) -> int:
+    """Row ``row``'s place in the palette."""
+    if cells.width == 1:
+        return cells.places[row]
+    return _get_unsigned(cells.places, cells.width * row, cells.width)
+
+
+def text_at(cells: HeldCells, row: int) -> str:
+    """Row ``row``'s cell as described."""
+    return cells.texts[place_at(cells, row)]
+
+
+def reading_at(cells: HeldCells, row: int) -> "fractions.Fraction | None":
+    """Row ``row``'s exact reading (None for a cell holding none)."""
+    return palette_reading(cells, place_at(cells, row))
+
+
+def texts_of(cells: HeldCells) -> "list[str]":
+    """Every row's cell, in row order."""
+    return [cells.texts[place_at(cells, row)] for row in range(cells.rows)]
+
+
+def readings_of(cells: HeldCells) -> "list[fractions.Fraction | None]":
+    """Every row's reading, in row order: each pair's read once, and each row given its pair's."""
+    readings = palette_readings(cells)
+    return [readings[place_at(cells, row)] for row in range(cells.rows)]
+
+
+@dataclasses.dataclass(frozen=True)
 class RowColumn:
-    """What the rules read of one column: its class, role, cells as described and exact readings, a tabled row each."""
+    """What the rules read of one column: its class, role, cells as described and exact readings, a tabled row each (`HeldCells`)."""
 
     name: str
     kind: str
     role: str
-    texts: "list[str]"
-    readings: "list[fractions.Fraction | None]"
+    cells: HeldCells
+
+
+def row_column(name: str, kind: str, role: str, texts: "list[str]",
+               readings: "list[fractions.Fraction | None]") -> RowColumn:
+    """A `RowColumn` of the rows' cells and readings (`held_cells`)."""
+    return RowColumn(name, kind, role, held_cells(texts, readings))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -144,9 +290,11 @@ class Found:
 def _places_of(column: RowColumn) -> "int | None":
     """The one number of places every cell of a number column is written to, or None (contract 4.6c.14 (a))."""
     places: "int | None" = None
-    for at in range(len(column.texts)):
-        text = f"{column.texts[at]}"
-        value = column.readings[at]
+    # Read over the palette's pairs, in the order the rows first hold them: every row's pair is one of them, so the
+    # rule reads the same (lane W5-2M).
+    for at in range(len(column.cells.texts)):
+        text = f"{column.cells.texts[at]}"
+        value = palette_reading(column.cells, at)
         found = _plain_places(text)
         if value is None or found is None:
             return None
@@ -200,9 +348,11 @@ def _interval_pair(columns: "list[RowColumn]", patients: "list[list[int]]") -> "
         if places is not None:
             numbers += [(column, places)]
     for first, first_places in numbers:
-        if any(min(first.readings[row] for row in rows) != 0 for rows in patients if rows):  # type: ignore[type-var]
+        first_readings = readings_of(first.cells)
+        if any(min(first_readings[row] for row in rows) != 0 for rows in patients if rows):  # type: ignore[type-var]
             continue
-        ordered = [_in_start_order(rows, first.readings) for rows in patients]
+        ordered = [_in_start_order(rows, first_readings) for rows in patients]
+        del first_readings
         for second, second_places in numbers:
             if second.name == first.name or second_places != first_places:
                 continue
@@ -228,8 +378,8 @@ def _keeps_intervals(first: RowColumn, second: RowColumn, ordered: "list[list[in
     for rows in ordered:
         previous: "fractions.Fraction | None" = None
         for row in rows:
-            a = first.readings[row]
-            b = second.readings[row]
+            a = reading_at(first.cells, row)
+            b = reading_at(second.cells, row)
             if a is None or b is None or not a < b:
                 return False
             if (previous is None and a != 0) or (previous is not None and a != previous):
@@ -240,7 +390,9 @@ def _keeps_intervals(first: RowColumn, second: RowColumn, ordered: "list[list[in
 
 def _two_spellings(column: RowColumn) -> "list[str] | None":
     seen: "list[str]" = []
-    for cell in column.texts:
+    # Read over the palette, in the order the rows first hold its cells (lane W5-2M): the same spellings, first
+    # met in the same order.
+    for cell in column.cells.texts:
         text = f"{cell}"
         if dialect.holds_nothing(text):
             return None
@@ -256,12 +408,13 @@ def _switch_of(column: RowColumn, ordered: "list[list[int]]", start: RowColumn, 
     spellings = _two_spellings(column)
     if spellings is None:
         return None
+    texts = texts_of(column.cells)
     direction: "tuple[str, str] | None" = None
     changers = 0
     for rows in ordered:
         changes = 0
         for at in range(1, len(rows)):
-            before, after = column.texts[rows[at - 1]], column.texts[rows[at]]
+            before, after = texts[rows[at - 1]], texts[rows[at]]
             if before == after:
                 continue
             changes += 1
@@ -277,11 +430,11 @@ def _switch_of(column: RowColumn, ordered: "list[list[int]]", start: RowColumn, 
     first, second = direction
     times: "list[fractions.Fraction | None]" = []
     for rows in ordered:
-        at_second = [row for row in rows if column.texts[row] == second]
-        times += [start.readings[at_second[0]] if at_second else None]
+        at_second = [row for row in rows if texts[row] == second]
+        times += [reading_at(start.cells, at_second[0]) if at_second else None]
     holders = {spelling: 0 for spelling in spellings}
     for rows in ordered:
-        for spelling in {column.texts[row] for row in rows}:
+        for spelling in {texts[row] for row in rows}:
             holders[spelling] += 1
     for spelling in holders:
         if holders[spelling] < floor:
@@ -292,9 +445,10 @@ def _switch_of(column: RowColumn, ordered: "list[list[int]]", start: RowColumn, 
 def _end_of(column: RowColumn, ordered: "list[list[int]]", floor: int) -> "tuple[str, tuple[str, ...], list[str]] | None":
     """An end-event rule every patient keeps (B4): its none spelling, its end values, each patient's end value."""
     none: "str | None" = None
+    texts = texts_of(column.cells)
     for rows in ordered:
         for row in rows[:-1]:
-            text = f"{column.texts[row]}"
+            text = f"{texts[row]}"
             if dialect.holds_nothing(text):
                 return None
             if none is None:
@@ -306,14 +460,14 @@ def _end_of(column: RowColumn, ordered: "list[list[int]]", floor: int) -> "tuple
     ended: "list[str]" = []
     held: "dict[str, int]" = {}
     for rows in ordered:
-        text = f"{column.texts[rows[-1]]}"
+        text = f"{texts[rows[-1]]}"
         if dialect.holds_nothing(text):
             return None
         ended += [text]
         held[text] = held[text] + 1 if text in held else 1
     if len(held) < 2 or any(held[text] < floor for text in held):
         return None
-    if sum(1 for rows in ordered if any(column.texts[row] == none for row in rows)) < floor:
+    if sum(1 for rows in ordered if any(texts[row] == none for row in rows)) < floor:
         return None
     return none, tuple(sorted(held)), ended
 
@@ -329,7 +483,7 @@ def found_on(columns: "list[RowColumn]", patients: "list[list[int]]", floor: int
     if pair is None:
         return None
     first, second, places, ordered = pair
-    follow = [second.readings[rows[-1]] for rows in ordered]
+    follow = [reading_at(second.cells, rows[-1]) for rows in ordered]
     if any(value is None for value in follow):
         return None
     switch: "tuple[str, str, str] | None" = None

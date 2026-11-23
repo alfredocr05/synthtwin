@@ -136,7 +136,7 @@ FILE_KINDS = (
 GENERAL_ANSWERS = frozenset(
     {
         "measurement", "code", "identifier", "joined", "keep",
-        "decimal_comma", "twelve-hour", "data", "metadata-rows",
+        "decimal_comma", "twelve-hour", "data", "metadata-rows", "units-row",
         "comma", "semicolon", "tab", "vertical-bar", "names",
         "first-record", "month-first", "day-first", "missing",
         "real-value", "1969-2068", "1930-2029", "1940-2039",
@@ -3105,6 +3105,7 @@ def _families_published(path: pathlib.Path) -> int:
 
 def run_table(
     table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool = False,
+    private_beside: "pathlib.Path | None" = None,
 ) -> "dict":
     """profile, the general answers and profile --answers round by round, generate, validate, the analyst.
 
@@ -3132,11 +3133,31 @@ def run_table(
     description was never shared -- the round counted in `record_refused`,
     never hidden. `chained` is the number of family tables the last
     description publishes between columns (0 where it publishes none).
+
+    THE ROUTE IT MEASURES (lane ZOO-Y, plan P4-D517). The data folder is
+    made in the system's temporary folder unless ``private_beside`` names
+    another, and the inside record's guard writes no record in a temporary
+    folder (`inside.place_refusal`): there the twin is the description's
+    alone, the route a computer takes with no record. With
+    ``private_beside`` -- a folder outside the temporary ones, not under
+    version control, open to this account alone -- the data folder is made
+    in it, the record is written as on a person's computer, the twin is
+    drawn from it, and ``inside_record`` says whether it was: the SHIPPED
+    route, which the KPI drivers measure (lane ZOO-X measured that the
+    zoo's twins had all been the description's alone).
     """
     import kpi_rules
 
-    with kpi_rules.own_data_folder():
-        return _walk_table(table, folder, n, seed, small_tables_refused)
+    if private_beside is not None:
+        private_beside.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with kpi_rules.own_data_folder(private_beside):
+        result = _walk_table(table, folder, n, seed, small_tables_refused)
+        if private_beside is not None:
+            from synthtwin import inside
+
+            private = inside.default_places().private
+            result["inside_record"] = bool(private.exists() and any(private.glob(f"*{inside.SUFFIX}")))
+        return result
 
 
 def _walk_table(table: Table, folder: pathlib.Path, n: int, seed: int, small_tables_refused: bool) -> "dict":
@@ -4173,20 +4194,27 @@ def workbook_kinds() -> "tuple[str, ...]":
 
 def run_zoo(
     folder: pathlib.Path, n: int, seed: int = SEED, tables: "tuple[Table, ...] | None" = None,
+    private_beside: "pathlib.Path | None" = None,
 ) -> "list[dict]":
     """The catalogue's tables (or those named) this machine can read, end to end, each in a folder of its own.
 
     At the KPI size and above the shipped command runs with the owner's
     table floor on (plan P4-D425); below it, for the suite's smoke, the
-    internal switch turns it off.
+    internal switch turns it off. ``private_beside`` is `run_table`'s: the
+    shipped route, the inside record written, where it names a folder.
     """
     results: "list[dict]" = []
     chosen = catalogue() if tables is None else tables
     runnable = runnable_tables(chosen)
     floor_on = n >= KPI_ROWS
     for table in chosen:
-        if table in runnable:
+        if table not in runnable:
+            continue
+        if private_beside is None:
             results += [run_table(table, folder / table.name, n, seed_of(table, seed), small_tables_refused=floor_on)]
+        else:
+            results += [run_table(table, folder / table.name, n, seed_of(table, seed), small_tables_refused=floor_on,
+                                  private_beside=private_beside)]
     return results
 
 

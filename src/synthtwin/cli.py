@@ -3818,6 +3818,24 @@ def _metadata_rows_notice() -> str:
     )
 
 
+def _units_row_notice() -> str:
+    """What is said about a row under the column names that names their units (lane ZOO-Y, plan P4-D517)."""
+    return (
+        f"{'=' * 66}\n"
+        f"THE ROW UNDER YOUR COLUMN NAMES NAMES THEIR UNITS\n"
+        f"{'=' * 66}\n"
+        f"It holds a short word or mark in each column of numbers and "
+        f"nothing in the others, which is how some instruments write each "
+        f"column's unit. synthtwin has read it as one of your records, "
+        f"because a row shaped so can also be a person's record. If it names "
+        f"the columns' units, answer 'units-row' under 'about_your_file' in "
+        f"the questions file this run writes, and describe the table again "
+        f"with --answers: it is then taken out of your records and published "
+        f"as written, like the column names, and the twin writes it back "
+        f"under them."
+    )
+
+
 def _checklist_notice(listed: "list[asking.Question]") -> str:
     """Every column read as a number, under ONE question.
 
@@ -4738,6 +4756,142 @@ def _figures_not_taken_said(names: "list[str]", read: object, settings: object) 
                 )
 
 
+def _answer_taken(
+    answer: str,
+    question: asking.Question,
+    both: bool,
+    codes: "list[str]",
+    identifiers: "list[str]",
+    measurements: "list[str]",
+    commas: "list[str]",
+    twelve: "list[str]",
+    counted: "list[tuple[str, str]]",
+    left_open: "list[tuple[str, str, str]]",
+    figures: "list[str]",
+) -> None:
+    """One column's answer typed at a prompt, put where `_put_the_questions` returns it (the lists grow in place)."""
+    _answer_stands(answer, asking.question_put(question))
+    _person_kept(answer, question)
+    if answer == _LEFT_OPEN:
+        left_open += [asking.question_put(question)]
+    elif answer == asking.ANSWER_CODE:
+        codes += [question.name]
+    elif answer == asking.ANSWER_IDENTIFIER:
+        identifiers += [question.name]
+        # The person question's `identifier`, "the people the rows are
+        # about", says the person (lane EZ-a, plan P4-D479).
+        if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
+            _person_said(question.name)
+    elif answer == asking.ANSWER_JOINED or (
+        answer == asking.ANSWER_MEASUREMENT and both
+    ):
+        # ...and `measurement` where it is offered beside `keep`: a
+        # declaration, as the questions file reads it (plan P4-D438;
+        # Codex's review of lane UN-1a, item 2).
+        measurements += [question.name]
+    elif answer == asking.ANSWER_DECIMAL_COMMA:
+        commas += [question.name]
+    elif answer == asking.ANSWER_TWELVE_HOUR:
+        twelve += [question.name]
+    elif answer == asking.ANSWER_CLOCK_FIGURES:
+        # -- lane TR (P4-D473): rule 5c's reading.
+        figures += [question.name]
+    elif answer in date_counts.MEMBERS:
+        counted += [(question.name, answer)]
+
+
+# THE QUESTIONS OF A WIDE TABLE, PUT IN GROUPS (lane W5-302). Past this many
+# questions, the columns that raised the same question -- the same reason, the
+# same role, the same answers offered with the same words, the same reading kept
+# by Enter, held alike -- are put as one question naming each of them, and the
+# answer typed is each one's answer, as if typed at each; up to it, each column
+# is put on its own, as it always was; a wide table's many columns of one kind
+# were put one at a time. HIPAA FIRST: a question whose answer could release
+# what it holds is always put on its own -- the person question (its
+# `identifier` says which column names the person, and two columns said so are
+# counted together, plan P4-D479), every Safe Harbor question (one `no` must
+# never release ages past 89 or a place in many columns at once), and every
+# question of a column held while it is open (record numbers until answered).
+_QUESTIONS_ONE_BY_ONE_MOST = 12
+_PUT_ALONE_REASONS = (
+    (asking.BECAUSE_REPEATS_AND_MANY,) + asking.SAFE_HARBOR_REASONS + asking.SH2_SAFE_HARBOR_REASONS
+)
+
+
+def _same_question(question: asking.Question, held: bool) -> "tuple[object, ...]":
+    """What two columns' questions must share to be put as one (`_question_groups`)."""
+    offered = tuple((choice.answer, choice.means, choice.publishes) for choice in question.choices)
+    return (question.reason, question.role, question.taken, held, offered)
+
+
+def _question_groups(
+    questions: "list[asking.Question]", held: "tuple[str, ...]" = ()
+) -> "list[list[asking.Question]]":
+    """The questions as they are put: each on its own, or past `_QUESTIONS_ONE_BY_ONE_MOST` the same ones together.
+
+    Each group in the order of its first question, its columns in the
+    table's order; a question of `_PUT_ALONE_REASONS` or of a column held
+    while it is open is always a group of its own. Guarantees: a fixed
+    function of its arguments; every question in exactly one group;
+    raises nothing.
+    """
+    if len(questions) <= _QUESTIONS_ONE_BY_ONE_MOST:
+        return [[question] for question in questions]
+    groups: "list[list[asking.Question]]" = []
+    place_of: "dict[tuple[object, ...], int]" = {}
+    for question in questions:
+        if question.reason in _PUT_ALONE_REASONS or question.name in held:
+            groups += [[question]]
+            continue
+        key = _same_question(question, question.name in held)
+        if key in place_of:
+            groups[place_of[key]] += [question]
+        else:
+            place_of[key] = len(groups)
+            groups += [[question]]
+    return groups
+
+
+def _the_group_question(
+    group: "list[asking.Question]", place: int, total: int, held: bool = False
+) -> str:
+    """The question several columns raised, put once (`_question_groups`), as `_the_question` puts one column's.
+
+    The choices are the first column's, and every column of the group
+    offers the same ones in the same words; what synthtwin saw is said of
+    each column, and no value of the table is shown.
+    """
+    first = group[0]
+    lines = ""
+    for choice in first.choices:
+        key = _key_shown(choice.answer, first)
+        lines = lines + (
+            f"\n      [{key}] {choice.means}\n"
+            f"          then the description publishes {choice.publishes}"
+        )
+    seen = ""
+    for question in group:
+        seen = seen + f"\n      '{_shown(question.name)}': {_one_stop(question.shape)}"
+    enter = (
+        "    Press Enter to keep all of them held as record numbers until "
+        "they are answered: none of their values is published."
+        if held
+        else "    Press Enter to keep the reading synthtwin made for each of "
+        "them, which is the first one above."
+    )
+    return (
+        f"\n  Columns {place} to {place + len(group) - 1} of {total}: "
+        f"{len(group)} columns raised the same question\n"
+        f"    what synthtwin saw in each:{seen}\n"
+        f"    What do these columns hold? The answer you type is the answer "
+        f"for each of them.{lines}\n"
+        f"{enter}\n"
+        f"    To answer one of them otherwise, change its answer in the "
+        f"questions file this run writes, then run synthtwin profile again "
+        f"with --answers naming that file."
+    )
+
+
 def _put_the_questions(
     questions: "list[asking.Question]",
     held: "tuple[str, ...]" = (),
@@ -4751,9 +4905,19 @@ def _put_the_questions(
     left unanswered (`_LEFT_OPEN`) by its column, role and reason
     (`asking.question_put`), which the run then reads as nobody's run
     reads an unanswered question (lane TT's repair; the orchestrator's
-    LANE TT RULINGS 2 (1)).
+    LANE TT RULINGS 2 (1)). Past `_QUESTIONS_ONE_BY_ONE_MOST` questions
+    the columns that raised the same question are put as one
+    (`_question_groups`, lane W5-302): the answer typed, Enter included,
+    is each one's answer, as if typed at each.
     """
     total = len(questions)
+    groups = _question_groups(questions, held)
+    together = (
+        f" The columns that raised the same question are put together: "
+        f"{len(groups)} questions for these {total} columns."
+        if len(groups) < total
+        else ""
+    )
     _say(
         f"\n{'=' * 66}\n"
         f"{total} COLUMN(S) CAN BE READ MORE THAN ONE WAY\n"
@@ -4764,7 +4928,7 @@ def _put_the_questions(
         f"nobody at the keyboard leaves it. Your answers "
         f"are recorded in the profile, and the exact "
         f"options to repeat this run without typing are printed at the "
-        f"end."
+        f"end.{together}"
     )
     codes: list[str] = []
     identifiers: list[str] = []
@@ -4777,11 +4941,15 @@ def _put_the_questions(
     # -- lane TR (P4-D473): the columns answered `clock-figures`.
     figures: list[str] = []
     place = 0
-    for question in questions:
-        place = place + 1
-        _say(_the_question(question, place, total, question.name in held))
-        both = _keep_beside_measurement(question)
-        answer = _answer_typed(_LEFT_OPEN, both)
+    for group in groups:
+        first = group[0]
+        if len(group) == 1:
+            place = place + 1
+            _say(_the_question(first, place, total, first.name in held))
+        else:
+            _say(_the_group_question(group, place + 1, total, first.name in held))
+            place = place + len(group)
+        answer = _answer_typed(_LEFT_OPEN, _keep_beside_measurement(first))
         # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
         # second skeptic's item 2). `_read_one_answer` knows every key,
         # so `6` typed at a column of codes recorded a 12-hour clock on
@@ -4790,42 +4958,21 @@ def _put_the_questions(
         # A key of an answer the question did not offer is asked again,
         # as the questions file refuses an answer its entry did not
         # offer (`answers_answer_is_not_offered`).
-        while answer is not None and not _offered_here(answer, question):
+        while answer is not None and not _offered_here(answer, first):
             _say(
                 "    Please type one of the numbers offered, or press Enter "
                 "to leave the question unanswered."
             )
-            answer = _answer_typed(_LEFT_OPEN, both)
+            answer = _answer_typed(_LEFT_OPEN, _keep_beside_measurement(first))
         if answer is None:
             return None
-        _answer_stands(answer, asking.question_put(question))
-        _person_kept(answer, question)
-        if answer == _LEFT_OPEN:
-            left_open += [asking.question_put(question)]
-        elif answer == asking.ANSWER_CODE:
-            codes += [question.name]
-        elif answer == asking.ANSWER_IDENTIFIER:
-            identifiers += [question.name]
-            # The person question's `identifier`, "the people the rows are
-            # about", says the person (lane EZ-a, plan P4-D479).
-            if question.reason == asking.BECAUSE_REPEATS_AND_MANY:
-                _person_said(question.name)
-        elif answer == asking.ANSWER_JOINED or (
-            answer == asking.ANSWER_MEASUREMENT and both
-        ):
-            # ...and `measurement` where it is offered beside `keep`: a
-            # declaration, as the questions file reads it (plan P4-D438;
-            # Codex's review of lane UN-1a, item 2).
-            measurements += [question.name]
-        elif answer == asking.ANSWER_DECIMAL_COMMA:
-            commas += [question.name]
-        elif answer == asking.ANSWER_TWELVE_HOUR:
-            twelve += [question.name]
-        elif answer == asking.ANSWER_CLOCK_FIGURES:
-            # -- lane TR (P4-D473): rule 5c's reading.
-            figures += [question.name]
-        elif answer in date_counts.MEMBERS:
-            counted += [(question.name, answer)]
+        # ...THE ANSWER IS EACH COLUMN'S OF ITS GROUP, as if typed at each.
+        for question in group:
+            both = _keep_beside_measurement(question)
+            _answer_taken(
+                answer, question, both, codes, identifiers, measurements,
+                commas, twelve, counted, left_open, figures,
+            )
     return codes, identifiers, measurements, commas, twelve, counted, left_open, figures
 
 
@@ -7300,7 +7447,7 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     skipped = tuple(specs[place].name for place in range(len(specs))
                     if specs[place].why_kept in inside_relations.RECORD_NUMBERS)
     gathered: "inside_dates.Census | None" = inside_dates.census(person, _inside_date_readings(published), skipped,
-                                                                 True)
+                                                                 True, _inside_dated_held(published))
     try:
         for place, name in enumerate(read.column_names):
             if specs[place].name != name:
@@ -7366,7 +7513,9 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     if gathered is not None:
         try:
             built = inside_dates.zone_of(gathered)
-            if built["order"]:
+            # ...and a zone holding no date column of its own is kept where it
+            # counted dates the description holds (lane ZOO-Y, plan P4-D517).
+            if built["order"] or inside_dates.held_columns(built):
                 dates_zone = built
         except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
             dates_zone = None
@@ -7385,13 +7534,16 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
         try:
             from synthtwin import inside_keyed
 
-            whole = {name: [str(cell) for cell in reading.column_values(read, place)]
-                     for place, name in enumerate(read.column_names)}
             dated = (tuple(str(each) for each in typing.cast("list[object]", dates_zone["order"]))
                      if dates_zone is not None else ())
-            tops, held = inside_keyed.key_blocks_of(holding)
-            keyed_zone = inside_keyed.build_zone(whole, person, skipped + inside_keyed.kept_by_description(holding),
-                                                 dated, tops, held, inside_keyed.typed_of(holding))
+            # THE KEY FROM THE SAMPLE FIRST (lane W5-302): a table holding no key is never read whole as text.
+            if _keyed_sample_holds_a_key(read, person, skipped + inside_keyed.kept_by_description(holding), dated):
+                whole = {name: [str(cell) for cell in reading.column_values(read, place)]
+                         for place, name in enumerate(read.column_names)}
+                tops, held = inside_keyed.key_blocks_of(holding)
+                keyed_zone = inside_keyed.build_zone(whole, person,
+                                                     skipped + inside_keyed.kept_by_description(holding), dated, tops,
+                                                     held, inside_keyed.typed_of(holding))
         except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
             keyed_zone = None
         whole = None
@@ -7504,6 +7656,9 @@ def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
         readings = _inside_date_readings(published)
         dated = tuple(name for name in read.column_names if name in readings)
         skipped = tuple(spec.name for spec in specs if spec.why_kept in inside_relations.RECORD_NUMBERS)
+        # THE KEY FROM THE SAMPLE FIRST (lane W5-302): a table holding no key is never read whole as text.
+        if not _keyed_sample_holds_a_key(read, person, skipped + inside_keyed.kept_by_description(published), dated):
+            return False
         whole = {name: [str(cell) for cell in reading.column_values(read, place)]
                  for place, name in enumerate(read.column_names)}
         tops, held = inside_keyed.key_blocks_of(published)
@@ -7512,6 +7667,38 @@ def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
     except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
         return False
     return zone is not None
+
+
+def _keyed_sample_holds_a_key(read: object, person: str, skipped: "tuple[str, ...]", dated: "tuple[str, ...]") -> bool:
+    """Whether `inside_keyed.build_zone` finds a key in this table, read from the key's sample rows alone (lane W5-302).
+
+    THE TABLE IS NOT HELD WHOLE TO LEARN IT HOLDS NO KEY. The keyed zone
+    reads every column whole as text (`_keyed_zone_stands` and
+    `_inside_record_written` each did, once a round), about 60 bytes a
+    cell: 360 MB for a table of 20,000 rows and 302 columns, 3.6 GB at
+    200,000 rows. The key itself is decided on at most
+    `inside_keyed.KEY_SAMPLE` rows (`inside_keyed.key_of`), so each column
+    is read a column at a time and only its cells on those rows kept
+    (`inside_keyed.sampled_key`), the person column whole: the same key
+    `build_zone` finds at the same arguments, so a table that holds one is
+    then read whole as before and its zone is the same bytes. Reads the
+    table's columns; writes nothing; raises what `reading.column_values`
+    and `inside_keyed.sampled_key` raise.
+    """
+    from synthtwin import inside_keyed, reading
+
+    if not isinstance(read, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    sample = inside_keyed.key_sample_rows(read.n_rows)
+    sampled: "dict[str, list[str]]" = {}
+    person_cells: "list[str]" = []
+    for place, name in enumerate(read.column_names):
+        cells = reading.column_values(read, place)
+        if name == person:
+            person_cells = [str(cell) for cell in cells]
+        sampled[name] = [str(cells[row]) for row in sample]
+        del cells
+    return bool(inside_keyed.sampled_key(person_cells, sampled, person, skipped, dated))
 
 
 def _links_zone_of(key: str, key_cells: "list[str]", named: str, floor: int) -> "dict[str, object] | None":
@@ -7652,6 +7839,29 @@ def _inside_date_readings(published: "dict[str, object]") -> "dict[str, str]":
     return readings
 
 
+def _inside_dated_held(published: "dict[str, object]") -> "tuple[str, ...]":
+    """The columns whose dates in disguise the description holds, for the dates zone (lane ZOO-Y, plan P4-D517).
+
+    Those whose block carries the remark `taxonomy.REMARK_DATED_VALUES_HELD`:
+    the description reads their dates as blank cells while the Safe Harbor
+    question about them is open or answered `yes` (plan P4-D446), and the
+    zone counts them so the twin makes them up (`inside_dates.fill_held`).
+    Raises nothing; no I/O.
+    """
+    from synthtwin import taxonomy
+
+    held_remark = taxonomy.rendered(taxonomy.REMARK_DATED_VALUES_HELD, ())
+    found: "list[str]" = []
+    columns = published["columns"] if "columns" in published else None
+    for block in columns if isinstance(columns, list) else []:
+        if not isinstance(block, dict) or "name" not in block or not isinstance(block["name"], str):
+            continue
+        remarks = block["remarks"] if "remarks" in block else None
+        if isinstance(remarks, list) and held_remark in remarks:
+            found += [block["name"]]
+    return tuple(found)
+
+
 def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.Any") -> "typing.Any":
     """A twin drawn from the inside record: the only obligations excused are the calendar counts of a date column the
     dates zone made up (4w integration, narrowed by lane IN-2b).
@@ -7662,9 +7872,16 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
     zone made up keeps its weekday pattern and clock and makes up its day of
     the month (the owner's ruling of 2026-11-18), so its counts at the day's
     grain (its distinct days, a day-level ladder and tails, the heavy days,
-    the day-of-month and weekday counts) cannot be the description's, nor
-    the counts of its hours and minutes (stamps at midnight among them),
-    kept by their shares; its months are held where they are published
+    the day-of-month counts) cannot be the description's. THE OWNER'S
+    RULING OF 2026-11-22 (batch 4z's fix round) keeps what an analysis
+    reads: the weekday counts and the counts of its hours, minutes and
+    seconds are judged at the draw's precision, each group within three
+    standard deviations of a draw at its published share
+    (`_within_its_sampling_window`), and the stamps at midnight strictly.
+    Its day-level ladder and tails stay excused even where the dates zone
+    places a twin date outside the months the real column held dates in
+    (the orchestrator's decision on that ruling, plan P4-D525: carried to
+    lane IN-5, which owes the draw that keeps the span); its months are held where they are published
     (`inside_dates._held_months`:
     exactly for a column heading its own chain, as near as whole persons and
     chains allow for a person's timeline or a chained date). Where the report
@@ -7679,7 +7896,11 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
     head among the columns drawn from the record (`_drawn_in_report`), so a
     zone the writer refused (another version) or a column it left as the
     description's twin's is judged strictly; a head whose list cannot be
-    read without doubt excuses nothing.
+    read without doubt excuses nothing. A COLUMN WHOSE DATES THE
+    DESCRIPTION HELD and the record's dates zone filled (lane ZOO-Y,
+    `_held_dates_filled`, named in the head too) has every MISSED check
+    but its name, place and role excused (`_INSIDE_HELD_KEPT_FACTS`): the
+    description describes it without its dates, which the twin makes up.
     """
     from synthtwin import inside, inside_relations, validation
 
@@ -7701,11 +7922,20 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
         for each in _dates_made_up(record["zones"]):
             if parsing.visible(each) in drawn:
                 made_up = made_up | {each}
+        held_filled: "set[str]" = set()
+        for each in _held_dates_filled(record["zones"]):
+            if parsing.visible(each) in drawn:
+                held_filled = held_filled | {each}
     except (inside.InsideError, inside_relations.RelationsError, OSError, KeyError, TypeError, ValueError):
         return outcome
     changed = [
-        dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_CITATION)
+        dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_HELD_CITATION)
+        if check.verdict == validation.MISSED and check.column in held_filled and check.fact not in _INSIDE_HELD_KEPT_FACTS
+        else dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_CITATION)
         if check.verdict == validation.MISSED and check.column in made_up and check.fact in _INSIDE_EXCUSED_DATE_FACTS
+        else dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_WINDOW_CITATION)
+        if check.verdict == validation.MISSED and check.column in made_up and check.fact in _INSIDE_WINDOWED_DATE_FACTS
+        and _within_its_sampling_window(check.published, check.achieved)
         else check
         for check in outcome.checks
     ]
@@ -7757,6 +7987,19 @@ def _drawn_in_report(opening: str) -> "set[str]":
     return found
 
 
+def _held_dates_filled(zones: object) -> "set[str]":
+    """The columns whose dates the description held and the dates zone counted to fill (`inside_dates.fill_held`)."""
+    filled: "set[str]" = set()
+    if isinstance(zones, dict) and "dates" in zones:
+        dates = zones["dates"]
+        if isinstance(dates, dict) and "mixed" in dates and isinstance(dates["mixed"], dict):
+            for each in dates["mixed"]:
+                entry = dates["mixed"][each]
+                if isinstance(each, str) and isinstance(entry, dict) and "held" in entry and entry["held"] is True:
+                    filled = filled | {each}
+    return filled
+
+
 def _dates_made_up(zones: object) -> "set[str]":
     """The date columns a record's dates zone made up (read by subscript and type checks alone)."""
     made_up: "set[str]" = set()
@@ -7771,22 +8014,107 @@ def _dates_made_up(zones: object) -> "set[str]":
     return made_up
 
 
-# THE ONLY OBLIGATIONS EXCUSED: the calendar and clock counts of a date column the dates zone made up -- its distinct
-# days, its ladder and tails, its heavy days, its day-of-month and weekday counts, and the counts of its hours,
-# minutes and seconds, stamps at midnight among them (the zone keeps the weekday and the clock by their shares, not
-# by the description's counts over rows). Every other obligation (identifiers, held columns, ages past 89, numbers,
-# labels, the file's written form and each date's spelling, the presence of every date, moments, the row and patient
-# copies) stays as strict as before; the twin checks of the inside record stay the gate.
-_INSIDE_EXCUSED_DATE_FACTS = frozenset({"datetime.date_percentiles", "datetime.low_tail.rows",
-                                        "datetime.low_tail.boundary", "datetime.low_tail.values",
-                                        "datetime.low_tail.mean_distance", "datetime.low_tail.rms_distance",
-                                        "datetime.high_tail.rows", "datetime.high_tail.boundary",
-                                        "datetime.high_tail.values", "datetime.high_tail.mean_distance",
-                                        "datetime.high_tail.rms_distance", "datetime.day_of_month_census",
-                                        "datetime.heavy_dates", "datetime.weekday_census", "datetime.n_distinct",
-                                        "datetime.n_distinct_folded", "datetime.hour_census",
-                                        "datetime.n_at_midnight", "datetime.minute_census", "datetime.minute_heaps",
-                                        "datetime.second_census", "datetime.second_heaps"})
+# THE ONLY OBLIGATIONS EXCUSED (the owner's ruling of 2026-11-22, batch 4z's fix round): of a date column the dates
+# zone made up, those that depend on the made-up day of the month alone -- its distinct days, its heavy days, its
+# day-of-month counts, and its exact day-level ladder rungs and tails (`_INSIDE_RANGE_GUARDED_FACTS`). THESE LAST STAY
+# EXCUSED where the dates zone places a twin date outside the months the real column held dates in (the
+# orchestrator's decision on the ruling, plan P4-D525): measured on batch 4z's line, the Windows bundle's invented
+# visits table held 46 of 20,000 visit dates up to four months before the real first month, the battery's cases table
+# dates up to 351 days outside and its accounts table up to 1,867, and keeping their ladder and tail misses turned
+# validate's exit to 3 on those twins; the draw that keeps the span is carried to lane IN-5
+# (`inside_dates.outside_the_real_months` counts such dates against the record's calendar).
+# STILL ENFORCED, because an analysis reads them: the weekday counts, the hour, minute and second counts and the
+# stamps at midnight (the clock), every date's spelling and the file's written form, the presence of every date and
+# the missing rate, the column's type, and every other obligation (identifiers, held columns, ages past 89, numbers,
+# labels, moments, the row and patient copies); the twin checks of the inside record stay the gate. Until this
+# ruling the weekday and clock counts were excused too: measured on batch 4y's battery, the weekday counts of three
+# drawn date columns missed by up to 50 rows a day of 4,107 (the dates zone keeps the weekday by its shares).
+_INSIDE_RANGE_GUARDED_FACTS = frozenset({"datetime.date_percentiles", "datetime.low_tail.rows",
+                                         "datetime.low_tail.boundary", "datetime.low_tail.values",
+                                         "datetime.low_tail.mean_distance", "datetime.low_tail.rms_distance",
+                                         "datetime.high_tail.rows", "datetime.high_tail.boundary",
+                                         "datetime.high_tail.values", "datetime.high_tail.mean_distance",
+                                         "datetime.high_tail.rms_distance"})
+_INSIDE_EXCUSED_DATE_FACTS = _INSIDE_RANGE_GUARDED_FACTS | frozenset({"datetime.day_of_month_census",
+                                                                      "datetime.heavy_dates", "datetime.n_distinct",
+                                                                      "datetime.n_distinct_folded"})
+# ...AND THE WEEKDAY AND CLOCK COUNTS ARE JUDGED AT THE DRAW'S PRECISION (the same ruling): the dates zone draws a
+# made-up date's weekday and clock by the real column's shares, so a count off by the draw's sampling alone is no loss
+# of the weekday or hour effect an analysis reads, and one further off is. Such a census is excused only where EVERY
+# group's count lies within three standard deviations of a draw at its published share, plus one
+# (`_within_its_sampling_window`, in integers); a census that cannot be read group by group, or names its groups
+# differently, stays MISSED. Measured on batch 4y's battery: three drawn weekday censuses missed by at most 50 rows
+# (Friday 4,394 drawn for 4,344 published of 20,000: a window of 171).
+_INSIDE_WINDOWED_DATE_FACTS = frozenset({"datetime.weekday_census", "datetime.hour_census", "datetime.minute_census",
+                                         "datetime.second_census"})
+_INSIDE_WINDOW_CITATION = ("the inside record's dates zone draws each made-up date's weekday and clock by the real "
+                           "column's shares, and every group of this census lies within three standard deviations "
+                           "of such a draw, plus one, of its published count")
+
+
+def _within_its_sampling_window(published: str, achieved: str) -> bool:
+    """Whether a census's achieved counts each lie within the sampling window of a draw at the published shares.
+
+    Both sides are read as validate prints a census (`Monday 3169, Tuesday
+    4107, ...`: each group's name, a space and its count, the groups joined
+    by a comma and a space). Each group, of published count c of the
+    published total n, is in its window where the drawn count d meets
+    |d - c| <= 1 or (|d - c| - 1)^2 * n <= 9 * c * (n - c): three standard
+    deviations of a binomial draw at share c/n, plus one, decided in
+    integers. A side that is not read so (a short group printed as such, a
+    group named differently, no group) is not in its window. Raises
+    nothing; no I/O.
+    """
+    asked = _census_counts(published)
+    shown = _census_counts(achieved)
+    if not asked or asked is None or shown is None or [name for name, _ in asked] != [name for name, _ in shown]:
+        return False
+    total = 0
+    for _name, count in asked:
+        total = total + count
+    if total <= 0:
+        return False
+    for (_name, wanted), (_same, drawn) in zip(asked, shown):
+        off = abs(drawn - wanted)
+        if off > 1 and (off - 1) * (off - 1) * total > 9 * wanted * (total - wanted):
+            return False
+    return True
+
+
+def _census_counts(text: str) -> "list[tuple[str, int]] | None":
+    """A census as validate prints it, read back as its groups' names and counts, or None where a group is not so."""
+    if not isinstance(text, str) or not text:
+        return None
+    # Read by place and slice alone (no method of the text is called), as the offline audit reads it.
+    cuts: "list[tuple[int, int]]" = []
+    start = 0
+    for at in range(len(text)):
+        if text[at] == "," and at + 1 < len(text) and text[at + 1] == " ":
+            cuts += [(start, at)]
+            start = at + 2
+    cuts += [(start, len(text))]
+    found: "list[tuple[str, int]]" = []
+    for first, end in cuts:
+        space = end - 1
+        while space > first and text[space] != " ":
+            space = space - 1
+        figures = text[space + 1:end]
+        if space <= first or not figures or [ch for ch in figures if not "0" <= ch <= "9"]:
+            return None
+        found += [(text[first:space], int(figures))]
+    return found
+
+
+# ...AND A COLUMN WHOSE DATES THE DESCRIPTION HELD (lane ZOO-Y, plan P4-D517): the description reads its dates as
+# blank cells while their Safe Harbor question is open or answered `yes`, so its counts describe a column without
+# them, and the twin holds made-up dates on the rows the real dates stood on. Every obligation of such a column the
+# record filled is excused but its name, place and role in the file; the five twin checks, which read every date of
+# the twin against the real table's, stay the gate.
+_INSIDE_HELD_KEPT_FACTS = frozenset({"universal.name", "universal.position", "universal.structural_role"})
+_INSIDE_HELD_CITATION = ("the description reads this column's dates as blank cells until their Safe Harbor question "
+                         "is answered `no`, and the inside record's dates zone made up a date on the rows the real "
+                         "dates stood on (weekday and clock kept, the day of the month made up), so the column's "
+                         "counts are not the description's")
 _INSIDE_REPORT_HEAD = "THIS TWIN WAS DRAWN FROM THE INSIDE RECORD"
 _INSIDE_CITATION = ("the twin's date column was made up by the inside record's dates zone (weekday and clock kept, "
                     "the day of the month made up), so its counts at the day's grain are not the description's")
@@ -8579,10 +8907,22 @@ def _put_the_entries(
     )
     given: "list[tuple[results.Asked, str]]" = []
     numbers = _numbers_in_the_file(entries)
+    groups = _entry_groups(entries)
+    if len(groups) < total:
+        _say(
+            f"The columns that raised the same question are put together: "
+            f"{len(groups)} questions for these {total} entries."
+        )
     place = 0
-    for record in entries:
-        place = place + 1
-        _say(_the_entry(record, numbers[place - 1], place, total))
+    for places in groups:
+        group = [entries[at] for at in places]
+        record = group[0]
+        if len(group) == 1:
+            place = place + 1
+            _say(_the_entry(record, numbers[places[0]], place, total))
+        else:
+            _say(_the_entry_group(group, [numbers[at] for at in places], place + 1, total))
+            place = place + len(group)
         if session is not None:
             session.offered_now = _entry_keys(record)
         try:
@@ -8594,13 +8934,91 @@ def _put_the_entries(
             return given, True
         if answer not in [offer.answer for offer in record.offers]:
             answer = _LEFT_OPEN
-        given += [(record, answer)]
-        if session is not None:
-            put = (record.column, record.role, record.reason)
-            if put not in session.put:
-                session.put += [put]
-            session.prompted = session.prompted + 1
+        # ...THE ANSWER IS EACH ENTRY'S OF ITS GROUP, as if typed at each (lane W5-302).
+        for one in group:
+            given += [(one, answer)]
+            if session is not None:
+                put = (one.column, one.role, one.reason)
+                if put not in session.put:
+                    session.put += [put]
+                session.prompted = session.prompted + 1
     return given, False
+
+
+def _same_entry(record: "results.Asked") -> "tuple[object, ...]":
+    """What two entries must share to be put as one (`_entry_groups`): section, kind, reading, answers in the same words."""
+    offered = tuple((offer.answer, offer.means, offer.publishes) for offer in record.offers)
+    return (record.section, record.role, record.reason, record.read_as_now, offered)
+
+
+def _entry_groups(entries: "list[results.Asked]") -> "list[list[int]]":
+    """The entries of a round at the keyboard as they are put, by place: each on its own, or past `_QUESTIONS_ONE_BY_ONE_MOST` the same ones together (lane W5-302).
+
+    The entries that raised the same question (`_same_entry`) are put as
+    one, each group in the order of its first entry and its entries in
+    their order; the subject question, a question about the file and,
+    HIPAA first, every entry whose answer could release what it holds
+    (the person question, a Safe Harbor question, an entry held as record
+    numbers or top-coded while it is open) are always put on their own.
+    Guarantees: a
+    fixed function of its argument; every entry's place in exactly one
+    group; raises nothing.
+    """
+    if len(entries) <= _QUESTIONS_ONE_BY_ONE_MOST:
+        return [[at] for at in range(len(entries))]
+    groups: "list[list[int]]" = []
+    place_of: "dict[tuple[object, ...], int]" = {}
+    for at in range(len(entries)):
+        record = entries[at]
+        alone = (
+            record.section == asking.BETWEEN_COLUMNS
+            or record.reason in _PUT_ALONE_REASONS
+            or record.read_as_now in (asking.ANSWER_IDENTIFIER, asking.SAFE_HARBOR_TOP_CODED)
+            or not record.column
+        )
+        if alone:
+            groups += [[at]]
+            continue
+        key = _same_entry(record)
+        if key in place_of:
+            groups[place_of[key]] += [at]
+        else:
+            place_of[key] = len(groups)
+            groups += [[at]]
+    return groups
+
+
+def _the_entry_group(group: "list[results.Asked]", numbers: "list[int]", place: int, total: int) -> str:
+    """The question several entries raised, put once (`_entry_groups`), as `_the_entry` puts one.
+
+    Each entry's column and what synthtwin saw in it, with its number in
+    the questions file where the file could be read (the number a
+    plain-text answers file names it by); the answers once, in the first
+    entry's words, which every entry of the group shares; and what Enter
+    leaves standing, for each of them. No cell of the table.
+    """
+    first = group[0]
+    lines = ""
+    keys = _entry_keys(first)
+    for place_offered in range(len(first.offers)):
+        offer = first.offers[place_offered]
+        lines = lines + (
+            f"\n      [{_shown(keys[place_offered][0])}] {offer.means}\n"
+            f"          then the description publishes {offer.publishes}"
+        )
+    seen = ""
+    for at in range(len(group)):
+        number = f"question {numbers[at]}, " if numbers[at] else ""
+        seen = seen + f"\n      '{_shown(group[at].subject)}' ({number}{place + at} of {total}): {_one_stop(group[at].saw)}"
+    return (
+        f"\n  {len(group)} columns raised the same question ({place} to {place + len(group) - 1} of {total} "
+        f"in this round)\n"
+        f"    what synthtwin saw in each:{seen}\n"
+        f"    Which of these fits each of them? The answer you type is the answer for each.{lines}\n"
+        f"    {_enter_said(first)} That is so for each of them. To answer one of them otherwise, write its "
+        f"answer in the questions file, or in a text file of answers as 'column = answer', and run synthtwin "
+        f"profile again with --answers naming that file."
+    )
 
 
 def _entry_of(document: "dict[str, object]", record: "results.Asked") -> "dict[object, object] | None":
@@ -9685,7 +10103,10 @@ def _run_profile_body(
         # that they were records.
         if written.metadata_rows_answered:
             metadata_rows = written.metadata_rows
-            metadata_rows_confirmed = written.metadata_rows > 0
+            # ...and nought rows answered is an answer the reader reads too:
+            # a units row stays a record where the person said it is one
+            # (lane ZOO-Y, plan P4-D517; `dialect._units_row_shape`).
+            metadata_rows_confirmed = True
         # AN ANSWER THAT CHANGES THE READING MAY NOT STAND BESIDE ONE
         # THAT NAMES A COLUMN (review of stage 3, floor item 1). The
         # names in a questions file are the names of the reading that
@@ -9954,7 +10375,9 @@ def _run_profile_body(
         carried_answers = written.carried
         if written.metadata_rows_answered:
             metadata_answer = (
-                asking.ANSWER_METADATA_ROWS
+                asking.ANSWER_UNITS_ROW
+                if written.metadata_rows == asking.METADATA_ROWS_UNITS
+                else asking.ANSWER_METADATA_ROWS
                 if written.metadata_rows
                 else asking.ANSWER_DATA
             )
@@ -10141,6 +10564,19 @@ def _run_profile_body(
         # step below asks its columns of `reading.column_values`.
         in_groups=True,
     )
+    # THE ROWS THE DESCRIPTION SAYS STAND UNDER THE NAMES: the declared or
+    # answered rows, or a units row the reading took (lane ZOO-Y, plan
+    # P4-D517), which the description's form must count. Since batch 4z's
+    # fix round the reading takes a units row only on the person's answer,
+    # which is a declared row, so the second branch finds no row taken.
+    described_rows = metadata_rows
+    if (
+        not metadata_rows
+        and read.survey is not None
+        and read.survey.units_shape
+        and read.survey.form.header_rows
+    ):
+        described_rows = len(read.survey.form.header_rows)
     # THE ANSWERS A TWIN KEEPS ARE BOUND TO THE FILE THEY WERE GIVEN ABOUT
     # (lane TT's repair; the orchestrator's LANE TT RULINGS 1 item 4,
     # Codex's item 4), decided from this one reading: a twin's profile step
@@ -10193,6 +10629,9 @@ def _run_profile_body(
     surveyed = read.survey
     if surveyed is not None and surveyed.metadata_shape and not metadata_rows:
         _say(f"\n{_metadata_rows_notice()}\n")
+    # ...AND A UNITS ROW TAKEN OUT IS SAID OUT LOUD (lane ZOO-Y, plan P4-D517).
+    if surveyed is not None and surveyed.units_shape and not metadata_rows and not metadata_rows_confirmed:
+        _say(f"\n{_units_row_notice()}\n")
 
     # ...AND A DECLARATION THE FILE DOES NOT BEAR OUT IS QUESTIONED THE
     # OTHER WAY ROUND. The notice above exists because acting on a
@@ -10641,7 +11080,7 @@ def _run_profile_body(
         forced_codes,
         forced_measurements,
         forced_decimal_commas,
-        forced_metadata_rows=metadata_rows,
+        forced_metadata_rows=described_rows,
         forced_delimiter=declared_delimiter,
         # Record numbers with a check digit (`1002345,7`) are read with
         # their comma only once P4-D401's question is answered `keep`
@@ -11186,7 +11625,7 @@ def _run_profile_body(
                     forced_codes,
                     forced_measurements,
                     forced_decimal_commas,
-                    forced_metadata_rows=metadata_rows,
+                    forced_metadata_rows=described_rows,
                     forced_delimiter=declared_delimiter,
                     kept_identities=list(identities_kept),
                     table_notes=population_notes,
@@ -11700,7 +12139,7 @@ def _run_profile_body(
                 forced_codes,
                 forced_measurements,
                 forced_decimal_commas,
-                forced_metadata_rows=metadata_rows,
+                forced_metadata_rows=described_rows,
                 forced_delimiter=declared_delimiter,
                 kept_identities=list(identities_kept),
                 table_notes=population_notes,
@@ -12553,6 +12992,9 @@ def _run_profile_body(
             # not to a person whose file answered it. The
             # screen's pass, where nothing has moved since.
             day_or_month=day_or_month,
+            # ...and a row under the names that names the
+            # columns' units (lane ZOO-Y, plan P4-D517).
+            units_shape=surveyed is not None and surveyed.units_shape,
         ),
         # ...and each column declared as counted dates that
         # did not read so, held on every table (P4-D406).

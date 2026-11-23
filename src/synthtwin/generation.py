@@ -19371,6 +19371,20 @@ def _pushed_apart(
                 continue
             if place == 0 or place == total - 1:
                 continue
+            # A WHOLE STRATUM IS NO MOVER ON A COLUMN THAT WRITES SOME CELLS
+            # WITH NO POINT BESIDE CELLS WITH ONE (lane ZOO-Y, plan P4-D517).
+            # Its whole values are the heaps the point-free cells share, and
+            # a whole mover walks the whole points, moving every whole
+            # stratum between it and a free one by a unit: a percent column
+            # written `45%` beside `45.0%` at 20,000 rows came back with its
+            # 95th percentile at 85 against a published 69.7, the heaps of 16
+            # whole values moved up to the high tail. A fraction holding the
+            # same text still moves, and a collision only whole strata hold is
+            # left, the count of different values given up there (rule B1)
+            # rather than the ladder. A whole-valued column has no fraction to
+            # move and is pushed as before.
+            if keep_whole and not facts.integer_valued and _carries_plainly(moved[place], False):
+                continue
             holders += [place]
         asked = _PushAsked(
             facts, moved, texts, held, collision, target_units, lowest,
@@ -25288,134 +25302,121 @@ def _identity_walk(
     whole_column: bool,
     owed: int,
 ) -> "dict[int, str]":
-    """Each number cell's spelling, raising the leading-zero order where an identity is owed (G6.6).
+    """Each number cell's spelling, raising the leading-zero order where an identity is owed (G6.5, G6.6).
 
-    The identity walk of `_number_cells`, split out of it unchanged but
-    for where each walk begins (stage 4 lane S4b-num, plan P4-D387): a
-    cell that owes an identity begins its walk at the order the last
-    walk of a cell of the same value, style, width, pad, mark, notation
-    and plus took, where the walk from the first order tried every
-    order before it again. The orders it skips each write an identity
-    already taken, so every cell takes the order it took before.
+    THE INVENTIONS ARE SPREAD, ONE A VALUE BEFORE TWO (lane ZOO-Y, plan
+    P4-D517; owner decision 8 as amended). A cell may raise its order
+    where its base spelling repeats an identity an earlier cell of the
+    column writes, its style is not `plain` and it stands at no named
+    field width. Those cells are counted for every identity first,
+    and the owed identities are then taken in ROUNDS: the first round
+    raises at most one cell of each repeated identity, the second at most
+    one more of each that still has a cell to give, and so on, so no
+    value wears a second invented zero while another repeated value wears
+    none. Where a round has more identities than the owed count left,
+    the ones it raises are taken at an even stride over them in cell
+    order -- the stratum order of G6.4, the values ascending -- so the
+    invented spellings stand across the column's range and not at one
+    end of it. MEASURED BEFORE THIS (lane ZOO-X): a column of percents
+    written `45%` beside `45.0%` at 20,000 rows owed 84 identities, and
+    the walk, which raised every repeated cell in turn, spent all 84 on
+    the first repeated values it met: `0000...006.8%` with up to 66
+    zeros, 67 cells of one value. The same column now raises 84 cells of
+    84 different values once each.
+
+    THE UNMARKED DUPLICATES ARE SPREAD FIRST (Codex item 6 of the extra
+    round, 2026-09-18; plan P4-D265). A raised order carries no thousands
+    mark (`_styled_base`), so a marked cell is raised only once the
+    unmarked cells can give no more: the rounds are walked over the
+    unmarked cells of each identity, then over its marked ones.
+
+    Each raised cell takes the lowest order, from where the last raised
+    cell of the same value, style, width, pad, mark, notation and plus
+    stopped, whose folded identity no cell of the column writes yet; the
+    identities every cell's base spelling writes are counted before any
+    is raised, so a raised spelling never repeats a later cell's base
+    one. The loop ends: every order writes a different spelling of the
+    same value.
 
     Guarantees: accepts the cells' values, styles, spellings before any
     zero is spent, widths, pads, marks, notations and pluses, whether
     the column is whole-valued and how many identities are owed;
-    returns each cell's spelling by its index. Determinism: a fixed
-    function of the arguments. Raises nothing. No I/O of any kind.
+    returns each cell's spelling by its index, and raises no more cells
+    than ``owed``. Determinism: a fixed function of the arguments.
+    Raises nothing. No I/O of any kind.
     """
-    reached: "dict[tuple[object, ...], int]" = {}
-    identities: dict[str, int] = {}
-    spellings: dict[str, int] = {}
+    total = len(holds)
     written: dict[int, str] = {}
-    # THE UNMARKED DUPLICATES ARE EXPANDED FIRST (Codex item 6 of the
-    # extra round, 2026-09-18; plan P4-D265). A raised leading-zero order
-    # carries no thousands mark -- `_styled_base` says why, and that rule
-    # stands -- so spending the order on a cell the mark walk has already
-    # marked takes the mark back off it and the column writes one grouped
-    # cell fewer than it published. MEASURED before this: three values
-    # written grouped and plain, forty cells, twenty of them grouped and
-    # twenty carrying a plus; the twin wrote NINETEEN grouped cells,
-    # among them an invented `+02387.27 kg`, and validation missed the
-    # count 20 against 19 while `generation.deviations` was empty. A
-    # duplicate with no mark expands at exactly the same cost in
-    # spellings and costs the census nothing, so the walk takes those
-    # first and reaches a marked cell only when no unmarked duplicate is
-    # left. A column whose cells all carry the mark, or none of them,
-    # visits its cells in index order exactly as before.
-    visiting: list[int] = []
-    for index in range(len(holds)):
-        if not marks[index]:
-            visiting += [index]
-    for index in range(len(holds)):
+    identities: dict[str, int] = {}
+    for index in range(total):
+        written[index] = base[index]
+        identities[_folded_or_itself(base[index])] = 1
+    if owed < 1:
+        return written
+    # Each identity's cells after its first, in cell order, the unmarked
+    # and the marked apart (P4-D265).
+    first_seen: dict[str, int] = {}
+    order_of: list[str] = []
+    unmarked: dict[str, list[int]] = {}
+    marked: dict[str, list[int]] = {}
+    for index in range(total):
+        identity = parsing.folded(base[index])
+        if identity not in first_seen:
+            first_seen[identity] = index
+            order_of += [identity]
+            unmarked[identity] = []
+            marked[identity] = []
+            continue
+        if styles[index] == "plain" or pads[index] >= 0:
+            continue
         if marks[index]:
-            visiting += [index]
-    for index in visiting:
-        style = styles[index]
-        spelling = base[index]
-        if (
-            style != "plain"
-            and owed > 0
-            and pads[index] < 0
-            and parsing.folded(spelling) in identities
-        ):
-            key = (
-                holds[index],
-                repr(holds[index]),
-                style,
-                widths[index],
-                pads[index],
-                marks[index],
-                notations[index],
-                plussed[index],
-            )
-            # A PUBLISHED FIELD WIDTH IS NOT SPENT ON AN IDENTITY, and
-            # the ratified text is what says which way this goes. Every
-            # order of the family writes ONE MORE FIGURE, so a column
-            # whose census pins the field at five has exactly one
-            # leading-zero spelling of each value and the family cannot
-            # supply a second without leaving the width. That is the
-            # case owner decision 11's authorization already names --
-            # raw distinctness falls to the two-sided envelope "only
-            # where even those cannot supply" -- so the shortfall is an
-            # authorized approximation the report prints, while a
-            # broken width would be a silent miss on the one fact a
-            # person reading a code column actually depends on: a
-            # width check, a slice, or a join against a five-figure
-            # code fails on a six-figure cell, and nothing said a word.
-            #
-            # NO CEILING, BY OWNER DECISION 8. `0`, `00`, `000` and so
-            # on supply as many different spellings of one value as a
-            # description can ask for, and that unbounded supply is the
-            # whole reason the owner chose this family over the
-            # decimal-point pair. A fixed ceiling here would put the
-            # ceiling back and lose a published count on any column
-            # that asked for more. The family is reached for inside
-            # every style but `plain`, so a column reproducing a decimal
-            # or an exponent form can hold as many identities as the
-            # description asks for (review item P2-C2-F3).
-            #
-            # The loop still terminates, and its bound is stated rather
-            # than imposed: every order writes a different spelling of
-            # the same value, so at most one order per identity already
-            # taken can be refused, and the walk ends by the time it has
-            # tried one more than that -- at most `len(identities) + 1`
-            # steps, which is at most one more than the column's own
-            # count of numbers.
-            #
-            # AND EACH WALK BEGINS WHERE THE LAST ONE OF ITS CELL'S KIND
-            # STOPPED (stage 4 lane S4b-num, plan P4-D387). Begun again at
-            # the first order for every repeated spelling of a value, the
-            # walk tried every order an earlier cell of that value had
-            # already taken: the square of the value's spellings, 249 of
-            # the 624 s `generate` took on a column of 1,000,000 rows
-            # whose text spells two values 10,000 ways each (plan
-            # P4-D387). Every order up to the one the last walk of the
-            # same value, style, width, pad, mark, notation and plus took
-            # writes an identity already taken -- identities are only
-            # ever added -- so the walk resumed there takes exactly the
-            # order the walk from the first would.
-            order = 1 if style == "leading_zero" else 0
-            if key in reached:
-                order = reached[key]
-            while parsing.folded(spelling) in identities:
-                order = order + 1
-                spelling = _styled_number(
+            marked[identity] += [index]
+        else:
+            unmarked[identity] += [index]
+    reached: "dict[tuple[object, ...], int]" = {}
+    for pool in (unmarked, marked):
+        standing = [identity for identity in order_of if pool[identity]]
+        step = 0
+        while owed > 0 and standing:
+            chosen = standing
+            if len(standing) > owed:
+                chosen = [standing[(2 * pick + 1) * len(standing) // (2 * owed)] for pick in range(owed)]
+            for identity in chosen:
+                index = pool[identity][step]
+                spelling = base[index]
+                style = styles[index]
+                key = (
                     holds[index],
+                    repr(holds[index]),
                     style,
-                    order,
-                    whole_column,
                     widths[index],
                     pads[index],
                     marks[index],
                     notations[index],
                     plussed[index],
                 )
-            reached[key] = order
-            owed = owed - 1
-        identities[_folded_or_itself(spelling)] = 1
-        spellings[spelling] = 1
-        written[index] = spelling
+                order = 1 if style == "leading_zero" else 0
+                if key in reached:
+                    order = reached[key]
+                while _folded_or_itself(spelling) in identities:
+                    order = order + 1
+                    spelling = _styled_number(
+                        holds[index],
+                        style,
+                        order,
+                        whole_column,
+                        widths[index],
+                        pads[index],
+                        marks[index],
+                        notations[index],
+                        plussed[index],
+                    )
+                reached[key] = order
+                identities[_folded_or_itself(spelling)] = 1
+                written[index] = spelling
+                owed = owed - 1
+            step = step + 1
+            standing = [identity for identity in standing if len(pool[identity]) > step]
     return written
 
 
@@ -57579,6 +57580,25 @@ def _settle(owing: "dict[str, int]", spelling: str, cells: int) -> None:
     owing[form] = max(0, owing[form] - cells)
 
 
+@dataclasses.dataclass
+class _FormsRead:
+    """What `_wanted_form` reads of each published form, read once a form for a whole ask (`_form_asks`, lane W5-302).
+
+    Each entry is a fixed function of the form (and of the band asked),
+    never of the group: its word count, the class its first filling
+    reads as, and whether that filling recounts into a band; and the
+    forms in their sorted order, the debts' keys standing for the whole
+    ask. THE SAME ANSWER, READ ONCE: a column of 100,000 distinct codes
+    publishing some thousands of forms filled and parsed every form for
+    every group, groups times forms, and its twin took past an hour.
+    """
+
+    order: "list[str] | None" = None
+    words: "dict[str, int]" = dataclasses.field(default_factory=dict)
+    classes: "dict[str, str]" = dataclasses.field(default_factory=dict)
+    bands: "dict[tuple[str, str], bool]" = dataclasses.field(default_factory=dict)
+
+
 def _wanted_form(
     owing: "dict[str, int]",
     length: int,
@@ -57591,6 +57611,7 @@ def _wanted_form(
     reads: "str | None" = None,
     stands: "str | None" = None,
     rewords: "tuple[int, int] | None" = None,
+    read: "_FormsRead | None" = None,
 ) -> str:
     """Which published form this group is offered, or "" for none.
 
@@ -57682,27 +57703,51 @@ def _wanted_form(
     value was written before this rule, and the empty string says so.
     """
     fits: "list[tuple[int, int, str]]" = []
-    for form in sorted(owing):
+    # ``read``, where given, holds what each form's own reading gives across the ask (`_FormsRead`): the same answers,
+    # read once a form; the debts' keys stand for the whole ask, so their order is read once too.
+    if read is None:
+        forms = sorted(owing)
+    else:
+        if read.order is None:
+            read.order = sorted(owing)
+        forms = read.order
+    for form in forms:
         if owing[form] < 1:
             continue
-        if _form_words(form) != max(words, 1):
+        if read is None:
+            form_words = _form_words(form)
+        else:
+            if form not in read.words:
+                read.words[form] = _form_words(form)
+            form_words = read.words[form]
+        if form_words != max(words, 1):
             if rewords is None:
                 continue
             # The exchange is permitted only while the group can still
             # answer for the class and alphabet counts it was packed
             # for, which are EXACT and may not be spent on the census.
             if not _stands_in(
-                len(form), _form_words(form), rewords[0], rewords[1]
+                len(form), form_words, rewords[0], rewords[1]
             ):
                 continue
-        if reads is not None and (
-            parsing.classify_number(_filled_form(form, 0)) != reads
-        ):
-            continue
-        if stands is not None and not _reads_in_band(
-            _filled_form(form, 0), stands
-        ):
-            continue
+        if reads is not None:
+            if read is None:
+                reads_as = parsing.classify_number(_filled_form(form, 0))
+            else:
+                if form not in read.classes:
+                    read.classes[form] = parsing.classify_number(_filled_form(form, 0))
+                reads_as = read.classes[form]
+            if reads_as != reads:
+                continue
+        if stands is not None:
+            if read is None:
+                in_band = _reads_in_band(_filled_form(form, 0), stands)
+            else:
+                if (form, stands) not in read.bands:
+                    read.bands[(form, stands)] = _reads_in_band(_filled_form(form, 0), stands)
+                in_band = read.bands[(form, stands)]
+            if not in_band:
+                continue
         if carrier:
             if len(form) != length:
                 continue
@@ -57795,6 +57840,8 @@ def _form_asks(
     for step in range(len(order) - 1, -1, -1):
         after[step] = running
         running = running + groups[order[step][1]]
+    # Each form read once for the whole ask (`_FormsRead`, lane W5-302): `left` keeps its keys while its debts are paid.
+    read = _FormsRead()
     for step in range(len(order)):
         pair = order[step]
         place = pair[1]
@@ -57825,6 +57872,7 @@ def _form_asks(
             reads,
             stands,
             rewords,
+            read,
         )
         if (
             exact
@@ -76790,6 +76838,22 @@ INSIDE_DATES_NOTE = (
     "spellings, and that twin's months where whole weeks can move it there; its counts by day and by hour follow "
     "the record's shares, not the description's counts."
 )
+# The note a measurement column whose cells past the real column's ends were drawn again carries (lane ZOO-Y, plan
+# P4-D517).
+INSIDE_RANGE_SUBJECT = "kept inside the real range by the inside record"
+INSIDE_RANGE_NOTE = (
+    "The description publishes no end of this column, so its own twin drew some cells past the real column's least "
+    "or greatest value; the inside record kept on this computer knows those two ends, and each such cell was drawn "
+    "again inside the real column's outer hundredth, written with the decimals the cell had."
+)
+# The note a column carries whose dates in disguise the description held and the inside record made up (lane ZOO-Y,
+# plan P4-D517).
+INSIDE_HELD_DATES_NOTE = (
+    "The description reads this column's dates as blank cells until their Safe Harbor question is answered `no`; "
+    "the inside record kept on this computer counted them, so this twin writes a made-up date on as many of its "
+    "blank cells as the real column held dates: the real weekday and clock, the day of the month made up, in the "
+    "column's own spellings. Its other cells are the description's own twin's."
+)
 # The note a kept column whose empty cells the inside record placed carries (lane IN-7, plan P4-D501).
 INSIDE_MISSING_SUBJECT = "empty cells placed by the inside record"
 INSIDE_MISSING_NOTE = (
@@ -76906,6 +76970,207 @@ def _all_empty_rows(held: "tuple[twinstore.HeldColumn, ...]", rows: int) -> "lis
     for row in open_rows:
         mask[row] = True
     return mask
+
+
+# The outer share of the real column's quantile function a cell past an end is drawn again from (`_inside_ranged`):
+# its last (or first) hundredth, between two neighbouring points of the record's grid.
+_RANGE_POINTS = 10
+# How many draws a spelling past an end makes for a value no cell holds before it takes the last one.
+_RANGE_TRIES = 64
+_RANGE_ROLES = (contract.ROLE_COUNT, contract.ROLE_CONTINUOUS)
+
+
+def _range_held(column: contract.ColumnBlock) -> bool:
+    """Whether a column carries a hold or a cap the range pass may not move a cell across (batch 4z's fix round).
+
+    THE OUTSIDE REVIEW OF BATCH 4Z, ITEM 2. The pass read the column's own
+    role and its age top code alone. Measured there on the shipped route at
+    20,000 rows: a keyed measurement column whose age key level the
+    description caps at 90 was written 90 on its 4,000 age cells, and the
+    pass, reading the WHOLE column's real least value, wrote every one of
+    them 100; a column of birth years the description pools at the year
+    cut (`top_coded_year`, 1937) was written 1937 on 19,992 cells, and the
+    pass wrote them 1930, past the real greatest year it read. So a column
+    carrying any cap or hold of its own -- a top code, a year cut, an
+    age's words, top-coded ends or bands, a withheld count or words, a
+    rule computing it from other columns -- and every column published key
+    by key (a value column's blocks each hold their own caps and ends, and
+    the whole column's ends are no key level's) is left as its own rules
+    wrote it. Guarantees: a fixed function of the block; raises nothing.
+    """
+    return bool(
+        column.top_coded
+        or column.top_coded_year
+        or column.top_coded_words
+        or column.top_coded_ends is not None
+        or column.top_coded_band_values is not None
+        or column.top_coded_bands
+        or column.present_count_withheld
+        or column.withheld_words_from
+        or column.computed_from
+        or column.keyed
+        or column.keyed_by
+        or column.key_blocks
+        or column.key_pool is not None
+    )
+
+
+def _inside_ranged(profile: contract.Profile, zones: object, finished: "list[twinstore.HeldColumn]",
+                   places: "dict[str, int]", seed: int) -> "set[str]":
+    """The measurement columns whose cells past the real column's ends were drawn again inside them; ``finished`` changed.
+
+    LANE ZOO-Y (plan P4-D517), MEASURED: the description publishes no end
+    of a column whose outer rows are fewer than its floor allows, so its
+    twin's tail is drawn from the published distances alone and passes
+    the real column's end: a count capped at 49 came back with a 55, days
+    to an event or censoring that stop at 1,500 with 1,714 -- a survival
+    analysis meeting days the study never watched. The record's
+    marginals zone keeps each number column's quantile function
+    (`inside.GRID` points, its first and last the real least and
+    greatest values), so on the route that writes the record a cell past
+    either end is drawn again: uniformly between two neighbouring points
+    of the outer `_RANGE_POINTS` steps of that grid on its side (the
+    real column's outer hundredth), written at the decimals the cell
+    had. EACH SPELLING PAST AN END TAKES ONE NEW SPELLING, every cell of
+    it the same, of a value no cell inside the ends holds where one of
+    `_RANGE_TRIES` draws finds one, else the free value nearest the end
+    in the outer tenth (`_free_inside`), else the cell stays as it was, so
+    the column's counts of different spellings and values stand (a
+    spelling's cells move together: a heap the twin wrote past the end
+    stays one heap, inside it). Every other
+    cell, and every column but a published measurement
+    (`count` or `continuous`, carrying no cap or hold of its own and not
+    published key by key, `_range_held`) the marginals read as numbers,
+    is left as it is; a held column, an identifier, a code, a date and a
+    capped age or year are never read here.
+
+    Guarantees: a fixed function of the description, the zones, the cells
+    and the seed (SplitMix64 streams of the seed and the column's name,
+    as the dates zone's); raises nothing; no I/O.
+    """
+    from synthtwin import inside_dates
+
+    changed: "set[str]" = set()
+    marginals = zones["marginals"] if isinstance(zones, dict) and "marginals" in zones else None
+    if not isinstance(marginals, dict):
+        return changed
+    for column in profile.columns:
+        name = column.name
+        if column.role not in _RANGE_ROLES or _range_held(column) or name not in places or name not in marginals:
+            continue
+        entry = marginals[name]
+        if not isinstance(entry, dict) or "kind" not in entry or entry["kind"] != "number" or "quantiles" not in entry:
+            continue
+        grid = entry["quantiles"]
+        if not isinstance(grid, list) or len(grid) < 2 * _RANGE_POINTS + 2:
+            continue
+        points: "list[float]" = []
+        for point in grid:
+            if isinstance(point, bool) or not isinstance(point, (int, float)) or not math.isfinite(float(point)):
+                points = []
+                break
+            points += [float(point)]
+        if not points:
+            continue
+        cells = twinstore.column_cells(finished[places[name]])
+        state = inside_dates.stream_of(seed, name, "range")
+        # The spellings and values the cells inside the ends keep, so each spelling past an end takes ONE new
+        # spelling of a value no cell holds: the column's counts of different spellings and values stand.
+        kept_texts: "set[str]" = set()
+        kept_values: "set[float]" = set()
+        for cell in cells:
+            parts = _plain_number_parts(cell)
+            if parts is None or points[0] <= parts[0] <= points[-1]:
+                kept_texts |= {cell}
+                if parts is not None:
+                    kept_values |= {parts[0]}
+        given: "dict[str, str]" = {}
+        out: "list[str]" = []
+        moved = 0
+        for cell in cells:
+            parts = _plain_number_parts(cell)
+            if parts is None or points[0] <= parts[0] <= points[-1]:
+                out += [cell]
+                continue
+            if cell not in given:
+                value, decimals = parts
+                first = len(points) - 1 - _RANGE_POINTS if value > points[-1] else 0
+                written = ""
+                for _try in range(_RANGE_TRIES):
+                    step = int(inside_dates.uniform_of(state) * _RANGE_POINTS)
+                    low = points[first + step]
+                    high = points[first + step + 1]
+                    drawn = min(max(low + inside_dates.uniform_of(state) * (high - low), points[0]), points[-1])
+                    written = f"{drawn:.{decimals}f}"
+                    if float(written) > points[-1] or float(written) < points[0]:
+                        written = f"{low:.{decimals}f}"
+                    if cell[:1] == "+" and written[:1] != "-":
+                        written = "+" + written
+                    if written not in kept_texts and float(written) not in kept_values:
+                        break
+                    written = ""
+                if not written:
+                    # ...ELSE THE FREE VALUE NEAREST THE END, walked inward on
+                    # the cell's own decimals through the outer tenth; and where
+                    # none is free the cell stays as it was, so no count falls.
+                    written = _free_inside(points, value > points[-1], decimals, kept_values, cell[:1] == "+")
+                given[cell] = written if written else cell
+                kept_texts |= {given[cell]}
+                if written:
+                    kept_values |= {float(written)}
+            out += [given[cell]]
+            moved = moved + (1 if given[cell] != cell else 0)
+        del cells
+        if moved:
+            finished[places[name]] = twinstore.held_column(out)
+            changed = changed | {name}
+        del out
+    return changed
+
+
+# How far inward from a real end `_free_inside` walks for a value no cell holds: the outer tenth of the grid.
+_RANGE_INWARD = 100
+
+
+def _free_inside(points: "list[float]", high: bool, decimals: int, taken: "set[float]", plus: bool) -> str:
+    """The value nearest the real end that no cell holds, on ``decimals`` places, inside the outer tenth; "" for none."""
+    unit = 1.0
+    for _step in range(decimals):
+        unit = unit / 10.0
+    end = points[-1] if high else points[0]
+    stop = points[len(points) - 1 - _RANGE_INWARD] if high else points[_RANGE_INWARD]
+    whole = round(end / unit)
+    walked = 0
+    while walked < 4096:
+        candidate = (whole - walked) * unit if high else (whole + walked) * unit
+        if (high and candidate < stop) or (not high and candidate > stop):
+            return ""
+        written = f"{candidate:.{decimals}f}"
+        number = float(written)
+        if points[0] <= number <= points[-1] and number not in taken:
+            return "+" + written if plus and written[:1] != "-" else written
+        walked = walked + 1
+    return ""
+
+
+def _plain_number_parts(cell: str) -> "tuple[float, int] | None":
+    """A cell written as figures with an optional sign and point: its value and its count of decimals; None otherwise."""
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a cell was not text")
+    text = cell
+    if text[:1] == "-" or text[:1] == "+":
+        text = text[1:]
+    point = text.find(".")
+    whole = text if point < 0 else text[:point]
+    fraction = "" if point < 0 else text[point + 1:]
+    if not parsing.is_digit_text(whole):
+        return None
+    if point >= 0 and not parsing.is_digit_text(fraction):
+        return None
+    value = float(cell)
+    if not math.isfinite(value):
+        return None
+    return value, len(fraction)
 
 
 def _sorted_again(finished: "list[twinstore.HeldColumn]", order: "dialect.RowOrder", empty_rows: "list[bool] | None",
@@ -77148,6 +77413,38 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
             )
             dated = dated | {name}
         del made
+        # THE DATES THE DESCRIPTION HELD (lane ZOO-Y, plan P4-D517): a column
+        # whose dates in disguise the description reads as blank cells (the
+        # Safe Harbor question about them open or answered `yes`) has its
+        # twin's blank cells, as many as the real column held dates, written
+        # as made-up dates in its own spellings (`inside_dates.fill_held`).
+        try:
+            dzone_held = typing.cast("dict[str, object]", zones["dates"])
+            for name in inside_dates.held_columns(dzone_held):
+                # A column the relations zone dealt keeps its dealt cells; only its blank ones take a date.
+                if name not in places or name in dated or name in keyed:
+                    continue
+                place = places[name]
+                filled = inside_dates.fill_held(dzone_held, name, twinstore.column_cells(finished[place]), seeds[1])
+                if filled is None:
+                    continue
+                finished[place] = twinstore.held_column(filled)
+                present, absent, different, folded = _recounted(filled, ())
+                del filled
+                remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record",
+                                note=INSIDE_HELD_DATES_NOTE)
+                if name in names:
+                    # ...named once among the columns drawn from the record.
+                    added = [each for each in added if each.column != name]
+                added += [remark]
+                old = outcomes[place]
+                outcomes[place] = dataclasses.replace(
+                    old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
+                    deviations=(), approximations=(), remarks=(remark,),
+                )
+                dated = dated | {name}
+        except (inside_dates.DatesError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
+            pass
     # Every other carried column keeps its own cells, moved by its latent
     # emptiness onto the rows the fitted model leaves filled (lane IN-7); a
     # column the keyed zone writes keeps its key level's cells (4x merge).
@@ -77211,6 +77508,22 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
             approximations=() if name in ruled else old.approximations, remarks=remarks,
         )
         del cells
+    # THE REAL RANGE (lane ZOO-Y, plan P4-D517): a measurement column's cells
+    # past the real column's two ends, which the record's marginals know and
+    # the description does not publish, drawn again inside them.
+    ranged = _inside_ranged(profile, zones, finished, places, seeds[1])
+    for name in sorted(ranged):
+        place = places[name]
+        cells = twinstore.column_cells(finished[place])
+        present, absent, different, folded = _recounted(cells, ())
+        del cells
+        remark = Remark(column=name, subject=INSIDE_RANGE_SUBJECT, held="inside record", note=INSIDE_RANGE_NOTE)
+        added += [remark]
+        old = outcomes[place]
+        outcomes[place] = dataclasses.replace(
+            old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
+            remarks=old.remarks + (remark,),
+        )
     replaced = set(names) | dated | keyed
     # THE ROWS STAY IN THE ORDER THE FILE IS WRITTEN IN (lane IN-2b): where the
     # description says the rows are sorted by a column the record wrote again,

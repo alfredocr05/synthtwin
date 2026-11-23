@@ -160,6 +160,14 @@ BECAUSE_SENTENCES = "values-written-as-sentences"
 # answers), or they describe the columns.
 ANSWER_DATA = "data"
 ANSWER_METADATA_ROWS = "metadata-rows"
+# ...and the third, for the one row an instrument export writes under the
+# names with each column's unit (lane ZOO-Y, plan P4-D517; `dialect.
+# _units_row_shape`). It is NOT the reading that stands where nobody answers
+# (batch 4z's fix round, the outside review's item 1): a unit may hold
+# figures and so may a patient's identifier, so the row stays a record until
+# the person answers that it names the units.
+ANSWER_UNITS_ROW = "units-row"
+METADATA_ROWS_UNITS = 1
 
 # How many rows the answer declares. The shape synthtwin recognises is
 # exactly two, and two is what the description can carry (contract FD9).
@@ -170,6 +178,7 @@ METADATA_ROWS_DECLARED = 2
 METADATA_SUBJECT = "the rows under your column names"
 
 BECAUSE_EXPORT_SHAPE = "export-metadata-shape"
+BECAUSE_UNITS_SHAPE = "units-row-shape"
 # ...and the same question asked from the other side: the person
 # DECLARED such rows on a file that does not wear that shape, so the
 # rows stayed in the table and the question is put in the file where
@@ -4253,6 +4262,7 @@ def file_questions(
     tied_delimiters: "tuple[str, ...]" = (),
     first_row_seen: str = "",
     day_or_month: "tuple[DayOrMonth, ...]" = (),
+    units_shape: bool = False,
 ) -> "list[Question]":
     """The questions about the FILE rather than about a column.
 
@@ -4273,7 +4283,7 @@ def file_questions(
     """
     return (
         _first_row_questions(first_row_seen)
-        + _metadata_questions(metadata_shape, declared_unseen)
+        + _metadata_questions(metadata_shape, declared_unseen, units_shape)
         + _delimiter_questions(tied_delimiters)
         + _day_first_questions(day_or_month)
     )
@@ -4652,7 +4662,7 @@ def _delimiter_questions(tied: "tuple[str, ...]") -> "list[Question]":
 
 
 def _metadata_questions(
-    metadata_shape: bool, declared_unseen: int = 0
+    metadata_shape: bool, declared_unseen: int = 0, units_shape: bool = False
 ) -> "list[Question]":
     """The question about the rows under the column names.
 
@@ -4714,6 +4724,44 @@ def _metadata_questions(
                             "they are taken out of the table and published "
                             "as written, like the column names, and the "
                             "twin writes them back unchanged"
+                        ),
+                    ),
+                ],
+                ANSWER_DATA,
+            )
+        ]
+    if units_shape and not metadata_shape:
+        # A UNITS ROW (lane ZOO-Y, plan P4-D517): a record of the table
+        # until the person answers that it names the units (batch 4z's fix
+        # round).
+        return [
+            Question(
+                METADATA_SUBJECT,
+                "",
+                BECAUSE_UNITS_SHAPE,
+                (
+                    "the row under your column names holds a short word or "
+                    "mark, and no figure on its own, in each column whose "
+                    "other cells are numbers, and nothing in the others -- "
+                    "the shape of a row naming each column's unit"
+                ),
+                [
+                    Choice(
+                        ANSWER_UNITS_ROW,
+                        "it names the columns' units; it is not anybody's record",
+                        (
+                            "it is taken out of the table and published as "
+                            "written, like the column names, and the twin "
+                            "writes it back unchanged under them"
+                        ),
+                    ),
+                    Choice(
+                        ANSWER_DATA,
+                        "it is a record of your table, like any other row",
+                        (
+                            "it is counted and described as data, its words "
+                            "among each column's other values, which is "
+                            "what this run did"
                         ),
                     ),
                 ],
@@ -11746,6 +11794,10 @@ def answers_in(document: object, shown: str) -> Answers:
             # The one answer that names no column (plan P4-D81).
             metadata_rows = METADATA_ROWS_DECLARED
             metadata_rows_answered = True
+        elif written == ANSWER_UNITS_ROW:
+            # ...and the units row's (lane ZOO-Y, plan P4-D517).
+            metadata_rows = METADATA_ROWS_UNITS
+            metadata_rows_answered = True
         elif written == ANSWER_DATA:
             # The reading that already stands: the rows are records. It
             # is an ANSWER all the same, and it overrides a typed
@@ -12016,7 +12068,7 @@ _FAMILY_WORDS: "dict[str, tuple[str, ...]]" = {
     ),
     _FAMILY_DATES: (ANSWER_KEEP, ANSWER_DATES),
     _FAMILY_FIRST_ROW: (ANSWER_FIRST_ROW_DATA, ANSWER_FIRST_ROW_NAMES),
-    _FAMILY_METADATA: (ANSWER_DATA, ANSWER_METADATA_ROWS),
+    _FAMILY_METADATA: (ANSWER_DATA, ANSWER_METADATA_ROWS, ANSWER_UNITS_ROW),
     _FAMILY_DELIMITER: ("comma", "semicolon", "tab", "vertical-bar"),
     _FAMILY_DAY_ORDER: (ANSWER_MONTH_FIRST, ANSWER_DAY_FIRST),
     _FAMILY_SAFE_HARBOR: (ANSWER_SAFE_HARBOR_NO, ANSWER_SAFE_HARBOR_YES) + tuple(AGE_UNIT_ANSWERS),
@@ -12060,6 +12112,7 @@ _KEPT_MEANS: "dict[str, str]" = {
     ANSWER_FIRST_ROW_NAMES: "the first row holds the column names",
     ANSWER_DATA: "the rows under the column names are records",
     ANSWER_METADATA_ROWS: "the two rows under the column names describe them",
+    ANSWER_UNITS_ROW: "the row under the column names names their units",
     ANSWER_MONTH_FIRST: "the month comes first in the dates",
     ANSWER_DAY_FIRST: "the day comes first in the dates",
     ANSWER_SAFE_HARBOR_NO: "no value of the column could name a person (the Safe Harbor question)",

@@ -29,6 +29,8 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "file_is_empty": ("/data/table.csv",),
     "no_data_rows": ("/data/table.csv",),
     "ragged_rows": ("/data/table.csv", 4, [(2, 3), (7, 5)], 9),
+    # A row of totals under the table (lane ZOO-X): a path.
+    "total_row_under_the_table": ("/data/table.csv",),
     # A row that does not close the way the others do (plan P4-D387,
     # lane R5's repair): positions and kinds, both whole numbers.
     "trailing_delimiter_uneven": ("/data/table.csv", [(51, 0), (501, 1)], 9),

@@ -120,6 +120,10 @@ REDRAWS = 8
 MIXED_TRIES = 200
 MIXED_LEAST = 3
 MIXED_SHARE = 0.005
+# The counting system a held column's counts are read in (`_mixed_reading`'s ``held``), by their whole figures:
+# days (Excel's count from 1899-12-30), seconds and milliseconds from 1970.
+HELD_COUNT_MEMBERS = {date_counts.DAY_FIGURES: date_counts.EXCEL_1900, 10: date_counts.SECONDS_SINCE_1970,
+                      13: date_counts.MILLISECONDS_SINCE_1970}
 MIXED_SET_ASIDE = ("compact-date", "two-digit-month-first-date", "two-digit-day-first-date",
                    "dotted-two-digit-month-first-date", "dotted-two-digit-day-first-date")
 CELL_SHARE = 0.01
@@ -229,6 +233,17 @@ def _uniform(state: "list[int]") -> float:
     z = ((z ^ (z >> 27)) * 0x94D049BB133111EB) & _MASK
     z = z ^ (z >> 31)
     return ((z >> 11) + 0.5) / 9007199254740992.0
+
+
+def stream_of(seed: int, name: object, purpose: object) -> "list[int]":
+    """A SplitMix64 stream of the seed, a column's name and a purpose, for another writer of the inside record (lane
+    ZOO-Y's real range, `generation._inside_ranged`): the same draws as this zone's own, no random source imported."""
+    return _stream(seed, name, purpose)
+
+
+def uniform_of(state: "list[int]") -> float:
+    """The next number in (0, 1) of a stream `stream_of` made."""
+    return _uniform(state)
 
 
 # -- the calendar ----------------------------------------------------------------------------------
@@ -509,10 +524,118 @@ def _offset_of(cell: object, member: str) -> str:
 
 def spelling_of(cell: object, reading: Reading) -> "list[object] | None":
     """How a text cell is written: [width, month name style, mark, clock form, fraction figures, offset]."""
+    return _spelling_shown(cell, reading)[0]
+
+
+def _hour_shown(rest: str, offset: str) -> str:
+    """The hour width the clock after a date's half shows: `h`, `hh`, or "" where its hour, ten or past, shows none."""
+    body = _text(rest)
+    while body and (body[0] == " " or body[0] == "T" or body[0] == "t"):
+        body = body[1:]
+    if offset and body[len(body) - len(offset):] == offset:
+        body = body[: len(body) - len(offset)]
+    for index in range(len(body)):
+        if body[index] == "." and _figures(body[index + 1:]):
+            body = body[:index]
+            break
+    parts = parsing.clock_parts(body)
+    return parsing.clock_shown_width(parts) if parts is not None else ""
+
+
+# A spelling's clock form opens with its hour width (`parsing.CLOCK_HOUR_WIDTHS`), and a month name style is
+# `case-length-rest`, its length `full`, `abbreviated` or `either` (`parsing.NAME_LENGTH_EITHER`).
+_HOUR_WIDTHS = ("hh", "h")
+_NAME_LENGTHS = ("full", "abbreviated")
+
+
+def _style_pieces(style: str) -> "list[str]":
+    """A month name style's case, length and the rest (`case-length-rest`), split at its first two hyphens by hand."""
+    pieces: "list[str]" = []
+    start = 0
+    for index in range(len(style)):
+        if style[index] == "-" and len(pieces) < 2:
+            pieces += [style[start:index]]
+            start = index + 1
+    return pieces + [style[start:]]
+
+
+def _with_hour_width(form: str, width: str) -> str:
+    """A clock form's hour width set to `width` (a form of figures, which has one width, as it is)."""
+    if parsing.CLOCK_FIGURES in form:
+        return form
+    for written in _HOUR_WIDTHS:
+        if form[: len(written)] == written and form[len(written): len(written) + 1] == "-":
+            return width + form[len(written):]
+    return form
+
+
+def _resolved_keys(pairs: "list[tuple[list[object] | None, str]]") -> "list[list[object] | None]":
+    """Each spelling with what its own cell does not show taken from the column's other cells (lane ZOO-X).
+
+    A CELL SHOWS NO HOUR WIDTH WHERE ITS HOUR IS TEN OR PAST (`11:17 AM`,
+    `14:22`: `h` and `hh` write it alike), and no length of a month's name
+    where the month is May; `spelling_of` keys such a cell at `hh` and at
+    the `either` length, and the twin then wrote every moment dealt that
+    key at two figures of hour (`04:02 PM` in a column that writes `4:02
+    PM`, on 13,847 of 20,000 cells) and every month at its abbreviation
+    (`Jun 1, 2022` in a column that writes `June`). Each such key takes the
+    width, or the length, the column's cells that show one show most (two
+    figures of hour, and the full name, on a tie); a column none of whose
+    cells shows one keeps its keys as they are. ``pairs`` is each cell's key
+    (`spelling_of`) and the hour width its clock shows (`_hour_shown`; "-"
+    where it writes no clock). Raises nothing. No I/O.
+    """
+    widths = {width: 0 for width in _HOUR_WIDTHS}
+    lengths: "dict[str, dict[str, int]]" = {}
+    # Each style split once, and each (key, width shown) resolved once: a column of millions of cells holds a few
+    # spellings, and the cells that share one share its resolved key (one list, not one a cell).
+    styles: "dict[str, list[str]]" = {}
+    for key, shown in pairs:
+        if key is None:
+            continue
+        if shown in widths and _word(key[3]):
+            widths[shown] += 1
+        style = _word(key[1])
+        if style not in styles:
+            styles[style] = _style_pieces(style)
+        pieces = styles[style]
+        if len(pieces) == 3 and pieces[1] in _NAME_LENGTHS:
+            family = f"{pieces[0]}-{pieces[2]}"
+            if family not in lengths:
+                lengths[family] = {length: 0 for length in _NAME_LENGTHS}
+            lengths[family][pieces[1]] += 1
+    width = "h" if widths["h"] > widths["hh"] else "hh"
+    made: "dict[tuple[object, ...], list[object]]" = {}
+    out: "list[list[object] | None]" = []
+    for key, shown in pairs:
+        if key is None:
+            out += [None]
+            continue
+        held = (*key, shown)
+        if held in made:
+            out += [made[held]]
+            continue
+        resolved = list(key)
+        if shown == "" and _word(key[3]) and widths["h"] + widths["hh"]:
+            resolved[3] = _with_hour_width(_word(key[3]), width)
+        pieces = styles[_word(key[1])]
+        if len(pieces) == 3 and pieces[1] == parsing.NAME_LENGTH_EITHER:
+            family = f"{pieces[0]}-{pieces[2]}"
+            counted = lengths[family] if family in lengths else None
+            if counted is not None and counted["full"] + counted["abbreviated"]:
+                length = "abbreviated" if counted["abbreviated"] > counted["full"] else "full"
+                resolved[1] = f"{pieces[0]}-{length}-{pieces[2]}"
+        made[held] = resolved
+        out += [resolved]
+    return out
+
+
+def _spelling_shown(cell: object, reading: Reading) -> "tuple[list[object] | None, str]":
+    """`spelling_of`'s key and the hour width its clock shows (`_hour_shown`; "-" where the cell writes no clock)."""
     text = _bare(cell)
     found = _wall_of(text, reading)
     if found is None:
-        return None
+        return None, "-"
     # The day and clock AS WRITTEN (an offset's instant may fall on another day): the spelling is read off them.
     day, second, _offset = found
     year, month, date = parsing.civil_from_days(day)
@@ -522,18 +645,19 @@ def spelling_of(cell: object, reading: Reading) -> "list[object] | None":
     style_text = style if style is not None else parsing.DEFAULT_NAME_STYLE
     half = parsing.written_date(year, month, date, reading.member, width_text, style_text)
     if not _starts(text, half):
-        return None
+        return None, "-"
     rest = text[len(half):]
     # A width no field of this cell shows (every field of two figures) is kept as '' and written, in the twin, as
     # the width the column's other cells show (`_widths`).
     shown = width if width is not None else ""
     if second < 0:
-        return [shown, style_text, "", "", 0, ""] if not rest else None
-    parts = _clock_parts(rest, _offset_of(text, reading.member))
+        return ([shown, style_text, "", "", 0, ""] if not rest else None), "-"
+    written_offset = _offset_of(text, reading.member)
+    parts = _clock_parts(rest, written_offset)
     if parts is None:
-        return None
+        return None, "-"
     mark, form, figures, offset = parts
-    return [shown, style_text, mark, form, figures, offset]
+    return [shown, style_text, mark, form, figures, offset], _hour_shown(rest, written_offset)
 
 
 def _count_spelling(sample: "list[str]", member: str) -> "dict[str, object]":
@@ -1031,8 +1155,8 @@ def _spellings(cells: "list[str]", reading: Reading) -> "dict[str, object]":
         return {"count": _count_spelling(sample, reading.member)}
     counts: "dict[str, int]" = {}
     keys: "dict[str, list[object]]" = {}
-    for cell in sample:
-        found = spelling_of(cell, reading)
+    # Each key with what its own cell does not show taken from the column's other cells (`_resolved_keys`).
+    for found in _resolved_keys([_spelling_shown(cell, reading) for cell in sample]):
         if found is None:
             continue
         key = f"{found}"
@@ -1243,7 +1367,7 @@ def _always_before(first_days: "list[int]", first_seconds: "list[int]", second_d
     return both >= PARENT_LEAST_ROWS
 
 
-def _mixed_reading(cells: "list[str]") -> "Reading | None":
+def _mixed_reading(cells: "list[str]", held: bool = False) -> "Reading | None":
     """The member that reads the most of a column's cells as dates where some cells do but not the column.
 
     Only a cell of four figures or more can be a date, and a member that reads none of its first `MIXED_TRIES`
@@ -1251,14 +1375,31 @@ def _mixed_reading(cells: "list[str]") -> "Reading | None":
     alone or two-figure years (`MIXED_SET_ASIDE`) are not read here: among other values, a number of eight
     figures is an amount or a code far more often than a day. At least `MIXED_LEAST` cells, and a share of the
     present ones of `MIXED_SHARE`, must read.
+
+    ``held``: the description holds the column's dates in disguise (its block's remark,
+    `taxonomy.REMARK_DATED_VALUES_HELD`, lane ZOO-Y): the product has already read those cells as dates, so every
+    member is read, and a count read whole (`date_counts.counted_figures`) by the counting system its figures name
+    (`HELD_COUNT_MEMBERS`): days from 1899-12-30, seconds or milliseconds from 1970. A count's epoch shifts its
+    weekday by a fixed number of days, so the twin's made-up counts, written back under the same member, keep the
+    real weekdays and times of day whatever epoch wrote them.
     """
     present = [cell for cell in cells if _bare(cell)]
+    if held:
+        counted: "dict[int, int]" = {}
+        for cell in _spread_sample(present, SAMPLE):
+            figures = date_counts.counted_figures(_bare(cell))
+            if figures in HELD_COUNT_MEMBERS:
+                counted[figures] = (counted[figures] if figures in counted else 0) + 1
+        if counted:
+            most = sorted((-counted[figures], figures) for figures in counted)[0]
+            if -most[0] >= MIXED_LEAST:
+                return Reading("count", HELD_COUNT_MEMBERS[most[1]])
     sample = [cell for cell in _spread_sample(present, SAMPLE) if _figure_count(cell) >= 4]
     if not sample:
         return None
     best, chosen = 0, ""
     for member in TEXT_MEMBERS:
-        if member in MIXED_SET_ASIDE:
+        if member in MIXED_SET_ASIDE and not held:
             continue
         reading = Reading("text", member)
         found = 0
@@ -1280,7 +1421,7 @@ def _figure_count(cell: object) -> int:
 
 
 def _mixed_columns(columns: "dict[str, list[str]]", skip: "set[str]",
-                   cache: "dict[int, tuple[int, int, int]]") -> "dict[str, object]":
+                   cache: "dict[int, tuple[int, int, int]]", held: bool = False) -> "dict[str, object]":
     """Columns that hold some dates among other values: each one's census of those dates, so the twin makes them up.
 
     A label or text column whose values are mostly not dates may still hold dates (a result written as a date, an
@@ -1293,7 +1434,7 @@ def _mixed_columns(columns: "dict[str, list[str]]", skip: "set[str]",
         if name in skip:
             continue
         cells = [_text(cell) for cell in columns[name]]
-        reading = _mixed_reading(cells)
+        reading = _mixed_reading(cells, held)
         if reading is None:
             continue
         days: "list[int]" = []
@@ -1309,6 +1450,8 @@ def _mixed_columns(columns: "dict[str, list[str]]", skip: "set[str]",
                      "clock": _clock_entry(days, seconds, rows, {}) if any(second >= 0 for second in seconds) else None,
                      "spellings": _spellings(_dated_cells(cells, reading), reading),
                      "presence": [PER, 0]}
+        if held:
+            out[name]["held"] = True  # type: ignore[index]
     return out
 
 
@@ -1345,12 +1488,18 @@ class Census:
     mixed: "dict[str, object]" = dataclasses.field(default_factory=dict)
     keys: "list[str] | None" = None
     cache: "dict[int, tuple[int, int, int]]" = dataclasses.field(default_factory=dict)
+    # The columns whose dates in disguise the description holds (lane ZOO-Y): read for them among other values with
+    # every member (`_mixed_reading`'s ``held``), so the twin makes them up where the description's twin is blank.
+    held: "tuple[str, ...]" = ()
 
 
 def census(person: str = "", readings: "dict[str, str] | None" = None, skip: "tuple[str, ...]" = (),
-           declared_only: bool = False) -> Census:
-    """An empty census: `build_zone`'s arguments but the columns, which `take_column` hands in one at a time."""
-    return Census(person, dict(readings) if readings is not None else {}, tuple(skip), declared_only)
+           declared_only: bool = False, held: "tuple[str, ...]" = ()) -> Census:
+    """An empty census: `build_zone`'s arguments but the columns, which `take_column` hands in one at a time.
+
+    ``held`` names the columns whose dates in disguise the description holds (`Census.held`)."""
+    return Census(person, dict(readings) if readings is not None else {}, tuple(skip), declared_only,
+                  held=tuple(held))
 
 
 def _shared_texts(cells: "list[str]") -> "list[str]":
@@ -1429,13 +1578,14 @@ def take_column(gathered: Census, name: str, cells: "list[str]") -> None:
             return
     if _is_label(cells):
         gathered.labels[name] = _shared_texts(cells)
-    found_mixed = _mixed_columns({name: texts}, set(), gathered.cache)
+    found_mixed = _mixed_columns({name: texts}, set(), gathered.cache, name in gathered.held)
     if name in found_mixed:
         gathered.mixed[name] = found_mixed[name]
 
 
 def build_zone(columns: "dict[str, list[str]]", person: str = "", readings: "dict[str, str] | None" = None,
-               skip: "tuple[str, ...]" = (), declared_only: bool = False) -> "dict[str, object]":
+               skip: "tuple[str, ...]" = (), declared_only: bool = False,
+               held: "tuple[str, ...]" = ()) -> "dict[str, object]":
     """The dates zone of a table's inside record: a census a date column, its chain, and the timeline.
 
     `columns` maps each column's name to its cells as read; `person` names
@@ -1451,9 +1601,10 @@ def build_zone(columns: "dict[str, list[str]]", person: str = "", readings: "dic
     again here, and one it reads day first is never read month first).
     The columns are taken one at a time (`take_column`), as the profile
     hook takes them from a table read in groups, so the zone is the same
-    whichever way it is built.
+    whichever way it is built. ``held`` names the columns whose dates in
+    disguise the description holds (`Census.held`, `fill_held`).
     """
-    gathered = census(person, readings, skip, declared_only)
+    gathered = census(person, readings, skip, declared_only, held)
     for name in columns:
         take_column(gathered, name, columns[name])
     return zone_of(gathered)
@@ -2860,6 +3011,7 @@ def _keys_dealt(days: "list[int]", seconds: "list[int]", given: "list[str]",
     follows the calendar (an offset of the season) stays near its season. A spelling that cannot be read is left to
     the zone's own draw."""
     found: "list[tuple[int, int, int, list[object] | None]]" = []
+    shown: "list[tuple[list[object] | None, str]]" = []
     for row in range(len(given)):
         cell = given[row]
         if not _bare(cell):
@@ -2867,7 +3019,14 @@ def _keys_dealt(days: "list[int]", seconds: "list[int]", given: "list[str]",
         moment = _moment(cell, reading)
         if moment is None:
             continue
-        found += [(moment[0], moment[1], row, spelling_of(cell, reading))]
+        shown += [_spelling_shown(cell, reading)]
+        found += [(moment[0], moment[1], row, None)]
+    # Each key with what its own cell does not show taken from the column's other cells (`_resolved_keys`): a key
+    # dealt to another moment writes that moment's hour and month as the column writes them.
+    resolved = _resolved_keys(shown)
+    del shown
+    found = [(day, second, row, resolved[at]) for at, (day, second, row, _none) in enumerate(found)]
+    del resolved
     ranked = sorted((day, second, row) for day, second, row, _key in found)
     keys_of: "dict[int, list[object] | None]" = {}
     for _day, _second, row, key in found:
@@ -2920,6 +3079,137 @@ def _offsets_in_force(keys: "dict[int, list[object]]", days: "list[int]", second
         key = keys[row]
         offset = written[wanted] if wanted in written else offset_rules.offset_text(wanted)
         keys[row] = [key[0], key[1], key[2], key[3], key[4], offset]
+
+
+def outside_the_real_months(zone: "dict[str, object]", name: str, cells: "list[str]") -> "int | None":
+    """How many of a made-up date column's twin cells read as dates outside the months the real column held dates in.
+
+    THE OWNER'S RULING OF 2026-11-22 ON A DRAWN TWIN'S DATES (batch 4z's fix
+    round): validate may excuse what the made-up day of the month moves --
+    the day-level ladder, tails and counts -- but not a date outside the
+    real column's span. The record's calendar holds the real column's
+    months (`_prepared_calendar`: its first month's first day to its last
+    month's last day); a twin cell that reads as a date under the column's
+    own reading (`moment_of`) on a day outside them is counted. None where
+    the zone holds no such column. Guarantees: a fixed function of the
+    three; raises `DatesError` for a damaged zone; no I/O.
+    """
+    found = _object(zone)
+    _versioned(found)
+    entries = _object(found["columns"]) if "columns" in found else {}
+    if name not in entries:
+        return None
+    entry = _object(entries[name])
+    reading_entry = _object(entry["reading"])
+    reading = Reading(_word(reading_entry["kind"]), _word(reading_entry["member"]))
+    calendar = _prepared_calendar(entry["calendar"])
+    outside = 0
+    for cell in cells:
+        text = _text(cell)
+        if not _bare(text):
+            continue
+        moment = moment_of(text, reading)
+        if moment is not None and not calendar.first_day <= moment[0] <= calendar.last_day:
+            outside = outside + 1
+    return outside
+
+
+def held_columns(zone: "dict[str, object]") -> "tuple[str, ...]":
+    """The columns the zone's `mixed` part holds for dates the description held (`fill_held`), in name order."""
+    found = _object(zone)
+    mixed = _object(found["mixed"]) if "mixed" in found else {}
+    found_held: "list[str]" = []
+    for name in mixed:
+        entry = _object(mixed[name])
+        if "held" in entry and entry["held"] is True:
+            found_held += [_word(name)]
+    return tuple(sorted(found_held))
+
+
+def fill_held(zone: "dict[str, object]", name: str, cells: "list[str]", seed: int = 0) -> "list[str] | None":
+    """A held column's twin cells with made-up dates written on the rows its real dates stood on (lane ZOO-Y).
+
+    THE OWNER'S RULING OF 2026-11-18 REACHES A COLUMN THE DESCRIPTION
+    BLANKS. Where the description holds a column's dates in disguise (the
+    Safe Harbor question about them open or answered `yes`, plan P4-D446),
+    its twin writes those cells blank, and the dates zone wrote a date only
+    where that twin holds one: a column of Excel days answered `yes` came
+    back 20,000 blank, a column of ISO dates beside two impossible
+    placeholders left unanswered 98 per cent blank. The zone's `mixed` part
+    counts such a column's dates (``dates``) and keeps their calendar, clock
+    and spellings, so here as many of the twin's blank cells as the real
+    column held dates -- chosen evenly at random among them, all of them
+    where there are fewer -- each take a made-up date: the calendar's year,
+    month and weekday, the clock, the day of the month made up, in one of the
+    column's own spellings (a count in its own places). Every other cell
+    (its placeholders, its other values) is kept as it is. No real day finer
+    than the year is written: the day of the month is made up, as for every
+    date the zone writes. AND NO YEAR AT OR BEFORE THE YEAR CUT (batch 4z's
+    fix round; the outside review's item 3): a date the calendar draws in a
+    year that would show an age of 90 or more in this release's reference
+    year (`taxonomy.year_cutoff` of `taxonomy.SAFE_HARBOR_REFERENCE_YEAR`,
+    1937) is not written, and its cell stays blank as the description
+    wrote it -- measured before this on a column of birth dates beside a
+    placeholder, five of them in 1930: six twin dates in 1930. Every other
+    cell is the same as before, the draws taken in the same order.
+
+    Returns None where the zone holds no such column. Determinism: a fixed
+    function of the zone, the cells and the seed. Raises `DatesError` for a
+    damaged zone; no I/O.
+    """
+    found = _object(zone)
+    _versioned(found)
+    mixed = _object(found["mixed"]) if "mixed" in found else {}
+    if name not in mixed:
+        return None
+    entry = _object(mixed[name])
+    if "held" not in entry or entry["held"] is not True:
+        return None
+    reading_entry = _object(entry["reading"])
+    reading = Reading(_word(reading_entry["kind"]), _word(reading_entry["member"]))
+    wanted = entry["dates"] if "dates" in entry else 0
+    if isinstance(wanted, bool) or not isinstance(wanted, int) or wanted < 1:
+        return None
+    blank = [row for row in range(len(cells)) if not _bare(_text(cells[row]))]
+    if not blank:
+        return None
+    state = _stream(seed, name, "held")
+    chosen_rows: "list[int]" = []
+    need = min(wanted, len(blank))
+    for at in range(len(blank)):
+        # Selection sampling: each blank row is taken with the chance the rows still wanted leave it.
+        if (len(blank) - at) * _uniform(state) < need - len(chosen_rows):
+            chosen_rows += [blank[at]]
+    column = _prepared_column(name, entry)
+    spellings = _object(entry["spellings"])
+    cache: "dict[tuple[int, ...], list[float]]" = {}
+    out = [_text(cell) for cell in cells]
+    from synthtwin import taxonomy
+
+    cut = taxonomy.year_cutoff(taxonomy.SAFE_HARBOR_REFERENCE_YEAR)
+    civil: "dict[int, tuple[int, int, int]]" = {}
+    if reading.kind == "count":
+        form = _object(spellings["count"])
+        for row in chosen_rows:
+            day, second = _anchored(column, _uniform(state), row, {}, state, cache)
+            written = _spelled_count(day, second, reading.member, form, state)
+            if _civil(day, civil)[0] > cut:
+                out[row] = written
+        return out
+    spelled = typing.cast("list[list[object]]", spellings["text"])
+    weights = _cumulative([int(typing.cast("int", item[6])) for item in spelled])
+    if not spelled or weights[len(weights) - 1] <= 0:
+        return None
+    fallback = _widths(spelled)
+    pools = _width_pools(spelled, True)
+    widths = _stream(seed, name, "held widths")
+    for row in chosen_rows:
+        day, second = _anchored(column, _uniform(state), row, {}, state, cache)
+        key = spelled[_pick(weights, _uniform(state))]
+        written = _spelled_text(day, second, reading.member, key, fallback, pools, widths)
+        if _civil(day, civil)[0] > cut:
+            out[row] = written
+    return out
 
 
 def rewrite_mixed(zone: "dict[str, object]", name: str, cells: "list[str]", seed: int = 0) -> "list[str]":

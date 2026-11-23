@@ -2314,7 +2314,7 @@ def needed_columns(zone_given: object) -> "list[str]":
 
 def applied(zone_given: object, names: "list[str]", cells_of: "dict[str, list[str]]", seed: int, *,
             timing: bool = True, dealing: bool = True, dates_kept: bool = False,
-            kept: "typing.Collection[str]" = ()) -> Applied:
+            kept: "typing.Collection[str]" = (), taken: bool = False) -> Applied:
     """The twin's columns rewritten by a trajectories zone (see the module's text).
 
     `cells_of` holds at least the columns `needed_columns` names, in the
@@ -2334,6 +2334,13 @@ def applied(zone_given: object, names: "list[str]", cells_of: "dict[str, list[st
     the month made up, never the real calendar's days this zone holds).
     The dealing step deals no column `kept` names (lane W5-PL): each such
     cell stays on its row, with the row's dates.
+
+    THE CELLS TAKEN (lane W5-2M): with `taken`, each handed column's list
+    is taken out of `cells_of` (its name removed from it) and worked on in
+    place rather than copied, so a column is held once while the zone
+    writes it, never twice; the caller keeps no list it handed. Without
+    it, `cells_of` is left as it was. The columns that come back are the
+    same either way.
     """
     zone = checked_zone(zone_given)
     if zone is None:
@@ -2343,7 +2350,10 @@ def applied(zone_given: object, names: "list[str]", cells_of: "dict[str, list[st
         return Applied({}, None, ["the twin has no column of the zone's patients"])
     work: "dict[str, list[str]]" = {}
     for name in names:
-        work[name] = list(cells_of[name])
+        if name not in work:
+            work[name] = cells_of[name] if taken else list(cells_of[name])
+            if taken:
+                del cells_of[name]
     patient, members = _patients_of(work[person])
     if any(code < 0 for code in patient) or not members:
         return Applied({}, None, ["a row of the twin names no patient, so its trajectories were left as made"])
@@ -2919,6 +2929,111 @@ def _shaped(shape: "list[float]", normal: float) -> float:
     return _from_grid(shape, chain_walk.normal_cdf(normal))
 
 
+def once_a_value(cells: "list[str]") -> "list[str]":
+    """The same cells, each different text held once (lane W5-2M): a list of pointers to one object a value.
+
+    A twin column read back from its held form (`twinstore.column_cells`)
+    is a new text object a cell, about fifty bytes beside its characters;
+    held this way a column of 2,000,000 rows costs its pointers, eight
+    bytes a row, and one object for each different value. Equal cells stay
+    equal and every cell reads as it did, so nothing that reads the list by
+    value can tell the two apart. A fixed function of the cells; raises
+    nothing.
+    """
+    first: "dict[str, str]" = {}
+    out: "list[str]" = []
+    for cell in cells:
+        if cell not in first:
+            first[cell] = cell
+        out += [first[cell]]
+    return out
+
+
+@dataclasses.dataclass
+class LatentStore:
+    """A number column's latent scores, a row each, held as their binary64 bits (lane W5-2M): eight bytes and one a row.
+
+    The repeated numbers are dealt by latent scores drawn for every column
+    at once, each patient's levels and each row's shocks correlated across
+    the columns, so every column's scores stand together until the last
+    is drawn. Held as a dictionary of floats a column (about eighty-five
+    bytes a row), the scores of 27 columns at 2,000,000 rows took about
+    4.6 GB; held here, about 490 MB. `latent_put` keeps a score exactly
+    (its sign, exponent and fraction, by exact arithmetic, -0.0 apart from
+    0.0; an infinity or a value that is not a number kept beside, as it
+    is); `latent_scores` gives back the dictionary the dealing reads, every
+    row that holds one with the very value put, in rising row order.
+    """
+
+    bits: bytearray
+    present: bytearray
+    odd: "dict[int, float]"
+
+
+def latent_store(rows: int) -> LatentStore:
+    """An empty store of ``rows`` rows. Raises nothing for rows of nought or more."""
+    return LatentStore(bytearray(8 * rows), bytearray(rows), {})
+
+
+_FRACTION_BITS = (1 << 52) - 1
+
+
+def _bits_of(value: float) -> int:
+    """A finite binary64 value's 64 bits (sign, exponent, fraction) by exact arithmetic; the sign read off its spelling."""
+    sign = 1 if value < 0.0 or (value == 0.0 and repr(value)[0] == "-") else 0
+    magnitude = -value if sign else value
+    if magnitude == 0.0:
+        return sign << 63
+    fraction, exponent = math.frexp(magnitude)
+    if exponent >= -1021:
+        return (sign << 63) | ((exponent + 1022) << 52) | (int(fraction * _TWO_53) - (1 << 52))
+    return (sign << 63) | int(math.ldexp(fraction, exponent + 1074))
+
+
+def _float_of(bits: int) -> float:
+    """The finite binary64 value of 64 bits `_bits_of` wrote, by exact arithmetic."""
+    sign = -1.0 if bits >> 63 else 1.0
+    exponent = (bits >> 52) & 2047
+    fraction = bits & _FRACTION_BITS
+    if exponent == 0:
+        return sign * math.ldexp(float(fraction), -1074)
+    return sign * math.ldexp(float(fraction + (1 << 52)), exponent - 1075)
+
+
+def latent_put(store: LatentStore, row: int, value: float) -> None:
+    """Keep ``value`` as row ``row``'s score (a later put replaces an earlier). Raises IndexError for a row outside the store."""
+    if not math.isfinite(value):
+        store.odd[row] = value
+        store.present[row] = 2
+        return
+    bits = _bits_of(value)
+    at = 8 * row
+    for place in range(8):
+        store.bits[at + place] = (bits >> (8 * place)) & 255
+    store.present[row] = 1
+    if row in store.odd:
+        del store.odd[row]
+
+
+def latent_scores(store: LatentStore) -> "dict[int, float]":
+    """Every row's score that was put, as a dictionary in rising row order, each the value put; the store is emptied."""
+    out: "dict[int, float]" = {}
+    bits = store.bits
+    present = store.present
+    for row in range(len(present)):
+        if present[row] == 1:
+            at = 8 * row
+            out[row] = _float_of(bits[at] | (bits[at + 1] << 8) | (bits[at + 2] << 16) | (bits[at + 3] << 24)
+                                 | (bits[at + 4] << 32) | (bits[at + 5] << 40) | (bits[at + 6] << 48)
+                                 | (bits[at + 7] << 56))
+        elif present[row] == 2:
+            out[row] = store.odd[row]
+    store.bits = bytearray()
+    store.present = bytearray()
+    store.odd = {}
+    return out
+
+
 def _deal(cells: "list[str]", latent: "dict[int, float]") -> "list[str]":
     """The column's numeric cells dealt to its numeric rows in the order of the rows' latent scores (the cells themselves kept)."""
     rows = sorted(latent)
@@ -2982,7 +3097,24 @@ def _numbers_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", memb
     inner_lower = cholesky(positive_correlation(inner), 1e-9)
     read = [_read_entry(entry) for entry in entries]
     stream = stream_of(seed, 0x6E756D6265727300)
-    latent: "list[dict[int, float]]" = [{} for _entry in entries]
+    # THE SCORES HELD AS BITS (lane W5-2M): every column's scores stand until the last is drawn, each column's in a
+    # store of eight bytes a row, given back as the dictionary `_deal` reads one column at a time.
+    latent = [latent_store(len(work[entry_read.column])) for entry_read in read]
+    # ...AND THE COLUMNS DEALT HELD COMPACTLY WHILE THEY ARE DRAWN (lane W5-2M): the draw reads of a dealt column
+    # only which rows hold a number, a byte a row here, so each is held as the twin holds its columns
+    # (`twinstore.held_column`) until it is dealt, and read back then, each value once. The anchor, which the draw
+    # reads, stays as it is.
+    from synthtwin import twinstore
+
+    present: "dict[str, bytearray]" = {}
+    packed: "dict[str, twinstore.HeldColumn]" = {}
+    for entry_read in read:
+        name = entry_read.column
+        if name not in present:
+            present[name] = bytearray(0 if _number(cell) is None else 1 for cell in work[name])
+            if name != anchor_name:
+                packed[name] = twinstore.held_column(work[name])
+                work[name] = []
     noises = [0.0 for _entry in entries]
     for p in range(len(members)):
         mixed = _times_lower(joint_lower, [next_normal(stream) for _k in range(2 * size)])
@@ -2995,16 +3127,20 @@ def _numbers_dealt(zone: "dict[str, object]", work: "dict[str, list[str]]", memb
                 lag = read[a].lag
                 noises[a] = shocks[a] if place == 0 else lag * noises[a] + math.sqrt(max(0.0, 1.0 - lag * lag)) * shocks[a]
             for a in range(size):
-                if _number(work[read[a].column][row]) is None:
+                if not present[read[a].column][row]:
                     continue
                 t = _entry_time(entries[a], work, members[p], place, anchor_name)
                 line = design_row(patient_columns, patient_cells[p], t, rows_scores[p], True)
                 total = 0.0
                 for k in range(len(line)):
                     total = total + read[a].coefficients[k] * line[k]
-                latent[a][row] = total + level[a] + slope[a] * t + read[a].noise_sd * noises[a]
+                latent_put(latent[a], row, total + level[a] + slope[a] * t + read[a].noise_sd * noises[a])
     for a in range(size):
-        work[read[a].column] = _deal(work[read[a].column], latent[a])
+        name = read[a].column
+        if name in packed:
+            work[name] = once_a_value(twinstore.column_cells(packed[name]))
+            del packed[name]
+        work[name] = _deal(work[name], latent_scores(latent[a]))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3262,6 +3398,17 @@ def twin_with_zone(twin: "typing.Any", profile: "typing.Any", zone: "dict[str, o
     its rows' order with every day of the month made up; the values are
     then dealt on that time axis. Raises what the dates zone's writer
     raises (the caller then keeps the twin as it was).
+
+    THE MEMORY (lane W5-2M): the columns the zone reads are read back
+    from the twin's held columns once each, each different text held once
+    (`once_a_value`), and handed to `applied` to be worked on in place
+    (`taken`), so a column is held once, as pointers, while the zone writes
+    it; each is held compactly again as soon as it is written, and a
+    column the zone left as it was is told by its cells against the
+    twin's own. At 2,000,000 rows the columns had been held three times
+    over, each cell its own text object (about 6 GB for a table of 50
+    columns before the scores, more than the 8 GB a process is given with
+    them). The twin is the same, cell for cell.
     """
     from synthtwin import generation, twinstore
 
@@ -3274,13 +3421,13 @@ def twin_with_zone(twin: "typing.Any", profile: "typing.Any", zone: "dict[str, o
     for at in range(len(names)):
         place_of[names[at]] = at
     for name in needed:
-        cells_of[name] = twinstore.column_cells(twin.held_columns[place_of[name]])
+        cells_of[name] = once_a_value(twinstore.column_cells(twin.held_columns[place_of[name]]))
     rewritten = [name for name in written if isinstance(name, str) and name in place_of] if dates is not None else []
     if not rewritten:
-        got = applied(zone, needed, cells_of, seed, dates_kept=True)
+        got = applied(zone, needed, cells_of, seed, dates_kept=True, taken=True)
         dated: "dict[str, list[str]]" = {}
     else:
-        first = applied(zone, needed, cells_of, seed, dealing=False, dates_kept=True)
+        first = applied(zone, needed, cells_of, seed, dealing=False, dates_kept=True, taken=True)
         if not first.columns:
             return twin
         dated = _dates_written_again(twin, place_of, first, typing.cast("dict[str, object]", dates), rewritten,
@@ -3288,13 +3435,16 @@ def twin_with_zone(twin: "typing.Any", profile: "typing.Any", zone: "dict[str, o
         middle: "dict[str, list[str]]" = {}
         for name in needed:
             middle[name] = dated[name] if name in dated else first.columns[name]
+        first_order = first.order
+        # ...the first step's lists are the dealing's now (`taken`): no other name holds them.
+        first.columns = {}
         # THE ROW'S DATES AND WHAT THEY ARE DRAWN BY STAY TOGETHER (lane W5-PL): the dealing moves no date column
         # the dates zone wrote, nor any label its clocks and gaps are drawn by, from its row. Dealt with a key's
         # values, a charting table's device flag left the rows it is entered at once and charted on the minute
         # (rows entered at once 1.0 to 0.66, the five-minute difference 0.63 to 0.18 against the real 1.0 and
         # 0.63), and a universal clock left its local one (six hours apart on every row to 52 in 100).
         stay = list(rewritten) + [label for label in _dates_labels(dates) if label in place_of]
-        got = Applied(applied(zone, needed, middle, seed, timing=False, kept=stay).columns, first.order, [])
+        got = Applied(applied(zone, needed, middle, seed, timing=False, kept=stay, taken=True).columns, first_order, [])
     if not got.columns:
         return twin
     every_hole = generation.every_hole_spelling(profile)
@@ -3306,8 +3456,12 @@ def twin_with_zone(twin: "typing.Any", profile: "typing.Any", zone: "dict[str, o
     for at in range(len(names)):
         name = names[at]
         if name in got.columns:
+            # ...each written column let go once it is held again.
             cells = got.columns[name]
-            if got.order is None and cells == cells_of[name]:
+            del got.columns[name]
+            if name in dated:
+                del dated[name]
+            if got.order is None and cells == twinstore.column_cells(twin.held_columns[at]):
                 continue
         elif name in dated:
             cells = dated[name]

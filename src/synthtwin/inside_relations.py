@@ -1243,9 +1243,102 @@ def _design(target: Target, blocks: "list[Block]", frames: "dict[str, Frame]", r
     return out
 
 
+def _indicators_of(block: Block, frames: "dict[str, Frame]", rows: int) -> "tuple[list[int], list[int]] | None":
+    """Where every term of `block` is a level of one label parent, each level once: the parent's codes and each term's level."""
+    parent = ""
+    wanted: "list[int]" = []
+    for term in block.terms:
+        parts = _list(term)
+        if _text(parts[0]) != "level":
+            return None
+        name = _text(parts[1])
+        if parent and name != parent:
+            return None
+        parent = name
+        wanted += [_int(parts[2])]
+    if not parent or parent not in frames or len(set(wanted)) != len(wanted):
+        return None
+    codes = frames[parent].codes
+    if frames[parent].kind != LABEL or len(codes) != rows:
+        return None
+    return codes, wanted
+
+
+def indicator_statistic(fit: Fit, codes: "list[int]", wanted: "list[int]", used: "list[int]") -> float:
+    """`score_statistic` of the fit of the intercept alone and a block of level indicators, read from sums a level.
+
+    THE SAME NUMBER, MADE IN ONE PASS (lane W5-302). The block's terms
+    are a label parent's levels `wanted` (each once) on the fit's rows
+    `used` (row `used[i]` holds `codes[used[i]]`), and the fit's design
+    is its intercept alone, as every screen of `select` reads a parent.
+    Each product `score_statistic` sums is then a weight or a residual
+    of a row at one level, or a zero, and `math.fsum` gives the same
+    correctly rounded sum without the zeros (it returns +0.0 for any sum
+    of zeros): the score of a level is the sum of its rows' residuals,
+    the cross product with the intercept and the diagonal of the block's
+    information the sum of its rows' weights, two levels' product
+    nought. So the statistic is the one `score_statistic` returns, bit
+    for bit, in one pass over the rows in place of one a pair of levels
+    (24 levels: 348 sums over every row, now 48 over a row each). A
+    fixed function of its arguments; raises nothing.
+    """
+    width = len(wanted)
+    place: "dict[int, int]" = {}
+    for k in range(width):
+        place[wanted[k]] = k
+    weights_at: "list[list[float]]" = [[] for _k in range(width)]
+    residuals_at: "list[list[float]]" = [[] for _k in range(width)]
+    for i in range(len(used)):
+        code = codes[used[i]]
+        if code in place:
+            k = place[code]
+            weights_at[k] += [fit.weights[i]]
+            residuals_at[k] += [fit.residuals[i]]
+    score = [math.fsum(residuals_at[k]) for k in range(width)]
+    weight_sums = [math.fsum(weights_at[k]) for k in range(width)]
+    cross = [[0.0 if fit.dropped[0] else weight_sums[k]] for k in range(width)]
+    solved = [_solve(fit.lower, fit.dropped, cross[k]) for k in range(width)]
+    variance = [[0.0 for _b in range(width)] for _a in range(width)]
+    for k in range(width):
+        for m in range(k + 1):
+            value = (weight_sums[k] if k == m else 0.0) - _dot(cross[k], solved[m])
+            variance[k][m] = value
+            variance[m][k] = value
+    lower, dropped = _cholesky(variance)
+    if all(dropped):
+        return 0.0
+    solved_score = _solve(lower, dropped, [0.0 if dropped[k] else score[k] for k in range(width)])
+    statistic = _dot(score, solved_score) / fit.scale
+    return statistic if statistic > 0.0 else 0.0
+
+
 def _block_statistic(target: Target, fits: "list[Fit | None]", design: "list[list[list[float]]]",
                      block: Block, frames: "dict[str, Frame]", rows: int) -> "tuple[float, int]":
-    """The summed score statistic of a block over a target's fits, and its degrees of freedom."""
+    """The summed score statistic of a block over a target's fits, and its degrees of freedom.
+
+    A label parent's levels screened against a fit of the intercept alone
+    are read from sums a level (`indicator_statistic`, lane W5-302): the
+    same statistic, in one pass over the rows.
+    """
+    indicators = _indicators_of(block, frames, rows)
+    if indicators is not None:
+        codes, wanted = indicators
+        if target.kind == NUMBER:
+            fit = fits[0]
+            if fit is None:
+                return 0.0, 0
+            if len(design[0]) == 1:
+                return indicator_statistic(fit, codes, wanted, target.rows), len(wanted)
+        elif all(len(design[level]) == 1 for level in range(1, target.levels) if fits[level - 1] is not None):
+            total = 0.0
+            freedom = 0
+            for level in range(1, target.levels):
+                fit = fits[level - 1]
+                if fit is None:
+                    continue
+                total += indicator_statistic(fit, codes, wanted, _label_rows(target, level))
+                freedom += len(wanted)
+            return total, freedom
     values = _evaluated(block, frames, rows, None)
     total = 0.0
     freedom = 0
@@ -1441,7 +1534,9 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
     fitted on each person's first row alone, on the columns before it
     that are held once a person too; a number varying by row splits its
     residual into a person's share and a row's; a sequence is fitted on
-    nothing and read by the columns after it. `frames_out`, where given,
+    nothing and read by the columns after it. Each number column's
+    `positions` are emptied once its frame holds their scores (lane
+    W5-302): `encoded` is the fit's own. `frames_out`, where given,
     gains every modelled column's frame on the fit's rows (the
     missing-values zone of lane IN-7 fits on them); the zone's bytes do
     not depend on it.
@@ -1456,12 +1551,17 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
     frames: "dict[str, Frame]" = {}
     once: "set[str]" = set()
     columns: "list[object]" = []
+    # Each parent's main block, made once as its frame is made (lane W5-302): a frame never changes once made, so
+    # the block every later response screens is the one `_main_block` gives it, read once and not once a response.
+    main_of: "dict[str, Block | None]" = {}
     for column in encoded:
         entry = column.entry
         name = _text(entry["name"])
         level = _text(entry["level"]) if "level" in entry else ROW
         if level == SEQUENCE:
             frames[name] = Frame(NUMBER, normal_scores(column.states, column.positions), column.states, [])
+            main_of[name] = _main_block(name, frames[name])
+            column.positions = []
             columns += [entry]
             continue
         held_once = level == PATIENT and first is not None
@@ -1469,7 +1569,7 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
         for parent in frames:
             if held_once and parent not in once:
                 continue
-            block = _main_block(parent, frames[parent])
+            block = main_of[parent]
             if block is not None:
                 candidates += [block]
         fitted = [row for row in range(sample) if first is None or not held_once or first[row]]
@@ -1487,11 +1587,15 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
             value = Target(NUMBER, [middle[row] for row in present], present, [], 0)
             entry["value"] = fit_number(value, candidates, frames, sample, None if held_once else owners)
             frames[name] = Frame(NUMBER, normal_scores(states, column.positions), states, [])
+            # ...and the column's numbers let go once its frame holds their scores (lane W5-302): nothing reads them
+            # again, and a wide table held them all through its whole fit (8 bytes a row and a float each).
+            column.positions = []
         else:
             levels = len(_list(entry["levels"])) + (1 if _int(entry["rest"]) > 0 else 0)
             target = Target(LABEL, [], fitted, column.codes, levels)
             entry["value"] = fit_label(target, candidates, frames, sample)
             frames[name] = Frame(LABEL, [], [], column.codes)
+        main_of[name] = _main_block(name, frames[name])
         if held_once:
             once = once | set([name])
         columns += [entry]
@@ -1615,7 +1719,27 @@ def _block_frames(frames: "dict[str, Frame]", terms: "list[object]", start: int,
     return out
 
 
-def _draw_label(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int]",
+# A COLUMN'S DRAW WORDS (lane W5-2M): each column draws its `2 n` or `3 n` words at once; held as a list they
+# were whole numbers of the interpreter's own and a pointer each, about 44 bytes a word (about 260 MB for one
+# number column of 2,000,000 rows of several rows a person), and `draw_columns` now holds them as eight bytes
+# each, little-endian, in one bytearray. Every reader takes a word through `_word`, which reads either form
+# as the number drawn.
+def _word(words: "list[int] | bytearray", at: int) -> int:
+    """The ``at``-th word of a column's draw, held as a list or as eight bytes a word."""
+    if isinstance(words, bytearray):
+        place = 8 * at
+        return (words[place] | (words[place + 1] << 8) | (words[place + 2] << 16) | (words[place + 3] << 24)
+                | (words[place + 4] << 32) | (words[place + 5] << 40) | (words[place + 6] << 48)
+                | (words[place + 7] << 56))
+    return words[at]
+
+
+def _word_count(words: "list[int] | bytearray") -> int:
+    """How many words a column's draw holds."""
+    return len(words) // 8 if isinstance(words, bytearray) else len(words)
+
+
+def _draw_label(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int] | bytearray",
                 levels: int, residuals: "list[float] | None" = None) -> "list[int]":
     """Each row's level by its fitted log odds; `residuals`, where given, gains each row's place inside its level's share (0 to 1)."""
     terms = _list(_get(model, "terms"))
@@ -1635,7 +1759,7 @@ def _draw_label(model: "dict[str, object]", frames: "dict[str, Frame]", rows: in
             top = max([etas[level][at] for level in range(levels)])
             lifted = [chain_walk.exponential(max(-700.0, etas[level][at] - top)) for level in range(levels)]
             total = math.fsum(lifted)
-            share = _uniform(words[start + at]) * total
+            share = _uniform(_word(words, start + at)) * total
             running = 0.0
             code = levels - 1
             for level in range(levels):
@@ -1675,7 +1799,7 @@ def _etas(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, lev
     return etas
 
 
-def _codes_of(etas: "list[list[float]]", rows: int, words: "list[int]") -> "list[int]":
+def _codes_of(etas: "list[list[float]]", rows: int, words: "list[int] | bytearray") -> "list[int]":
     """Each row's level drawn by its log odds (`etas`) from its own word."""
     levels = len(etas)
     codes: "list[int]" = []
@@ -1683,7 +1807,7 @@ def _codes_of(etas: "list[list[float]]", rows: int, words: "list[int]") -> "list
         top = max([etas[level][row] for level in range(levels)])
         lifted = [chain_walk.exponential(max(-700.0, etas[level][row] - top)) for level in range(levels)]
         total = math.fsum(lifted)
-        share = _uniform(words[row]) * total
+        share = _uniform(_word(words, row)) * total
         running = 0.0
         code = levels - 1
         for level in range(levels):
@@ -1696,8 +1820,9 @@ def _codes_of(etas: "list[list[float]]", rows: int, words: "list[int]") -> "list
 
 
 def _scores_drawn(model: "dict[str, object]", frames: "dict[str, Frame]", rows: int, present: "list[int]",
-                  words: "list[int]", owners: "list[int] | None" = None,
-                  person_words: "list[int] | None" = None, word_at: int = 0, person_at: int = 0) -> "list[float]":
+                  words: "list[int] | bytearray", owners: "list[int] | None" = None,
+                  person_words: "list[int] | bytearray | None" = None, word_at: int = 0,
+                  person_at: int = 0) -> "list[float]":
     """Each present row's drawn score: its fitted predictor and a residual, a person's share added where one was fitted.
 
     `present` is in rising order; the predictor is made a block of rows at a
@@ -1731,10 +1856,10 @@ def _scores_drawn(model: "dict[str, object]", frames: "dict[str, Frame]", rows: 
         eta = _predictor(columns, beta, stop - start)
         del columns
         if split and owners is not None and person_words is not None:
-            out += [eta[row - start] + between * chain_walk.normal_score(_uniform(person_words[person_at + owners[row]]))
-                    + scale * spread * _residual(shape, _uniform(words[word_at + row])) for row in present[at:end]]
+            out += [eta[row - start] + between * chain_walk.normal_score(_uniform(_word(person_words, person_at + owners[row])))
+                    + scale * spread * _residual(shape, _uniform(_word(words, word_at + row))) for row in present[at:end]]
         else:
-            out += [eta[row - start] + spread * _residual(shape, _uniform(words[word_at + row])) for row in present[at:end]]
+            out += [eta[row - start] + spread * _residual(shape, _uniform(_word(words, word_at + row))) for row in present[at:end]]
         at = end
     return out
 
@@ -1766,7 +1891,7 @@ def draw_sequence(persons: "Persons | None", rows: int) -> Drawn:
     return Drawn(cells, Frame(NUMBER, normal_scores(states, places), states, []))
 
 
-def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int]",
+def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int] | bytearray",
                 owners: "list[int] | None" = None, persons_of_rows: "list[int] | None" = None) -> Drawn:
     """A number column: its presence states (spikes among them), then its present rows' scores, mapped by rank onto its grid.
 
@@ -1784,7 +1909,7 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
         total = max(1, sum(counts))
         states = []
         for row in range(rows):
-            share = _uniform(words[row]) * total
+            share = _uniform(_word(words, row)) * total
             running = 0
             state = PRESENT
             for each in range(STATES):
@@ -1800,7 +1925,7 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
         raise RelationsError("The inside record's relations zone holds a number's spikes another way; describe the table again.")
     present = [row for row in range(rows) if states[row] == PRESENT and (owners is None or owners[row] == row)]
     drawn = _scores_drawn(_dict(_get(entry, "value")), frames, rows, present, words,
-                          persons_of_rows, words if len(words) >= 3 * rows else None, rows, 2 * rows)
+                          persons_of_rows, words if _word_count(words) >= 3 * rows else None, rows, 2 * rows)
     order = sorted((drawn[k], present[k]) for k in range(len(present)))
     # What is dead is let go at once (lane IN-8): the scores and rows once in order, the order once mapped.
     del drawn, present
@@ -1854,7 +1979,7 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
     return Drawn(cells, Frame(NUMBER, normal_scores(states, positions), states, []))
 
 
-def draw_label(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int]",
+def draw_label(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int] | bytearray",
                allowed: "set[str]", owners: "list[int] | None" = None) -> Drawn:
     """A label column: each row's level by its fitted log odds; a level the description does not publish, and the rest, filled later.
 
@@ -2276,7 +2401,7 @@ def _capped(text: str, places: int, top: int, wrapper: "tuple[str, str] | None" 
 
 
 def _number_states(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int,
-                   words: "list[int]") -> "tuple[list[int], list[list[float]] | None, list[float]]":
+                   words: "list[int] | bytearray") -> "tuple[list[int], list[list[float]] | None, list[float]]":
     """A number column's presence states drawn as `draw_number` draws them, and the log odds they were drawn by."""
     counts = [_int(each) for each in _list(_get(entry, "states"))]
     if len(counts) != STATES:
@@ -2288,7 +2413,7 @@ def _number_states(entry: "dict[str, object]", frames: "dict[str, Frame]", rows:
     total = max(1, sum(counts))
     states: "list[int]" = []
     for row in range(rows):
-        share = _uniform(words[row]) * total
+        share = _uniform(_word(words, row)) * total
         running = 0
         state = PRESENT
         for each in range(STATES):
@@ -2300,7 +2425,7 @@ def _number_states(entry: "dict[str, object]", frames: "dict[str, Frame]", rows:
     return states, None, _constant_shares(counts)
 
 
-def redeal_number(entry: "dict[str, object]", frames: "dict[str, Frame]", words: "list[int]", strict: "list[str]",
+def redeal_number(entry: "dict[str, object]", frames: "dict[str, Frame]", words: "list[int] | bytearray", strict: "list[str]",
                   dealing: Dealing, persons_of_rows: "list[int] | None" = None) -> Drawn:
     """A number column drawn from the zone and written with the description's twin's own cells for it.
 
@@ -2339,7 +2464,7 @@ def redeal_number(entry: "dict[str, object]", frames: "dict[str, Frame]", words:
         kinds += [kind]
         spots += [spot]
     states, etas, constant = _number_states(entry, frames, rows, words)
-    salt = words[0] if words else 0
+    salt = _word(words, 0) if _word_count(words) else 0
     cells: "list[str | None]" = [None for _row in range(rows)]
     rows_of = dealing.rows_of
     if rows_of is None:
@@ -2356,7 +2481,7 @@ def redeal_number(entry: "dict[str, object]", frames: "dict[str, Frame]", words:
         etas = None
         lead = [rows_of[person][0] for person in free if states[rows_of[person][0]] == PRESENT]
     drawn = _scores_drawn(_dict(_get(entry, "value")), frames, rows, lead, words,
-                          persons_of_rows, words if len(words) >= 3 * rows else None, rows, 2 * rows)
+                          persons_of_rows, words if _word_count(words) >= 3 * rows else None, rows, 2 * rows)
     order = [row for _score, row in sorted((drawn[at], lead[at]) for at in range(len(lead)))]
     del drawn, lead
     if rows_of is None:
@@ -2413,7 +2538,7 @@ def redeal_number(entry: "dict[str, object]", frames: "dict[str, Frame]", words:
     return Drawn([text for text in written], Frame(NUMBER, normal_scores(final, positions), final, []))
 
 
-def redeal_label(entry: "dict[str, object]", frames: "dict[str, Frame]", words: "list[int]", strict: "list[str]",
+def redeal_label(entry: "dict[str, object]", frames: "dict[str, Frame]", words: "list[int] | bytearray", strict: "list[str]",
                  dealing: Dealing) -> Drawn:
     """A label column drawn from the zone and written with the description's twin's own cells for it.
 
@@ -2439,7 +2564,7 @@ def redeal_label(entry: "dict[str, object]", frames: "dict[str, Frame]", words: 
     kinds = [code_of[cell] if cell in code_of else rest for cell in strict]
     etas = _etas(_dict(_get(entry, "value")), frames, rows, modelled)
     codes = _codes_of(etas, rows, words)
-    salt = words[0] if words else 0
+    salt = _word(words, 0) if _word_count(words) else 0
     cells: "list[str | None]" = [None for _row in range(rows)]
     rows_of = dealing.rows_of
     targets = [0 for _class in range(rest + 1)]
@@ -2607,11 +2732,17 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
             held_once = level == PATIENT and persons is not None
             split = persons is not None and not held_once and kind == NUMBER
             need = (3 * rows if split else 2 * rows) if kind == NUMBER else rows
-            words: "list[int]" = []
+            words = bytearray(8 * need) if need > 0 else bytearray()
             if need > 0:
-                words = [int(word) for word in generator.integers(0, _WORD_CEILING, size=int(need), dtype="uint64",
-                                                                  endpoint=True)]
-            strict = twinstore.column_cells(held[name])
+                byte_at = 0
+                for word in generator.integers(0, _WORD_CEILING, size=int(need), dtype="uint64", endpoint=True):
+                    value = int(word)
+                    for shift in range(0, 64, 8):
+                        words[byte_at] = (value >> shift) & 255
+                        byte_at += 1
+            # ...and the description's twin's cells for the column read back each value once (lane W5-2M): a
+            # pointer a row, not a text object a row, while the column is drawn.
+            strict = _cells_once(twinstore.column_cells(held[name]))
             dealing = by_person if held_once else by_row
             if not _holds_a_cell(strict):
                 # A COLUMN THE DESCRIPTION PUBLISHES NOTHING OF (lane W5-PL): the patient layer empties the block of a
@@ -2646,6 +2777,17 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
             if name in keep:
                 # Given back as the lists a term reads (`term_values` reads no held frame).
                 frames_out[name] = frame_rows(frames[name], 0, rows)
+    return out
+
+
+def _cells_once(cells: "list[str]") -> "list[str]":
+    """The same cells, each different text one object (lane W5-2M). A fixed function of the cells."""
+    first: "dict[str, str]" = {}
+    out: "list[str]" = []
+    for cell in cells:
+        if cell not in first:
+            first[cell] = cell
+        out += [first[cell]]
     return out
 
 

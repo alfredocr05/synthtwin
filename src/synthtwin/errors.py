@@ -459,16 +459,40 @@ def ragged_rows(
     offenders: list[tuple[int, int]],
     total: int,
     delimiter: str = "a comma",
+    rows: int = 0,
 ) -> str:
     """Message for rows whose value count differs from the header's.
 
     ``offenders`` holds up to three (data-row number, value count)
     pairs; ``total`` is the full count of such rows; ``delimiter`` names
-    the character the file's fields were read as separated by.
+    the character the file's fields were read as separated by; ``rows``,
+    where given, the rows read after the first.
+
+    LINES UNDER THE TABLE ARE NO QUOTING FAULT (lane ZOO-X). Where every
+    such row is one of the file's last rows -- they number at most the
+    offenders listed, and they are the last ``total`` of ``rows`` -- they
+    are a note or a footer a report writes under its table (`Report
+    generated ...`), and the message says so and asks for them to be
+    deleted, a row of totals above them too, where it used to say that a
+    value needs quotation marks, which sent a person hunting for a comma
+    that is not there.
     """
     described = [f"row {number} has {count}" for number, count in offenders]
     listed = _listed(described)
     tail = "" if total <= len(offenders) else f" ({total} rows in total)"
+    last = [number for number, _count in offenders]
+    if rows > 0 and 0 < total == len(offenders) and last == list(range(rows - total + 1, rows + 1)):
+        return (
+            f"The last {total} line(s) of {path} hold fewer or more values "
+            f"than the {expected} columns its first row names: {listed}. "
+            f"Lines at the end of a file that do not fit its columns are "
+            f"usually a note, a footer or a total written under the table "
+            f"by the program that saved it, not rows of the table. Open the "
+            f"file in your spreadsheet program, delete those last lines -- "
+            f"and a row of totals just above them, if there is one, since "
+            f"synthtwin would read it as a row of your table -- save it, "
+            f"and run the command again."
+        )
     return (
         f"The rows in {path} do not all have the same number of "
         f"values. The first row names {expected} columns, but {listed}"
@@ -476,6 +500,25 @@ def ragged_rows(
         f"blank lines. A row with too few or too many values usually "
         f"means a value contains {delimiter} and needs quotation marks "
         f"around it. {_CHECK_AND_RETRY}"
+    )
+
+
+def total_row_under_the_table(path: str) -> str:
+    """Message for a file whose last row is a row of totals (lane ZOO-X).
+
+    The last row, and no other, opens with a word naming a total
+    (`dialect.TOTAL_WORDS`). Read as a row of the table, its sums become
+    the largest values of their columns by far. Nothing of the row is
+    shown: the message names the file and what to do.
+    """
+    return (
+        f"The last row of {path} opens with a word that names a total, "
+        f"and no other row does: it looks like a row of totals written "
+        f"under the table, as a report saves one, rather than a row of "
+        f"your table. Read as a row, its sums would become the largest "
+        f"values of their columns by far, and the twin would be drawn to "
+        f"them. Open the file in your spreadsheet program, delete that "
+        f"last row, save it, and run the command again."
     )
 
 

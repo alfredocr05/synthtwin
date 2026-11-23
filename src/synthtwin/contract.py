@@ -7471,9 +7471,13 @@ def _dialect_rules(
     # producer used to write from a guess, publishing a person's own
     # record as schema text (review item CODEX-2). The count is in the
     # settings block, so the loader can hold the two to each other.
+    # ...ONE ROW OR TWO, as the clause's own words say (lane ZOO-Y, plan
+    # P4-D517): the survey export's shape is two rows, an instrument's units
+    # row under the names is one, which the person's answer or the shape
+    # itself declares (`dialect._units_row_shape`).
     if form.header_rows and (
         not headed
-        or len(form.header_rows) != 2
+        or not 1 <= len(form.header_rows) <= 2
         or len(form.header_rows) != metadata_rows
         or any(len(row) != width for row in form.header_rows)
     ):

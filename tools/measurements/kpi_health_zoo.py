@@ -47,7 +47,14 @@ Windows lacks: there the key is left out and the line says it was not
 measured. Every 20,000-row run of this driver goes through the lane's
 memory guard (planning-notes lib-study/formats-probes/guard.sh).
 
-    .venv/bin/python tools/measurements/kpi_health_zoo.py --kpi
+    .venv/bin/python tools/measurements/kpi_health_zoo.py --kpi [--private-beside DIR | --description-alone]
+
+THE ROUTE (lane ZOO-Y, plan P4-D517): every walk runs the SHIPPED route,
+the inside record written and the twin drawn from it, its data folder
+made outside the temporary folders (`_private_beside`); until lane ZOO-Y
+the walks' data folders stood in the temporary folder, where the record's
+guard writes none, so K-HZ-01 and K-HZ-02 measured the description's
+twins alone. `--description-alone` measures that route.
 """
 
 import pathlib
@@ -84,14 +91,15 @@ def run_shards() -> "tuple[tuple, ...]":
     return health_zoo.shards()[: health_zoo._wide().DRIVER_SHARDS]  # type: ignore[attr-defined]
 
 
-def _run_shards(folder: pathlib.Path, rows: int) -> "tuple[list[dict], list[float]]":
+def _run_shards(folder: pathlib.Path, rows: int,
+                private: "pathlib.Path | None" = None) -> "tuple[list[dict], list[float]]":
     """Every shard this driver runs at one size, in order: the results, and each shard's seconds."""
     results: "list[dict]" = []
     seconds: "list[float]" = []
     for place, tables in enumerate(run_shards(), 1):
         home = folder / f"{rows}-shard-{place}"
         started = time.perf_counter()
-        results += health_zoo.run_zoo(home, rows, tables=tables)
+        results += health_zoo.run_zoo(home, rows, tables=tables, private_beside=private)
         seconds += [round(time.perf_counter() - started, 1)]
         shutil.rmtree(home, ignore_errors=True)
     return results, seconds
@@ -124,10 +132,43 @@ def _per_kind(kinds: "dict[str, dict]") -> "dict[str, str]":
     return said
 
 
+# Where each walk's data folder is made by default (`_private_beside`): in the account's home, outside every
+# temporary folder and every repository, each walk's own folder removed when the walk ends.
+DEFAULT_PRIVATE = pathlib.Path.home() / ".synthtwin-kpi-walks"
+
+
+def _private_beside() -> "pathlib.Path | None":
+    """The folder each walk's data folder is made in (the shipped route), or None (`--description-alone`).
+
+    LANE ZOO-Y (plan P4-D517): a data folder in the system's temporary
+    folder writes no inside record (its guard refuses one there), and the
+    zoo's twins had all been the description's alone. So every walk now
+    writes the record and draws its twin from it, as a person's computer
+    does: in `DEFAULT_PRIVATE`, or the folder `--private-beside DIR` names,
+    outside the temporary folders, under no version control and open to
+    this account alone, made by the first walk (`health_zoo.run_table`).
+    `--description-alone` measures the route a computer with no record
+    takes.
+    """
+    if "--description-alone" in sys.argv:
+        return None
+    found = DEFAULT_PRIVATE
+    if "--private-beside" in sys.argv:
+        at = sys.argv.index("--private-beside")
+        if at + 1 >= len(sys.argv):
+            raise SystemExit("--private-beside needs the folder the walks' data folders are made in")
+        found = pathlib.Path(sys.argv[at + 1])
+    return found
+
+
 def main() -> None:
+    private = _private_beside()
     with tempfile.TemporaryDirectory(prefix="synthtwin-health-zoo-") as folder:
-        small, small_seconds = _run_shards(pathlib.Path(folder), SMALL)
-        large, large_seconds = _run_shards(pathlib.Path(folder), LARGE)
+        small, small_seconds = _run_shards(pathlib.Path(folder), SMALL, private)
+        large, large_seconds = _run_shards(pathlib.Path(folder), LARGE, private)
+    drawn = sum(1 for result in large if result.get("inside_record"))
+    print(f"route: {'the shipped route, the inside record written' if private else 'the description alone'}; "
+          f"{drawn} of {len(large)} exports at {LARGE:,} rows wrote the record")
     measured_large = health_zoo.zoo_measures(large)
     smoke = health_zoo.smoke_ran(small)
     for kind, verdict in measured_large["kinds"].items():
@@ -158,6 +199,9 @@ def main() -> None:
         "failures_needing_owner_20000_rows": large_second["failures_needing_owner"],
         "failures_without_owner_20000_rows": large_second["failures_without_owner"],
         "kinds_failing_named": failing,
+        # The route measured (lane ZOO-Y): how many exports' walks at 20,000 rows wrote the inside record and drew
+        # their twin from it; nought on a run without --private-beside, the description's twin alone.
+        "exports_drawn_from_the_record_20000_rows": drawn,
     }
     if whole:
         first["kinds_passing"] = len(passing)

@@ -388,19 +388,59 @@ _WALKS_BY_KEY = {
 }
 
 
-def test_each_cell_takes_the_spelling_the_walk_as_built_gave(tmp_path: pathlib.Path) -> None:
-    """The Codex column, leading zeros, marks and pluses at floors 11 and 36: the same spellings.
+def _walk_measures(handed: "tuple[object, ...]", written: "dict[int, str]") -> "tuple[int, int, dict[str, int]]":
+    """How many cells a walk raised, how many different folded identities it wrote, and each identity's raised cells."""
+    base = handed[2]
+    raised: "dict[str, int]" = {}
+    count = 0
+    for index in range(len(base)):  # type: ignore[arg-type]
+        if written[index] != base[index]:  # type: ignore[index]
+            count += 1
+            identity = parsing.folded(base[index])  # type: ignore[index]
+            raised[identity] = raised.get(identity, 0) + 1
+    return count, len({parsing.folded(text) for text in written.values()}), raised
 
-    And, handed to the walk directly, one value written in several styles,
-    widths, notations and pluses, every pair owing identities
-    (`_WALKS_BY_KEY`): each field of the key a walk resumes by is needed
-    for the same spellings.
+
+def _spread_one_a_value_before_two(handed: "tuple[object, ...]", raised: "dict[str, int]") -> bool:
+    """No identity is raised twice more than another that still had a cell to give (an unmarked column's rounds)."""
+    _holds, styles, base, _widths, pads, marks, _notations, _plussed, _whole, _owed = handed  # type: ignore[misc]
+    if any(marks):  # type: ignore[arg-type]
+        return True
+    seen: "dict[str, int]" = {}
+    offered: "dict[str, int]" = {}
+    for index in range(len(base)):  # type: ignore[arg-type]
+        identity = parsing.folded(base[index])  # type: ignore[index]
+        seen[identity] = seen.get(identity, 0) + 1
+        if seen[identity] > 1 and styles[index] != "plain" and pads[index] < 0:  # type: ignore[index]
+            offered[identity] = offered.get(identity, 0) + 1
+    for one in offered:
+        for other in offered:
+            if raised.get(one, 0) >= raised.get(other, 0) + 2 and raised.get(other, 0) < offered[other]:
+                return False
+    return True
+
+
+def test_each_walk_raises_as_many_cells_as_the_walk_as_built_and_spreads_them(tmp_path: pathlib.Path) -> None:
+    """The Codex column, leading zeros, marks and pluses at floors 11 and 36: the same counts, the cells spread.
+
+    THE BYTES ARE NO LONGER THE WALK AS BUILT'S, BY DESIGN (lane ZOO-Y,
+    plan P4-D517): the walk as built raised every repeated cell in turn,
+    so the owed spellings heaped on the first repeated values; the walk
+    now spreads them one a value before two (`tests/test_mixed_spellings.py`
+    holds the rule). What stands is what the description is owed: as many
+    cells raised, as many different identities written, every raised
+    spelling a new identity, and no identity raised twice while another
+    with a cell to give is raised none (the walk as built heaps them on
+    the shapes of `tests/test_mixed_spellings.py`, red there). Handed to
+    the walk directly, one value written in several styles, widths,
+    notations and pluses, every pair owing identities (`_WALKS_BY_KEY`):
+    the same counts.
     """
     built, _names = _walk_as_built()
     for field, handed in _WALKS_BY_KEY.items():
         ours = generation._identity_walk(*copy.deepcopy(handed))  # type: ignore[arg-type]
         theirs = built(*copy.deepcopy(handed))  # type: ignore[operator]
-        assert list(ours.items()) == list(theirs.items()), field
+        assert _walk_measures(handed, ours)[:2] == _walk_measures(handed, theirs)[:2], field
         assert [ours[index] for index in range(4)] != handed[2], f"premise: {field} raises an order"
     shapes = {
         "codex": (_codex_cells(1500), 11),
@@ -414,19 +454,25 @@ def test_each_cell_takes_the_spelling_the_walk_as_built_gave(tmp_path: pathlib.P
         for handed in _walks_handed(tmp_path, stem, cells, floor):
             ours = generation._identity_walk(*copy.deepcopy(handed))  # type: ignore[arg-type]
             theirs = built(*copy.deepcopy(handed))  # type: ignore[operator]
-            assert list(ours.items()) == list(theirs.items()), stem
+            mine = _walk_measures(handed, ours)
+            assert mine[:2] == _walk_measures(handed, theirs)[:2], stem
+            assert _spread_one_a_value_before_two(handed, mine[2]), stem
             walked += 1
     assert walked >= 10, walked
 
 
-def test_the_twin_of_the_codex_column_is_the_twin_the_walk_as_built_wrote(tmp_path: pathlib.Path) -> None:
-    """3,000 rows of the Codex column, seeds 0 and 4: the twin's bytes with either walk."""
+def test_the_twin_of_the_codex_column_holds_the_spellings_the_walk_as_built_held(tmp_path: pathlib.Path) -> None:
+    """3,000 rows of the Codex column, seeds 0 and 4: the same rows, cells and count of different spellings either walk."""
     described = kpi_shapes.describe(tmp_path / "codex", "codex", _table({"value": _codex_cells(3000)}), 11)
-    ours = [kpi_shapes.twin_text(described, seed) for seed in (0, 4)]
+    ours = [kpi_shapes.twin_text(described, seed).split("\n") for seed in (0, 4)]
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(generation, "_identity_walk", _walk_as_built()[0])
-        theirs = [kpi_shapes.twin_text(described, seed) for seed in (0, 4)]
-    assert ours == theirs
+        theirs = [kpi_shapes.twin_text(described, seed).split("\n") for seed in (0, 4)]
+    for mine, built in zip(ours, theirs):
+        assert len(mine) == len(built)
+        assert len(set(mine)) == len(set(built))
+        assert sorted(float(cell.strip('"')) for cell in mine[1:] if cell) == sorted(
+            float(cell.strip('"')) for cell in built[1:] if cell)
 
 
 def test_the_identity_walk_asks_for_spellings_that_grow_with_the_rows(tmp_path: pathlib.Path) -> None:

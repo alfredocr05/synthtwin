@@ -448,8 +448,12 @@ def test_a_distinct_spelling_repair_keeps_every_allocated_mark(
     grouped = len([cell for cell in written if "," in cell])
     plussed = len([cell for cell in written if "+" in cell])
     assert grouped == 20 and plussed == 20, collections.Counter(written)
-    for cell in written:
-        assert "+0" not in cell, cell
+    # The one identity the column owes is one leading-zero spelling of ONE cell, never a grouped cell's mark
+    # spent on it. Which cell it is was pinned here as the walk visited them (`03705.85 kg`, no `+0`); since lane
+    # ZOO-Y's spread walk (plan P4-D517, owner decision 8 as amended) the owed identities are taken at an even stride
+    # over the repeated ones, here the signed `+05446.85 kg` -- the same family, a different cell.
+    raised = [cell for cell in written if cell.lstrip("+")[:1] == "0"]
+    assert len(raised) == 1 and "," not in raised[0], collections.Counter(written)
     assert twin_exit == 0 and real_exit == 0
 
 

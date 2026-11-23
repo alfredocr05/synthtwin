@@ -221,6 +221,13 @@ PUSHES = (
     # With the first stratum on min, 2 is free and the mover takes it.
     ((1.0, 3.0, 3.0, 4.0), 0, (1.0, 4.0), False, False, True,
      (1.0, 2.0, 3.0, 4.0)),
+    # A WHOLE STRATUM IS NO MOVER on a column writing some cells with no
+    # point beside cells with one (lane ZOO-Y, plan P4-D517): two strata on
+    # the whole 1.0, the whole 2.0 free above, and the collision stays where
+    # the ladder put it -- as built, the second 1.0 walked the whole points
+    # up to 2.0, a heap of the point-free cells moved a unit.
+    ((0.5, 1.0, 1.0, 3.0), 1, (0.5, 3.0), False, True, False,
+     (0.5, 1.0, 1.0, 3.0)),
 )
 
 

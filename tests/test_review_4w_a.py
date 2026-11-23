@@ -233,7 +233,13 @@ def test_a_declared_count_of_days_is_carried_by_the_dates_zone(tmp_path: pathlib
 
 def test_the_dates_zone_reads_no_column_the_description_reads_otherwise(tmp_path: pathlib.Path) -> None:
     """A value column typed by a key, nearly all of its values dates: the description reads it otherwise (its dates
-    held under the open question, its numbers continuous), so the zone holds no census of it."""
+    held under the open question, its numbers continuous), so the zone holds no census of it as a date column.
+
+    SINCE LANE ZOO-Y (plan P4-D517) the zone counts such a column's held
+    dates apart (`inside_dates.Census.held`, its `mixed` part), and the twin
+    writes made-up dates on the rows its real dates stood on, where it had
+    written them blank: every one a day of the real span's months, no real
+    day kept but by chance (the owner's ruling of 2026-11-18)."""
     r = random.Random(22)
     rows: "list[tuple[str, ...]]" = []
     for _ in range(ROWS):
@@ -246,8 +252,13 @@ def test_the_dates_zone_reads_no_column_the_description_reads_otherwise(tmp_path
     assert "format" not in block  # type: ignore[operator]
     zone = _dates_zone(record)
     assert "value" not in (zone["order"] if "order" in zone else []), "the zone read a column the description does not"  # type: ignore[operator]
+    assert "value" in (zone["mixed"] if "mixed" in zone else {}), "the zone counted the held dates"  # type: ignore[operator]
     cells = _column(twins[0], "value")
-    assert not [cell for cell in cells if cell[4:5] == "-"]
+    made = [cell for cell in cells if cell[4:5] == "-"]
+    assert made, "the twin writes made-up dates where the description's twin is blank"
+    for cell in made:
+        day = datetime.date.fromisoformat(cell)
+        assert datetime.date(2023, 1, 1) <= day <= datetime.date(2024, 12, 31), cell
 
 
 # -- item 11: an exponent's scale ----------------------------------------------------------------------------
