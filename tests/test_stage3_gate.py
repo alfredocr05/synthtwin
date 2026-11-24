@@ -313,6 +313,10 @@ _place(
         "source.workbook.sheet_extents.[].columns",
         "source.workbook.trailing_blank_rows",
         "source.workbook.trailing_blank_columns",
+        # -- lane FORMATS (P4-D531): a native file's release and the range pandas numbered its rows by.
+        "source.native.version",
+        "source.native.index.start",
+        "source.native.index.step",
     ),
     STRUCTURAL,
 )
@@ -362,6 +366,13 @@ _place(
         # of noughts alone exists, a width of a spelling, never a value; the
         # twin writes no run of noughts alone at them.
         "columns.[].figure_noughts.[]",
+        # -- lane FORMATS (P4-D531): how a native file stores a column -- its stored width, its decimals and its
+        # digits of a decimal, the figures of a fraction of a second -- a form of its cells, never a value.
+        "source.native.columns.[].fraction",
+        "source.native.columns.[].places",
+        "source.native.columns.[].precision",
+        "source.native.columns.[].scale",
+        "source.native.columns.[].width",
     ),
     WRITTEN_FORM,
 )

@@ -1047,6 +1047,10 @@ HEADER_NAMES_SHOWN_BY_COLUMN = "header_names_shown_by_a_column"
 # other: it is the row this verdict is about, so quoting it here would
 # publish the very thing the verdict withholds.
 HEADER_NAMES_NOT_TOLD = "header_names_could_not_be_told"
+# A FILE FROM ANOTHER SYSTEM STORES ITS NAMES APART FROM ITS ROWS (lane
+# FORMATS): a Parquet, SAS, Stata or SPSS file names each column in its
+# own schema, so no row is read as names and no question arises.
+HEADER_NAMES_STORED_BY_THE_FILE = "header_names_stored_by_the_file"
 
 # WHAT A COLUMN OF DATES SAYS ABOUT ITS WEEKDAY CENSUS (stage 3b landing
 # 3b.1, plan P4-D355, contract WC1 to WC4 and WC6; plan P4-D365). A
@@ -1354,6 +1358,7 @@ NOTE_ARITY: "dict[str, int]" = {
     HEADER_NAMES_BY_CONVENTION: 0,
     HEADER_NAMES_SHOWN_BY_COLUMN: 1,
     HEADER_NAMES_NOT_TOLD: 0,
+    HEADER_NAMES_STORED_BY_THE_FILE: 0,
     # THE CENSUS LINE, and nothing else, where a weekday sentence names a
     # number at all (plan P4-D355).
     REMARK_WEEKDAY_SEVEN: 1,
@@ -3644,6 +3649,12 @@ def rendered(form: str, arguments: "tuple[object, ...]") -> str:
         return (
             f"column {_whole(arguments, 0)} holds a number in every row "
             f"below it, and its first-row value is not a number"
+        )
+    if form == HEADER_NAMES_STORED_BY_THE_FILE:
+        return (
+            "The column names are the file's own: a Parquet, SAS, Stata or "
+            "SPSS file stores the name of each column apart from its rows, "
+            "so no row was read as names and every row is a record."
         )
     # A form listed in `NOTE_ARITY` with no branch above it is a form
     # nobody has written the words for, and the last branch's text is
@@ -37282,6 +37293,37 @@ def ages_set_out_by_units(cells: "list[str]", comma: bool, absent: "frozenset[st
         if kind == 1:
             with_unit += 1
     return present > 0 and 2 * with_unit >= present
+
+
+def every_value_an_age(cells: "list[str]", comma: bool) -> bool:
+    """Whether every value of a column reads as an age in years: each cell holding a figure a plain number from 0 to
+    125 years (`_safe_harbor_kind`'s `_AGE_IN` or `_AGE_ABOVE`), none written with a padding nought, none a band, a
+    phrase it cannot read or a number past the reach; cells holding no value (blank, a word with no figure, a
+    placeholder such as `-1` or `999`) set aside; at least one value.
+
+    THE OWNER'S DECISION A OF BATCH 4ZZ (2026-11-23, fidelity first): `yes`
+    to a column's age question keeps such a column top-coded at 90, as its
+    open question already reads it, where it was held whole before because
+    nothing beside its values said it held ages (a column named `col_007`
+    of whole years 18 to 95 lost every statistic and the relation a later
+    column reads off it). A fixed function of its arguments; raises
+    TypeError for a cell that is not text; no I/O.
+    """
+    seen: "dict[str, int]" = {}
+    values = 0
+    for cell in cells:
+        if cell in seen:
+            age = seen[cell]
+        else:
+            age = _safe_harbor_kind(cell, comma)[0] if parsing.trimmed(cell) else _AGE_ASIDE
+            if len(seen) < 100_000:
+                seen[cell] = age
+        if age == _AGE_ASIDE:
+            continue
+        if age not in (_AGE_IN, _AGE_ABOVE):
+            return False
+        values += 1
+    return values > 0
 
 
 def safe_harbor_reach(

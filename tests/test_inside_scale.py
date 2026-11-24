@@ -191,8 +191,9 @@ def test_the_whole_record_keeps_its_size_when_the_rows_double(two_sizes) -> None
     small, large = two_sizes[20_000], two_sizes[40_000]
     zones = large["record"]["zones"]
     # ...the trajectories zone among them: the table's person column repeats at the owner's floor, where the shipped
-    # command draws the patient layer (lane W5-PL), and its size is held by the same bound.
-    assert sorted(zones) == ["dates", "marginals", "relations", "trajectories"], sorted(zones)
+    # command draws the patient layer (lane W5-PL), and its size is held by the same bound; and the text zone of its
+    # note column (lane TYPES-24), learned from at most its sample of rows.
+    assert sorted(zones) == ["dates", "marginals", "relations", "text", "trajectories"], sorted(zones)
     assert large["bytes"] <= 1.05 * small["bytes"], f"{small['bytes']} bytes at 20,000 rows, {large['bytes']} at 40,000"
     for rows in (20_000, 40_000):
         longest = max(_lists(two_sizes[rows]["record"]))
@@ -200,13 +201,15 @@ def test_the_whole_record_keeps_its_size_when_the_rows_double(two_sizes) -> None
 
 
 def test_the_profile_hook_reads_each_column_once(two_sizes) -> None:  # type: ignore[no-untyped-def]
-    # Past the keyed zone's bound (40,000 rows): the record's one reading, the person column once more.
+    # Past the keyed zone's bound (40,000 rows), since lane SPEED-2M (merged at batch 4zz) as under it: the keyed zone
+    # is read on the rows of whole persons hashed under its bound, so it walks the table once more, the person column
+    # once more again (it was read once, the person column twice, while the zone stood aside past its bound).
     asked = two_sizes[40_000]["asked"]
     columns = len(two_sizes[40_000]["record"]["table"]["columns"])
     assert sorted(asked) == list(range(columns)), asked
     person_place = two_sizes[40_000]["record"]["table"]["columns"].index("pid")
     for place, times in asked.items():
-        assert times <= (2 if place == person_place else 1), f"column {place} read {times} times by the hook"
+        assert times <= (3 if place == person_place else 2), f"column {place} read {times} times by the hook"
     # Under it (20,000 rows), the keyed zone's one walk more (plan P4-D499), and nothing beyond it.
     asked = two_sizes[20_000]["asked"]
     assert sorted(asked) == list(range(columns)), asked

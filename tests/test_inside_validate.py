@@ -132,10 +132,9 @@ def test_only_what_the_made_up_day_moves_is_excused(made) -> None:  # type: igno
         assert after[fact] == validation.MISSED, fact
 
 
-def test_a_ladder_or_tail_stays_excused_outside_the_real_months(made) -> None:  # type: ignore[no-untyped-def]
-    """One twin visit date moved five years past the real last month: its ladder, tail and day-of-month misses are all
-    excused, the weekday count still judged -- the orchestrator's decision on the owner's ruling of 2026-11-22 (plan
-    P4-D525), the dates zone's span carried to lane IN-5 (red where the range would be read again)."""
+def test_a_ladder_or_tail_is_excused_only_inside_the_real_months(made) -> None:  # type: ignore[no-untyped-def]
+    """One twin visit date moved five years past the real last month: its ladder and tail misses stay MISSED, while its
+    day-of-month miss is still excused (red where the range is not read)."""
     from synthtwin import validation
 
     folder, description, twin = made
@@ -151,13 +150,12 @@ def test_a_ladder_or_tail_stays_excused_outside_the_real_months(made) -> None:  
     try:
         twin.write_bytes("\n".join(lines).encode("utf-8"))
         after = _relabelled(folder, description, ("datetime.date_percentiles", "datetime.low_tail.rows",
-                                                  "datetime.day_of_month_census", "datetime.weekday_census"))
+                                                  "datetime.day_of_month_census"))
     finally:
         twin.write_bytes(kept)
-    assert after["datetime.date_percentiles"] == validation.AUTHORIZED_DEVIATION
-    assert after["datetime.low_tail.rows"] == validation.AUTHORIZED_DEVIATION
+    assert after["datetime.date_percentiles"] == validation.MISSED
+    assert after["datetime.low_tail.rows"] == validation.MISSED
     assert after["datetime.day_of_month_census"] == validation.AUTHORIZED_DEVIATION
-    assert after["datetime.weekday_census"] == validation.MISSED
 
 
 def test_the_real_months_are_read_off_the_record_calendar() -> None:

@@ -97,6 +97,9 @@ from synthtwin import patient_trajectory
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts, a
 # module that imports `parsing` alone.
 from synthtwin import date_counts, grains, offset_rules
+# Lane FORMATS: a file from another system's native block (contract
+# 4.3c). `native` opens nothing, as `dialect` opens nothing.
+from synthtwin import native
 from synthtwin.paths import validate_local_path
 
 # The one version this loader reads. `profile_version` must be exactly
@@ -2597,6 +2600,11 @@ class SourceBlock:
     # What the table's file said about itself as a WORKBOOK (contract
     # 4.3b, plan P4-D77), or None where the file was delimited text.
     workbook: "WorkbookForm | None" = None
+    # What a file from ANOTHER SYSTEM said about itself (contract 4.3c,
+    # lane FORMATS): a Parquet, SAS, Stata or SPSS file's native block, or
+    # None where the description carries none. The twin is then written
+    # as a file of that system (`nativewriting`).
+    native: "native.NativeForm | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -6399,7 +6407,14 @@ def _source(value: object) -> SourceBlock:
     """
     where = "in the block saying how the table was read"
     mapping = _mapping(value, "source", _AT_THE_TOP)
-    _keys(mapping, where, SOURCE_KEYS, "that block")
+    # THE NATIVE BLOCK IS A KEY OF ITS OWN, written only for a file from
+    # another system (lane FORMATS, contract 4.3c), so every description
+    # of a CSV file or a workbook keeps exactly the keys it had.
+    _keys(
+        mapping, where,
+        SOURCE_KEYS + (NATIVE_KEY,) if NATIVE_KEY in mapping else SOURCE_KEYS,
+        "that block",
+    )
     encoding = _one_of(mapping["encoding"], "encoding", where, ENCODINGS)
     fallback = _truth(
         mapping["used_fallback_encoding"], "used_fallback_encoding", where
@@ -6435,7 +6450,47 @@ def _source(value: object) -> SourceBlock:
         header_evidence=evidence,
         dialect=_dialect_block(mapping["dialect"]),
         workbook=_workbook_block(mapping["workbook"]),
+        native=_native_block(mapping[NATIVE_KEY] if NATIVE_KEY in mapping else None),
     )
+
+
+NATIVE_KEY = "native"
+_NATIVE_WHERE = "in the block saying how a file from another system holds the table"
+
+
+def _native_block(value: object) -> "native.NativeForm | None":
+    """The native block, typed, or None (contract 4.3c, lane FORMATS).
+
+    Guarantees: every field is held to the rule `native.form_of` states
+    for it; the column count is checked against the description's in
+    `_native_rules`, once the columns are read. Raises ProfileError,
+    naming the field, for anything else.
+    """
+    if value is None:
+        return None
+    try:
+        return native.form_of(value, -1)
+    except native.NativeFormError as error:
+        raise _out_of_range(
+            NATIVE_KEY, _NATIVE_WHERE, f"{error}", "a native block this version writes itself"
+        ) from error
+
+
+def _native_rules(source: SourceBlock, columns: "tuple[ColumnBlock, ...]") -> None:
+    """A native block describes every column once, and stands beside no workbook block (lane FORMATS)."""
+    form = source.native
+    if form is None:
+        return
+    if len(form.columns) != len(columns):
+        raise _out_of_range(
+            "columns", _NATIVE_WHERE, f"{len(form.columns)} columns",
+            f"the {len(columns)} columns the description has",
+        )
+    if source.workbook is not None:
+        raise _out_of_range(
+            NATIVE_KEY, _NATIVE_WHERE, "a native block beside a workbook block",
+            "one of the two: the kind of file the table came from",
+        )
 
 
 _WORKBOOK = "in the block saying how the table's workbook holds it"
@@ -25162,6 +25217,8 @@ def _validated(document: "dict[str, object]", chain: "bool | None" = None) -> Pr
     _workbook_rules(
         source, columns, n_rows, settings.small_cell_floor
     )
+    # ...and for a file from another system (lane FORMATS).
+    _native_rules(source, columns)
     _weekday_storage(source, columns)
     # -- the hour of the written clock (3b.T2, P4-D371)
     _hour_storage(source, columns)
@@ -25429,6 +25486,18 @@ def load_answers(raw_path: str, questions_beside: "str | None" = None) -> "dict[
         raise errors.ProfileError(
             errors.answers_out_of_memory(shown)
         ) from error
+
+
+def answers_from_text(text: str, shown: str) -> "dict[str, object]":
+    """A questions file's text held in memory, read as `load_answers` reads the file's JSON (lane Q-FLOW, step 2).
+
+    The one round of a keyboard run writes nothing until its answers are
+    given, and hands the description that writes every file the
+    questions file its held description would have written, with those
+    answers in it. The same checks and refusals as the file's; ``shown``
+    names it in them. Opens nothing.
+    """
+    return _answers_document(text, shown)
 
 
 def _answers_text(where: pathlib.Path, shown: str) -> str:

@@ -18,6 +18,12 @@ drawn from its seed at run time; nothing is committed.
   battery's night does, through ``SYNTHTWIN_PAUSE_WHILE``).
 * ``--one TABLE --seed S`` -- one table at one seed in this process, its
   run written as JSON to ``--json`` (what each night child runs).
+* ``--extended`` (with ``--kpi`` or ``--quick``) -- the extended battery
+  as well (lane STATS-B, `reliability_battery.EXTENDED_SCRIPTS`): its
+  scripts run beside K-RU-01's on the same twins, and T9 is twinned too;
+  K-RU-01's line is read from F1 to F13 alone exactly as without it, and
+  a second line prints the extended families' value
+  (`reliability_battery.extended_value`), which no ledger entry judges.
 
 F0, the zoo's analyst scripts over its kinds of export, is K-HZ-01's own
 measurement and is read from that entry's stamp (its commit named in the
@@ -103,7 +109,7 @@ def report(runs: "list[B.TableRun]", value: "dict[str, object]", path: pathlib.P
         "value": value, "seconds": round(seconds, 1),
         "products": [{"table": r.table, "seed": r.seed, **r.product} for r in runs],
         "script_seconds": {stem: round(sum(x.seconds for r in runs for x in [r.real.get(stem)] if x), 2)
-                           for stem in B.SCRIPTS},
+                           for stem in list(B.SCRIPTS) + (list(B.EXTENDED_SCRIPTS) if B.WITH_EXTENDED else [])},
         "reasons": B.reasons(runs),
         "verdicts": verdicts,
     }
@@ -120,17 +126,29 @@ def emit(value: "dict[str, object]", suffix: str, seconds: float) -> None:
                    f"void: {value.get('void_families' + suffix) or 'none'}; {round(seconds)} s")
 
 
-def run_tier(tier: str, folder: pathlib.Path, zoo: bool, report_path: "pathlib.Path | None") -> None:
-    """One tier in this process: every table and seed, then the KPI line."""
+def run_tier(tier: str, folder: pathlib.Path, zoo: bool, report_path: "pathlib.Path | None",
+             extended: bool = False) -> None:
+    """One tier in this process: every table and seed, then the KPI line (and, ``extended``, the extended line)."""
     started = time.perf_counter()
     settings = B.TIERS[tier]
     suffix = "_200k" if settings["rows"] >= 200000 else "_20k"
-    runs = B.run_tables(T.TABLES, settings["rows"], settings["seeds"], settings["twins"], folder, log=sys.stdout)
+    B.WITH_EXTENDED = extended
+    tables = T.ALL_TABLES if extended else T.TABLES
+    runs = B.run_tables(tables, settings["rows"], settings["seeds"], settings["twins"], folder, log=sys.stdout)
     value = B.kpi_value(runs, suffix, f0_value(zoo))
     seconds = time.perf_counter() - started
+    if extended:
+        value.update(B.extended_value(runs, suffix))
     if report_path is not None:
         report(runs, value, report_path, seconds)
     emit(value, suffix, seconds)
+    if extended:
+        families = value.get("extended_families" + suffix) or {}
+        said = "; ".join(f"{family} {v['twin']} of {v['n']} (fresh {v['replicate']}, shuffled {v['shuffled']})"
+                         for family, v in families.items())  # type: ignore[index, union-attr]
+        print(f"EXTENDED same_rel {value.get('extended_same_rel' + suffix)}, runs "
+              f"{value.get('extended_runs' + suffix)}; per family: {said}; void: "
+              f"{value.get('extended_void_families' + suffix) or 'none'}", flush=True)
 
 
 def run_one(table: str, seed: int, rows: int, twins: "tuple[int, ...]", folder: pathlib.Path, out: pathlib.Path,
@@ -184,6 +202,7 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument("--zoo", action="store_true", help="run the zoo's 20,000-row leg for F0")
     parser.add_argument("--report", help="where to write every verdict as JSON")
     parser.add_argument("--out", help="the work folder")
+    parser.add_argument("--extended", action="store_true", help="the extended battery's families as well (lane STATS-B)")
     args = parser.parse_args(argv)
     named = args.report or os.environ.get("SYNTHTWIN_RELIABILITY_REPORT", "")
     report_path = pathlib.Path(named) if named else None
@@ -195,9 +214,9 @@ def main(argv: "list[str] | None" = None) -> int:
         folder = pathlib.Path(args.out) if args.out else pathlib.Path(scratch)
         folder.mkdir(parents=True, exist_ok=True)
         if args.kpi:
-            run_tier("kpi", folder / "kpi", args.zoo, report_path)
+            run_tier("kpi", folder / "kpi", args.zoo, report_path, args.extended)
         if args.quick:
-            run_tier("quick", folder / "quick", args.zoo, report_path)
+            run_tier("quick", folder / "quick", args.zoo, report_path, args.extended)
         if args.night:
             (folder / "night").mkdir(parents=True, exist_ok=True)
             run_night(folder / "night", args.zoo, report_path)

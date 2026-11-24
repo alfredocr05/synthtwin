@@ -135,9 +135,17 @@ holds.
 **The same journey in one command.** `synthtwin twin my-table.csv` runs
 the three commands above in one run and writes their six files into one
 folder, `my-table-synthtwin` beside the table, or the folder `--out-dir`
-names. Before any file is written it puts on the screen the questions
-your values cannot settle, and it keeps the answers in that folder's
-questions file, so the next run there asks nothing. A run that finds
+names. Before any file is written it puts on the screen, in one round,
+every question your values cannot settle, grouped by kind: who each row
+is about; the columns that may name a person, a place or a date (the
+identifiers of the Safe Harbor rule of 45 CFR 164.514(b)(2)); ages over
+89; numbers that may be dates of people; the number columns read as
+measurements. In each list Enter
+leaves every column read as a run with nobody at the keyboard reads it,
+and a column's reading is changed only by its name typed. A last screen says what the twin will
+hide, cap, blank and release before anything is written. It keeps the
+answers in that folder's questions file, so the next run there asks
+nothing. A run that finds
 files of its own already at its names stops and changes nothing unless
 `--replace` is given, which is the rule of every command, `profile`
 included. `synthtwin help twin` shows its one page, and `synthtwin help`
@@ -313,8 +321,9 @@ questions (`Question 7`) are labels, not read in a text file, except
 that a number alone answers a question about the file; where two
 questions about one column take the same answer, answer them at the
 keyboard or in the questions file itself. At a keyboard you need
-neither: after the files are written,
-synthtwin puts on the screen every question no prompt of the run put,
+neither: `synthtwin twin` asks them all before anything is written (see
+above), and `synthtwin profile`, after the files are written,
+puts on the screen every question no prompt of the run put,
 writes your answers into that file and describes the table again with
 them, and the line that repeats the run names the questions file
 wherever an answer no option repeats stands (a Safe Harbor answer, a
@@ -619,6 +628,16 @@ run, whether or not anything else went wrong.
 
 - **[built]** `synthtwin profile` - the reading and column analysis
   described above.
+- **[built]** Files from other systems: a Parquet, SAS transport
+  (`.xpt`), SAS dataset (`.sas7bdat`), Stata (`.dta`) or SPSS (`.sav`) file
+  is read, described as the same table saved as CSV is, and its twin is
+  written as the same kind of file -- column types, display formats,
+  labels, value labels, missing-value codes and pandas' dtypes kept where
+  they may be published -- so code that loads the real file loads the
+  twin unchanged. A SAS dataset's twin is a SAS transport file. The
+  file's own label, notes, author and dates are never read into the
+  description. Arrow (Feather), ORC and SPSS portable files are named
+  and refused.
 - **[built]** `synthtwin generate` - the twin and the report described
   above, built from the description and a seed and from nothing else.
   The generator never opens your table; it is not given a path to one.
@@ -696,9 +715,12 @@ whole command run at it. The boundary this architecture keeps is that
 GENERATION reads a description and nothing else -- not that only one
 command opens a file.
 
-**Dependencies are governed [built].** synthtwin has four direct
-runtime dependencies, on Python 3.11 and later: numpy, pyarrow, scipy
-and pandas. pandas is justified in writing in
+**Dependencies are governed [built].** synthtwin has five direct
+runtime dependencies, on Python 3.11 and later: numpy, pyarrow, scipy,
+pandas and pyreadstat. pyreadstat reads SAS, Stata and SPSS files and is
+reduced to its four reads, in one reading module (lane FORMATS); the
+twin of such a file, and of a Parquet file, is written by the standard
+library alone. pandas is justified in writing in
 `docs/plans/phase-1-profiler.md` and reduced by the import scanner to
 `read_csv` and the one setting that fixes how it stores text; numpy is
 justified in `docs/plans/phase-2-generator.md` and reduced to

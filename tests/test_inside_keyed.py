@@ -743,13 +743,21 @@ def _route_s(folder: pathlib.Path, table: str, measurements: bool = True) -> "tu
     return text, zone, on, off, code
 
 
-def _keyed_alike(on: "list[dict[str, str]]", off: "list[dict[str, str]]", key: str, value: str) -> None:
+def _keyed_alike(on: "list[dict[str, str]]", off: "list[dict[str, str]]", key: str, value: str,
+                 carried: bool = False) -> None:
     """On each key level's rows the keyed column holds the keyed-off twin's written forms exactly (its values follow
-    the record)."""
+    the record); with ``carried`` (lane STATS-B), a level whose keyed-off twin's cells a form cannot carry or whose
+    number of decimals the level never writes (a whole-number stand-in on a level of thousandths, or on a level
+    written to one place) may move cells to one form of its own, the level's commonest: every form it then writes is
+    one the keyed-off twin writes there, or that one."""
     for level in sorted({row[key] for row in off}):
         mine = [row[value] for row in on if row[key] == level]
         theirs = [row[value] for row in off if row[key] == level]
-        assert sorted(_form(cell) for cell in mine) == sorted(_form(cell) for cell in theirs), level
+        if sorted(_form(cell) for cell in mine) == sorted(_form(cell) for cell in theirs):
+            continue
+        assert carried, level
+        moved = sorted(set(_form(cell) for cell in mine) - set(_form(cell) for cell in theirs))
+        assert len(moved) <= 1, (level, moved)
 
 
 def _checks_pass(tmp_path: pathlib.Path, table: str, text: str, twin: str) -> None:
@@ -838,7 +846,7 @@ def test_the_charting_table_with_its_pressure_question_left_open(tmp_path: pathl
 
 
 def test_the_laboratory_table_through_the_commands(tmp_path: pathlib.Path) -> None:
-    """Route S on the laboratory table at the floor, the keyed switch on, the truthful holder answering the sodium's own question `measurement` (lane IN-4c): the record models the sodium results, validate exits 0 (the numeric copy's written forms and the flag's counts are the keyed-off twin's), each dealt column holds that twin's cells, a result on each test's rows in that twin's written forms, the copy is left as that twin wrote it beside a source some tests top-code as possible ages, and the five checks pass (mutants: the flag written by its rule whatever the cells hold; the copy written beside a held block; the copy written beside a top-coded source)."""
+    """Route S on the laboratory table at the floor, the keyed switch on, the truthful holder answering the sodium's own question `measurement` (lane IN-4c): the record models the sodium results, validate exits 0, each dealt column holds that twin's cells, a result on each test's rows in that twin's written forms but where a form cannot carry its test's values (lane STATS-B: written in the test's own form, never `0` for a value that is not), the numeric copy is written by its rule from the result beside a source some tests top-code as possible ages (lane STATS-B, reversing lane IN-4c's hold: the result where it is a number, the sentinel elsewhere, never past 90 on a capped test's rows), and the five checks pass (mutants: the flag written by its rule whatever the cells hold; the copy written beside a held block; the copy held back beside a top-coded source; the cell's form kept whatever it writes)."""
     text, zone, on_text, off_text, code = _route_s(tmp_path / "product", "T6")
     on = list(csv.DictReader(io.StringIO(on_text)))
     off = list(csv.DictReader(io.StringIO(off_text)))
@@ -847,10 +855,14 @@ def test_the_laboratory_table_through_the_commands(tmp_path: pathlib.Path) -> No
         ("result", "SOD", "measurement")]
     assert "result" in _level(zone, "SOD")["numbers"]  # type: ignore[operator]
     assert inside_keyed.capped_anywhere(zone, "result")
-    for name in ("unit", "ref_range", "abnormal", "result_num", "patient_id", "test"):
+    for name in ("unit", "ref_range", "abnormal", "patient_id", "test"):
         assert sorted(row[name] for row in on) == sorted(row[name] for row in off), name
-    _keyed_alike(on, off, "test", "result")
-    assert [row["result_num"] for row in on] == [row["result_num"] for row in off]
+    _keyed_alike(on, off, "test", "result", carried=True)
+    for row in on:
+        number = inside_keyed.plain_number(row["result"])
+        assert row["result_num"] == (row["result"].strip() if number is not None else "9999999"), row
+    real_zeros = {row["test"] for row in csv.DictReader(io.StringIO(text)) if row["result"].strip() in ("0", "0.0")}
+    assert not [row for row in on if row["result"].strip() == "0" and row["test"] not in real_zeros]
     flagged = [row for row in on if row["test"] == "K" and row["ref_range"] == "3.5-5.1"
                and inside_keyed.plain_number(row["result"]) is not None]
     agree = sum(1 for row in flagged if (row["abnormal"] == "1") == (not 3.5 <= float(row["result"]) <= 5.1))

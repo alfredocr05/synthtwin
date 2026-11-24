@@ -1119,6 +1119,18 @@ _GATE_WORKBOOK = (
     "is shown"
 )
 
+# THE FOURTH WAY THE GATE CLOSES (lane FORMATS): a table read from a
+# Parquet, SAS, Stata or SPSS file has no delimiter, no quoting and no line
+# endings either -- its description carries a native block -- so these
+# rules are unanswerable of it, as of a workbook, and the file's bytes are
+# never read as text to measure them.
+_GATE_NATIVE = (
+    "the description records that this table was read from a Parquet, "
+    "SAS, Stata or SPSS file, and these rules describe how a delimited "
+    "text file is written, so neither the measurement nor its outcome "
+    "is shown"
+)
+
 # THE GATE ON A PUBLISHED END, AND WHY IT CLOSES WHERE IT DOES (plan
 # P4-D349). A published end is a value a group of rows holds, so the file
 # is asked whether it holds a cell beyond it -- and the file's own
@@ -5582,6 +5594,12 @@ def measure(
             # would be measured under a different reading of the same
             # bytes and would miss the form it actually has.
             small_cell_floor=description.settings.small_cell_floor,
+            # AND, FOR A FILE FROM ANOTHER SYSTEM, IN THE WIDTHS ITS
+            # DESCRIPTION PUBLISHES (lane FORMATS): a number stored in
+            # binary has no spelling, so it is written back with the
+            # decimal places, and a stamp with the fraction of a second,
+            # that the description says its column is written with.
+            native_form=description.source.native,
             # ...AND THE WORDS THE DESCRIPTION READ AS NO VALUE (the
             # repair of review item 3 of landing R3). A column of clock
             # times beside `NA`, or beside a word named with
@@ -5949,6 +5967,10 @@ def measure(
         form_of = data
     elif table.book is not None:
         form_of = _whole_bytes(place, shown)
+    elif table.native is not None:
+        # A native file's bytes are measured by none of the rules below
+        # (`_GATE_NATIVE`), so none of them is read here.
+        form_of = b""
     try:
         checks = _byte_checks(description, form_of, table.survey, False, table)
     except OSError as error:
@@ -7874,11 +7896,16 @@ def _byte_checks(
     # below are about a delimited file's bytes, and this description
     # says the table came out of a package of markup instead.
     packaged = description.source.workbook is not None
-    closed = refused or packaged
-    gate = _GATE_REFUSED if refused else _GATE_WORKBOOK
-    measured = surveyed.form if surveyed is not None else _bare_form(form, data)
-    if refused:
+    # ...AND A FILE FROM ANOTHER SYSTEM ANSWERS NONE OF THEM EITHER (lane
+    # FORMATS): its bytes are not text, so the form is not measured off
+    # them, and every rule is withheld under the native gate.
+    stored_natively = description.source.native is not None
+    closed = refused or packaged or stored_natively
+    gate = _GATE_REFUSED if refused else _GATE_NATIVE if stored_natively else _GATE_WORKBOOK
+    if refused or stored_natively:
         measured = form
+    else:
+        measured = surveyed.form if surveyed is not None else _bare_form(form, data)
     same_count = sum(
         [run.lines for run in form.line_endings + form.line_endings_spread]
     ) == sum(
@@ -8212,12 +8239,23 @@ def _byte_checks(
                 )
             ]
     order = form.row_order
+    ordered: "list[Check]" = []
     if order.column and order.column <= len(description.columns):
         asked = f"rows sorted {order.direction} by this column, read as {order.collation}"
-        held = aligned and surveyed is not None and _order_holds(
-            surveyed, order, table
-        )
-        checks += [
+        if stored_natively and not refused and table is not None:
+            # THE ROWS' ORDER IS A FACT OF THE TABLE, NOT OF A CSV FILE'S
+            # BYTES (lane FORMATS): a native file's is read off its own cells
+            # by the rule a survey reads a CSV file's with, so this one rule
+            # stays open beside a native gate that withholds the others.
+            held = order.column <= len(table.column_names) and dialect.holds_order_in(
+                [reading.column_values(table, place) for place in range(len(table.column_names))],
+                order,
+            )
+        else:
+            held = aligned and surveyed is not None and _order_holds(
+                surveyed, order, table
+            )
+        ordered = [
             _exact(
                 description.columns[order.column - 1].name,
                 _DIALECT_FACT,
@@ -8226,7 +8264,9 @@ def _byte_checks(
                 asked if held else "rows not in that order",
             )
         ]
-    return _withheld_if(checks, closed, gate)
+    if stored_natively and not refused:
+        return _withheld_if(checks, closed, gate) + ordered
+    return _withheld_if(checks + ordered, closed, gate)
 
 
 def _withheld_if(
@@ -25998,6 +26038,7 @@ WITHHELD_RULES: "tuple[tuple[str, str], ...]" = (
     (_GATE_POOLED, "gate-pooled"),
     (_GATE_REFUSED, "gate-refused"),
     (_GATE_WORKBOOK, "gate-workbook"),
+    (_GATE_NATIVE, "gate-native"),
     (_GATE_TAIL_WITHHELD, "tail-withheld"),
     (_GATE_TAIL_WITHHELD_EVERY, "tail-withheld-every"),
     (_GATE_TAIL_WITHHELD_END, "tail-withheld-end"),

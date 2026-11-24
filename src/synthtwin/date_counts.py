@@ -3102,6 +3102,48 @@ _MONTH_WORDS = {
     )
     for word in pair
 }
+# A DATE AS TEXT IN ANOTHER LANGUAGE IS A DATE IN DISGUISE TOO (lane TYPES-24): each month's full name in French,
+# German, Spanish, Italian, Portuguese and Dutch, in small letters, with and without its accents. The type battery's
+# French and Spanish date columns (`5 mars 2023`, `5 de marzo de 2023`) were read as labels and their twin wrote real
+# days, and its German one (`5. März 2023`) was held only where a month is spelled as in English. Full names only:
+# the short forms (`ago`, `set`, `out`, `mai`) are English words or too short to tell from one, and a cell holding a
+# day and a year beside a month's full name is a date whatever language names it. The date READER stays English
+# (`parsing.month_of_name`): these cells are held as dates in disguise, and the inside record's text zone writes them
+# with made-up days in the column's own spelling (`inside_text`).
+FOREIGN_MONTH_WORDS = {
+    word: place + 1
+    for place, names in enumerate(
+        (
+            ("janvier", "januar", "jänner", "enero", "gennaio", "janeiro", "januari"),
+            ("février", "fevrier", "februar", "febrero", "febbraio", "fevereiro", "februari"),
+            ("mars", "märz", "maerz", "marzo", "março", "marco", "maart"),
+            ("avril", "abril", "aprile"),
+            ("mai", "mayo", "maggio", "maio", "mei"),
+            ("juin", "juni", "junio", "giugno", "junho"),
+            ("juillet", "juli", "julio", "luglio", "julho"),
+            ("août", "aout", "agosto", "augustus"),
+            ("septembre", "septiembre", "setiembre", "settembre", "setembro"),
+            ("octobre", "oktober", "octubre", "ottobre", "outubro"),
+            ("novembre", "noviembre", "novembro"),
+            ("décembre", "decembre", "dezember", "diciembre", "dicembre", "dezembro"),
+        )
+    )
+    for word in names
+}
+for _foreign in FOREIGN_MONTH_WORDS:
+    _MONTH_WORDS[_foreign] = FOREIGN_MONTH_WORDS[_foreign]
+# The words a date as text in Spanish, Portuguese or French writes between its day, month and year (`5 de marzo de
+# 2023`, `le 5 mars 2023`), taken out with the space after them before the cell is read (`_plainly_written`).
+_DATE_FILLER_WORDS = ("de", "del", "do", "da", "le")
+
+
+def month_word(word: str) -> int:
+    """The month a word names, 1 to 12, as the dates-in-disguise rule reads it (English, short or full, and the full
+    names of `FOREIGN_MONTH_WORDS`), in any case; 0 for any other word. Raises TypeError for anything but text."""
+    folded = _lowered(word)
+    if folded in _MONTH_WORDS:
+        return _MONTH_WORDS[folded]
+    return 0
 _MERIDIEMS = ("am", "pm", "a.m", "p.m", "a", "p")
 # A cell's pieces: figures, letters, or the one separator character between.
 _FIGURES_PIECE = "figures"
@@ -3208,6 +3250,12 @@ def _a_person_s_year(year: str) -> bool:
     return parsing.is_digit_text(year) and WIDE_FROM <= int(year) < BAND_UNTIL
 
 
+def _a_latin_letter(character: str) -> bool:
+    """A letter of the Latin alphabets past ASCII (`é`, `ä`, `ç`, `ñ`): Latin-1's and Latin Extended-A's, never `×` or `÷`."""
+    point = ord(character)
+    return 0xC0 <= point <= 0x17F and point != 0xD7 and point != 0xF7
+
+
 def _pieces(body: str) -> "list[tuple[str, str]]":
     """A cell cut into figures, letters and single separators, or [] where anything else stands in it."""
     if not isinstance(body, str):
@@ -3218,7 +3266,7 @@ def _pieces(body: str) -> "list[tuple[str, str]]":
     for character in body:
         now = (
             _FIGURES_PIECE if "0" <= character <= "9"
-            else _LETTERS_PIECE if "a" <= character <= "z" or "A" <= character <= "Z"
+            else _LETTERS_PIECE if "a" <= character <= "z" or "A" <= character <= "Z" or _a_latin_letter(character)
             else ""
         )
         if now and now == kind:
@@ -3375,7 +3423,7 @@ _WEEKDAY_WORDS = (
     "thu", "thur", "thurs", "thursday", "fri", "friday", "sat", "saturday",
     "sun", "sunday",
 )
-_ORDINAL_ENDINGS = ("st", "nd", "rd", "th")
+_ORDINAL_ENDINGS = ("st", "nd", "rd", "th", "er")
 
 
 def _reads_whole(body: str) -> bool:
@@ -3410,9 +3458,15 @@ def _plainly_written(body: str) -> str:
         start = 1
         while start < len(pieces) and pieces[start][0] == "" and pieces[start][1] in (" ", ",", "."):
             start = start + 1
+    named = any(kind == _LETTERS_PIECE and _lowered(text) in FOREIGN_MONTH_WORDS for kind, text in pieces)
     written = ""
+    skip_space = False
     for place in range(start, len(pieces)):
         kind, text = pieces[place]
+        if skip_space and kind == "" and text == " ":
+            skip_space = False
+            continue
+        skip_space = False
         if (
             kind == _LETTERS_PIECE
             and _lowered(text) in _ORDINAL_ENDINGS
@@ -3420,6 +3474,10 @@ def _plainly_written(body: str) -> str:
             and pieces[place - 1][0] == _FIGURES_PIECE
             and len(pieces[place - 1][1]) <= 2
         ):
+            continue
+        # ...and a date's filler word beside a month's name in another language, with the space after it.
+        if named and kind == _LETTERS_PIECE and _lowered(text) in _DATE_FILLER_WORDS and place + 1 < len(pieces):
+            skip_space = True
             continue
         written = written + text
     return written
@@ -3495,7 +3553,8 @@ def date_in_disguise(text: str) -> bool:
 # weekday's name, a meridiem's letters, an ordinal's ending, and the `T`
 # and `Z` of a stamp (`a_date_alone`).
 _DATE_ALONE_WORDS = frozenset(
-    tuple(_MONTH_WORDS) + _WEEKDAY_WORDS + _ORDINAL_ENDINGS + ("a", "p", "m", "am", "pm", "t", "z")
+    tuple(_MONTH_WORDS) + _WEEKDAY_WORDS + _ORDINAL_ENDINGS + _DATE_FILLER_WORDS
+    + ("a", "p", "m", "am", "pm", "t", "z")
 )
 
 
@@ -3512,7 +3571,7 @@ def a_date_alone(text: str) -> bool:
         return False
     letters = ""
     for character in parsing.trimmed(text) + " ":
-        if "a" <= character <= "z" or "A" <= character <= "Z":
+        if "a" <= character <= "z" or "A" <= character <= "Z" or _a_latin_letter(character):
             letters = letters + character
             continue
         if letters and _lowered(letters) not in _DATE_ALONE_WORDS:

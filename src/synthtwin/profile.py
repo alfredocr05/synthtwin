@@ -54,6 +54,7 @@ from synthtwin import (
     dialect,
     errors,
     grains,
+    native,
     offset_rules,
     parsing,
     progress,
@@ -854,6 +855,19 @@ _SHEET_FORMAT_CODE = "sheet-format-code"
 # and without a count, or nothing where no class is held by the line
 # (plan P4-D164).
 _SHEET_VALUE_CLASS = "a-value-class-or-nothing"
+# The native block's texts (lane FORMATS), each held to its rule in
+# `native`: a label `label_published` admits, a name `name_published`
+# admits, a display format of a format language's own words, a code (a
+# number written as text, or a text `label_published` admits), a truth
+# value, and one of SPSS's three measures -- or nothing, for each.
+_NATIVE_LABEL = "a-native-label-or-nothing"
+_NATIVE_COLUMN_LABEL = "a-native-column-label-or-nothing"
+_NATIVE_NAME = "a-native-name-or-nothing"
+_NATIVE_FORMAT = "a-native-display-format-or-nothing"
+_NATIVE_CODE = "a-native-code-or-nothing"
+_NATIVE_FLAG = "a-truth-value-or-nothing"
+_NATIVE_MEASURE = "a-measure-or-nothing"
+_NATIVE_ZONE = "a-time-zone-name-or-nothing"
 _FLAG = "flag"
 _NOTHING = "nothing"
 _SENTENCE = "sentence"
@@ -1250,6 +1264,51 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "workbook", "sheet_position"): _COUNT,
     ("source", "workbook", "trailing_blank_columns"): _COUNT,
     ("source", "workbook", "trailing_blank_rows"): _COUNT,
+    # THE NATIVE BLOCK (lane FORMATS, contract 4.3c): what a Parquet, SAS,
+    # Stata or SPSS file said about itself that the twin needs to be
+    # written as the same kind of file. Present only for such a file, so a
+    # description of a CSV or a workbook carries no key for it. Every text
+    # is held to the rule `native` states for its kind, by the producer
+    # (`_published_native`), here, and by the loader alike.
+    ("source", "native"): _MAYBE_OBJECT,
+    ("source", "native", "format"): _WORD,
+    ("source", "native", "version"): _COUNT,
+    ("source", "native", "table_name"): _NATIVE_NAME,
+    ("source", "native", "index"): _MAYBE_OBJECT,
+    ("source", "native", "index", "columns"): _ARRAY,
+    ("source", "native", "index", "columns", _EACH): _KNOWN_NAME,
+    ("source", "native", "index", "start"): _MAYBE_NUMBER,
+    ("source", "native", "index", "step"): _MAYBE_NUMBER,
+    ("source", "native", "columns"): _ARRAY,
+    ("source", "native", "columns", _EACH): _OBJECT,
+    ("source", "native", "columns", _EACH, "categories"): _MAYBE_ARRAY,
+    ("source", "native", "columns", _EACH, "categories", _EACH): _NATIVE_LABEL,
+    ("source", "native", "columns", _EACH, "display"): _NATIVE_FORMAT,
+    ("source", "native", "columns", _EACH, "fraction"): _COUNT,
+    ("source", "native", "columns", _EACH, "label"): _NATIVE_COLUMN_LABEL,
+    ("source", "native", "columns", _EACH, "label_set"): _NATIVE_NAME,
+    ("source", "native", "columns", _EACH, "measure"): _NATIVE_MEASURE,
+    ("source", "native", "columns", _EACH, "missing"): _MAYBE_OBJECT,
+    ("source", "native", "columns", _EACH, "missing", "high"): _NATIVE_CODE,
+    ("source", "native", "columns", _EACH, "missing", "low"): _NATIVE_CODE,
+    ("source", "native", "columns", _EACH, "missing", "values"): _ARRAY,
+    ("source", "native", "columns", _EACH, "missing", "values", _EACH): _NATIVE_CODE,
+    ("source", "native", "columns", _EACH, "pandas"): _MAYBE_OBJECT,
+    ("source", "native", "columns", _EACH, "pandas", "numpy_type"): _WORD,
+    ("source", "native", "columns", _EACH, "pandas", "ordered"): _NATIVE_FLAG,
+    ("source", "native", "columns", _EACH, "pandas", "pandas_type"): _WORD,
+    ("source", "native", "columns", _EACH, "places"): _MAYBE_NUMBER,
+    ("source", "native", "columns", _EACH, "precision"): _MAYBE_NUMBER,
+    ("source", "native", "columns", _EACH, "required"): _FLAG,
+    ("source", "native", "columns", _EACH, "scale"): _MAYBE_NUMBER,
+    ("source", "native", "columns", _EACH, "storage"): _WORD,
+    ("source", "native", "columns", _EACH, "utc"): _NATIVE_FLAG,
+    ("source", "native", "columns", _EACH, "value_labels"): _MAYBE_OBJECT,
+    ("source", "native", "columns", _EACH, "value_labels", _KEY_OF): _NATIVE_CODE,
+    ("source", "native", "columns", _EACH, "value_labels", _ANY_KEY): _NATIVE_LABEL,
+    ("source", "native", "columns", _EACH, "width"): _MAYBE_NUMBER,
+    ("source", "native", "columns", _EACH, "written_as"): _WORD,
+    ("source", "native", "columns", _EACH, "zone"): _NATIVE_ZONE,
     ("source", "dialect"): _OBJECT,
     ("source", "dialect", "blank_lines"): _FORM_PLACES,
     ("source", "dialect", "blank_lines", _EACH): _OBJECT,
@@ -2348,6 +2407,13 @@ PUBLICATION_WORDS: "dict[tuple[str, ...], tuple[str, ...]]" = {
         workbook.FORMAT_KINDS
     ),
     ("source", "workbook", "date_system"): workbook.DATE_SYSTEMS,
+    # The native block's words (lane FORMATS), each a closed list of
+    # synthtwin's own or of pandas' own type names.
+    ("source", "native", "format"): native.FORMATS,
+    ("source", "native", "columns", _EACH, "storage"): native.STORES,
+    ("source", "native", "columns", _EACH, "written_as"): native.WRITTEN,
+    ("source", "native", "columns", _EACH, "pandas", "pandas_type"): native.PANDAS_TYPES,
+    ("source", "native", "columns", _EACH, "pandas", "numpy_type"): native.NUMPY_TYPES,
     **_STATED_WORDS,
     # THE SAME VOCABULARIES INSIDE ONE WRAPPER'S OWN BLOCK (plan
     # P4-D37), read off a joined position's for the reason the rules
@@ -2862,6 +2928,28 @@ def _leaf_is_published(
         return isinstance(value, str) and bool(parsing.trimmed(value))
     if kind == _KNOWN_NAME:
         return isinstance(value, str) and value in context.names
+    if kind == _NATIVE_LABEL:
+        return value is None or native.label_published(value)
+    if kind == _NATIVE_COLUMN_LABEL:
+        return value is None or native.column_label_published(value)
+    if kind == _NATIVE_NAME:
+        return value is None or native.name_published(value, 64)
+    if kind == _NATIVE_FORMAT:
+        return value is None or any(
+            native.format_published(value, system) for system in native.FORMATS
+        )
+    if kind == _NATIVE_CODE:
+        if value is None:
+            return True
+        if not isinstance(value, str):
+            return False
+        return native.number_spelled(value) or native.label_published(value)
+    if kind == _NATIVE_FLAG:
+        return value is None or isinstance(value, bool)
+    if kind == _NATIVE_MEASURE:
+        return value is None or value in native.MEASURES
+    if kind == _NATIVE_ZONE:
+        return value is None or native.zone_published(value)
     if kind == _CENTURY_PART:
         if isinstance(value, str):
             return value in context.names
@@ -4105,12 +4193,28 @@ def _published_form(
     """
     surveyed = table.survey
     if surveyed is None:
-        return dialect.ordinary(
+        plain = dialect.ordinary(
             len(table.column_names),
             table.n_rows,
             table.header_source == reading.HEADER_FROM_FILE,
         )
-    form = surveyed.form
+        if table.native is None:
+            return plain
+        # A FILE FROM ANOTHER SYSTEM IS WRITTEN IN THE ORDINARY FORM, AND ITS
+        # ROWS' ORDER IS READ OFF ITS CELLS AS A SURVEY READS A CSV FILE'S
+        # (lane FORMATS, `dialect.row_order_of`): the same table in CSV
+        # publishes the column its rows are sorted by, so this does too, and
+        # the rules below hold it to the declared identifiers and the absent
+        # cells as they hold a survey's.
+        width = len(table.column_names)
+        rows_sorted = dialect.row_order_of(
+            [reading.column_values(table, place) for place in range(width)],
+            [-1] * width,
+            table.n_rows,
+        )
+        form = dataclasses.replace(plain, row_order=rows_sorted)
+    else:
+        form = surveyed.form
     # NO FILE-LEVEL FACT MAY REBUILD A DECLARED IDENTIFIER, OR A REAL ROW
     # (plan P4-D76). `sequence_start` is written back by the generator as
     # the literal cells 0, 1, 2, ... or 1, 2, 3, ..., so a column
@@ -4237,6 +4341,148 @@ def _published_workbook(
     return _stored_as_text_withheld(
         _pooled_absence_withheld(block, columns), columns, floor
     )
+
+
+# The roles whose column publishes no value of its own (a key, free text,
+# nothing at all): such a column's value labels are dropped whole.
+_ROLES_WITHOUT_VALUES = (
+    taxonomy.ROLE_IDENTIFIER,
+    taxonomy.ROLE_TEXT,
+    taxonomy.ROLE_EMPTY,
+    taxonomy.ROLE_UNREPRESENTABLE,
+)
+
+
+def _published_native(
+    table: Table,
+    columns: "list[dict[str, object]]",
+    floor: int,
+    held_back: "list[str]",
+) -> "dict[str, object] | None":
+    """The native block of a description (lane FORMATS), or None where the table was no native file.
+
+    WHAT OF THE FILE'S OWN FORM IS PUBLISHED (`native`'s docstring gives
+    each rule's reason). The storage of every column, how its cells are
+    written as text, its fraction of a second and its time zone's name
+    where `native.name_published` admits it; its display format where
+    `native.format_published` admits it; its label where
+    `native.column_label_published` admits it (the identifier rules a
+    column's name meets on the CSV route); a value label where the CODE is
+    held by at least ``floor`` of the column's cells AND its text is
+    admitted, and no value label at all of a column whose role publishes
+    no value or that the description holds back (``held_back``: a
+    declared identifier, a column held for Safe Harbor or within each
+    person); SPSS's missing codes where each is a number or an admitted
+    text, of a column whose values are published only; a member name the rule admits; pandas' type words (a closed
+    list) and the index pandas named, where it names columns of the
+    table or a range starting at 0 or 1. The file's own label, notes,
+    creator, dates and every other pair of text it carried are never
+    read into the form at all (`nativereading`).
+
+    Guarantees: a fixed function of the table, the blocks and the
+    floor; reads the table's cells (`reading.column_values`) to count
+    codes; raises nothing of its own.
+    """
+    found = table.native
+    if found is None:
+        return None
+    form = found.form
+    system = form.system
+    kept: "list[native.NativeColumn]" = []
+    for place in range(len(form.columns)):
+        column = form.columns[place]
+        name = table.column_names[place]
+        role = columns[place]["role"] if place < len(columns) and "role" in columns[place] else ""
+        published_values = role not in _ROLES_WITHOUT_VALUES and name not in held_back
+        labels: "tuple[tuple[str, str], ...] | None" = None
+        if column.value_labels and published_values:
+            counted: "dict[str, int]" = {}
+            for code, _text in column.value_labels:
+                counted[code] = 0
+            for cell in reading.column_values(table, place):
+                if cell in counted:
+                    counted[cell] = counted[cell] + 1
+            chosen: "list[tuple[str, str]]" = []
+            for code, text in column.value_labels:
+                if counted[code] < floor:
+                    continue
+                if not native.label_published(text):
+                    continue
+                if column.storage == native.STORE_TEXT and not native.label_published(code):
+                    continue
+                chosen += [(code, text)]
+            labels = tuple(chosen) if chosen else None
+        missing = column.missing
+        # ...and no missing code of a column whose values are not published (batch 4zz's fix round, the outside
+        # review's item 2): a real record number set as an SPSS missing code of a held identifier column reached
+        # the twin's dictionary.
+        if missing is not None and not published_values:
+            missing = None
+        if missing is not None:
+            codes = tuple(
+                [
+                    code for code in missing.values
+                    if native.exact_double(code) is not None or native.label_published(code)
+                ]
+            )
+            missing = native.NativeMissing(values=codes, low=missing.low, high=missing.high)
+            if not codes and missing.low is None:
+                missing = None
+        display = column.display if column.display is not None and native.format_published(column.display, system) else None
+        label = column.label if column.label is not None and native.column_label_published(column.label) else None
+        label_set = (
+            column.label_set
+            if labels is not None and column.label_set is not None and native.name_published(column.label_set, 32)
+            else None
+        )
+        zone = column.zone if column.zone is not None and native.zone_published(column.zone) else None
+        # A categorical's categories, in its file's order: each a value
+        # its column publishes, held to the same floor and reading a value
+        # label is (a category is a cell of the column).
+        categories: "tuple[str, ...] | None" = None
+        if column.categories and published_values:
+            counted_levels: "dict[str, int]" = {}
+            for level in column.categories:
+                counted_levels[level] = 0
+            for cell in reading.column_values(table, place):
+                if cell in counted_levels:
+                    counted_levels[cell] = counted_levels[cell] + 1
+            kept_levels = tuple(
+                [
+                    level for level in column.categories
+                    if counted_levels[level] >= floor and native.label_published(level)
+                ]
+            )
+            categories = kept_levels if kept_levels else None
+        kept += [
+            dataclasses.replace(
+                column,
+                display=display,
+                label=label,
+                label_set=label_set if system == native.FORMAT_STATA else None,
+                value_labels=labels,
+                missing=missing,
+                zone=zone,
+                categories=categories,
+            )
+        ]
+    index = form.index
+    if index is not None:
+        named = tuple([name for name in index.columns if name in table.column_names])
+        index = native.NativeIndex(columns=named, start=index.start, step=index.step)
+        if not named and index.start is None:
+            index = None
+    table_name = form.table_name
+    if table_name is not None and not native.name_published(table_name, 32):
+        table_name = None
+    published = native.NativeForm(
+        system=system,
+        version=form.version,
+        columns=tuple(kept),
+        table_name=table_name,
+        index=index,
+    )
+    return native.document_of(published)
 
 
 def _pooled_absence_withheld(
@@ -4895,6 +5141,114 @@ def _varies_within_a_person(levels: "list[str]", people: "list[str]") -> bool:
     return 2 * len([person for person in repeated if person in two_keys]) >= len(repeated)
 
 
+@dataclasses.dataclass
+class KeyedCodes:
+    """A value column's cells as codes of its different cells, and each key column's rows as codes of its common keys
+    (lane SPEED-2M), made once for all the pairs `keyed_pairs_read` reads: ``values`` the codes (a list, or a byte a
+    row below 256 different cells), ``cells`` each code's cell, ``keys`` each key column's codes by its place."""
+
+    values: "bytes | list[int]"
+    cells: "list[str]"
+    keys: "dict[int, bytes | list[int]]"
+    key_place: int = -1
+
+
+# The most cells a count of code pairs holds.
+_KEYED_PAIR_CELLS = 65536
+
+
+def keyed_codes(v_cells: "list[str]") -> KeyedCodes:
+    """A value column's cells as codes of its different cells, in the order first met."""
+    code_of: "dict[str, int]" = {}
+    cells: "list[str]" = []
+    for cell in v_cells:
+        if cell not in code_of:
+            code_of[cell] = len(cells)
+            cells += [cell]
+    codes = [code_of[cell] for cell in v_cells]
+    return KeyedCodes(bytes(codes) if len(cells) <= 256 else codes, cells, {})
+
+
+def _keyed_counts_by_pairs(
+    coded: KeyedCodes,
+    k_levels: "list[str]",
+    place_of: "dict[str, int]",
+    width: int,
+    v_absent: "frozenset[str]",
+    memo: "dict[str, int]",
+    scales: "dict[str, int | None]",
+) -> "tuple[list[list[int]], list[int], int, int, int, list[int], list[int], int] | None":
+    """The counts `_reads_as_a_key`'s pass makes, from the rows each pair of codes holds; None past 65,536 cells.
+
+    A row's key code is its common key's place, ``width`` for a key that
+    is not common (or none). Each different cell is read once (its
+    reading, its scale step), as the pass reads it.
+    """
+    values = len(coded.cells)
+    if values == 0 or (width + 1) * values > _KEYED_PAIR_CELLS:
+        return None
+    if coded.key_place not in coded.keys:
+        at_codes = [place_of[level] if level in place_of else width for level in k_levels]
+        coded.keys[coded.key_place] = bytes(at_codes) if width + 1 <= 256 else at_codes
+    # ...counted here in whole numbers, one step a row (batch 4zz's merge: `arrays` names numpy, and a validate run
+    # reaches this module, which must name none; the counts are the ones `arrays.joint_counts` made).
+    counts = [0 for _cell in range((width + 1) * values)]
+    key_codes = coded.keys[coded.key_place]
+    value_codes = coded.values
+    for row in range(min(len(key_codes), len(value_codes))):
+        cell_at = key_codes[row] * values + value_codes[row]
+        counts[cell_at] = counts[cell_at] + 1
+    kinds = [[0 for _kind in range(_READ_NONE)] for _key in range(width)]
+    key_rows = [0 for _key in range(width)]
+    present = 0
+    numbers = 0
+    distinct = 0
+    scale_count = [0 for _key in range(width)]
+    scale_sum = [0 for _key in range(width)]
+    scale_squares = 0
+    for code in range(values):
+        cell = coded.cells[code]
+        for at in range(width):
+            key_rows[at] = key_rows[at] + counts[at * values + code]
+        if cell in v_absent:
+            continue
+        if cell in memo:
+            kind = memo[cell]
+        else:
+            kind = keyed_value_reading(cell)
+            if len(memo) < _KEYED_MEMO:
+                memo[cell] = kind
+        if kind == _READ_NONE:
+            continue
+        held = 0
+        for at in range(width + 1):
+            held = held + counts[at * values + code]
+        if held == 0:
+            continue
+        present = present + held
+        distinct = distinct + 1
+        if kind == _READ_NUMBER:
+            numbers = numbers + held
+        step: "int | None" = None
+        if kind == _READ_NUMBER:
+            if cell in scales:
+                step = scales[cell]
+            else:
+                step = keyed_scale_step(cell)
+                if len(scales) < _KEYED_MEMO:
+                    scales[cell] = step
+        for at in range(width):
+            rows = counts[at * values + code]
+            if rows == 0:
+                continue
+            kinds[at][kind] = kinds[at][kind] + rows
+            if step is not None:
+                scale_count[at] = scale_count[at] + rows
+                scale_sum[at] = scale_sum[at] + rows * step
+                scale_squares = scale_squares + rows * step * step
+    return kinds, key_rows, present, numbers, distinct, scale_count, scale_sum, scale_squares
+
+
 def _reads_as_a_key(
     k_levels: "list[str]",
     common: "tuple[str, ...]",
@@ -4902,6 +5256,7 @@ def _reads_as_a_key(
     v_absent: "frozenset[str]",
     memo: "dict[str, int]",
     scales: "dict[str, int | None]",
+    coded: "KeyedCodes | None" = None,
 ) -> "tuple[str, ...] | None":
     """The readings a value column takes under its key, where the pair reads as keyed by rule A or B, or None (plan P4-D487).
 
@@ -4915,9 +5270,24 @@ def _reads_as_a_key(
     item 7: the first pass held every different value's keys for every
     pair, 8.25 CPU seconds at 20,000 rows on a table of 12 label and 24
     number columns).
+
+    THE SAME COUNTS FROM A COUNT OF CODE PAIRS (lane SPEED-2M). With
+    ``coded`` (the value column's cells as codes of its different cells,
+    and this key column's rows as codes of their common keys), where the
+    pairs of codes hold at most 65,536 cells, the pass is one count of
+    the rows each pair holds (whole numbers), and
+    each count the pass makes is the sum of its pairs' rows: every count
+    is a whole number, so the readings are the pass's, whichever way the
+    rows are counted. Any other pair is read row by row as before.
     """
     place_of = {level: place for place, level in enumerate(common)}
     width = len(common)
+    if coded is not None:
+        counted = _keyed_counts_by_pairs(coded, k_levels, place_of, width, v_absent, memo, scales)
+        if counted is not None:
+            kinds_c, key_rows_c, present_c, numbers_c, distinct_c, count_c, sum_c, squares_c = counted
+            return _keyed_decision(k_levels, common, v_cells, v_absent, memo, width, kinds_c, key_rows_c, present_c,
+                                   numbers_c, distinct_c, count_c, sum_c, squares_c)
     kinds = [[0 for _kind in range(_READ_NONE)] for _key in range(width)]
     key_rows = [0 for _key in range(width)]
     present = 0
@@ -4960,7 +5330,28 @@ def _reads_as_a_key(
                 scale_count[at] = scale_count[at] + 1
                 scale_sum[at] = scale_sum[at] + step
                 scale_squares = scale_squares + step * step
-    if not _enough_values(present, len(v_cells), len(distinct), width):
+    return _keyed_decision(k_levels, common, v_cells, v_absent, memo, width, kinds, key_rows, present, numbers,
+                           len(distinct), scale_count, scale_sum, scale_squares)
+
+
+def _keyed_decision(
+    k_levels: "list[str]",
+    common: "tuple[str, ...]",
+    v_cells: "list[str]",
+    v_absent: "frozenset[str]",
+    memo: "dict[str, int]",
+    width: int,
+    kinds: "list[list[int]]",
+    key_rows: "list[int]",
+    present: int,
+    numbers: int,
+    distinct: int,
+    scale_count: "list[int]",
+    scale_sum: "list[int]",
+    scale_squares: int,
+) -> "tuple[str, ...] | None":
+    """`_reads_as_a_key`'s decision from the pass's counts: rules A and B, then the direction (whole numbers only)."""
+    if not _enough_values(present, len(v_cells), distinct, width):
         return None
     covered = 0
     pure = 0
@@ -5326,21 +5717,30 @@ def keyed_pairs_read(
     if not keys:
         return []
     read: "list[KeyedPair]" = []
+    # Each key column's rows as codes of its common keys, made once for every value column (lane SPEED-2M).
+    key_codes: "dict[int, bytes | list[int]]" = {}
     for place in sorted(census):
         name = names[place]
         distinct, memo = census[place]
         value_cells: "list[str]" = []
         scales: "dict[str, int | None]" = {}
+        # The value column's cells as codes, made once for every key column it is read under (lane SPEED-2M).
+        coded: "KeyedCodes | None" = None
         for key_place, levels, common in keys:
             # ...under no key of more common keys than a fifth of its values.
             if key_place == place or not _five_values_a_key(distinct, len(common)):
                 continue
             if not value_cells:
                 value_cells = reading.column_values(table, place)
-            readings = _reads_as_a_key(levels, common, value_cells, frozenset(absent[place]), memo, scales)
+                coded = keyed_codes(value_cells)
+                coded.keys = key_codes
+            if coded is not None:
+                coded.key_place = key_place
+            readings = _reads_as_a_key(levels, common, value_cells, frozenset(absent[place]), memo, scales, coded)
             if readings is not None:
                 read += [KeyedPair(names[key_place], name, common, readings)]
         value_cells = []
+        coded = None
     # A KEY COLUMN IS NO PAIR'S VALUE COLUMN (a unit beside a lab's test
     # reads as a key of the test names: the test is the key of the result),
     # and each value column takes one key column, the one of the most
@@ -8867,6 +9267,18 @@ def build_document(
         # shape is reserved now and what filling one would cost.
         "relationships": _relationships_block(),
     }
+    # A FILE FROM ANOTHER SYSTEM (lane FORMATS): its native block, held to
+    # the rules `_published_native` states, under a key of its own that a
+    # description of a CSV file or a workbook never carries.
+    if table.native is not None:
+        held_back = (
+            list(described_identifiers) + list(held_in_people) + list(withheld_names)
+            + (list(five_figures) if five_figures is not None else [])
+        )
+        native_block = _published_native(table, columns, settings.small_cell_floor, held_back)
+        source_block = document["source"]
+        if native_block is not None and isinstance(source_block, dict):
+            source_block["native"] = native_block
     # THE LAST THING THAT HAPPENS, and it happens to the FINISHED
     # document (plan P2-D2). The notes were lifted out of the column
     # blocks a few lines above, so a check made anywhere earlier would
@@ -13600,6 +14012,18 @@ def _without_table_suffix(name: str) -> str:
         return name[: len(name) - 5]
     if lowered.endswith(".xlsm"):
         return name[: len(name) - 5]
+    # ...AND A FILE FROM ANOTHER SYSTEM'S (lane FORMATS): `visits.dta` is
+    # described into `visits-profile.json`, as `visits.csv` is.
+    if lowered.endswith(".parquet"):
+        return name[: len(name) - 8]
+    if lowered.endswith(".sas7bdat"):
+        return name[: len(name) - 9]
+    if lowered.endswith(".xpt"):
+        return name[: len(name) - 4]
+    if lowered.endswith(".dta"):
+        return name[: len(name) - 4]
+    if lowered.endswith(".sav"):
+        return name[: len(name) - 4]
     return name
 
 

@@ -1853,13 +1853,79 @@ def score(estimate: Estimate, sample: int, rows: int, floor: int) -> Scored:
     return Scored(estimate, twin_inside, replicate_inside, shuffle_inside, recovery, judged, joint, replicate_recovery)
 
 
+# THE TALLY (lane STATS-A, batch 4zz): what a family's word, its parts' words and the controls are read from, counted
+# as each estimate is scored. A table of 302 columns, 300 of them labels, gave F1's level part about 2.7 million
+# estimates (300 labels by 301 other columns by about thirty cells of band by level) and F9 about half a million more,
+# each an object of about a kilobyte held until the run's end: `judge_one` reached the laptop's 1.9 GB guard there (the
+# health zoo's wide export, K-HZ's shipped route, on every tree since the self-test was built). A tally keeps the counts
+# and the two ratios' values the words read (`word_of`), so each estimate is let go once scored, and every word, share
+# and median is the one the list of scored estimates gave.
+
+
+@dataclasses.dataclass
+class Tally:
+    """The counts a family's (or a part's) word is read from, and the ratios whose medians it reads (`word_of`)."""
+
+    # The part this tally counts (`Estimate.part`), '' for a family's whole tally.
+    part: str = ""
+    supported: int = 0
+    joint: int = 0
+    twin_inside: int = 0
+    replicate_inside: int = 0
+    joint_twin_inside: int = 0
+    joint_replicate_inside: int = 0
+    joint_shuffle_inside: int = 0
+    # The twin's gap over the shuffle's (`Scored.recovery`) and the replicate's (`replicate_recovery`), where the
+    # shuffle moves the estimate beyond its yardstick; and how many such estimates read `not carried` on their own.
+    recovered: "list[float]" = dataclasses.field(default_factory=list)
+    kept: "list[float]" = dataclasses.field(default_factory=list)
+    compared_not_carried: int = 0
+    # Each part's own tally (`Estimate.part`, a family's alone), by name.
+    parts: "dict[str, Tally]" = dataclasses.field(default_factory=dict)
+
+
+def _one_counted(tally: Tally, one: Scored, ratios: bool = True) -> None:
+    """One scored estimate counted into a tally (and its ratios, where `ratios`)."""
+    tally.supported += 1
+    tally.twin_inside += 1 if one.twin_inside else 0
+    tally.replicate_inside += 1 if one.replicate_inside else 0
+    if one.joint:
+        tally.joint += 1
+        tally.joint_twin_inside += 1 if one.twin_inside else 0
+        tally.joint_replicate_inside += 1 if one.replicate_inside else 0
+        tally.joint_shuffle_inside += 1 if one.shuffle_inside else 0
+    if ratios and one.recovery is not None:
+        tally.recovered += [one.recovery]
+        tally.compared_not_carried += 1 if one_word(one) == NOT_CARRIED else 0
+    if ratios and one.replicate_recovery is not None:
+        tally.kept += [one.replicate_recovery]
+
+
+def tally_into(tally: Tally, one: Scored) -> None:
+    """One scored estimate counted into its family's tally and into its part's (`Estimate.part`, where it has one)."""
+    _one_counted(tally, one)
+    part = one.estimate.part
+    if part:
+        if part not in tally.parts:
+            tally.parts[part] = Tally(part)
+        _one_counted(tally.parts[part], one)
+
+
+def tally_of(scored: "list[Scored]") -> Tally:
+    """A list of scored estimates as one tally, its parts counted too."""
+    tally = Tally()
+    for one in scored:
+        tally_into(tally, one)
+    return tally
+
+
 def _median(values: "list[float]") -> float:
     ordered = sorted(values)
     middle = len(ordered) // 2
     return ordered[middle] if len(ordered) % 2 else 0.5 * (ordered[middle - 1] + ordered[middle])
 
 
-def word_of(scored: "list[Scored]") -> "tuple[str, str, int, int, float | None, int, bool, bool]":
+def word_of(scored: "list[Scored] | Tally") -> "tuple[str, str, int, int, float | None, int, bool, bool]":
     """A family's word from its supported estimates: carried, approximate or not carried, with why.
 
     The share inside and the replicate's are read on the JOINT estimates
@@ -1869,19 +1935,21 @@ def word_of(scored: "list[Scored]") -> "tuple[str, str, int, int, float | None, 
     replicate's share, the estimates the shares were read on, whether
     they are the joint ones, and whether the comparisons rule left it
     `not judged` (fewer than FAMILY_MINIMUM comparisons, not every one
-    past the line: LANE ST RULINGS 7 (1)).
+    past the line: LANE ST RULINGS 7 (1)). Takes the scored estimates or
+    their tally (`Tally`): the same word from either.
     """
-    if len(scored) < FAMILY_MINIMUM:
-        return NOT_JUDGED, f"fewer than {FAMILY_MINIMUM} supported estimates ({len(scored)})", len(scored), 0, None, 0, False, False
-    joint = [one for one in scored if one.joint]
-    basis = joint if len(joint) >= JOINT_MINIMUM else scored
-    on_joint = len(joint) >= JOINT_MINIMUM
-    inside = sum(1 for one in basis if one.twin_inside)
-    replicate = sum(1 for one in basis if one.replicate_inside) / len(basis)
-    share = inside / len(basis)
-    recovered = [one.recovery for one in scored if one.recovery is not None]
-    kept = [one.replicate_recovery for one in scored if one.replicate_recovery is not None]
-    found = (len(scored), inside, replicate, len(basis), on_joint)
+    tally = tally_of(scored) if isinstance(scored, list) else scored
+    supported = tally.supported
+    if supported < FAMILY_MINIMUM:
+        return NOT_JUDGED, f"fewer than {FAMILY_MINIMUM} supported estimates ({supported})", supported, 0, None, 0, False, False
+    on_joint = tally.joint >= JOINT_MINIMUM
+    basis = tally.joint if on_joint else supported
+    inside = tally.joint_twin_inside if on_joint else tally.twin_inside
+    replicate = (tally.joint_replicate_inside if on_joint else tally.replicate_inside) / basis
+    share = inside / basis
+    recovered = tally.recovered
+    kept = tally.kept
+    found = (supported, inside, replicate, basis, on_joint)
     near = share >= replicate - FAMILY_TARGET
     if near and len(recovered) < FAMILY_MINIMUM:
         # A COMPARISON SKIPPED IS NO AFFIRMATION (LANE ST RULINGS 5 (3),
@@ -1896,15 +1964,15 @@ def word_of(scored: "list[Scored]") -> "tuple[str, str, int, int, float | None, 
         # reason counts the estimates showing a relationship that the trial
         # twin keeps inside, so 'about as often as the replicate' is never
         # the whole of it.
-        kept_inside = (f"{sum(1 for one in joint if one.twin_inside)} of its {len(joint)} estimates beyond their "
+        kept_inside = (f"{tally.joint_twin_inside} of its {tally.joint} estimates beyond their "
                        "yardstick from their value were the columns unrelated are inside on the trial twin")
-        compared = [one for one in scored if one.recovery is not None]
-        if compared and all(one_word(one) == NOT_CARRIED for one in compared):
+        compared = len(recovered)
+        if compared and tally.compared_not_carried == compared:
             return (NOT_CARRIED, "the trial twin keeps less of the relationships than the line between approximate and "
-                    f"not carried on every estimate the shuffle moves beyond its yardstick ({len(compared)} of them, "
+                    f"not carried on every estimate the shuffle moves beyond its yardstick ({compared} of them, "
                     f"under the {FAMILY_MINIMUM} that setting what it keeps against a fresh half needs); "
                     f"{kept_inside}") + found + (False,)
-        over = "" if on_joint else f" over all {len(scored)} of its supported estimates"
+        over = "" if on_joint else f" over all {supported} of its supported estimates"
         return (NOT_JUDGED, f"inside the yardstick about as often as the replicate{over}, but only {len(recovered)} of "
                 f"its estimates are moved beyond their yardstick by the shuffle, under the {FAMILY_MINIMUM} that "
                 f"setting what it keeps against a fresh half needs; {kept_inside}") + found + (True,)
@@ -2090,7 +2158,7 @@ def combined(found: "list[Judged]") -> Judged:
 def family_word(
     code: str,
     name: str,
-    mine: "list[Scored]",
+    mine: "list[Scored] | Tally",
     ceiling: "tuple[str, ...]" = (),
     logged: "tuple[str, ...]" = (),
     none_joint: bool = False,
@@ -2102,22 +2170,24 @@ def family_word(
     not judged, its reason giving its counts (`unrelated_reason`), and so
     is every family where no estimate of the run is joint (`none_joint`);
     otherwise its word is `word_of` its estimates and the worst of its
-    parts' words.
+    parts' words. Takes the family's scored estimates or their tally
+    (`Tally`, its parts counted): the same word from either.
     """
-    joint_count = sum(1 for one in mine if one.joint)
-    share = joint_count / len(mine) if mine else None
+    tally = tally_of(mine) if isinstance(mine, list) else mine
+    supported_all = tally.supported
+    joint_count = tally.joint
+    share = joint_count / supported_all if supported_all else None
     if none_joint:
-        return FamilyWord(code, name, NOT_JUDGED, NONE_JOINT, len(mine), 0, None, ceiling, joint_share=share,
+        return FamilyWord(code, name, NOT_JUDGED, NONE_JOINT, supported_all, 0, None, ceiling, joint_share=share,
                           unrelated=True, logged=logged)
-    if len(mine) >= FAMILY_MINIMUM and sees_no_relationship(joint_count, len(mine)):
-        return FamilyWord(code, name, NOT_JUDGED, unrelated_reason(joint_count, len(mine)), len(mine), 0, None, ceiling,
-                          joint_share=share, unrelated=True, logged=logged)
-    judged_word, reason, supported, inside, replicate, basis, on_joint, few = word_of(mine)
-    part_names = sorted({one.estimate.part for one in mine if one.estimate.part})
+    if supported_all >= FAMILY_MINIMUM and sees_no_relationship(joint_count, supported_all):
+        return FamilyWord(code, name, NOT_JUDGED, unrelated_reason(joint_count, supported_all), supported_all, 0, None,
+                          ceiling, joint_share=share, unrelated=True, logged=logged)
+    judged_word, reason, supported, inside, replicate, basis, on_joint, few = word_of(tally)
     parts: "list[tuple[str, str, str, int, int, int, bool]]" = []
-    for part in part_names:
+    for part in sorted(tally.parts):
         part_word, part_why, part_supported, part_inside, _replicate, part_basis, part_joint, _few = word_of(
-            [one for one in mine if one.estimate.part == part]
+            tally.parts[part]
         )
         parts += [(part, part_word, part_why, part_supported, part_inside, part_basis, part_joint)]
     worst = _rank(judged_word)
@@ -2128,6 +2198,26 @@ def family_word(
             reason = "the worst word of its parts"
     return FamilyWord(code, name, judged_word, reason, supported, inside, replicate, ceiling, tuple(parts), basis, on_joint,
                       (), share, logged=logged, few_comparisons=few and judged_word == NOT_JUDGED)
+
+
+def _taken(
+    found: "list[Estimate]",
+    sample: int,
+    rows: int,
+    floor: int,
+    tallies: "dict[str, Tally]",
+    overall: Tally,
+    correlations_kept: "list[Estimate]",
+) -> None:
+    """Each estimate scored and counted into its family's tally and the run's (the controls'); a correlation (F2) kept."""
+    for one in found:
+        judged = score(one, sample, rows, floor)
+        if one.family not in tallies:
+            tallies[one.family] = Tally()
+        tally_into(tallies[one.family], judged)
+        _one_counted(overall, judged, False)
+        if one.family == "F2":
+            correlations_kept += [one]
 
 
 def judge_one(inputs: chain.SelftestInputs, words: "list[dict[str, object]]", floor: int, constant: int) -> Judged:
@@ -2160,19 +2250,28 @@ def judge_one(inputs: chain.SelftestInputs, words: "list[dict[str, object]]", fl
         centre[name] = (mean, spread if spread > 0.0 else 1.0)
     numbers = [name for name in fine + binaries if name in centre]
     coarse = {column.name: column.ladder.maps[2] for column in inputs.columns}
-    estimates: "list[Estimate]" = []
+    rows = inputs.rows
+    # Each estimate is scored as it is made and counted into its family's tally (`_taken`); only the
+    # correlations (F2) are kept whole, for the pairs' words below.
+    tallies: "dict[str, Tally]" = {}
+    overall = Tally()
+    correlations_kept: "list[Estimate]" = []
     for outcome in binaries:
         outcome_flags = {side: views[side].value[outcome] for side in views}
-        estimates += _rate_estimates("F1", outcome, outcome_flags, views, groups, [name for name in names if name != outcome], False, left)
-        estimates += _rate_estimates("F1", outcome, outcome_flags, views, groups, [name for name in fine if name != outcome], True, left)
+        _taken(_rate_estimates("F1", outcome, outcome_flags, views, groups, [name for name in names if name != outcome], False, left),
+               sample, rows, floor, tallies, overall, correlations_kept)
+        _taken(_rate_estimates("F1", outcome, outcome_flags, views, groups, [name for name in fine if name != outcome], True, left),
+               sample, rows, floor, tallies, overall, correlations_kept)
         strongest = _strongest(outcome, [name for name in numbers if name != outcome], sampled, TRIPLE_PARTNERS)
-        estimates += _triple_rate_estimates(outcome, outcome_flags, views, groups, strongest, coarse, left)
+        _taken(_triple_rate_estimates(outcome, outcome_flags, views, groups, strongest, coarse, left), sample, rows, floor,
+               tallies, overall, correlations_kept)
     for name in labels:
         column = by_name[name]
         levels = label_levels(column)
         if levels:
             others = {other: by_name[other].ladder.counts[0] for other in names if other != name}
-            estimates += _label_rate_estimates(name, column.missing, levels, views, groups, others, left)
+            _taken(_label_rate_estimates(name, column.missing, levels, views, groups, others, left), sample, rows, floor,
+                   tallies, overall, correlations_kept)
     for column in inputs.columns:
         name = column.name
         blank_flags: "dict[str, list[float | None]]" = {}
@@ -2183,9 +2282,11 @@ def judge_one(inputs: chain.SelftestInputs, words: "list[dict[str, object]]", fl
             elif column.missing >= 0:
                 blank_flags[side] = [1.0 if code == column.missing else 0.0 for code in view.l0[name]]
         if blank_flags:
-            estimates += _rate_estimates("F9", name, blank_flags, views, groups, [other for other in names if other != name], False, left)
+            _taken(_rate_estimates("F9", name, blank_flags, views, groups, [other for other in names if other != name], False, left),
+                   sample, rows, floor, tallies, overall, correlations_kept)
     correlations_found, raw_known = _correlation_estimates(views, groups, fine, skewed)
-    estimates += correlations_found
+    _taken(correlations_found, sample, rows, floor, tallies, overall, correlations_kept)
+    del correlations_found
     roles = {column.name: column.role for column in inputs.columns}
     dated = [column.name for column in inputs.columns if column.role in (rules.ROLE_DATETIME, rules.ROLE_CLOCK)]
     models: "list[Model]" = []
@@ -2232,14 +2333,11 @@ def judge_one(inputs: chain.SelftestInputs, words: "list[dict[str, object]]", fl
         ]
         fitted = _model_estimates(model, views, groups, centre, stops, left)
         ran += 1 if fitted else 0
-        estimates += fitted
-    rows = inputs.rows
-    scored = [score(one, sample, rows, floor) for one in estimates]
-    joint = [one for one in scored if one.joint]
-    replicate_share = sum(1 for one in scored if one.replicate_inside) / len(scored) if scored else None
-    shuffle_share = sum(1 for one in joint if one.shuffle_inside) / len(joint) if joint else None
-    joint_replicate = sum(1 for one in joint if one.replicate_inside) / len(joint) if joint else None
-    joint_share = len(joint) / len(scored) if scored else 0.0
+        _taken(fitted, sample, rows, floor, tallies, overall, correlations_kept)
+    replicate_share = overall.replicate_inside / overall.supported if overall.supported else None
+    shuffle_share = overall.joint_shuffle_inside / overall.joint if overall.joint else None
+    joint_replicate = overall.joint_replicate_inside / overall.joint if overall.joint else None
+    joint_share = overall.joint / overall.supported if overall.supported else 0.0
     held = True
     unrelated = False
     why = "the replicate lands inside about as often as a fresh sample, and the shuffle misses the relationships the sample shows"
@@ -2255,9 +2353,9 @@ def judge_one(inputs: chain.SelftestInputs, words: "list[dict[str, object]]", fl
     elif shuffle_share > joint_replicate - SHUFFLE_UNDER:
         held = False
         why = "the column-wise shuffle landed inside about as often as the replicate: the panel sees no relationship the chain could carry"
-    controls = Controls(replicate_share, shuffle_share, held, why, joint_share if scored else None)
+    controls = Controls(replicate_share, shuffle_share, held, why, joint_share if overall.supported else None)
     pair_scored: "dict[tuple[str, str], tuple[Scored | None, int, list[Scored] | None]]" = {}
-    known = {(one.key[1], one.key[2], one.key[3]): one for one in estimates if one.family == "F2"}
+    known = {(one.key[1], one.key[2], one.key[3]): one for one in correlations_kept}
     for entry in words:
         pair = _pair_names(entry)
         if pair[0] not in by_name or pair[1] not in by_name or pair in pair_scored:
@@ -2353,7 +2451,7 @@ def judge_one(inputs: chain.SelftestInputs, words: "list[dict[str, object]]", fl
         if code in ("F2", "F3", "F4", "F5", "F6"):
             ceiling = tuple(sorted(column_name for column_name in skewed if column_name in fine))
         family_logged = tuple(column_name for column_name in ceiling if column_name in sampled.log)
-        mine = [one for one in scored if one.estimate.family == code]
+        mine = tallies[code] if code in tallies else Tally()
         families += [family_word(code, name, mine, ceiling, family_logged, unrelated)]
     return Judged(tuple(families), tuple(pairs), controls, sample, rows, moved, tuple(stops), tuple(named_models), left_out)
 

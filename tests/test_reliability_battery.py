@@ -40,7 +40,8 @@ def run_of(estimands: "dict[str, dict]", ok: bool = True, trouble: "list[str] | 
 
 
 def test_every_script_file_is_catalogued_and_every_entry_is_a_file() -> None:
-    assert B.script_files() == sorted(B.SCRIPTS)
+    assert B.script_files() == sorted(list(B.SCRIPTS) + list(B.EXTENDED_SCRIPTS))
+    assert not set(B.SCRIPTS) & set(B.EXTENDED_SCRIPTS)
     for script in B.catalogue():
         assert script.table in T.TABLES
         assert script.family in B.FAMILIES
@@ -394,3 +395,62 @@ def test_the_battery_separates_a_fresh_sample_from_a_shuffled_cohort(tmp_path: p
     assert all(s.sides["twin"].runs or s.sides["twin"].why for s in scored)
     value = B.kpi_value([run], "_small")
     assert value["script_runs_small"] == len([s for s in scored if s.family in B.HEADLINE_FAMILIES])
+
+
+# -- the extended battery (lane STATS-B) ---------------------------------------------------------
+
+
+def test_the_extended_scripts_are_catalogued_apart_from_k_ru_01_s() -> None:
+    """Each extended script reads one table of `ALL_TABLES` by its file name and writes its results; every extended
+    family has a script; the catalogue holds them only where asked, so K-RU-01's runs and families are as before
+    (mutant: the extended scripts in the default catalogue)."""
+    assert set(T.EXTENDED_TABLES) & set(T.TABLES) == set()
+    assert {s.stem for s in B.catalogue()} == set(B.SCRIPTS)
+    extended = [s for s in B.catalogue(extended=True) if s.stem in B.EXTENDED_SCRIPTS]
+    assert {s.stem for s in extended} == set(B.EXTENDED_SCRIPTS)
+    assert {s.family for s in extended} == set(B.EXTENDED_FAMILIES)
+    assert not set(B.EXTENDED_FAMILIES) & set(B.FAMILIES)
+    for script in extended:
+        assert script.table in T.ALL_TABLES
+        text = script.path.read_text(encoding="utf-8")
+        assert f'pd.read_csv("{T.FILES[script.table]}")' in text, script.stem
+        assert 'open("results.json", "w"' in text, script.stem
+    lines = T.text("T9", 400, 3).splitlines()
+    assert lines[0].split(",") == T.COLUMNS["T9"] and T.text("T9", 400, 3) == T.text("T9", 400, 3)
+    assert T.text("T9", 400, 3) != T.text("T9", 400, 4)
+
+
+def test_every_extended_script_runs_on_its_real_table(tmp_path: pathlib.Path) -> None:
+    pytest.importorskip("statsmodels")
+    pytest.importorskip("sklearn")
+    for table in ("T1", "T2", "T9"):
+        scripts = [s for s in B.catalogue((table,), extended=True) if s.stem in B.EXTENDED_SCRIPTS]
+        assert scripts, table
+        extra = {B.HOLDOUT_FILE: T.text("T1", 2500, B.holdout_seed(1))} if table == "T1" else {}
+        found = B.run_side(tmp_path / table, table, T.text(table, 4000, 1), scripts, extra)
+        for stem, run in found.items():
+            assert run.ok, (stem, run.error)
+            assert run.estimands and all(B.finite(e["estimate"]) for e in run.estimands.values()), stem
+            assert any(e["primary"] for e in run.estimands.values()), stem
+
+
+def test_the_extended_value_reads_its_families_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`extended_value` counts the extended families and `kpi_value` never does: a run of one headline script and one
+    extended script reads 1.0 in each where both pass, and K-RU-01's value is the same with the extended run beside it
+    (mutants: the extended families counted in K-RU-01's; the headline counted in the extended value)."""
+    hit = {"x": estimate(1.0, se=0.1, p=1e-20)}
+    miss = {"x": estimate(0.0, se=0.1, p=0.9)}
+    monkeypatch.setattr(B, "SCRIPTS", {"f03_one": ("T4", True)})
+    monkeypatch.setattr(B, "EXTENDED_SCRIPTS", {"f17_two": ("T9", True)})
+    monkeypatch.setattr(B, "WITH_EXTENDED", True)
+    headline = _table_run("T4", "f03_one", hit, hit, miss)
+    extended = _table_run("T9", "f17_two", miss, hit, miss)
+    alone = B.kpi_value([headline], "_20k")
+    beside = B.kpi_value([headline, extended], "_20k")
+    for key in ("runs_20k", "same_20k", "same_rel_20k", "script_runs_20k", "families_20k"):
+        assert alone[key] == beside[key], key
+    value = B.extended_value([headline, extended], "_20k")
+    assert value["extended_script_runs_20k"] == 1
+    assert value["extended_same_20k"] == 0.0 and value["extended_same_replicate_20k"] == 1.0
+    assert value["extended_families_20k"] == {"F17": {"n": 1, "runs": 1.0, "twin": 0.0, "replicate": 1.0,
+                                                      "shuffled": 0.0}}

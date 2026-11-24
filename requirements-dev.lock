@@ -635,7 +635,9 @@ narwhals==2.27.1 \
     --hash=sha256:aed93076a3ea42d9c32c88e4eb5ea422a21937011cbe1f480f9572a523c82094 \
     --hash=sha256:d057df13f5852b8e157596e82eb5e955fad267425df5e420e0ee9863da483b31
     # via
+    #   -c constraints.txt
     #   formulaic
+    #   pyreadstat
     #   scikit-learn
 nh3==0.3.6 \
     --hash=sha256:082675ff87b9385ec430ffe6d5847ba7456cc39b73720cd4add472f9f4cffd56 \
@@ -779,6 +781,7 @@ numpy==2.4.6 ; python_full_version < '3.12' \
     #   numba
     #   pandas
     #   patsy
+    #   pyreadstat
     #   scikit-learn
     #   scipy
     #   statsmodels
@@ -855,6 +858,7 @@ numpy==2.5.4 ; python_full_version >= '3.12' \
     #   numba
     #   pandas
     #   patsy
+    #   pyreadstat
     #   scikit-learn
     #   scipy
     #   statsmodels
@@ -1018,6 +1022,36 @@ pyproject-hooks==1.2.0 \
     --hash=sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8 \
     --hash=sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913
     # via build
+pyreadstat==1.3.6 \
+    --hash=sha256:1b4f32d4a8ef996a5c3ee6ba2d6790a0ca93e7a4c1f7611e94e610d945e0788b \
+    --hash=sha256:3ac231771dc038e0a42a4d14599af3112684f7eba680983b3ef9581db3e3b163 \
+    --hash=sha256:3d48c59ab77b6e39df1cf846ef343eba274af4a536f54491c78f4f4e8d2bc984 \
+    --hash=sha256:3dc2e98c129e27c50728a9ed65eb46d4b37c8868df1dc374eb5e4f820c6dc1bc \
+    --hash=sha256:450cc85f4e782734c0de8bd6aee1ee8e36ad6f5d514900ab9db5e23fdcf8d3bb \
+    --hash=sha256:48972d5f947e63ad69beea4a124e52b93bd61f294dff4d9b0f0c8e3b7f4664c9 \
+    --hash=sha256:4d54d1f7353942ac94220069a8dcc34b3b38af53d98a24dcc9a28742ca153c6c \
+    --hash=sha256:4f524d0da5183d3507ff57cc00e82d4fdee46c33066e904a1186566b0fa95b7c \
+    --hash=sha256:5030aa5105c0edc2eac46ce2a2c7621bf52c6456fb3c056b86d8eed635e416c5 \
+    --hash=sha256:5ae4fe78389e783f9f846f6e0bb82191b7d59188909609524d39a81a7501dbba \
+    --hash=sha256:6949c7535dc57115f3d5620b3f381ca76589f0fb079c20c26b7cbcdd5fca54db \
+    --hash=sha256:744cc52a6d14ffd2930c684bf07d4a19c5342f41f92c4604b445137f7a4628af \
+    --hash=sha256:822551e12c83c4e8e0f757060297b459d38bfb3860bb6c7419f71288ddd94690 \
+    --hash=sha256:88b412b7c339f0d174eb50dff7478905a9cac72409b0fe98ebe3b203d1c48271 \
+    --hash=sha256:93182fc101e2adf27c36fb935e8144e5bc92a3da8d7577a1dabfcacf29b672e8 \
+    --hash=sha256:a8ce92ac23e5f46839e0d636b526e250f90ab771ecf53a408a7179197a14077f \
+    --hash=sha256:a9806877e74e17b65142526799e48e83c6d534423f80c2bca9d76836f9733aab \
+    --hash=sha256:c683a98862a47de2fefafb28c197c724c632a0223214eca7c96b2f4774dc6346 \
+    --hash=sha256:c7b3bde1d86d5b4bd93b8a783d306a1cc6b9cc64adc4b892754f24caa8270aa5 \
+    --hash=sha256:c8d665437b39d4788c2854f09b352ada9e70e166dd96ab68225b81214abe8645 \
+    --hash=sha256:cd3c1b6b948ec8c7ac4cd140f4542a5fd076ef814a1e252d26b218624e975457 \
+    --hash=sha256:db275cc6a96b259a6369cd8b2d8ad159cf6c81b296c1a8205bb23e51686b0f24 \
+    --hash=sha256:ed79f7acdb96c4df99cd53e4c87aaa750c369acb3d58ca305315dbc8ed75ed29 \
+    --hash=sha256:ef0476ce667a86c70aad2801ff13117ef0e64fa3c45b48d160441dbd43c69b1f \
+    --hash=sha256:f20a507456878a521530a503c22ed0653767fa88339f911e496256721bc4fb0c \
+    --hash=sha256:f90698b5aaa7e837029d70f5170ad3b6df4b6c678dcca55907c3b00ac4b3e1b8
+    # via
+    #   -c constraints.txt
+    #   -r requirements-dev.in
 pytest==9.1.1 \
     --hash=sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313 \
     --hash=sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c

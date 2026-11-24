@@ -561,16 +561,20 @@ def test_yes_holds_the_column_and_closes_the_question(
 
     Codex's review, item 8: a ZIP column answered `yes` stayed among the
     columns held for their figures and was asked the same question again.
-    LANE SH3'S REPAIR 1 (plan P4-D454; the orchestrator's LANE SH3
-    RULINGS 1 (1)): an answer keeps the meaning it had when it was given,
-    so `ages`, a column its values alone read as ages (its name says no
-    age), is held whole by `yes` as before lane SH3; its unit answered
-    keeps the top-code (`test_a_unit_answered_keeps_the_top_code`).
+    THE OWNER'S DECISION A OF BATCH 4ZZ (2026-11-23, fidelity first; plan
+    P4-D539), replacing for such a column LANE SH3'S REPAIR 1 (plan
+    P4-D454; the orchestrator's LANE SH3 RULINGS 1 (1)): `ages`, a column
+    whose every value reads as an age though its name says none, keeps its
+    top-code under `yes`, as `years` keeps it
+    (`test_a_unit_answered_keeps_the_top_code`); the ZIP columns are held.
     """
     seen = _answered(tmp_path, kind, asking.ANSWER_SAFE_HARBOR_YES)
     block = seen["block"]
     assert isinstance(block, dict)
-    assert block["role"] == taxonomy.ROLE_IDENTIFIER
+    if kind == "ages":
+        assert block["role"] != taxonomy.ROLE_IDENTIFIER and block["top_coded"] == taxonomy.TOP_CODE, block
+    else:
+        assert block["role"] == taxonomy.ROLE_IDENTIFIER
     assert [(entry["column"], entry["your_answer"]) for entry in seen["carried"]] == [
         (kind, asking.ANSWER_SAFE_HARBOR_YES)
     ]

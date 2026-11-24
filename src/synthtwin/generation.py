@@ -4585,14 +4585,30 @@ def _segment(
     ``percents`` is the eleven of a date or clock ladder by default and
     the hundred and one of a numeric one where that is passed; the
     scan is the same either way and only its length changes.
+
+    THE SAME STEP, FOUND BY HALVING (lane SPEED-2M: a numeric ladder's
+    scan read about fifty steps a value, a twin of 2,000,000 rows and
+    twenty number columns forty million values). With a positive
+    denominator the products ``PCT[j] * D`` never fall as ``j`` rises, so
+    the step that holds the share is the last one whose product is at most
+    ``100 * N``, where the next one's is above it; halving finds that one.
+    Where none holds (the share past either end, or a denominator of
+    nought or less, where no step can hold) it is the last step, as the
+    scan's fall-through gives. Whole numbers only.
     """
     scaled = 100 * numerator
     last = len(percents) - 2
-    for step in range(last + 1):
-        below = percents[step] * denominator <= scaled
-        if below and scaled < percents[step + 1] * denominator:
-            return step
-    return last
+    if denominator <= 0 or not percents[0] * denominator <= scaled:
+        return last
+    low = 0
+    high = last
+    while low < high:
+        middle = (low + high + 1) // 2
+        if percents[middle] * denominator <= scaled:
+            low = middle
+        else:
+            high = middle - 1
+    return low if scaled < percents[low + 1] * denominator else last
 
 
 def _interpolated(
@@ -56422,6 +56438,7 @@ def _figure_runs_off_the_real(
                     name, openings, taken, steps, absent, counts,
                     _noughts_width(name, written_width[name], formed, noughts_held, wide),
                     len(name) in noughts_held or written_width[name] in noughts_held,
+                    written_width[name],
                 )
             parts += [(whole, end, name)]
         # ...AND A RUN OF NOUGHTS ALONE AT A WIDTH A HELD KEY OF NOUGHTS ALONE
@@ -56490,6 +56507,7 @@ def _figure_runs_off_the_real(
                 name, openings, taken, steps, absent, counts,
                 _noughts_width(name, width_written, formed, noughts_held, wide),
                 len(name) in noughts_held or width_written in noughts_held,
+                width_written,
             )
             if (name, fresh) in tried:
                 continue
@@ -56703,6 +56721,7 @@ def _renamed_run(
     counts: "list[int]",
     nought_width: int = 0,
     barred: bool = False,
+    written: int = 0,
 ) -> str:
     """A run of merged figures written anew, no real run and holding none (plan P4-D442).
 
@@ -56732,7 +56751,12 @@ def _renamed_run(
     caller reports what it writes (`_runs_rewritten`). Claims what it writes.
     ``barred`` (lane HB3-a's repair 1, plan P4-D482, limit (af)): a held key
     of noughts alone stands at the run's width, so (3)'s noughts alone are
-    passed over for (4), and (5)'s are ``nought_width`` wide. Raises
+    passed over for (4), and (5)'s are ``nought_width`` wide. ``written``
+    (lane STATS-A): the widest the run is written at in the column's cells,
+    noughts before it included (0: its own length), which (3b) reads: a run
+    at a named width wider than the narrowest, or written at one, takes a
+    spelling of that width (`_own_width_filling`) once the rooms under the
+    narrowest are spent, before noughts alone or a wider run. Raises
     nothing.
     """
     if parsing.FIGURE_RUN_PADDED_NARROW in openings:
@@ -56757,6 +56781,17 @@ def _renamed_run(
             spelling = _next_figure_filling(0 - narrower, "", narrower, taken, steps, holes)
             if spelling:
                 return spelling
+    # (3b) A RUN AT A NAMED WIDTH WIDER THAN THE NARROWEST, OR WRITTEN AT ONE, at that width once the rooms under
+    # the narrowest are spent (lane STATS-A, batch 4zz; led down first, as LANE HB's rules lead it). Before, it was
+    # then written as noughts alone and wider: a key `AC-2022-600123` (named widths four and six), its made-up
+    # groups of six figures often led by a nought and so named by their five merged figures, took the thousand
+    # spellings under four figures, then noughts alone, then seven to twelve figures on 15,402 of 20,000 twin cells,
+    # the column's lengths and its one published form missed (the 302-column table, validate's four misses there).
+    own = max(len(run), written)
+    if own > least and own in widths:
+        spelling = _own_width_filling(own, _own_width_places(openings, widths, own), taken, steps, holes)
+        if spelling:
+            return spelling
     noughts = "0" * max(len(run), nought_width)
     if noughts not in taken and not barred:
         taken[noughts] = True
@@ -56777,6 +56812,75 @@ def _renamed_run(
                 return spelling
     counts[1] = counts[1] + 1
     return noughts
+
+
+def _own_width_places(openings: "dict[int, str]", widths: "list[int]", length: int) -> "list[list[str]]":
+    """The figures each leading place of a made-up run of a named width ``length`` may take (lane STATS-A, P4-D442).
+
+    Every run of a named width ``w`` inside a run of ``length`` figures starts at one of its first ``length - w + 1``
+    places, so the first ``length - least + 1`` places (``least`` the narrowest width named) each take only a figure
+    that every named width starting there opens with (`figure_openings`: no real run of that width opens so); then no
+    run of a named width inside the made-up run is a real one, as step (4) of `_renamed_run` keeps it by writing one
+    opening again, and the places after them are free. Empty where a width it passes names an opening of more than
+    one figure, or a place is left no figure. A fixed function of the three. Raises nothing. No I/O.
+    """
+    named = [width for width in widths if width <= length]
+    if not named:
+        return []
+    places: "list[list[str]]" = []
+    for place in range(length - named[0] + 1):
+        figures: "list[str]" = []
+        first = True
+        for width in named:
+            if place > length - width:
+                continue
+            offered = parsing.figure_opening_choices(openings[width]) if openings[width] else []
+            if not offered or [choice for choice in offered if len(choice) != 1]:
+                return []
+            figures = list(offered) if first else [figure for figure in figures if figure in offered]
+            first = False
+        if not figures:
+            return []
+        places += [figures]
+    return places
+
+
+def _own_width_filling(
+    length: int,
+    places: "list[list[str]]",
+    taken: "dict[str, bool]",
+    steps: "dict[int, int]",
+    holes: _AbsentSpellings,
+) -> str:
+    """The next run of ``length`` figures whose leading places take the figures ``places`` names, the column holding it
+    nowhere (`_next_figure_filling`), or "" where every such run is spent (lane STATS-A, plan P4-D442).
+
+    The leading figures are taken in turn, the last place fastest, each place's figures in their given order; a
+    cursor of ``steps`` keeps the leading figures reached and one the filling, so the walk never reads a spent opening
+    again. Claims what it answers. Raises nothing. No I/O.
+    """
+    if not places:
+        return ""
+    opening_key = 0 - 3 * _OPENING_CURSORS - length
+    filling_key = 0 - 4 * _OPENING_CURSORS - length
+    total = 1
+    for figures in places:
+        total = total * len(figures)
+    index = steps[opening_key] if opening_key in steps else 0
+    while index < total:
+        opening = ""
+        rest = index
+        for figures in reversed(places):
+            opening = figures[rest % len(figures)] + opening
+            rest = rest // len(figures)
+        spelling = _next_figure_filling(filling_key, opening, length, taken, steps, holes)
+        if spelling:
+            steps[opening_key] = index
+            return spelling
+        index = index + 1
+        steps[filling_key] = 0
+    steps[opening_key] = index
+    return ""
 
 
 def _renamed_run_unled(
@@ -76848,6 +76952,26 @@ INSIDE_RANGE_NOTE = (
 )
 # The note a column carries whose dates in disguise the description held and the inside record made up (lane ZOO-Y,
 # plan P4-D517).
+INSIDE_TEXT_NOTE = (
+    "The description publishes none of this column's values, or writes its rare ones as stand-ins, or writes its "
+    "record numbers in no layout of the real column's own; the inside record kept on this computer holds the "
+    "templates its real cells are written in, so each different value of the description's own twin was written "
+    "again as one new value in those templates: the words and marks many people write kept, every number drawn "
+    "inside the real column's ends, every other word made up, and a record number kept off every real one. How "
+    "many different values the column holds and how many rows hold each stand as that twin had them."
+)
+INSIDE_CENSUS_NOTE = (
+    "The inside record kept on this computer holds the real spellings of this measurement column and how many cells "
+    "write each; the description's own twin's cells were sorted by their number and each took the real spelling of "
+    "its place, so the column writes the real column's spellings at its counts, and a row that held a larger number "
+    "than another still does."
+)
+INSIDE_HELD_TEXT_NOTE = (
+    "The description reads this column's dates as blank cells until their Safe Harbor question is answered `no`; "
+    "the inside record kept on this computer holds the templates they are written in, so this twin writes a "
+    "made-up date in the column's own spelling, its month's own name among them, on as many of its blank cells as "
+    "the real column held: the real year, month and weekday counts, the day of the month made up."
+)
 INSIDE_HELD_DATES_NOTE = (
     "The description reads this column's dates as blank cells until their Safe Harbor question is answered `no`; "
     "the inside record kept on this computer counted them, so this twin writes a made-up date on as many of its "
@@ -77524,7 +77648,62 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
             old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
             remarks=old.remarks + (remark,),
         )
-    replaced = set(names) | dated | keyed
+    # THE TEXT ZONE (lane TYPES-24): a column of free text, a label's tail
+    # the description's twin writes as stand-ins, a column of record numbers
+    # and a column of dates in disguise the description held, written again
+    # in the real column's own templates (`inside_text.write_column`): each
+    # different value once anew, so its counts stand; a held column's blank
+    # cells filled as the real column held. A column another zone wrote is
+    # left as that zone wrote it; a zone that cannot be read leaves every
+    # column the description's twin's.
+    texted: "set[str]" = set()
+    held_text: "set[str]" = set()
+    censused: "set[str]" = set()
+    if isinstance(zones, dict) and "text" in zones:
+        from synthtwin import inside_text
+
+        try:
+            text_zone = zones[inside_text.ZONE]
+            held_text = inside_text.held_of(text_zone)
+            keyed_key = str(keyed_zone["key"]) if keyed_zone is not None and "key" in keyed_zone else ""
+            for name in inside_text.columns_of(text_zone):
+                # A column the relations zone drew is written too: the zone renames its values one for one (rows
+                # sharing a value still share one) or, for a measurement, deals the real census in the order the
+                # relations zone drew its cells in, so what that zone drew stands. A column the keyed zone writes
+                # is left to it, save its key's rare tail, renamed one for one after the zone dealt by the key.
+                tail_of_the_key = name == keyed_key and inside_text.mode_of(text_zone, name) == inside_text.MODE_TAIL
+                if name not in places or name in dated or (name in keyed_writes and not tail_of_the_key) or \
+                        name == person:
+                    continue
+                place = places[name]
+                rewritten = inside_text.write_column(text_zone, name, twinstore.column_cells(finished[place]),
+                                                     seeds[1])
+                if rewritten is None:
+                    continue
+                finished[place] = twinstore.held_column(rewritten)
+                present, absent, different, folded = _recounted(rewritten, ())
+                del rewritten
+                held_here = name in held_text
+                census_here = inside_text.dealt_in_order(text_zone, name)
+                note = INSIDE_HELD_TEXT_NOTE if held_here else INSIDE_CENSUS_NOTE if census_here else INSIDE_TEXT_NOTE
+                remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=note)
+                added = [each for each in added if each.column != name] + [remark]
+                old = outcomes[place]
+                fresh = held_here or census_here
+                outcomes[place] = dataclasses.replace(
+                    old, n_present=present, n_missing=absent, n_distinct=different, n_distinct_folded=folded,
+                    deviations=() if fresh else old.deviations,
+                    approximations=() if fresh else old.approximations,
+                    remarks=(remark,) if fresh else old.remarks + (remark,),
+                )
+                if census_here:
+                    censused = censused | {name}
+                texted = texted | {name}
+        except (inside_text.TextError, KeyError, ValueError, IndexError, TypeError, ArithmeticError):
+            pass
+    held_text = held_text & texted
+    dated = dated | held_text | censused
+    replaced = set(names) | dated | keyed | texted
     # THE ROWS STAY IN THE ORDER THE FILE IS WRITTEN IN (lane IN-2b): where the
     # description says the rows are sorted by a column the record wrote again,
     # every row moves to its place by that column, as the arrangement sorted

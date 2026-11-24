@@ -47,7 +47,7 @@ import pytest
 
 import reliability_battery as B
 import reliability_tables as T
-from synthtwin import cli, contract, generation, inside, inside_relations as R, installation, twin_checks, validation
+from synthtwin import cli, contract, generation, inside, inside_relations as R, inside_text, installation, twin_checks, validation
 
 TABLE = "forms"
 FILE = "forms.csv"
@@ -186,6 +186,17 @@ def test_every_drawn_column_is_dealt_inside_its_own_twins_cells(made) -> None:  
             continue
         strict = _strict_cells(made, name)
         if entry.get("level") == R.PATIENT and entry["kind"] == R.NUMBER:
+            continue
+        # A MEASUREMENT THE TEXT ZONE DEALS FROM THE REAL CENSUS (lane TYPES-24): its value cells are the real
+        # column's spellings at their counts, in the order the relations zone drew the description's twin's cells
+        # (`inside_text.MODE_CENSUS`), its blank and missing cells where that twin wrote them.
+        text_zone = made["record"]["zones"].get(inside_text.ZONE)
+        if text_zone is not None and inside_text.dealt_in_order(text_zone, name):
+            census = {f"{spelling}": int(f"{count}") for spelling, count in text_zone["columns"][name]["census"]}
+            kept = set(f"{text_zone['columns'][name]['keep']}".split("\x00"))
+            assert collections.Counter(cell for cell in twin[name] if cell not in kept) == collections.Counter(
+                census), name
+            assert [cell for cell in twin[name] if cell in kept] == [cell for cell in strict if cell in kept], name
             continue
         # ...BUT A CELL PAST THE REAL ENDS IS DRAWN BACK INSIDE THEM (lane ZOO-Y's real-range pass, plan P4-D517, run
         # after the deal): the description's twin's cells inside the record's real least and greatest values are

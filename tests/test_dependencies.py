@@ -26,8 +26,10 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # on row order at Phase 1 review round 1, so no published statistic
 # comes from one; pyarrow (zone R, the reader and text held as exact
 # bytes) and scipy (zone D's search side and zone P) by the December
-# library set (plans P4-D409 and P4-D410).
-AUTHORIZED = {"numpy", "pyarrow", "scipy", "pandas"}
+# library set (plans P4-D409 and P4-D410); pyreadstat (zone R, the reader
+# of SAS, Stata and SPSS files) by lane FORMATS, the native formats the
+# owner brought forward on 2026-11-23 (plan P4-D409 part 1 named it).
+AUTHORIZED = {"numpy", "pyarrow", "scipy", "pandas", "pyreadstat"}
 
 # The one OPTIONAL dependency (plan P4-D409 part 4, the owner's "Yes,
 # gated" of 2026-10-19): numba compiles the audited polish kernel and
@@ -50,10 +52,9 @@ TOOLS = {"pytest", "ruff", "mypy", "build", "hatchling", "twine"}
 FLOOR_PYTHON = "3.11"
 
 # The libraries this landing does not adopt (plan P4-D410). Six of them
-# plan P4-D409 measured and did not adopt; pyreadstat P4-D409 part 1
-# adopts as a conditional runtime library for the native-format
-# stretch, so it is not adopted for this landing and enters only with
-# that stretch's own decision. None may appear in any requirement file
+# plan P4-D409 measured and did not adopt; pyreadstat, which P4-D409
+# part 1 held back for the native-format stretch, entered with lane
+# FORMATS and is in AUTHORIZED. None may appear in any requirement file
 # today, as a root or in a compiled closure.
 NOT_ADOPTED = {
     "lifelines",
@@ -62,7 +63,6 @@ NOT_ADOPTED = {
     "python-calamine",
     "xlsxwriter",
     "networkx",
-    "pyreadstat",
 }
 
 INPUTS = ("requirements-dev.in", "requirements-install.in", "requirements-min.in")

@@ -2926,7 +2926,27 @@ def _patient_cells(patient_columns: "list[PatientColumn]", work: "dict[str, list
 
 
 def _shaped(shape: "list[float]", normal: float) -> float:
-    return _from_grid(shape, chain_walk.normal_cdf(normal))
+    """A random effect's standardized value at a normal draw: its shape read at the shares the shape holds its points
+    at, `(k + 1/2) / SHAPE_GRID` (`_shape`), and past the shape's two ends its end point plus the draw's distance
+    past that end's own normal score (lane STATS-B).
+
+    The shape had been read as an even grid from 0 to 1 (`_from_grid`): every draw then fell between the shape's
+    first and last points, the 0.5 per cent tails of the predictions on each side were never drawn and the middle
+    was spread over the whole range, so a standard normal shape was drawn with a variance of 0.925, every patient's
+    level and slope about 4 per cent short in spread: the clinic visits' twin held an intraclass correlation of
+    0.742 to 0.749 against the real 0.756 to 0.761 (K-BC-14, family F11), as a variance short by 7.5 per cent gives.
+    """
+    count = len(shape)
+    if count < 2:
+        return shape[0] if shape else normal
+    place = chain_walk.normal_cdf(normal) * count - 0.5
+    if place <= 0.0:
+        return shape[0] + min(0.0, normal - chain_walk.normal_score(0.5 / count))
+    if place >= count - 1:
+        return shape[count - 1] + max(0.0, normal - chain_walk.normal_score(1.0 - 0.5 / count))
+    below = int(place)
+    part = place - below
+    return shape[below] + (shape[below + 1] - shape[below]) * part
 
 
 def once_a_value(cells: "list[str]") -> "list[str]":

@@ -817,7 +817,11 @@ jobs:
           wheel required synthtwin/inside_holds.py
           wheel required synthtwin/inside_keyed.py
           wheel required synthtwin/inside_links.py
+          wheel required synthtwin/inside_text.py
           wheel required synthtwin/installation.py
+          wheel required synthtwin/native.py
+          wheel required synthtwin/nativereading.py
+          wheel required synthtwin/nativewriting.py
           wheel required synthtwin/offset_rules.py
           wheel required synthtwin/parsing.py
           wheel required synthtwin/patient_intervals.py
@@ -885,7 +889,11 @@ jobs:
           sdist required ROOT/src/synthtwin/inside_holds.py
           sdist required ROOT/src/synthtwin/inside_keyed.py
           sdist required ROOT/src/synthtwin/inside_links.py
+          sdist required ROOT/src/synthtwin/inside_text.py
           sdist required ROOT/src/synthtwin/installation.py
+          sdist required ROOT/src/synthtwin/native.py
+          sdist required ROOT/src/synthtwin/nativereading.py
+          sdist required ROOT/src/synthtwin/nativewriting.py
           sdist required ROOT/src/synthtwin/offset_rules.py
           sdist required ROOT/src/synthtwin/parsing.py
           sdist required ROOT/src/synthtwin/patient_intervals.py

@@ -79,6 +79,8 @@ _CHI_SQUARE_999 = (
 _Z_999 = 3.090232
 PARENT_CAP = 12
 EXTRA_CAP = 4
+# The candidates `select`'s conditional pass reads exactly, the strongest by their residuals' plain score (lane STATS-B).
+CONDITIONAL_EXACT = 6
 # A label's modelled spellings, its commonest published ones; and the rows a level, state or term needs.
 LEVEL_CAP = 30
 MIN_ROWS = 20
@@ -271,6 +273,8 @@ def persons_of(cells: "list[str]") -> Persons:
 # its rows do.
 PATIENT_SHARE = 0.95
 ROW, PATIENT, SEQUENCE = "row", "patient", "sequence"
+# The level of a number counting each person's rows, as a name other modules read (lane STATS-B).
+SEQUENCE_LEVEL = SEQUENCE
 
 
 def level_of(spec: "ColumnSpec", cells: "list[str]", persons: "Persons | None") -> str:
@@ -931,16 +935,88 @@ def _dot(first: "list[float]", second: "list[float]") -> float:
     return math.fsum([a * b for a, b in zip(first, second)])
 
 
-def _gram(columns: "list[list[float]]", weights: "list[float] | None") -> "list[list[float]]":
+_NOUGHT_AND_ONE = frozenset([0.0, 1.0])
+
+
+def _finite(values: "list[float]") -> bool:
+    """Whether every value is finite: their exact sum is (an infinity or a value that is not a number carries through)."""
+    try:
+        return math.isfinite(math.fsum(values))
+    except (OverflowError, ValueError):
+        return False
+
+
+@dataclasses.dataclass(frozen=True)
+class DesignFacts:
+    """What a Gram matrix's sums may skip (lane SPEED-2M): each column's rows holding a one where it holds noughts and
+    ones alone (None for any other), and whether each column is finite."""
+
+    ones: "tuple[list[int] | None, ...]"
+    finite: "tuple[bool, ...]"
+
+
+def design_facts(columns: "list[list[float]]") -> DesignFacts:
+    """The facts `_gram` reads of a design's columns, read once for the fits that share the columns."""
+    ones: "list[list[int] | None]" = []
+    finite: "list[bool]" = []
+    for column in columns:
+        if set(column) <= _NOUGHT_AND_ONE:
+            ones += [[row for row, value in enumerate(column) if value == 1.0]]
+            finite += [True]
+        else:
+            ones += [None]
+            finite += [_finite(column)]
+    return DesignFacts(tuple(ones), tuple(finite))
+
+
+def _gram(columns: "list[list[float]]", weights: "list[float] | None",
+          facts: "DesignFacts | None" = None) -> "list[list[float]]":
+    """The (weighted) Gram matrix: each entry `math.fsum` of a weighted column's products with a column, in row order.
+
+    THE SAME SUMS, OVER THE ROWS THAT ADD (lane SPEED-2M). Where the
+    column ``b`` holds noughts and ones alone, its product with a finite
+    value is that value on a one and a nought on a nought, and
+    `math.fsum` gives the same correctly rounded sum without the noughts
+    (and +0.0 for a sum of noughts alone): the sum over the rows holding
+    a one. Where the weighted column ``a`` comes of such a column with
+    finite weights of at most one in size, it is a nought off its ones
+    and its products are summed over them. Only finite values are so
+    read (`DesignFacts.finite`, and the weights read here); any other
+    entry is summed over every row as written.
+    """
     size = len(columns)
     weighted = columns if weights is None else [[x * w for x, w in zip(column, weights)] for column in columns]
+    known = facts if facts is not None else design_facts(columns)
+    bounded = weights is None or (_finite(weights) and (not weights or (max(weights) <= 1.0 and min(weights) >= -1.0)))
     out = [[0.0 for _b in range(size)] for _a in range(size)]
     for a in range(size):
+        # ...a weighted column is finite where its column is and the weights are finite and bounded by one.
+        finite_a = bounded and known.finite[a]
         for b in range(a + 1):
-            value = _dot(weighted[a], columns[b])
+            value = _summed(weighted[a], columns[b], known.ones[a] if bounded else None, known.ones[b], finite_a,
+                            known.finite[b])
             out[a][b] = value
             out[b][a] = value
     return out
+
+
+def _summed(first: "list[float]", second: "list[float]", first_ones: "list[int] | None",
+            second_ones: "list[int] | None", first_finite: bool, second_finite: bool) -> float:
+    """`_dot(first, second)`, the same bits, summed over the rows that add where one side is noughts off a list of rows.
+
+    ``second_ones``, where given, are the rows on which ``second`` is one,
+    and it is nought on every other: with ``first`` finite, each product is
+    ``first``'s value on those rows and a nought elsewhere. ``first_ones``,
+    where given, are rows off which ``first`` is nought: with ``second``
+    finite, every product off them is a nought. `math.fsum` passes over a
+    nought (+0.0 for a sum of noughts alone), so the sum over those rows is
+    the sum over all. Anything else is `_dot` as written.
+    """
+    if second_ones is not None and first_finite:
+        return math.fsum([first[row] for row in second_ones])
+    if first_ones is not None and second_finite:
+        return math.fsum([first[row] * second[row] for row in first_ones])
+    return _dot(first, second)
 
 
 def _cholesky(matrix: "list[list[float]]") -> "tuple[list[list[float]], list[bool]]":
@@ -1034,11 +1110,65 @@ def least_squares(columns: "list[list[float]]", response: "list[float]") -> Fit:
 
 def _deviance(response: "list[float]", eta: "list[float]") -> float:
     """A logistic fit's deviance at a linear predictor (its probabilities kept off nought and one)."""
-    terms: "list[float]" = []
-    for y, e in zip(response, eta):
-        mean = min(1.0 - 1e-15, max(1e-15, expit(e)))
-        terms += [y * chain_walk.natural_log(mean) + (1.0 - y) * chain_walk.natural_log(1.0 - mean)]
-    return -2.0 * math.fsum(terms)
+    return _scored(response, eta)[0]
+
+
+# A predictor holding at most this share of different values a row has its logistic function and logarithms read
+# once a value (lane SPEED-2M): a fit on labels alone holds one a combination of their levels.
+_FEW_VALUES_SHARE = 0.25
+
+
+def _expits(eta: "list[float]") -> "list[float]":
+    """`expit` of each row's predictor, each different value worked out once where few are (the same values).
+
+    `expit` is a fixed function of its argument's value, and of nought
+    and minus nought alike (both give one half), so a table of the
+    different values gives every row the value its own call gives.
+    """
+    different = set(eta)
+    if len(different) > _FEW_VALUES_SHARE * len(eta):
+        return [expit(e) for e in eta]
+    table = {e: expit(e) for e in different}
+    return [table[e] for e in eta]
+
+
+def _scored(response: "list[float]", eta: "list[float]") -> "tuple[float, list[float]]":
+    """The deviance at a predictor and each row's `expit` of it (lane SPEED-2M: the next step reads them, made once).
+
+    THE SAME DEVIANCE, ONE LOGARITHM A ROW. A row's term is
+    `y ln(m) + (1 - y) ln(1 - m)`, its mean `m` kept within 1e-15 of
+    nought and one, so both logarithms are negative: where `y` is one
+    the term is `ln(m) + 0 ln(1 - m)`, `ln(m)` plus a minus nought, which
+    is `ln(m)` exactly; where `y` is nought it is `ln(1 - m)` exactly. So
+    such a row's term is its one logarithm, the value written out gives;
+    any other `y` is worked out as written. Each different predictor's
+    terms are worked out once where few are (`_FEW_VALUES_SHARE`). The
+    terms are summed by `math.fsum` in row order as before.
+    """
+    means = _expits(eta)
+    high = 1.0 - 1e-15
+    if len(set(eta)) <= _FEW_VALUES_SHARE * len(eta):
+        hits: "dict[float, float]" = {}
+        misses: "dict[float, float]" = {}
+        terms: "list[float]" = []
+        for y, e, m in zip(response, eta, means):
+            if y == 1.0:
+                if e not in hits:
+                    hits[e] = chain_walk.natural_log(min(high, max(1e-15, m)))
+                terms += [hits[e]]
+            elif y == 0.0:
+                if e not in misses:
+                    misses[e] = chain_walk.natural_log(1.0 - min(high, max(1e-15, m)))
+                terms += [misses[e]]
+            else:
+                mean = min(high, max(1e-15, m))
+                terms += [y * chain_walk.natural_log(mean) + (1.0 - y) * chain_walk.natural_log(1.0 - mean)]
+        return -2.0 * math.fsum(terms), means
+    clamped = [min(high, max(1e-15, m)) for m in means]
+    return -2.0 * math.fsum([chain_walk.natural_log(mean) if y == 1.0 else (
+        chain_walk.natural_log(1.0 - mean) if y == 0.0 else
+        y * chain_walk.natural_log(mean) + (1.0 - y) * chain_walk.natural_log(1.0 - mean))
+        for y, mean in zip(response, clamped)]), means
 
 
 # A Newton step that raises a logistic fit's deviance is halved up to this many times (lane IN-7: a fit near
@@ -1064,37 +1194,50 @@ def logistic(columns: "list[list[float]]", response: "list[float]") -> Fit:
     dropped: "list[bool]" = []
     weights: "list[float]" = []
     means: "list[float]" = []
-    deviance = _deviance(response, _predictor(columns, beta, rows))
+    # THE PREDICTOR AND ITS MEANS MADE ONCE A STEP (lane SPEED-2M): the deviance of the coefficients taken reads the
+    # predictor and each row's mean the next step reads, so the step takes them (the same lists) instead of making
+    # them again.
+    eta_now = _predictor(columns, beta, rows)
+    deviance, means_now = _scored(response, eta_now)
+    facts = design_facts(columns)
     for _step in range(_ITERATIONS):
-        eta = _predictor(columns, beta, rows)
-        means = [expit(e) for e in eta]
+        eta = eta_now
+        means = means_now
         weights = [max(m * (1.0 - m), 1e-10) for m in means]
         working = [e + (y - m) / w for e, y, m, w in zip(eta, response, means, weights)]
-        lower, dropped = _cholesky(_ridged(_gram(columns, weights)))
+        lower, dropped = _cholesky(_ridged(_gram(columns, weights, facts)))
         weighted = [w * z for w, z in zip(weights, working)]
-        moved = _solve(lower, dropped, [0.0 if dropped[a] else _dot(columns[a], weighted) for a in range(size)])
+        finite_weighted = _finite(weighted)
+        moved = _solve(lower, dropped, [0.0 if dropped[a] else _summed(columns[a], weighted, facts.ones[a], None,
+                                                                         facts.finite[a], finite_weighted)
+                                        for a in range(size)])
         if not all([math.isfinite(value) for value in moved]):
             beta = moved
             break
-        reached = _deviance(response, _predictor(columns, moved, rows))
+        eta_moved = _predictor(columns, moved, rows)
+        reached, means_moved = _scored(response, eta_moved)
         halved = 0
         while not reached <= deviance + 1e-9 * (1.0 + abs(deviance)) and halved < _HALVINGS:
             moved = [(a + b) / 2.0 for a, b in zip(moved, beta)]
-            reached = _deviance(response, _predictor(columns, moved, rows))
+            eta_moved = _predictor(columns, moved, rows)
+            reached, means_moved = _scored(response, eta_moved)
             halved += 1
         change = max([abs(a - b) for a, b in zip(moved, beta)]) if size else 0.0
         beta = moved
         deviance = reached
+        eta_now = eta_moved
+        means_now = means_moved
         if change < _CHANGE:
             break
     if not all([math.isfinite(value) for value in beta]):
         # A fit that leaves the numbers binary64 holds draws the level at its share alone.
         beta = [0.0 for _a in range(size)]
         beta[0] = _log_odds(share)
-    eta = _predictor(columns, beta, rows)
-    means = [expit(e) for e in eta]
+        eta_now = _predictor(columns, beta, rows)
+        means_now = _expits(eta_now)
+    means = means_now
     weights = [max(m * (1.0 - m), 1e-10) for m in means]
-    lower, dropped = _cholesky(_ridged(_gram(columns, weights)))
+    lower, dropped = _cholesky(_ridged(_gram(columns, weights, facts)))
     return Fit(beta, weights, [y - m for y, m in zip(response, means)], lower, dropped, 1.0)
 
 
@@ -1357,6 +1500,36 @@ def _block_statistic(target: Target, fits: "list[Fit | None]", design: "list[lis
     return total, freedom
 
 
+def _residual_score(target: Target, fits: "list[Fit | None]", block: Block, frames: "dict[str, Frame]",
+                    rows: int) -> float:
+    """A block's plain score against a target's fits: for each of its terms and each fit, the squared sum of the
+    term times the fit's residuals over the sum of the term squared times the fit's weights, summed (lane STATS-B).
+
+    The exact statistic (`_block_statistic`) projects the block on the fit's
+    own design first, which only lowers the information it divides by, so
+    this never reads more than the exact one does for a single term; it
+    orders the candidates of `select`'s conditional pass. A fixed function
+    of its arguments; raises nothing.
+    """
+    values = _evaluated(block, frames, rows, None)
+    total = 0.0
+    for level in range(len(fits)):
+        fit = fits[level]
+        if fit is None or fit.scale <= 0.0:
+            continue
+        keep = target.rows if target.kind == NUMBER else _label_rows(target, level + 1)
+        for column in values:
+            term = [column[row] for row in keep]
+            if len(term) != len(fit.residuals):
+                continue
+            information = math.fsum([x * x * w for x, w in zip(term, fit.weights)])
+            if information <= 0.0:
+                continue
+            score = math.fsum([x * r for x, r in zip(term, fit.residuals)])
+            total += score * score / (information * fit.scale)
+    return total
+
+
 def _standardised(statistic: float, freedom: int) -> float:
     """How far a statistic stands past its gate, comparable across degrees of freedom."""
     if freedom <= 0:
@@ -1366,28 +1539,379 @@ def _standardised(statistic: float, freedom: int) -> float:
 
 def select(target: Target, candidates: "list[Block]", frames: "dict[str, Frame]",
            rows: int) -> "tuple[list[Block], list[Fit | None]]":
-    """Parents by their score statistics against the intercept alone, then curves and interactions given them.
+    """Parents by their score statistics against the intercept alone, then those the chosen ones mask, then curves and
+    interactions given them.
 
     A number parent is screened on its main block and its curve block
     together, so a relation with no straight part (a U shape) still
     brings its parent in; the curve then enters as an extra by its own
-    statistic given the main blocks.
+    statistic given the main blocks. Each parent the screen leaves out is
+    read again given the chosen ones (lane STATS-B), so a relation that
+    confounding hides from the screen enters too. The three steps are
+    `_screen`, `_conditional` and `_refine` (lane SPEED-2M: the fits kept
+    between rounds read each apart); this is the three in their order.
     """
-    chosen: "list[Block]" = []
+    chosen, design, fits = _screen(target, candidates, frames, rows, None, "", {})
+    chosen, design, fits = _conditional(target, candidates, chosen, frames, rows, design, fits, None, "", {})
+    return _refine(target, chosen, frames, rows, design, fits)
+
+
+def _conditional(target: Target, candidates: "list[Block]", chosen: "list[Block]", frames: "dict[str, Frame]",
+                 rows: int, design: "list[list[list[float]]] | None", fits: "list[Fit | None] | None",
+                 kept: "KeptFits | None", target_key: str,
+                 keys: "dict[str, str]") -> "tuple[list[Block], list[list[list[float]]] | None, list[Fit | None] | None]":
+    """`select`'s second step: the parents ``chosen`` by the screen, and after them those the chosen ones mask.
+
+    THE CONDITIONAL PASS (lane STATS-B): a parent whose relation the chosen
+    ones mask -- a treatment given to the older and sicker, which lowers
+    the outcome's odds while its own patients' odds stand near the
+    others' -- reads as nothing against the intercept alone, so the screen
+    leaves it out and the twin lost the treatment's effect (the battery's
+    methods table: -0.56 real, -0.06 twin, and with it the effect's change
+    with age, the matched difference and the Cox model's). Each candidate
+    the screen left out is read again given the chosen parents, by the
+    same gate, and the strongest enter up to `PARENT_CAP` in all.
+
+    ``design`` and ``fits`` are the intercept alone's (None where the
+    screen made none); the design and fits returned are those of the
+    parents returned where this step made them, the intercept alone's
+    where no parent was chosen, and None otherwise (`_refine` then makes
+    them). With ``kept`` (lane SPEED-2M), the parents this step adds are
+    held under a digest of ``target_key`` and every candidate's key in
+    ``keys`` in their order -- everything the step reads, since the
+    screen's choice is itself a fixed function of them -- and taken where
+    held; they are not counted among the statistics and models taken or
+    made. A fixed function of its arguments; raises what `_fits` raises.
+    """
+    chosen = [block for block in chosen]
+    if not chosen:
+        return chosen, design, fits
+    if len(chosen) >= PARENT_CAP:
+        return chosen, None, None
+    taken = [any(candidates[place] is block for block in chosen) for place in range(len(candidates))]
+    key = _key_of(["conditional", target_key] + [keys[block.parent] for block in candidates]) if kept is not None else ""
+    if kept is not None:
+        held = _kept_added(kept, key, taken, PARENT_CAP - len(chosen))
+        if held is not None:
+            return chosen + [candidates[place] for place in held], None, None
     design = _design(target, chosen, frames, rows)
     fits = _fits(target, design)
+    again: "list[tuple[float, int]]" = []
+    # ...each read first by its residuals' plain score (one pass over the rows, no projection on the chosen
+    # parents, so it never reads more than the exact statistic does), and the exact statistic made only for the
+    # strongest `CONDITIONAL_EXACT` of them: a table of hundreds of columns reads each candidate once, cheaply.
+    cheap: "list[tuple[float, int]]" = []
+    for place in range(len(candidates)):
+        if not taken[place]:
+            cheap += [(-_residual_score(target, fits, candidates[place], frames, rows), place)]
+    for _negative, place in sorted(cheap)[:CONDITIONAL_EXACT]:
+        statistic, freedom = _block_statistic(target, fits, design, candidates[place], frames, rows)
+        if freedom > 0 and statistic >= critical(freedom):
+            again += [(-_standardised(statistic, freedom), place)]
+    added = [place for _negative, place in sorted(again)[:PARENT_CAP - len(chosen)]]
+    if kept is not None:
+        kept.made_models[key] = {"added": [place for place in added]}
+    if added:
+        chosen += [candidates[place] for place in added]
+        design = _design(target, chosen, frames, rows)
+        fits = _fits(target, design)
+    return chosen, design, fits
+
+
+def _kept_added(kept: "KeptFits", key: str, taken: "list[bool]", room: int) -> "list[int] | None":
+    """The places `_conditional` added under ``key`` (this round's first, then the last round's), kept again for the
+    file; None where none is held or what is held could not be this step's answer (a place out of range, taken by
+    the screen, repeated, or more than ``room``)."""
+    found = kept.made_models[key] if key in kept.made_models else (
+        kept.held_models[key] if key in kept.held_models else None)
+    if not isinstance(found, dict) or sorted(found) != ["added"] or not isinstance(found["added"], list):
+        return None
+    places: "list[int]" = []
+    for place in found["added"]:
+        if not isinstance(place, int) or isinstance(place, bool) or not 0 <= place < len(taken):
+            return None
+        if taken[place] or place in places:
+            return None
+        places += [place]
+    if len(places) > room:
+        return None
+    kept.made_models[key] = {"added": [place for place in places]}
+    return places
+
+
+def _screen(target: Target, candidates: "list[Block]", frames: "dict[str, Frame]", rows: int,
+            kept: "KeptFits | None", target_key: str,
+            keys: "dict[str, str]") -> "tuple[list[Block], list[list[list[float]]] | None, list[Fit | None] | None]":
+    """`select`'s first half: the parents a target takes, by each one's score statistic against the intercept alone.
+
+    Returns the parents chosen, in their rank, and the design and fits of
+    the intercept alone the screen made (None where every statistic was
+    taken from ``kept``, the fits kept from the last description of this
+    table, so none was made). With ``kept``, each parent's statistic is
+    looked up by `_stat_key` of ``target_key`` and the parent's
+    own key in ``keys`` and made only where it is not held: the same
+    statistic, for it is a fixed function of the target and the parent's
+    frame, both of which the two keys digest. A fixed function of its
+    arguments; raises what `_fits` raises.
+    """
+    design: "list[list[list[float]]] | None" = None
+    fits: "list[Fit | None] | None" = None
+    if kept is None:
+        design = _design(target, [], frames, rows)
+        fits = _fits(target, design)
     ranked: "list[tuple[float, int]]" = []
     for place in range(len(candidates)):
         screened = candidates[place]
-        curve = _curve_block(screened.parent, frames[screened.parent])
-        if curve is not None:
-            screened = Block(screened.terms + curve.terms, screened.parent, "screen")
-        statistic, freedom = _block_statistic(target, fits, design, screened, frames, rows)
+        key = _stat_key(target_key, keys[screened.parent]) if kept is not None else ""
+        held = _kept_stat(kept, key) if kept is not None else None
+        if held is not None:
+            statistic, freedom = held
+        else:
+            if design is None or fits is None:
+                design = _design(target, [], frames, rows)
+                fits = _fits(target, design)
+            curve = _curve_block(screened.parent, frames[screened.parent])
+            if curve is not None:
+                screened = Block(screened.terms + curve.terms, screened.parent, "screen")
+            statistic, freedom = _block_statistic(target, fits, design, screened, frames, rows)
+            if kept is not None:
+                _keep_stat(kept, key, statistic, freedom)
         if freedom > 0 and statistic >= critical(freedom):
             ranked += [(-_standardised(statistic, freedom), place)]
+    chosen: "list[Block]" = []
     for _negative, place in sorted(ranked)[:PARENT_CAP]:
         chosen += [candidates[place]]
-    if chosen:
+    return chosen, design, fits
+
+
+# THE EXTRAS OF A NUMBER GROWN, NOT REMADE (lane SPEED-2M). A number's
+# response is fitted by least squares, whose weights are one on every row,
+# and each step of `_refine` adds a block's columns at the end of its
+# design: every column of the design before stays as it was, and so does
+# every sum of products of it with an extra's terms, with the response, or
+# with another column of the design. A step reads those sums from the step
+# before (`Grown`) and makes the new ones alone; the Cholesky factor's
+# leading part reads the same matrix, so the fit and every statistic are
+# the as-built ones, bit for bit. Each sum is made by `_summed` (the rows
+# that add, where a side is noughts off a list of rows).
+
+
+@dataclasses.dataclass
+class Grown:
+    """The sums of one number target's steps (lane SPEED-2M), each made once: keyed by the design's column places."""
+
+    design: "list[list[float]]"
+    facts: "list[tuple[list[int] | None, bool, list[int] | None]]"
+    gram: "dict[tuple[int, int], float]" = dataclasses.field(default_factory=dict)
+    rhs: "dict[int, float]" = dataclasses.field(default_factory=dict)
+    values: "dict[int, list[list[float]]]" = dataclasses.field(default_factory=dict)
+    value_facts: "dict[int, list[tuple[list[int] | None, bool, list[int] | None]]]" = dataclasses.field(
+        default_factory=dict)
+    crossed: "dict[tuple[int, int, int], float]" = dataclasses.field(default_factory=dict)
+    selves: "dict[tuple[int, int, int], float]" = dataclasses.field(default_factory=dict)
+    # Whether the last fit's residuals are finite, read once a fit.
+    residuals_finite: bool = True
+    # How many values `values` holds (kept to `_GROWN_CELLS_MOST`).
+    cells: int = 0
+
+
+# A column is summed over its nonzero rows where these are at most this share of its rows.
+_SPARSE_SHARE = 0.5
+# The extras' values a target's steps keep at most (about 32 bytes a value as a list of floats: 256 MB); an extra
+# past it is worked out again at each step, as before, its sums with the design still made once.
+_GROWN_CELLS_MOST = 8_000_000
+
+
+def _facts_of(column: "list[float]") -> "tuple[list[int] | None, bool, list[int] | None]":
+    """A column's nonzero rows (None where more than `_SPARSE_SHARE` of its rows are), whether it is finite, and its
+    rows holding a one where every other holds a nought (None for any other column); read once a column."""
+    if not _finite(column):
+        return None, False, None
+    nonzero = [row for row, value in enumerate(column) if value != 0.0]
+    ones = nonzero if all([column[row] == 1.0 for row in nonzero]) else None
+    return (nonzero if len(nonzero) <= _SPARSE_SHARE * len(column) else None), True, ones
+
+
+def _grown_sum(first: "list[float]", first_facts: "tuple[list[int] | None, bool, list[int] | None]", second: "list[float]", second_facts: "tuple[list[int] | None, bool, list[int] | None]") -> float:
+    """`_dot(first, second)`, the same bits, summed over the rows that add.
+
+    Each product is one rounding of the exact product, whichever side
+    comes first; a product of a finite value with a nought is a nought,
+    with a one the value itself; and `math.fsum` passes over a nought
+    (+0.0 for a sum of noughts alone). So, both sides finite, the sum over
+    one side's ones is that sum of the other side's values, and the sum
+    over one side's nonzero rows is the sum over every row. Anything else
+    is `_dot` as written.
+    """
+    first_rows, first_finite, first_ones = first_facts
+    second_rows, second_finite, second_ones = second_facts
+    if not first_finite or not second_finite:
+        return _dot(first, second)
+    if second_ones is not None and (first_ones is None or len(second_ones) <= len(first_ones)):
+        return math.fsum([first[row] for row in second_ones])
+    if first_ones is not None:
+        return math.fsum([second[row] for row in first_ones])
+    if first_rows is not None and (second_rows is None or len(first_rows) <= len(second_rows)):
+        return math.fsum([first[row] * second[row] for row in first_rows])
+    if second_rows is not None:
+        return math.fsum([first[row] * second[row] for row in second_rows])
+    return _dot(first, second)
+
+
+def _grown_least_squares(grown: Grown, response: "list[float]") -> Fit:
+    """`least_squares(grown.design, response)`, the same bits, each sum of a column pair and with the response made once."""
+    columns = grown.design
+    size = len(columns)
+    rows = len(response)
+    response_facts: "tuple[list[int] | None, bool, list[int] | None]" = (None, _finite(response), None)
+    matrix = [[0.0 for _b in range(size)] for _a in range(size)]
+    for a in range(size):
+        for b in range(a + 1):
+            if (a, b) not in grown.gram:
+                grown.gram[(a, b)] = _grown_sum(columns[a], grown.facts[a], columns[b], grown.facts[b])
+            value = grown.gram[(a, b)]
+            matrix[a][b] = value
+            matrix[b][a] = value
+    lower, dropped = _cholesky(_ridged(matrix))
+    for a in range(size):
+        if not dropped[a] and a not in grown.rhs:
+            grown.rhs[a] = _grown_sum(columns[a], grown.facts[a], response, response_facts)
+    beta = _solve(lower, dropped, [0.0 if dropped[a] else grown.rhs[a] for a in range(size)])
+    eta = _predictor(columns, beta, rows)
+    residuals = [y - e for y, e in zip(response, eta)]
+    kept = len([flag for flag in dropped if not flag])
+    scale = math.fsum([r * r for r in residuals]) / max(1, rows - kept)
+    grown.residuals_finite = _finite(residuals)
+    return Fit(beta, [1.0 for _row in range(rows)], residuals, lower, dropped, max(scale, 1e-12))
+
+
+def _grown_values(grown: Grown, target: Target, key: int, block: Block, frames: "dict[str, Frame]", rows: int
+                  ) -> "tuple[list[list[float]], list[tuple[list[int] | None, bool, list[int] | None]]]":
+    """A block's terms on the target's rows and their facts (`_evaluated` restricted as `_block_statistic` and
+    `_design` do), kept for the next step while `_GROWN_CELLS_MOST` allows.
+
+    ``key`` is the block's place among the target's extras, which the steps keep.
+    """
+    if key in grown.values:
+        return grown.values[key], grown.value_facts[key]
+    values = _evaluated(block, frames, rows, None)
+    restricted = [[column[row] for row in target.rows] for column in values]
+    facts = [_facts_of(column) for column in restricted]
+    size = len(restricted) * len(target.rows)
+    if grown.cells + size <= _GROWN_CELLS_MOST:
+        grown.values[key] = restricted
+        grown.value_facts[key] = facts
+        grown.cells += size
+    return restricted, facts
+
+
+def _grown_statistic(grown: Grown, fit: Fit, target: Target, key: int, block: Block, frames: "dict[str, Frame]",
+                     rows: int) -> "tuple[float, int]":
+    """`_block_statistic` of a number target's extra block (`score_statistic` on its rows), the same bits.
+
+    The fit is a least-squares fit, its weights one on every row, so the
+    weighted block is the block (a value times one is that value) and its
+    sums with a design column and with itself are the same at every step:
+    each is made once.
+    """
+    block_values, facts = _grown_values(grown, target, key, block, frames, rows)
+    width = len(block_values)
+    if width == 0:
+        return 0.0, 0
+    columns = grown.design
+    size = len(columns)
+    residual_facts: "tuple[list[int] | None, bool, list[int] | None]" = (None, grown.residuals_finite, None)
+    score = [_grown_sum(term, term_facts, fit.residuals, residual_facts) for term, term_facts in zip(block_values, facts)]
+    cross: "list[list[float]]" = []
+    for k in range(width):
+        row_of: "list[float]" = []
+        for a in range(size):
+            if fit.dropped[a]:
+                row_of += [0.0]
+                continue
+            if (key, k, a) not in grown.crossed:
+                grown.crossed[(key, k, a)] = _grown_sum(block_values[k], facts[k], columns[a], grown.facts[a])
+            row_of += [grown.crossed[(key, k, a)]]
+        cross += [row_of]
+    solved = [_solve(fit.lower, fit.dropped, cross[k]) for k in range(width)]
+    variance = [[0.0 for _b in range(width)] for _a in range(width)]
+    for k in range(width):
+        for m in range(k + 1):
+            if (key, k, m) not in grown.selves:
+                grown.selves[(key, k, m)] = _grown_sum(block_values[k], facts[k], block_values[m], facts[m])
+            value = grown.selves[(key, k, m)] - _dot(cross[k], solved[m])
+            variance[k][m] = value
+            variance[m][k] = value
+    lower, dropped = _cholesky(variance)
+    if all(dropped):
+        return 0.0, width
+    solved_score = _solve(lower, dropped, [0.0 if dropped[k] else score[k] for k in range(width)])
+    statistic = _dot(score, solved_score) / fit.scale
+    return (statistic if statistic > 0.0 else 0.0), width
+
+
+def _refine_number(target: Target, chosen: "list[Block]", frames: "dict[str, Frame]",
+                   rows: int) -> "tuple[list[Block], list[Fit | None]]":
+    """`_refine` of a number target, the same blocks and fit bit for bit, its sums grown step by step (`Grown`)."""
+    chosen = [block for block in chosen]
+    grown = Grown([], [])
+    for column in _design(target, chosen, frames, rows)[0]:
+        grown.design += [column]
+        grown.facts += [_facts_of(column)]
+    fit = _grown_least_squares(grown, target.response)
+    extras: "list[Block]" = []
+    for block in chosen:
+        curve = _curve_block(block.parent, frames[block.parent])
+        if curve is not None:
+            extras += [curve]
+    for a in range(len(chosen)):
+        for b in range(a + 1, len(chosen)):
+            first, second = chosen[a], chosen[b]
+            if frames[first.parent].kind == NUMBER and frames[second.parent].kind == LABEL:
+                first, second = second, first
+            joined = _interactions(first, second, frames)
+            if joined is not None:
+                extras += [joined]
+    # Each extra's place among them as first made: the key of its sums while the steps go on.
+    numbers = [place for place in range(len(extras))]
+    for _step in range(EXTRA_CAP):
+        best = -_INFINITY
+        best_place = -1
+        for place in range(len(extras)):
+            statistic, freedom = _grown_statistic(grown, fit, target, numbers[place], extras[place], frames, rows)
+            if freedom > 0 and statistic >= critical(freedom) and _standardised(statistic, freedom) > best:
+                best = _standardised(statistic, freedom)
+                best_place = place
+        if best_place < 0:
+            break
+        taken = extras[best_place]
+        number = numbers[best_place]
+        chosen += [taken]
+        extras = [extras[place] for place in range(len(extras)) if place != best_place]
+        numbers = [numbers[place] for place in range(len(numbers)) if place != best_place]
+        # ...the design grows by the block's columns at its end, as `_design` writes them.
+        added, added_facts = _grown_values(grown, target, number, taken, frames, rows)
+        for k in range(len(added)):
+            grown.design += [added[k]]
+            grown.facts += [added_facts[k]]
+        fit = _grown_least_squares(grown, target.response)
+    return chosen, [fit]
+
+
+def _refine(target: Target, chosen: "list[Block]", frames: "dict[str, Frame]", rows: int,
+            design: "list[list[list[float]]] | None",
+            fits: "list[Fit | None] | None") -> "tuple[list[Block], list[Fit | None]]":
+    """`select`'s last step: the fits on the parents ``chosen``, then the curves and interactions given them.
+
+    ``design`` and ``fits`` are those of ``chosen`` where `_conditional`
+    made them (None where it did not: they are then made here, the same
+    values). A fixed function of the target and the chosen parents'
+    frames; raises what `_fits` raises.
+    """
+    if target.kind == NUMBER:
+        return _refine_number(target, chosen, frames, rows)
+    chosen = [block for block in chosen]
+    if design is None or fits is None:
         design = _design(target, chosen, frames, rows)
         fits = _fits(target, design)
     extras: "list[Block]" = []
@@ -1457,9 +1981,34 @@ def _intercepts_only(codes: "list[int]", levels: int) -> "list[list[float] | Non
     return out
 
 
-def fit_label(target: Target, candidates: "list[Block]", frames: "dict[str, Frame]", rows: int) -> "dict[str, object]":
-    """A label response's model: its terms and, for each non-reference level, its coefficients (intercept only where too rare)."""
-    chosen, fits = select(target, candidates, frames, rows)
+def fit_label(target: Target, candidates: "list[Block]", frames: "dict[str, Frame]", rows: int,
+              kept: "KeptFits | None" = None, target_key: str = "",
+              keys: "dict[str, str] | None" = None) -> "dict[str, object]":
+    """A label response's model: its terms and, for each non-reference level, its coefficients (intercept only where too rare).
+
+    With ``kept`` (lane SPEED-2M), the screen's statistics and the model
+    are taken where the fits kept from the last description of this table
+    hold them under the same keys (``target_key`` the target's, ``keys``
+    each candidate parent's), and made otherwise: the same model either way.
+    """
+    if kept is None or keys is None:
+        chosen, fits = select(target, candidates, frames, rows)
+        return _label_model(target, chosen, fits)
+    picked, design, screen_fits = _screen(target, candidates, frames, rows, kept, target_key, keys)
+    picked, design, screen_fits = _conditional(target, candidates, picked, frames, rows, design, screen_fits, kept,
+                                               target_key, keys)
+    key = _model_key(target_key, [keys[block.parent] for block in picked])
+    held = _kept_model(kept, key)
+    if held is not None:
+        return held
+    chosen, fits = _refine(target, picked, frames, rows, design, screen_fits)
+    model = _label_model(target, chosen, fits)
+    _keep_model(kept, key, model)
+    return model
+
+
+def _label_model(target: Target, chosen: "list[Block]", fits: "list[Fit | None]") -> "dict[str, object]":
+    """A label response's model from its chosen blocks and its fits (`fit_label`'s last step)."""
     terms = _terms_of(chosen)
     fallback = _intercepts_only([target.codes[row] for row in target.rows], target.levels)
     coefficients: "list[object]" = [None]
@@ -1504,14 +2053,36 @@ def person_split(residuals: "list[float]", owners: "list[int]") -> "tuple[float,
 
 
 def fit_number(target: Target, candidates: "list[Block]", frames: "dict[str, Frame]", rows: int,
-               owners: "list[int] | None" = None) -> "dict[str, object]":
+               owners: "list[int] | None" = None, kept: "KeptFits | None" = None, target_key: str = "",
+               keys: "dict[str, str] | None" = None) -> "dict[str, object]":
     """A number response's model: its terms, coefficients, residual spread and residual shape.
 
     With `owners` (each fit row's person, where a person column repeats),
     the residual is split into a person's share and a row's
     (`person_split`), which the draw gives each twin person and each row.
+    With ``kept`` (lane SPEED-2M), as `fit_label`: ``target_key`` names the
+    target and whether `owners` is read, so a model made with them is never
+    taken for one made without.
     """
-    chosen, fits = select(target, candidates, frames, rows)
+    if kept is None or keys is None:
+        chosen, fits = select(target, candidates, frames, rows)
+        return _number_model(target, chosen, fits, owners)
+    picked, design, screen_fits = _screen(target, candidates, frames, rows, kept, target_key, keys)
+    picked, design, screen_fits = _conditional(target, candidates, picked, frames, rows, design, screen_fits, kept,
+                                               target_key, keys)
+    key = _model_key(target_key, [keys[block.parent] for block in picked])
+    held = _kept_model(kept, key)
+    if held is not None:
+        return held
+    chosen, fits = _refine(target, picked, frames, rows, design, screen_fits)
+    model = _number_model(target, chosen, fits, owners)
+    _keep_model(kept, key, model)
+    return model
+
+
+def _number_model(target: Target, chosen: "list[Block]", fits: "list[Fit | None]",
+                  owners: "list[int] | None") -> "dict[str, object]":
+    """A number response's model from its chosen blocks and its fit (`fit_number`'s last step)."""
     fit = fits[0]
     if fit is None:
         raise RelationsError("synthtwin internal check: a number's fit was not made.")
@@ -1524,8 +2095,130 @@ def fit_number(target: Target, candidates: "list[Block]", frames: "dict[str, Fra
     return model
 
 
+# THE FITS KEPT BETWEEN ROUNDS (lane SPEED-2M). A person who answers the
+# questions file describes the table again, and every round refitted the
+# whole relations zone: about an hour a round at the fit's 200,000 rows,
+# 2,300 seconds at 20,000 rows of 302 columns. Each round's screen
+# statistics and models are now kept beside the record (`KeptFits`, written
+# by the command in the private folder, never in the description), each
+# under a digest of everything it was made from: a statistic under its
+# target's key and its parent's, a model under its target's key and the
+# keys of the parents its screen and the conditional pass chose, and the
+# parents the conditional pass adds (lane STATS-B's, merged in batch 4zz)
+# under its target's key and every candidate's, since it reads them all.
+# A column's key digests its entry and its values on the fit's rows; a
+# target's adds which fit it is, the fit's rows and persons
+# (`_fits_base`). So a later round takes a fit only where every input is
+# the same and makes the rest: the zone is the same bytes as a round that
+# kept nothing. The keys are FNV-1a digests of the inputs' exact
+# spellings (`repr` of each float, which reads back to the same
+# binary64). Version 2: the conditional pass entered every model.
+FITS_VERSION = 2
+
+
+@dataclasses.dataclass
+class KeptFits:
+    """The fits of the last description of a table (``held_*``) and of this one (``made_*``), by their keys (lane SPEED-2M).
+
+    ``taken`` counts the statistics and models found held, ``fitted`` those
+    made. Plain values only: a statistic is ``[statistic, freedom]``, a
+    model the dict a zone entry holds.
+    """
+
+    held_stats: "dict[str, list[object]]" = dataclasses.field(default_factory=dict)
+    held_models: "dict[str, dict[str, object]]" = dataclasses.field(default_factory=dict)
+    made_stats: "dict[str, list[object]]" = dataclasses.field(default_factory=dict)
+    made_models: "dict[str, dict[str, object]]" = dataclasses.field(default_factory=dict)
+    taken: int = 0
+    fitted: int = 0
+
+
+def _fnv_more(value: int, data: bytes) -> int:
+    """FNV-1a's state after `data`, from the state `value` (whole numbers only)."""
+    for byte in data:
+        value = ((value ^ byte) * 1099511628211) & _MASK64
+    return value
+
+
+def _key_of_bytes(parts: "list[bytes]") -> str:
+    """The FNV-1a digest of the parts, each after its length (so no two lists of parts read alike), as 16 hex figures."""
+    value = 14695981039346656037
+    for part in parts:
+        if not isinstance(part, bytes):
+            raise TypeError("synthtwin digests bytes only.")
+        value = _fnv_more(value, bytes(f"{len(part)}:", "ascii"))
+        value = _fnv_more(value, part)
+    return f"{value:016x}"
+
+
+def _key_of(parts: "list[str]") -> str:
+    """`_key_of_bytes` of the parts' exact spellings."""
+    return _key_of_bytes([bytes(f"{part}", "utf-8", "surrogatepass") for part in parts])
+
+
+def _stat_key(target_key: str, parent_key: str) -> str:
+    return _key_of(["stat", target_key, parent_key])
+
+
+def _model_key(target_key: str, parent_keys: "list[str]") -> str:
+    return _key_of(["model", target_key] + parent_keys)
+
+
+def _kept_stat(kept: KeptFits, key: str) -> "tuple[float, int] | None":
+    """A statistic held under ``key`` (this round's first, then the last round's), counted as taken; None where none is."""
+    found = kept.made_stats[key] if key in kept.made_stats else (kept.held_stats[key] if key in kept.held_stats else None)
+    if not isinstance(found, list) or len(found) != 2:
+        return None
+    statistic, freedom = found[0], found[1]
+    if not isinstance(statistic, float) or not isinstance(freedom, int) or isinstance(freedom, bool):
+        return None
+    kept.made_stats[key] = [statistic, freedom]
+    kept.taken += 1
+    return statistic, freedom
+
+
+def _keep_stat(kept: KeptFits, key: str, statistic: float, freedom: int) -> None:
+    kept.made_stats[key] = [float(statistic), int(freedom)]
+    kept.fitted += 1
+
+
+def _kept_model(kept: KeptFits, key: str) -> "dict[str, object] | None":
+    """A model held under ``key``, counted as taken; None where none is."""
+    found = kept.made_models[key] if key in kept.made_models else (
+        kept.held_models[key] if key in kept.held_models else None)
+    if not isinstance(found, dict):
+        return None
+    kept.made_models[key] = found
+    kept.taken += 1
+    return found
+
+
+def _keep_model(kept: KeptFits, key: str, model: "dict[str, object]") -> None:
+    kept.made_models[key] = model
+    kept.fitted += 1
+
+
+def _fits_base(sample: int, owners: "list[int] | None") -> str:
+    """The part of every key a fit shares: the versions, the fit's rows and each row's person."""
+    return _key_of([f"{FITS_VERSION}", f"{ZONE_VERSION}", f"{sample}", repr(owners) if owners is not None else "-"])
+
+
+def _column_key(base: str, column: Encoded) -> str:
+    """A modelled column's key: its entry as encoded (before its fit) and its values on the fit's rows."""
+    entry = column.entry
+    listed = [(key, entry[key]) for key in sorted(entry)]
+    top = 0
+    for code in column.codes:
+        if code > top:
+            top = code
+    codes = (b"b" + bytes(column.codes)) if top < 256 else (b"r" + bytes(repr(column.codes), "ascii"))
+    return _key_of_bytes([bytes(base, "ascii"), bytes(repr(listed), "utf-8", "surrogatepass"), bytes(column.states),
+                          bytes(repr(column.positions), "ascii"), codes])
+
+
 def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int] | None" = None,
-             person: str = "", frames_out: "dict[str, Frame] | None" = None) -> "dict[str, object]":
+             person: str = "", frames_out: "dict[str, Frame] | None" = None,
+             kept: "KeptFits | None" = None) -> "dict[str, object]":
     """The relations zone: each encoded column, in order, fitted on the columns before it (`sample` rows read).
 
     `owners` gives each fit row's person (None where every row is a
@@ -1539,7 +2232,11 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
     W5-302): `encoded` is the fit's own. `frames_out`, where given,
     gains every modelled column's frame on the fit's rows (the
     missing-values zone of lane IN-7 fits on them); the zone's bytes do
-    not depend on it.
+    not depend on it. ``kept`` (lane SPEED-2M), where given, holds the
+    fits of the last description of this table and gains this one's: each
+    statistic and model is taken from it where its key is held (the same
+    value, for the key digests every input of it) and made otherwise, so
+    the zone's bytes do not depend on it either.
     """
     first: "list[bool] | None" = None
     if owners is not None:
@@ -1554,10 +2251,15 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
     # Each parent's main block, made once as its frame is made (lane W5-302): a frame never changes once made, so
     # the block every later response screens is the one `_main_block` gives it, read once and not once a response.
     main_of: "dict[str, Block | None]" = {}
+    # Each modelled column's key (lane SPEED-2M), made before its fit reads it: its frame is a fixed function of it.
+    base = _fits_base(sample, owners) if kept is not None else ""
+    keys: "dict[str, str]" = {}
     for column in encoded:
         entry = column.entry
         name = _text(entry["name"])
         level = _text(entry["level"]) if "level" in entry else ROW
+        own = _column_key(base, column) if kept is not None else ""
+        keys[name] = own
         if level == SEQUENCE:
             frames[name] = Frame(NUMBER, normal_scores(column.states, column.positions), column.states, [])
             main_of[name] = _main_block(name, frames[name])
@@ -1573,10 +2275,14 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
             if block is not None:
                 candidates += [block]
         fitted = [row for row in range(sample) if first is None or not held_once or first[row]]
+        # ...each target's key: its column's, which fit it is, and whether its rows are each person's first alone.
+        held_word = "once" if held_once else "rows"
+        kept_keys = keys if kept is not None else None
         if _text(entry["kind"]) == NUMBER:
             states = column.states
             presence = Target(LABEL, [], fitted, states, STATES)
-            entry["presence"] = (fit_label(presence, candidates, frames, sample)
+            entry["presence"] = (fit_label(presence, candidates, frames, sample, kept,
+                                           _key_of(["presence", held_word, own]), kept_keys)
                                  if len([row for row in fitted if states[row] != PRESENT]) >= MIN_ROWS else None)
             keep = [False for _row in range(sample)]
             for row in fitted:
@@ -1585,7 +2291,8 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
             middle = normal_scores(masked, column.positions, (PRESENT,))
             present = [row for row in fitted if states[row] == PRESENT]
             value = Target(NUMBER, [middle[row] for row in present], present, [], 0)
-            entry["value"] = fit_number(value, candidates, frames, sample, None if held_once else owners)
+            entry["value"] = fit_number(value, candidates, frames, sample, None if held_once else owners, kept,
+                                        _key_of(["value", held_word, own]), kept_keys)
             frames[name] = Frame(NUMBER, normal_scores(states, column.positions), states, [])
             # ...and the column's numbers let go once its frame holds their scores (lane W5-302): nothing reads them
             # again, and a wide table held them all through its whole fit (8 bytes a row and a float each).
@@ -1593,7 +2300,8 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
         else:
             levels = len(_list(entry["levels"])) + (1 if _int(entry["rest"]) > 0 else 0)
             target = Target(LABEL, [], fitted, column.codes, levels)
-            entry["value"] = fit_label(target, candidates, frames, sample)
+            entry["value"] = fit_label(target, candidates, frames, sample, kept, _key_of(["label", held_word, own]),
+                                       kept_keys)
             frames[name] = Frame(LABEL, [], [], column.codes)
         main_of[name] = _main_block(name, frames[name])
         if held_once:
@@ -2835,3 +3543,114 @@ def mixed(value: int) -> int:
 def share_of(word: int) -> float:
     """A share strictly between nought and one from a 64-bit word (`_uniform`)."""
     return _uniform(word)
+
+
+# -- THE IDENTITIES (lane STATS-B): one record-number column equal to another on the rows of some levels -------------
+#
+# WHAT IT CARRIES. Two columns the description holds as record numbers (made up in the twin, never a real one) can
+# be one number on some rows of the real table: a policy's subscriber IS the patient exactly where the relationship
+# is `Self`. Made up apart, the twin's two columns never met (the battery's accounts table: `self_subscriber_is_the_
+# patient` 1.0 real, 0.0 twin, 0 of 9 runs). An IDENTITY is that rule as a model: the column, the one it equals,
+# and the levels of one label column on whose rows it does -- every one of them on the fit's rows, and none of the
+# other levels' rows -- or, where it holds on every row both hold a number, no label at all. No value: column names
+# and the label's level spellings (the relations zone's own). HOW THE TWIN READS IT (`identities_held`, after every
+# zone): on those rows the column is written as the other column's twin cell, a made-up number already, so the
+# twin's cells stay made up and its two columns meet exactly where the real table's do.
+
+IDENTITIES = "identities"
+IDENTITY_LEAST_ROWS = 50
+IDENTITY_LEVELS_MOST = 30
+
+
+def identities_of(numbers: "dict[str, list[str]]", labels: "dict[str, list[str]]",
+                  kept: "tuple[str, ...]" = ()) -> "list[dict[str, object]]":
+    """The identities between the record-number columns `numbers` (their cells on the fit's rows, in the table's
+    order), each by the label column of `labels` (cells on the same rows) whose levels part its rows exactly.
+
+    A pair is an identity where its two cells are one text (both written) on at least `IDENTITY_LEAST_ROWS` rows,
+    and either on every row where both are written (no label) or, for one label of at most
+    `IDENTITY_LEVELS_MOST` levels, on every row of some of its levels and on none of the others'. The column the
+    twin writes is the later of the two, unless it is one of `kept` (the column naming the person, which the twin
+    never writes from another): then the earlier, and a pair of two kept columns is none. Each column equals at most
+    one other. Deterministic. Raises nothing of its own.
+    """
+    names = [name for name in numbers]
+    out: "list[dict[str, object]]" = []
+    taken: "set[str]" = set()
+    pairs: "list[tuple[str, str]]" = []
+    for later in range(len(names)):
+        for earlier in range(later):
+            first, second = names[earlier], names[later]
+            if second not in kept:
+                pairs += [(second, first)]
+            elif first not in kept:
+                pairs += [(first, second)]
+    for column, other in pairs:
+        if column in taken or other in taken:
+            continue
+        own, theirs = numbers[column], numbers[other]
+        both: "list[int]" = []
+        equal: "list[bool]" = []
+        for row in range(min(len(own), len(theirs))):
+            if _bare(own[row]) and _bare(theirs[row]):
+                both += [row]
+                equal += [_bare(own[row]) == _bare(theirs[row])]
+        met = sum(1 for each in equal if each)
+        if met < IDENTITY_LEAST_ROWS:
+            continue
+        if met == len(both):
+            out += [{"column": column, "equals": other, "by": "", "levels": []}]
+            taken = taken | {column}
+            continue
+        found: "dict[str, object] | None" = None
+        for label in labels:
+            if label in (column, other):
+                continue
+            cells = labels[label]
+            seen: "dict[str, list[int]]" = {}
+            for at in range(len(both)):
+                level = _bare(cells[both[at]]) if both[at] < len(cells) else ""
+                if level not in seen:
+                    seen[level] = [0, 0]
+                seen[level][0] += 1
+                seen[level][1] += 1 if equal[at] else 0
+            if len(seen) > IDENTITY_LEVELS_MOST or len(seen) < 2:
+                continue
+            if all(seen[level][1] == 0 or seen[level][1] == seen[level][0] for level in seen):
+                levels = sorted(level for level in seen if seen[level][1] > 0)
+                if levels:
+                    found = {"column": column, "equals": other, "by": label, "levels": levels}
+                    break
+        if found is not None:
+            out += [found]
+            taken = taken | {column}
+    return out
+
+
+def identities_held(rules: object, cells: "dict[str, list[str]]") -> "dict[str, list[str]]":
+    """Each identity's column written as its other column's cell on the rows of its levels (every row both are
+    written, where it names no label); only the columns that change. A rule naming a column `cells` does not hold is
+    left out. Same rules and cells, same columns. Raises RelationsError on a damaged rule."""
+    out: "dict[str, list[str]]" = {}
+    for rule in _list(rules):
+        entry = _dict(rule)
+        column, other, label = _text(entry["column"]), _text(entry["equals"]), _text(entry["by"])
+        levels = {_text(level) for level in _list(entry["levels"])}
+        if column not in cells or other not in cells or (label and label not in cells):
+            continue
+        own = out[column] if column in out else cells[column]
+        theirs = out[other] if other in out else cells[other]
+        written = list(own)
+        changed = False
+        for row in range(min(len(own), len(theirs))):
+            if label:
+                if _bare(cells[label][row]) not in levels or not _bare(theirs[row]):
+                    continue
+            elif not (_bare(own[row]) and _bare(theirs[row])):
+                continue
+            if written[row] != theirs[row]:
+                written[row] = theirs[row]
+                changed = True
+        if changed:
+            out[column] = written
+    return out

@@ -161,7 +161,8 @@ def journey(root: pathlib.Path) -> "dict[str, typing.Any]":
     On Step 0's table (the stage-5 battery's, 20,000 rows): A, a twin
     whose reader ends input at the first question; B, the same from that
     folder with the record number answered `identifier` (key 3) at the
-    one question put; C, B again without `--replace`; D, B again with
+    one question put (in the one round's list of record numbers, lane
+    Q-FLOW); C, B again without `--replace`; D, B again with
     `--replace` and a reader of no lines, which would end the run at any
     question put, its three steps profile, generate and validate each
     writing over its own files with `--replace`. Then, in the same folder,
@@ -179,7 +180,10 @@ def journey(root: pathlib.Path) -> "dict[str, typing.Any]":
     found["A"] = _run(["twin", "t.csv"], home, ask=[])
     found["after_A"] = _everything_under(home)
     started = time.perf_counter()
-    found["B"] = _run(["twin", "t.csv"], home, ask=["3"])
+    # ...the record number answered `record number` at the one round's list
+    # of record numbers, Enter at every later prompt and at its last screen
+    # (lane Q-FLOW, step 2: `3` typed alone at a list names no column).
+    found["B"] = _run(["twin", "t.csv"], home, ask=["record_no record number"] + [""] * 6)
     found["B_seconds"] = time.perf_counter() - started
     folder = home / "t-synthtwin"
     found["folder"] = folder
@@ -548,13 +552,15 @@ def test_nothing_is_written_before_the_questions_are_answered(ran: "dict[str, ty
 
 
 def test_the_questions_come_before_any_file_on_the_screen(ran: "dict[str, typing.Any]") -> None:
-    """The one question is put, and answered, before the screen announces a file."""
+    """Every question is put, and answered, before the screen announces a file: the record number's, then the one round's, then its last screen (lane Q-FLOW, step 2)."""
     made, screen = ran["B"]
     text = _text(screen)
     asked = text.index("COLUMN(S) CAN BE READ MORE THAN ONE WAY")
+    last = text.index("BEFORE ANYTHING IS WRITTEN")
     announced = text.index("These three files will be written")
-    assert asked < announced
-    assert dict(made.steps[0].tally)["questions-put"] == 1
+    assert asked < last < announced
+    assert "Column 1 of 1: 'record_no'" not in text and "record_no" in text[asked:last]
+    assert dict(made.steps[0].tally)["questions-put"] >= 1
 
 
 def test_one_run_writes_the_six_files_into_one_folder(ran: "dict[str, typing.Any]") -> None:
@@ -1065,7 +1071,7 @@ def test_a_folder_s_answers_are_handed_back_only_to_the_file_they_were_given_abo
     """Codex's item 4 (LANE TT RULINGS 1 item 4): answers kept about one table are never handed to another of the same name.
 
     `twin cohortA/data.csv --out-dir reports`, the record number answered
-    `identifier` at the prompt; then `twin cohortB/data.csv --out-dir
+    `record number` at the one round's list (its `identifier`); then `twin cohortB/data.csv --out-dir
     reports --replace`, the same column names over other rows: on
     c4925cd8 A's answer decided B's reading. Now the questions file binds
     its answers to the file's size and fingerprint, read in the profile
@@ -1078,7 +1084,11 @@ def test_a_folder_s_answers_are_handed_back_only_to_the_file_they_were_given_abo
         (tmp_path / cohort).mkdir()
         (tmp_path / cohort / "data.csv").write_text(_coded_table(600, seed), encoding="utf-8", newline="\n")
     (tmp_path / "reports").mkdir()
-    first, _screen = _library(["twin", "cohortA/data.csv", "--out-dir", "reports"], tmp_path, ask=["3"])
+    # ...the record number answered at the one round's list of record numbers,
+    # Enter at every later prompt and at its last screen (lane Q-FLOW, step 2).
+    first, _screen = _library(
+        ["twin", "cohortA/data.csv", "--out-dir", "reports"], tmp_path, ask=["record_no record number"] + [""] * 6
+    )
     assert first.verdict in (results.NO_MISS, results.MISSED), first.refusal
     made = _digests(tmp_path / "reports")
     other, screen = _library(["twin", "cohortB/data.csv", "--out-dir", "reports", "--replace"], tmp_path, ask=[])

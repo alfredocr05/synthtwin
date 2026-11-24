@@ -322,8 +322,8 @@ def test_a_joining_that_moves_which_part_is_larger_is_not_made() -> None:
     assert all(a > b for a, b in zip(*_parts(twin)))
 
 
-def test_a_copy_is_not_written_from_a_source_a_level_top_codes() -> None:
-    """A numeric copy whose source a level writes under the age top code, the copy itself uncapped, is not written: the twin keeps the copy's own cells (mutant: the top code not read)."""
+def test_a_copy_is_written_by_its_rule_from_a_source_a_level_top_codes() -> None:
+    """A numeric copy whose source a level writes under the age top code, the copy itself uncapped, is written by its rule from the source's cells (lane STATS-B, reversing lane IN-4c's hold): the source's number where it is one, the sentinel elsewhere, so never past the source's top code on the capped level's rows (mutant: the copy held back beside a top-coded source, as lane IN-4c wrote it)."""
     draw = random.Random(9)
     table: "dict[str, list[str]]" = {"subject": [], "item": [], "reading": [], "reading_num": []}
     for person in range(400):
@@ -348,6 +348,34 @@ def test_a_copy_is_not_written_from_a_source_a_level_top_codes() -> None:
     assert inside_keyed.capped_anywhere(capped, "reading") and not inside_keyed.capped_anywhere(free, "reading")
     cells = {name: list(values) for name, values in stand.items()}
     written = inside_keyed.numbers_and_rules(capped, cells, 0)
-    assert "reading_num" not in written
+    assert "reading_num" in written
+    source = written["reading"] if "reading" in written else stand["reading"]
+    for row in range(len(source)):
+        number = inside_keyed.plain_number(source[row])
+        assert written["reading_num"][row] == (source[row].strip() if number is not None else "-1"), row
+        if stand["item"][row] == "SUGAR" and number is not None:
+            assert number <= 90
     written = inside_keyed.numbers_and_rules(free, {name: list(values) for name, values in stand.items()}, 0)
     assert "reading_num" in written
+
+
+def test_a_level_s_value_a_dealt_cell_s_form_cannot_carry_is_written_in_the_level_s_own_form() -> None:
+    """A cell of a pooled stand-in written in whole numbers, dealt to a level of thousandths, wrote the level's values
+    as `0` (the battery's troponin rows, 187 of them); the value is written in its level's commonest form instead,
+    the point with no figure before it where the level writes so, never past a top code, and a cell whose own form
+    carries the value keeps it (lane STATS-B; mutant: the cell's form kept whatever it writes)."""
+    drawn = inside_keyed._Drawn([], [], 100, [], [0.001, 0.05], [(3, 100)], 90, 100)
+    assert inside_keyed._in_form("24", 0.012, 0) == "0"
+    assert inside_keyed._carried("24", 0.012, 0, drawn) == ".012"
+    assert inside_keyed._carried(".031", 0.012, 0, drawn) == ".012"
+    # ...and a cell written with a number of decimals its level never writes takes the level's own form too (a whole
+    # number on a level written to one place, the battery's C-reactive protein rows).
+    assert inside_keyed._carried("24", 31.4, 0, drawn) == "31.400"
+    plain = inside_keyed._Drawn([], [], 100, [], [0.5, 5.0], [(1, 100)], 0, 100)
+    assert inside_keyed._carried("7", 0.3, 0, plain) == "0.3"
+    assert inside_keyed._carried("9", 9.1, 0, plain) == "9.1"
+    assert inside_keyed._carried("8.4", 9.1, 0, plain) == "9.1"
+    assert inside_keyed._carried("7", 0.0, 0, plain) == "0"
+    assert inside_keyed._carried("7", 120.0, 90, plain) == "90.0"
+    whole = inside_keyed._Drawn([], [], 100, [], [80.0, 200.0], [(0, 100)], 0, 100)
+    assert inside_keyed._carried("6.2", 112.0, 0, whole) == "112"

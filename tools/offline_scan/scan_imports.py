@@ -811,6 +811,46 @@ attribute absent from it is not allowed at all:
   carry. Zone R: the values are the person's file's text, compared
   with the survey's and handed to `column_values` as text; no float
   of the library is made or read.
+* pyarrow.parquet (lane FORMATS, the owner's ruling of 2026-11-23 that
+  synthtwin opens files from other systems), zone R, in
+  synthtwin.nativereading alone: read_table and NOTHING else of it -- no
+  writer, no dataset, no file system, no ParquetFile. Capability audit:
+  read_table opens its first argument, a path or a text pyarrow may
+  resolve through a file system, so it is fenced as pandas.read_csv is
+  (the validated local path, _FENCED_APIS); it decodes with a pool of
+  threads unless use_threads=False is handed in, which the argument rule
+  requires written by name as the literal False, and every other setting
+  is refused (a filesystem, a filter, a memory pool, a schema). What it
+  returns is a table with the three surfaces of pyarrow.csv's, entered
+  under their own origins (_PARQUET_TABLE_ORIGIN, _PARQUET_COLUMN_ORIGIN,
+  _PARQUET_CHUNK_ORIGIN): `num_rows`, `num_columns` and `column(i)`;
+  `num_chunks` and `chunk(i)`; `to_pylist()`, whose list leaves the
+  library, and on a piece pyarrow read as a dictionary its `dictionary`,
+  the piece's categories in the file's order, an array answering to the
+  same `to_pylist()` (a categorical's categories, in pandas' order). A Parquet column chunk may name ANOTHER file (a ColumnChunk's
+  file_path): the module reads the footer itself first, with the
+  standard library, and refuses such a file before read_table is called.
+* pyreadstat (lane FORMATS, the same ruling), zone R, in
+  synthtwin.nativereading alone: read_dta, read_sav, read_sas7bdat and
+  read_xport, and its two error classes, ReadstatError and
+  PyreadstatError -- no writer, no read_file_multiprocessing (which
+  starts processes), no read_file_in_chunks, no set_value_labels, no
+  read_sas7bcat. Capability audit: each read opens the one path it is
+  handed with ReadStat's C reader -- a local file, no URL form -- and is
+  fenced as pandas.read_csv is all the same (_FENCED_APIS); it starts no
+  thread and no process, takes no callable, and the argument rule holds
+  it to the one audited form: the validated path by position and, by
+  name, output_format="dict" (plain Python lists, no pandas frame),
+  disable_datetime_conversion=True (each date as the number the file
+  stores, so the date arithmetic is synthtwin's own, in whole numbers)
+  and optionally user_missing written as a literal truth value; a
+  second path (catalog_file), an encoding, a row window and every other
+  setting are refused. What it returns, the data and the metadata
+  together, is one surface of its own (_READSTAT_ORIGINS): the metadata
+  attributes the reader reads, each a plain list, dictionary or text,
+  and `copy()`, which hands back a plain built-in copy of a list or a
+  dictionary -- the library's values leave it there, and the reader
+  checks each copy is a list or a dictionary before it reads it.
 * scipy.optimize (lane DEP-1, plans P4-D409 part 5 and P4-D410), zone D
   on the search side, and zone P: milp, Bounds, LinearConstraint.
   Capability audit: milp hands the arrays it is given to the HiGHS
@@ -1009,6 +1049,8 @@ _TWIN_STORE = "synthtwin.twinstore"
 # module, and nowhere else.
 _ARRAY_HELPER = "synthtwin.arrays"
 _COMPUTER = "synthtwin.computer"
+# Lane FORMATS: the one module that reads a Parquet, SAS, Stata or SPSS file.
+_NATIVE_READER = "synthtwin.nativereading"
 
 _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zipfile": frozenset({"synthtwin.reading", "synthtwin.writing"}),
@@ -1022,11 +1064,17 @@ _MODULE_SCOPED_ADMISSIONS: "dict[str, frozenset[str]]" = {
     "zlib": frozenset({_TWIN_STORE}),
     # Lane ARR-a, 2026-11-05 (plan P4-D466): the audited array helper.
     "numpy": frozenset({_ARRAY_HELPER}),
+    # Lane FORMATS: the readers of files from other systems, in the one
+    # module that reads such a file.
+    "pyarrow.parquet": frozenset({_NATIVE_READER}),
+    "pyreadstat": frozenset({_NATIVE_READER}),
 }
 
 # The need each scoped admission was argued from, in the words its
 # violation message gives.
 _SCOPED_ADMISSION_NEEDS: "dict[str, str]" = {
+    "pyarrow.parquet": "reading a Parquet file's values (lane FORMATS)",
+    "pyreadstat": "reading a SAS, Stata or SPSS file (lane FORMATS)",
     "zipfile": "reading a spreadsheet package and writing one",
     "xml.parsers.expat": "reading a spreadsheet package and writing one",
     "numba": (
@@ -1105,6 +1153,8 @@ _GENERATION_ROOTS = (
     "synthtwin.rendering",
     "synthtwin.sheetwriting",
     "synthtwin.writing",
+    # Lane FORMATS: the native twin's writer is a writer like the three.
+    "synthtwin.nativewriting",
 )
 
 # The modules a table names for a zone, each entered with its lane's
@@ -1122,6 +1172,10 @@ _MODULE_ZONES: "dict[str, str]" = {
     _SELFTEST: _ZONE_P,
     "synthtwin.reading": _ZONE_R,
     "synthtwin.workbook": _ZONE_R,
+    # Lane FORMATS: the reader of a file from another system, and the
+    # twin's writer of one (the standard library alone, as every W).
+    "synthtwin.nativereading": _ZONE_R,
+    "synthtwin.nativewriting": _ZONE_W,
     "synthtwin.writing": _ZONE_W,
     "synthtwin.sheetwriting": _ZONE_W,
     "synthtwin.rendering": _ZONE_W,
@@ -1145,6 +1199,9 @@ _LIBRARY_ZONES: "dict[str, frozenset[str]]" = {
     # The fast reader (P4-D409, lane SR-A): a validated local path, one
     # thread.
     "pyarrow.csv": frozenset({_ZONE_R}),
+    # Lane FORMATS: the readers of files from other systems.
+    "pyarrow.parquet": frozenset({_ZONE_R}),
+    "pyreadstat": frozenset({_ZONE_R}),
     # HiGHS: a SEARCH whose every exhibited arrangement is re-checked in
     # Python integers (P4-D409 part 5), so D's search side and P.
     "scipy.optimize": frozenset({_ZONE_D, _ZONE_P}),
@@ -1619,6 +1676,18 @@ _ALLOWED_MODULE_ATTRS: "dict[str, frozenset[str]]" = {
     "pyarrow.csv": frozenset(
         {"ConvertOptions", "ParseOptions", "ReadOptions", "read_csv"}
     ),
+    # Lane FORMATS, each name with its audit in the module docstring.
+    "pyarrow.parquet": frozenset({"read_table"}),
+    "pyreadstat": frozenset(
+        {
+            "PyreadstatError",
+            "ReadstatError",
+            "read_dta",
+            "read_sas7bdat",
+            "read_sav",
+            "read_xport",
+        }
+    ),
     "scipy.optimize": frozenset({"Bounds", "LinearConstraint", "milp"}),
     "scipy.linalg": frozenset({"cho_factor", "cho_solve"}),
     "numba": frozenset({"njit"}),
@@ -1690,7 +1759,7 @@ _KNOWN_MODULE_PATHS = frozenset(_ALLOWED_MODULE_ATTRS) | {
 # every other name of that root (plan P4-D410).
 _LIBRARY_ROOTS: "dict[str, tuple[str, ...]]" = {
     "numpy": ("numpy.random",),
-    "pyarrow": ("pyarrow.csv",),
+    "pyarrow": ("pyarrow.csv", "pyarrow.parquet"),
     "scipy": ("scipy.linalg", "scipy.optimize"),
 }
 
@@ -1834,6 +1903,7 @@ _RESTRICTED_INSTANCE_METHODS: "dict[str, frozenset[str]]" = {
     # SR-A, MR and CHa, ST and MPn).
     "numba": frozenset(),
     "pyarrow": frozenset(),
+    "pyreadstat": frozenset(),
     "scipy": frozenset(),
 }
 
@@ -1847,6 +1917,7 @@ _RESTRICTED_INSTANCE_ATTRIBUTES: "dict[str, frozenset[str]]" = {
     "pandas": frozenset({"columns"}),
     "numba": frozenset(),
     "pyarrow": frozenset(),
+    "pyreadstat": frozenset(),
     "scipy": frozenset(),
 }
 
@@ -1901,6 +1972,33 @@ _ZIP_MEMBER_ORIGIN = "zipfile.ZipFile.open"
 _ARROW_TABLE_ORIGIN = "pyarrow.csv.read_csv"
 _ARROW_COLUMN_ORIGIN = "pyarrow.csv.read_csv.column"
 _ARROW_CHUNK_ORIGIN = "pyarrow.csv.read_csv.column.chunk"
+# Lane FORMATS: the table pyarrow.parquet.read_table returns, its columns
+# and their pieces, the same three surfaces as pyarrow.csv's under origins
+# of their own; and what pyreadstat's four reads return (the data and the
+# metadata together, unpacked from one result), one surface for each read.
+_PARQUET_TABLE_ORIGIN = "pyarrow.parquet.read_table"
+_PARQUET_COLUMN_ORIGIN = "pyarrow.parquet.read_table.column"
+_PARQUET_CHUNK_ORIGIN = "pyarrow.parquet.read_table.column.chunk"
+_READSTAT_ATTRIBUTES = frozenset(
+    {
+        "column_labels",
+        "column_names",
+        "missing_ranges",
+        "original_variable_types",
+        "readstat_variable_types",
+        "table_name",
+        "variable_measure",
+        "variable_storage_width",
+        "variable_to_label",
+        "variable_value_labels",
+    }
+)
+_READSTAT_ORIGINS = (
+    "pyreadstat.read_dta",
+    "pyreadstat.read_sas7bdat",
+    "pyreadstat.read_sav",
+    "pyreadstat.read_xport",
+)
 # Lane ARR-a, 2026-11-05 (plan P4-D466): THE HELPER'S ARRAYS. What the
 # admitted numpy names make in synthtwin.arrays -- an array, or one value
 # taken out of one (a numpy scalar, which carries an array's writers and
@@ -2177,6 +2275,14 @@ _RESTRICTED_SURFACES: "dict[str, tuple[frozenset[str], frozenset[str]]]" = {
     _ARROW_TABLE_ORIGIN: (frozenset({"column"}), frozenset({"num_rows"})),
     _ARROW_COLUMN_ORIGIN: (frozenset({"chunk"}), frozenset({"num_chunks"})),
     _ARROW_CHUNK_ORIGIN: (frozenset({"to_pylist"}), frozenset()),
+    # Lane FORMATS.
+    _PARQUET_TABLE_ORIGIN: (frozenset({"column"}), frozenset({"num_columns", "num_rows"})),
+    _PARQUET_COLUMN_ORIGIN: (frozenset({"chunk"}), frozenset({"num_chunks"})),
+    _PARQUET_CHUNK_ORIGIN: (frozenset({"to_pylist"}), frozenset({"dictionary"})),
+    "pyreadstat.read_dta": (frozenset({"copy"}), _READSTAT_ATTRIBUTES),
+    "pyreadstat.read_sas7bdat": (frozenset({"copy"}), _READSTAT_ATTRIBUTES),
+    "pyreadstat.read_sav": (frozenset({"copy"}), _READSTAT_ATTRIBUTES),
+    "pyreadstat.read_xport": (frozenset({"copy"}), _READSTAT_ATTRIBUTES),
     # Lane ARR-a, 2026-11-05 (plan P4-D466).
     _ARRAY_ORIGIN: (frozenset({"astype", "tolist"}), frozenset()),
 }
@@ -2192,11 +2298,19 @@ _SURFACE_DESCRIPTIONS: "dict[str, str]" = {
     _ARROW_TABLE_ORIGIN: "the table pyarrow.csv.read_csv returned",
     _ARROW_COLUMN_ORIGIN: "a column of the table pyarrow.csv.read_csv returned",
     _ARROW_CHUNK_ORIGIN: "a piece of a column of the table pyarrow.csv.read_csv returned",
+    _PARQUET_TABLE_ORIGIN: "the table pyarrow.parquet.read_table returned",
+    _PARQUET_COLUMN_ORIGIN: "a column of the table pyarrow.parquet.read_table returned",
+    _PARQUET_CHUNK_ORIGIN: "a piece of a column of the table pyarrow.parquet.read_table returned",
+    "pyreadstat.read_dta": "what pyreadstat.read_dta returned",
+    "pyreadstat.read_sas7bdat": "what pyreadstat.read_sas7bdat returned",
+    "pyreadstat.read_sav": "what pyreadstat.read_sav returned",
+    "pyreadstat.read_xport": "what pyreadstat.read_xport returned",
     _ARRAY_ORIGIN: "an array the audited array helper made, or a value taken out of one",
     "numpy": "a value produced by numpy",
     "pandas": "a value produced by pandas",
     "numba": "a value produced by numba",
     "pyarrow": "a value produced by pyarrow",
+    "pyreadstat": "a value produced by pyreadstat",
     "scipy": "a value produced by scipy",
 }
 
@@ -2223,6 +2337,8 @@ _RESTRICTED_METHOD_RESULTS: "dict[tuple[str, str], str]" = {
     (_GENERATOR_ORIGIN, "integers"): _DRAW_ARRAY_ORIGIN,
     (_ARROW_TABLE_ORIGIN, "column"): _ARROW_COLUMN_ORIGIN,
     (_ARROW_COLUMN_ORIGIN, "chunk"): _ARROW_CHUNK_ORIGIN,
+    (_PARQUET_TABLE_ORIGIN, "column"): _PARQUET_COLUMN_ORIGIN,
+    (_PARQUET_COLUMN_ORIGIN, "chunk"): _PARQUET_CHUNK_ORIGIN,
     # Lane ARR-a, 2026-11-05 (plan P4-D466): astype makes another array;
     # tolist has no entry, so what it hands back is a plain value.
     (_ARRAY_ORIGIN, "astype"): _ARRAY_ORIGIN,
@@ -2384,7 +2500,18 @@ def _is_first_party(kind: str, origin: str) -> bool:
 # the enforcement behind the fence P1-D2.1 describes; round 1 found the
 # claim resting on nothing but the order the current source happens to
 # be written in.
-_FENCED_APIS = frozenset({"pandas.read_csv", "pyarrow.csv.read_csv"})
+_FENCED_APIS = frozenset(
+    {
+        "pandas.read_csv",
+        "pyarrow.csv.read_csv",
+        # Lane FORMATS: each opens the path it is handed.
+        "pyarrow.parquet.read_table",
+        "pyreadstat.read_dta",
+        "pyreadstat.read_sas7bdat",
+        "pyreadstat.read_sav",
+        "pyreadstat.read_xport",
+    }
+)
 
 # APIs that may appear ONLY as the function of a call written in one
 # place (lane DEP-1, plan P4-D410): numba.njit is the decorator call
@@ -5148,7 +5275,7 @@ class _Checker(ast.NodeVisitor):
             if name in {"argparse", "csv", "dataclasses", "json", "math",
                         "pandas", "pathlib", "typing", "sys", "os",
                         "zipfile", "numba", "fractions", "hashlib",
-                        "secrets", "zlib"}:
+                        "secrets", "zlib", "pyreadstat"}:
                 self._bind(bound_name, ("module", name))
                 if report:
                     self._check_admitted_import(node, name)
@@ -5162,7 +5289,7 @@ class _Checker(ast.NodeVisitor):
                     self._check_admitted_import(node, name)
                 continue
             if name in {"os.path", "importlib.metadata", "numpy.random",
-                        "xml.parsers.expat", "pyarrow.csv",
+                        "xml.parsers.expat", "pyarrow.csv", "pyarrow.parquet",
                         "scipy.optimize", "scipy.linalg"}:
                 # The same two-component shape os.path has: the import
                 # statement names the submodule, and the one-step rule
@@ -6057,6 +6184,17 @@ class _Checker(ast.NodeVisitor):
                 if method not in _surface_methods(key):
                     self._flag(node, _restricted_instance_message(method, key))
                     return
+                # A PERMITTED method on an ATTRIBUTE of the surface is a read
+                # of that attribute first (lane FORMATS): `meta.notes.copy()`
+                # reads `notes` before `copy` runs, so the receiver's chain is
+                # held to the surface's attributes as a plain read is. Until
+                # a surface admitted a method a chain could end in (pyreadstat's
+                # `copy`), no permitted method made this reachable.
+                inner = func.value
+                while isinstance(inner, ast.Attribute):
+                    if self._check_restricted_attribute(inner):
+                        return
+                    inner = inner.value
                 # A PERMITTED name is not a permitted call: what the
                 # library does with the ARGUMENTS is a second question,
                 # and the surfaces that have an answer give it here
@@ -7067,6 +7205,73 @@ def _rule_pyarrow_parse_options(checker: "_Checker", node: ast.Call) -> "str | N
     return None
 
 
+def _rule_parquet_read_table(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyarrow.parquet.read_table: the validated path, then use_threads=False by name, and nothing else."""
+    if len(node.args) != 1 or isinstance(node.args[0], ast.Starred):
+        return (
+            "with other than the one positional argument, the validated local "
+            "path: every setting goes by name, so that the reader's threads can "
+            "be read where the call is written"
+        )
+    threads: "ast.expr | None" = None
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides which setting lands where"
+        if keyword.arg != "use_threads":
+            return (
+                "with '" + keyword.arg + "': read_table takes the validated path "
+                "and use_threads=False alone (a file system, a filter, a memory "
+                "pool and every other setting are refused, lane FORMATS)"
+            )
+        threads = keyword.value
+    if not (isinstance(threads, ast.Constant) and threads.value is False):
+        return (
+            "without use_threads=False written as the literal False: the "
+            "Parquet reader otherwise decodes with a pool of threads"
+        )
+    return None
+
+
+_READSTAT_REQUIRED = {"output_format": "dict", "disable_datetime_conversion": True}
+_READSTAT_OPTIONAL = frozenset({"user_missing"})
+
+
+def _rule_readstat_read(checker: "_Checker", node: ast.Call) -> "str | None":
+    """pyreadstat's reads: the validated path, output_format="dict", disable_datetime_conversion=True, and at most user_missing."""
+    if len(node.args) != 1 or isinstance(node.args[0], ast.Starred):
+        return (
+            "with other than the one positional argument, the validated local "
+            "path: every setting goes by name, so that what the reader hands "
+            "back can be read where the call is written"
+        )
+    found: "dict[str, ast.expr]" = {}
+    for keyword in node.keywords:
+        if keyword.arg is None:
+            return "with ** expansion, which hides which setting lands where"
+        if keyword.arg not in _READSTAT_REQUIRED and keyword.arg not in _READSTAT_OPTIONAL:
+            return (
+                "with '" + keyword.arg + "': a pyreadstat read takes the validated "
+                "path, output_format='dict', disable_datetime_conversion=True and "
+                "user_missing alone (a second path such as catalog_file, an "
+                "encoding, a row window and every other setting are refused, "
+                "lane FORMATS)"
+            )
+        found[keyword.arg] = keyword.value
+    for name, wanted in sorted(_READSTAT_REQUIRED.items()):
+        value = found.get(name)
+        if not (isinstance(value, ast.Constant) and value.value == wanted and type(value.value) is type(wanted)):
+            return (
+                "without " + name + "=" + repr(wanted) + " written as that literal: "
+                "the reader then hands back pandas frames, or dates pandas made, "
+                "which this audit does not follow"
+            )
+    if "user_missing" in found:
+        value = found["user_missing"]
+        if not (isinstance(value, ast.Constant) and isinstance(value.value, bool)):
+            return "with user_missing that is not the literal True or False"
+    return None
+
+
 _MILP_OPTIONS = frozenset({"disp", "mip_rel_gap", "node_limit", "presolve"})
 
 # The largest node budget the scanner admits (lane DEP-1's repair 2, plan
@@ -7374,6 +7579,11 @@ _ARGUMENT_RULES = {
     "pyarrow.csv.ParseOptions": _rule_pyarrow_parse_options,
     "pyarrow.csv.ReadOptions": _rule_pyarrow_read_options,
     "pyarrow.csv.read_csv": _rule_pyarrow_read_csv,
+    "pyarrow.parquet.read_table": _rule_parquet_read_table,
+    "pyreadstat.read_dta": _rule_readstat_read,
+    "pyreadstat.read_sas7bdat": _rule_readstat_read,
+    "pyreadstat.read_sav": _rule_readstat_read,
+    "pyreadstat.read_xport": _rule_readstat_read,
     "scipy.optimize.milp": _rule_milp,
 }
 

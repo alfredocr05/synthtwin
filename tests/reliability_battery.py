@@ -178,6 +178,37 @@ FAMILIES = {
 }
 HEADLINE_FAMILIES = tuple(f"F{k}" for k in range(1, 14))
 INFORMATIONAL = ("F14",)
+# THE EXTENDED BATTERY (lane STATS-B): further analyses a physician-researcher runs that families F1 to F13 lack, on
+# the same tables and on T9 (`reliability_tables.EXTENDED_TABLES`), judged by the same pass rule beside the same
+# controls. They are NOT K-RU-01's: `kpi_value` reads F1 to F13 alone whether or not they ran, and
+# `extended_value` reads these. They run where `WITH_EXTENDED` is set (`catalogue`).
+EXTENDED_SCRIPTS = {
+    "f15_time_varying_cox": ("T2", True),
+    "f15_time_to_first_event": ("T2", True),
+    "f16_repeated_anova": ("T2", True),
+    "f17_bland_altman": ("T9", True),
+    "f17_reader_agreement": ("T9", True),
+    "f18_roc": ("T9", True),
+    "f19_interactions": ("T9", True),
+    "f20_matching": ("T9", True),
+    "f21_counts_exposure": ("T9", True),
+    "f22_multiple_testing": ("T1", True),
+    "f23_tables_trends": ("T1", True),
+    "f24_cox_interaction": ("T9", True),
+}
+EXTENDED_FAMILIES = {
+    "F15": "time to an event with a measurement that changes over time, and from repeated rows",
+    "F16": "repeated-measures analysis of variance, paired and rank tests",
+    "F17": "agreement of two methods and of two readers",
+    "F18": "diagnostic accuracy: ROC areas, sensitivity and specificity",
+    "F19": "effect modification: interactions and strata",
+    "F20": "propensity-score matching",
+    "F21": "counts over observed times of different lengths",
+    "F22": "many tests adjusted for their number",
+    "F23": "contingency tables and trends",
+    "F24": "survival curves and a Cox model with an interaction",
+}
+WITH_EXTENDED = False
 SUPPORT = 22
 HALF_SUPPORT = 11
 Z = 1.959963984540054
@@ -229,14 +260,18 @@ class Script:
         return SCRIPTS_FOLDER / f"{self.stem}.py"
 
 
-def catalogue(tables: "tuple[str, ...] | None" = None) -> "list[Script]":
-    """The scripts of the battery (of the named tables), in name order."""
-    return [Script(stem, table, family_of(stem), relation) for stem, (table, relation) in sorted(SCRIPTS.items())
+def catalogue(tables: "tuple[str, ...] | None" = None, extended: "bool | None" = None) -> "list[Script]":
+    """The scripts of the battery (of the named tables), in name order: K-RU-01's, and the extended battery's beside
+    them where ``extended`` (by default `WITH_EXTENDED`) is set."""
+    every = dict(SCRIPTS)
+    if WITH_EXTENDED if extended is None else extended:
+        every.update(EXTENDED_SCRIPTS)
+    return [Script(stem, table, family_of(stem), relation) for stem, (table, relation) in sorted(every.items())
             if tables is None or table in tables]
 
 
 def script_files() -> "list[str]":
-    """The script files the folder holds, by name: every one must be in `SCRIPTS`, and every entry a file."""
+    """The script files the folder holds, by name: every one must be in `SCRIPTS` or `EXTENDED_SCRIPTS`, and every entry a file."""
     return sorted(path.stem for path in SCRIPTS_FOLDER.glob("f*.py"))
 
 
@@ -1045,6 +1080,43 @@ def kpi_value(runs_: "list[TableRun]", suffix: str = "_20k",
     if f0:
         value.update({key + suffix if not key.endswith(suffix) else key: v for key, v in f0.items()})
     return value
+
+
+def extended_value(runs_: "list[TableRun]", suffix: str = "_20k") -> "dict[str, object]":
+    """The extended battery's value (lane STATS-B) from the table runs: each family of `EXTENDED_FAMILIES` as K-RU-01's
+    families are read (runs, twin, fresh sample, shuffled), its scripts' runs counted where the real run ends; a
+    family whose fresh sample passes under `VOID_BELOW` is void and named; same_rel over the families not void."""
+    scored = [s for run in runs_ for s in score(run)]
+    counted = [s for s in scored if s.real_ok and s.family in EXTENDED_FAMILIES]
+    families: "dict[str, dict[str, object]]" = {}
+    void: "list[str]" = []
+    for family in EXTENDED_FAMILIES:
+        mine = [s for s in counted if s.family == family]
+        if not mine:
+            continue
+        rep_pass = sum(s.sides["replicate"].passed for s in mine)
+        families[family] = {
+            "n": len(mine),
+            "runs": _share(sum(s.sides["twin"].runs for s in mine), len(mine)),
+            "twin": _share(sum(s.sides["twin"].passed for s in mine), len(mine)),
+            "replicate": _share(rep_pass, len(mine)),
+            "shuffled": _share(sum(s.sides["shuffled"].passed for s in mine), len(mine)),
+        }
+        if rep_pass < VOID_BELOW * len(mine):
+            void += [family]
+    kept = [s for s in counted if s.family not in void]
+    same_twin = _share(sum(s.sides["twin"].passed for s in kept), len(kept))
+    same_rep = _share(sum(s.sides["replicate"].passed for s in kept), len(kept))
+    return {
+        "extended_runs" + suffix: _share(sum(s.sides["twin"].runs for s in counted), len(counted)),
+        "extended_same" + suffix: same_twin,
+        "extended_same_replicate" + suffix: same_rep,
+        "extended_same_rel" + suffix: None if same_twin is None or not same_rep else round(same_twin / same_rep, 4),
+        "extended_same_shuffled" + suffix: _share(sum(s.sides["shuffled"].passed for s in kept), len(kept)),
+        "extended_void_families" + suffix: void,
+        "extended_script_runs" + suffix: len(counted),
+        "extended_families" + suffix: families,
+    }
 
 
 def f0_from_ledger(ledger: "dict") -> "dict[str, object]":

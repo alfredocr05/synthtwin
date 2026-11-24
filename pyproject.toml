@@ -14,7 +14,7 @@ keywords = ["synthetic-data", "privacy", "tabular", "offline"]
 # Trove classifiers omitted: the standard license classifier's wording
 # collides with the decontamination manifest; the `license` field above
 # carries the license declaration.
-# FOUR runtime dependencies, each justified in a ratified plan, each
+# Five runtime dependencies, each justified in a ratified plan, each
 # reduced by the offline scanner to the exact names it may use, and each
 # held to the ZONES it may run in (plan P4-D409 part 2: G generation, D
 # description and shared report, P private report and tests, R reading,
@@ -50,6 +50,15 @@ keywords = ["synthetic-data", "privacy", "tabular", "offline"]
 # real table, is never reachable from the generation path, and leaves
 # the product if lane SR-A's pyarrow check replaces it (P4-D409, D-L3).
 #
+# pyreadstat: lane FORMATS (the owner's ruling of 2026-11-23 that
+# synthtwin opens files from other systems; plan P4-D409 part 1 named it
+# the native formats' library), zone R alone, in synthtwin.nativereading,
+# reduced to its four reads -- read_dta, read_sav, read_sas7bdat and
+# read_xport -- each fenced by the validated local path and held to
+# output_format="dict" and disable_datetime_conversion=True. It reads;
+# the twin is written by the standard library (synthtwin.nativewriting).
+# It brings narwhals, pure Python, which the product never imports.
+#
 # Each floor is repeated in requirements-dev.in, requirements-min.in and
 # requirements-install.in, and tests/test_dependencies.py fails if any of
 # them disagree.
@@ -58,6 +67,7 @@ dependencies = [
     "pyarrow>=26.0.0",
     "scipy>=1.17.1",
     "pandas>=3.0.6",
+    "pyreadstat>=1.3.6",
 ]
 
 # THE OPTIONAL POLISH KERNEL (P4-D409 part 4, owner Q3 of 2026-10-19:

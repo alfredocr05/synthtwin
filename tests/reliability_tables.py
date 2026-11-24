@@ -45,6 +45,14 @@ script reads its table by that name and nothing else):
   numeric copy holding the fixed sentinel 9999999 exactly where the text
   is not a number, a unit by key (two units and a case variant on some
   keys), a range text and a mostly empty integer flag.
+* T9 `methods.csv` (the extended battery's alone, lane STATS-B), one row a
+  patient: an age, a body-mass index and diabetes; a treatment given more
+  often to the older, heavier and diabetic; an arterial and a cuff systolic
+  pressure of one patient (the cuff reading higher by a bias, a proportional
+  part and the body-mass index); two readers' grades of one finding; a
+  risk score; an outcome in time whose hazard the treatment lowers less in
+  the older (an interaction), censored; and admissions over an observed
+  time of its own length.
 * T7 `accounts.csv`, identifiers of other people: a guarantor shared by
   several accounts, a subscriber who is the patient exactly where the
   relationship is `Self`, the staff member who registered the account,
@@ -77,6 +85,10 @@ import random
 from typing import Iterator
 
 TABLES = ("T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8")
+# THE EXTENDED BATTERY'S OWN TABLE (lane STATS-B): read only by the further analysis families of
+# `reliability_battery.EXTENDED_SCRIPTS`, never by K-RU-01's.
+EXTENDED_TABLES = ("T9",)
+ALL_TABLES = TABLES + EXTENDED_TABLES
 FILES = {
     "T1": "cohort.csv",
     "T2": "visits.csv",
@@ -86,6 +98,7 @@ FILES = {
     "T6": "labs.csv",
     "T7": "accounts.csv",
     "T8": "attributes.csv",
+    "T9": "methods.csv",
 }
 NAMES = {
     "T1": "cohort, one row a patient",
@@ -96,9 +109,10 @@ NAMES = {
     "T6": "laboratory results with a sentinel",
     "T7": "accounts with identifiers of other people",
     "T8": "the null table: ten unrelated columns (a control)",
+    "T9": "methods, a cohort with two measuring methods, two readers, a treatment and an outcome in time",
 }
 PERSON = {"T1": "", "T2": "patient_id", "T3": "patient_id", "T4": "patient_id",
-          "T5": "patient_id", "T6": "patient_id", "T7": "patient_id", "T8": ""}
+          "T5": "patient_id", "T6": "patient_id", "T7": "patient_id", "T8": "", "T9": ""}
 SENTINEL = 9999999
 UTC_OFFSET_MINUTES = 360
 STUDY_START = datetime.date(2019, 1, 1)
@@ -120,8 +134,10 @@ T7_COLUMNS = ["account_id", "patient_id", "guarantor_id", "subscriber_id", "rela
 NULL_COLUMNS = ("plan_type", "region", "paperless", "contact_pref", "language", "balance", "visits_yr",
                 "risk_score", "copay", "opened")
 T8_COLUMNS = ["patient_id", *NULL_COLUMNS]
+T9_COLUMNS = ["patient_id", "age", "gender", "body_mass_index", "diabetes", "treated", "arterial_sbp", "cuff_sbp", "grade_first",
+              "grade_second", "score", "outcome", "outcome_days", "admissions", "exposure_days"]
 COLUMNS = {"T1": T1_COLUMNS, "T2": T2_COLUMNS, "T3": T3_COLUMNS, "T4": T4_COLUMNS, "T5": T5_COLUMNS,
-           "T6": T6_COLUMNS, "T7": T7_COLUMNS, "T8": T8_COLUMNS}
+           "T6": T6_COLUMNS, "T7": T7_COLUMNS, "T8": T8_COLUMNS, "T9": T9_COLUMNS}
 
 # What the person who holds each table knows of its columns: the reading a
 # question offers that is true of the column. 'identifier' for a record
@@ -145,10 +161,13 @@ KNOWS = {
            "subscriber_id": "identifier", "staff_id": "identifier", "balance": "measurement"},
     "T8": {"patient_id": "identifier", "visits_yr": "measurement", "risk_score": "measurement",
            "balance": "measurement", "copay": "measurement"},
+    "T9": {"patient_id": "identifier", "age": "measurement", "body_mass_index": "measurement", "arterial_sbp": "measurement",
+           "cuff_sbp": "measurement", "score": "measurement", "outcome_days": "measurement",
+           "admissions": "measurement", "exposure_days": "measurement"},
 }
 # The age columns, whose Safe Harbor question the person answers `yes`
 # (ages past 89 are pooled at 90 by Safe Harbor's own rule).
-AGES = {"T1": ("age",), "T2": ("age",), "T3": (), "T4": (), "T5": (), "T6": (), "T7": (), "T8": ()}
+AGES = {"T1": ("age",), "T2": ("age",), "T3": (), "T4": (), "T5": (), "T6": (), "T7": (), "T8": (), "T9": ("age",)}
 
 
 def _logistic(x: float) -> float:
@@ -696,10 +715,66 @@ def _account_rows(n: int, seed: int) -> "Iterator[list[str]]":
                cells["plan_type"], cells["balance"], cells["opened"]]
 
 
+# -- T9: two measuring methods, two readers, a treatment and an outcome in time (lane STATS-B) ----------------------
+
+GRADES = ("none", "mild", "moderate", "severe")
+T9_TRUTH = {
+    "treated": {"intercept": -0.3, "age": 0.03, "mass_index": 0.08, "diabetes": 0.6},
+    "arterial_sbp": {"mean": 128.0, "age": 0.4, "diabetes": 5.0, "sd": 16.0},
+    "cuff_minus_arterial": {"bias": 3.0, "proportional": 0.06, "mass_index": 0.25, "sd": 6.0},
+    "grades": {"age": 0.02, "diabetes": 0.4, "reader_sd": 0.45, "reader_2_shift": 0.15, "cuts": [-0.5, 0.5, 1.4]},
+    "score": {"base": 4.0, "age": 0.05, "diabetes": 1.2, "mass_index": 0.08, "sd": 1.6},
+    "log_hazard": {"treated": -0.6, "age": 0.03, "diabetes": 0.5, "score": 0.15, "treated_x_age": 0.025,
+                   "weibull_shape": 1.1, "scale_days": 2600.0, "censor_days": [90, 1095]},
+    "admissions_log_rate_a_year": {"intercept": -0.4, "age": 0.02, "diabetes": 0.5, "treated": -0.3,
+                                   "gamma_shape": 1.5, "exposure_days": [30, 730]},
+}
+
+
+def _method_rows(n: int, seed: int) -> "Iterator[list[str]]":
+    """T9's rows, one a patient: each patient's draws from one stream, so a row depends on the seed and its place alone."""
+    r = random.Random(f"T9-{seed}")
+    ids = _ids(random.Random(f"T9-ids-{seed}"), n, "P", 7)
+    t = T9_TRUTH
+    for i in range(n):
+        age = int(min(90.0, max(18.0, r.gauss(62.0, 14.0))))
+        female = r.random() < 0.5
+        mass = min(55.0, max(16.0, r.gauss(28.0 + 0.03 * (age - 62), 5.0)))
+        diabetes = r.random() < _logistic(-2.0 + 0.04 * (age - 62) + 0.1 * (mass - 28.0))
+        p = t["treated"]
+        treated = r.random() < _logistic(p["intercept"] + p["age"] * (age - 62) + p["mass_index"] * (mass - 28.0)
+                                         + p["diabetes"] * diabetes)
+        a = t["arterial_sbp"]
+        arterial = int(round(r.gauss(a["mean"] + a["age"] * (age - 62) + a["diabetes"] * diabetes, a["sd"])))
+        c = t["cuff_minus_arterial"]
+        cuff = int(round(arterial + c["bias"] + c["proportional"] * (arterial - 128) + c["mass_index"] * (mass - 28.0)
+                         + r.gauss(0.0, c["sd"])))
+        g = t["grades"]
+        latent = r.gauss(0.0, 1.0) + g["age"] * (age - 62) + g["diabetes"] * diabetes
+        first = sum(1 for cut in g["cuts"] if latent + r.gauss(0.0, g["reader_sd"]) > cut)
+        second = sum(1 for cut in g["cuts"] if latent + g["reader_2_shift"] + r.gauss(0.0, g["reader_sd"]) > cut)
+        sc = t["score"]
+        score = int(round(min(10.0, max(0.0, sc["base"] + sc["age"] * (age - 62) + sc["diabetes"] * diabetes
+                                        + sc["mass_index"] * (mass - 28.0) + r.gauss(0.0, sc["sd"])))))
+        h = t["log_hazard"]
+        eta = (h["treated"] * treated + h["age"] * (age - 62) + h["diabetes"] * diabetes + h["score"] * (score - 4)
+               + h["treated_x_age"] * treated * (age - 62))
+        event = h["scale_days"] * (-math.log(max(1e-12, r.random())) / math.exp(eta)) ** (1.0 / h["weibull_shape"])
+        censor = r.uniform(*h["censor_days"])
+        happened = event <= censor
+        m = t["admissions_log_rate_a_year"]
+        exposure = r.randint(*m["exposure_days"])
+        rate = math.exp(m["intercept"] + m["age"] * (age - 62) + m["diabetes"] * diabetes + m["treated"] * treated)
+        admissions = _negbin(r, rate * exposure / 365.0, m["gamma_shape"])
+        yield [ids[i], str(age), "F" if female else "M", f"{mass:.1f}", "Y" if diabetes else "N",
+               "Y" if treated else "N", str(arterial), str(cuff), GRADES[first], GRADES[second], str(score),
+               "Y" if happened else "N", str(max(1, int(min(event, censor)))), str(admissions), str(exposure)]
+
+
 _ROWS = {"T1": _cohort_rows, "T2": _visit_rows, "T3": _charting_rows, "T4": _case_rows, "T5": _order_rows,
-         "T6": _lab_rows, "T7": _account_rows, "T8": _attribute_rows}
+         "T6": _lab_rows, "T7": _account_rows, "T8": _attribute_rows, "T9": _method_rows}
 TRUTHS = {"T1": T1_TRUTH, "T2": T2_TRUTH, "T3": T3_TRUTH, "T4": T4_TRUTH, "T5": T5_TRUTH, "T6": T6_TRUTH,
-          "T7": T7_TRUTH, "T8": T8_TRUTH}
+          "T7": T7_TRUTH, "T8": T8_TRUTH, "T9": T9_TRUTH}
 
 
 def header_rows(table: str, n: int, seed: int) -> "tuple[list[str], Iterator[list[str]]]":

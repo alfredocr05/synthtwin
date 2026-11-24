@@ -4071,3 +4071,81 @@ def profile_chain_broken(invariant: str, where: str, detail: str) -> str:
         f"by hand or written by another version of synthtwin. Describe the "
         f"table again with this version, then run the command again."
     )
+
+
+# -- files from other systems (lane FORMATS) ----------------------------
+#
+# Every argument is a path, a column's name, a system's name or a count:
+# no value of the file reaches a refusal.
+
+
+def native_unreadable(path: str, system: str) -> str:
+    """Message for a Parquet, SAS, Stata or SPSS file its reader could not open."""
+    return (
+        f"The file {path} begins like a {system} file but could not be "
+        f"read as one: it may be damaged, cut short, or written by a "
+        f"version of {system} this release does not read. Please open it "
+        f"in the program that wrote it, save it again, and run the command "
+        f"again; saving it as CSV is always read."
+    )
+
+
+def native_without_a_reader(path: str, system: str) -> str:
+    """Message for a file kind synthtwin recognises but does not read."""
+    return (
+        f"The file {path} is a {system} file, which this release of "
+        f"synthtwin does not read. It reads CSV, Excel workbooks, Parquet, "
+        f"SAS (.sas7bdat and .xpt), Stata (.dta) and SPSS (.sav). Please "
+        f"save the table in one of those formats and run the command again."
+    )
+
+
+def native_column_nested(path: str, column: str) -> str:
+    """Message for a Parquet column that holds lists, maps or structures."""
+    where = f"The column '{_shown(column)}'" if column else "A column"
+    return (
+        f"{where} of {path} holds lists, maps or groups of fields in each "
+        f"cell rather than one value, and synthtwin describes tables of "
+        f"one value a cell. Please flatten that column into columns of "
+        f"single values, save the file again, and run the command again."
+    )
+
+
+def native_column_elsewhere(path: str) -> str:
+    """Message for a Parquet file whose columns are kept in other files."""
+    return (
+        f"The file {path} keeps some of its columns in other files that it "
+        f"names, and synthtwin reads only the one file it is given. Please "
+        f"write the table into one Parquet file and run the command again."
+    )
+
+
+def native_column_type_unknown(path: str, column: str) -> str:
+    """Message for a Parquet column of a type synthtwin has no reading for."""
+    where = f"The column '{_shown(column)}'" if column else "A column"
+    return (
+        f"{where} of {path} is stored as a kind of value synthtwin does "
+        f"not read (raw bytes, an interval, or a type it does not know). "
+        f"Please convert that column to text, numbers or dates, save the "
+        f"file again, and run the command again."
+    )
+
+
+def native_dates_out_of_range(path: str, column: str) -> str:
+    """Message for a date column holding a date before year 1 or after 9999."""
+    return (
+        f"The column '{_shown(column)}' of {path} holds a date before the "
+        f"year 1 or after the year 9999, which synthtwin cannot write back "
+        f"exactly. Please check that column for a mistyped date, correct "
+        f"it, and run the command again."
+    )
+
+
+def native_twin_not_writable(column: str, system: str, why: str) -> str:
+    """Message for a twin column the native writer cannot store as its source stored it."""
+    return (
+        f"The twin's column '{_shown(column)}' could not be written into a "
+        f"{system} file: {why}. Nothing was written. Please describe the "
+        f"table again with this release and run the command again; if the "
+        f"problem stays, describe a CSV copy of the table instead."
+    )

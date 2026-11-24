@@ -379,6 +379,10 @@ ON_SCREEN = re.compile(
     r"\n  (?:Column \d+ of \d+|Question (?P<number>\d+) \(\d+ of \d+ in this round\)|\(\d+ of \d+ in this round\)): "
     r"(?:'(?P<column>[^\n]*)'|(?P<about>[^\n]*))\n"
 )
+# The one round's own prompts (lane Q-FLOW, step 2: the twin at a keyboard):
+# its grouped lists and its last screen, which this stand-in answers with Enter.
+_LISTED_NAME = re.compile(r"\n  ([^ \n]+) +(?=[a-z])")
+ROUND_HEADS = re.compile(r"\nQUESTION \d+ OF \d+: |\nBEFORE ANYTHING IS WRITTEN\n|COLUMN\(S\) LOOK LIKE RECORD NUMBERS\n")
 _KEY_LINE = re.compile(r"\n      \[([^\]\n]+)\] ([^\n]*)\n          then the description publishes")
 _SUBJECT_KEYS = re.compile(r"\n      \[(\d+)\] ([^\n]+)")
 
@@ -405,7 +409,9 @@ class Typist:
     Columns answered `measurement` at the first prompt where `keep` is not
     offered keep their reading undeclared (``kept_undeclared``), where the
     file's `measurement` declares it: the one difference of the routes
-    K-HZ-31's rule states.
+    K-HZ-31's rule states. The twin's one round (lane Q-FLOW, step 2) --
+    its grouped lists and its last screen (`ROUND_HEADS`) -- is answered
+    with Enter.
     """
 
     def __init__(
@@ -436,6 +442,26 @@ class Typist:
         who = text.rfind("WHO ARE THE ROWS ABOUT?")
         found = list(ON_SCREEN.finditer(text))
         last = found[len(found) - 1] if found else None
+        heads = list(ROUND_HEADS.finditer(text))
+        if heads and who < heads[len(heads) - 1].start() and (last is None or heads[len(heads) - 1].start() > last.start()):
+            head = heads[len(heads) - 1]
+            if "LOOK LIKE RECORD NUMBERS" not in head.group(0):
+                return ""
+            # The one round's list of record numbers: each column listed
+            # whose answer here is `measurement` or `code`, typed by its
+            # name and that word (a column of them offers no `keep`).
+            typed: "list[str]" = []
+            for name in _LISTED_NAME.findall(text[head.start():]):
+                wanted = self.answers.get(name)
+                words = wanted if isinstance(wanted, tuple) else (wanted,)
+                for word in words:
+                    if word in ("measurement", "code"):
+                        typed += [f"{name} {word}"]
+                        if word == "measurement":
+                            self.kept_undeclared += [name]
+                        break
+            self.typed += len(typed)
+            return ", ".join(typed)
         if who >= 0 and (last is None or who > last.start()):
             self.subject_put += 1
             if self.person is None:

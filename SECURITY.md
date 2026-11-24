@@ -1024,8 +1024,8 @@ Stated here so that no reader has to discover them independently:
 
 ## Supply chain
 
-synthtwin has **four runtime dependencies**, on Python 3.11 and later
-(plans P4-D409 and P4-D410), each pinned exactly and by hash, and each
+synthtwin has **five runtime dependencies**, on Python 3.11 and later
+(plans P4-D409 and P4-D410, and lane FORMATS for pyreadstat), each pinned exactly and by hash, and each
 reduced by the import scanner to enumerated names and held to the zones
 it may run in. pandas is justified in writing in
 `docs/plans/phase-1-profiler.md` (P1-D2) and reduced to `read_csv`,
@@ -1042,6 +1042,13 @@ nothing. pyarrow and scipy are justified in
 once lanes adopt it, holds text as exact bytes; scipy's HiGHS searches
 (zone D's search side, everything it exhibits re-checked in Python
 integers) and its Cholesky pair fits the private self-test (zone P).
+pyreadstat (lane FORMATS, the owner's ruling of 2026-11-23) reads SAS,
+Stata and SPSS files in zone R, in `synthtwin.nativereading` alone,
+reduced to `read_dta`, `read_sav`, `read_sas7bdat` and `read_xport`, each
+fenced by the validated path and held to plain Python lists; pyarrow's
+Parquet reader is admitted beside it on the same terms. No library writes
+a twin: a Parquet, Stata, SPSS or SAS transport twin is written by the
+standard library (`synthtwin.nativewriting`, zone W).
 numba is OPTIONAL (the `polish` extra), gated by CI and absent on Intel
 Macs. The licence texts of the libraries are gathered from their wheels
 when the offline bundle is built and are never committed: the
@@ -1051,8 +1058,8 @@ the question an auditor actually cares about answered per row:
 
 | Role | Contents | Executes on a user machine? | Pinned by |
 | --- | --- | --- | --- |
-| Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas` | yes | bounds in `pyproject.toml` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the offline bundle, the only distribution (the owner's D3, plan P4-D416), and CI's institutional install |
-| Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call; since plan P4-D466, the audited array helper `synthtwin.arrays` alone, in zones G and D, adds whole-number counting and arithmetic under proved bounds, stable sorts and elementwise float64 `+ - * /`, never a float reduction | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
+| Runtime, direct | `numpy`, `pyarrow`, `scipy`, `pandas`, `pyreadstat` | yes | bounds in `pyproject.toml` (floors installed and tested by the `minimums` CI job on Python 3.11); by hash in `requirements-install.lock` for the offline bundle, the only distribution (the owner's D3, plan P4-D416), and CI's institutional install |
+| Runtime, transitive | `python-dateutil`, `six`, and (on Windows) `tzdata` - the closure pandas brings; `narwhals`, pure Python, which pyreadstat brings and synthtwin never imports; numpy is in pandas' and scipy's closures too. numpy was withdrawn at Phase 1 review round 1 because its REDUCTIONS made published statistics depend on row order; the profiler still computes those statistics itself in exact whole-number arithmetic, rounding once at the end, and the zones of P4-D409 keep every library float away from published bytes. What returned at Phase 2 is the generator's one random stream, reduced by the scanner to `default_rng` and one `integers` call; since plan P4-D466, the audited array helper `synthtwin.arrays` alone, in zones G and D, adds whole-number counting and arithmetic under proved bounds, stable sorts and elementwise float64 `+ - * /`, never a float reduction | yes | by hash in `requirements-install.lock`; the complete closure is also in `requirements-dev.lock`, consumed frozen in CI |
 | Runtime, optional | `numba` with `llvmlite` (the `polish` extra), compiling the one audited polish kernel; not on Intel Macs | only where installed, and only once CI proves the kernel byte-identical (P4-D409 part 4) | by hash in `requirements-dev.lock`; not in the offline bundle, whose lock is `requirements-install.lock`, until lane MPn's kernel is adopted on green vectors from the `numba-vectors` CI job (P4-D416) |
 | Runtime, interpreter (the ready folder for Windows only) | python.org's embeddable CPython 3.14 for Windows x64, carried inside the folder; and its installer, carried by the folder's backup | yes, on the Windows computer that holds the folder | its version and the SHA-256 of both files in `tools/bundle/windows_python.py` (plan P4-D483), every program file's Authenticode signature checked in CI (the Python Software Foundation; Microsoft for the Visual C++ runtime files); until the pin is committed, trusted on first use after that check and named `-unpinned` |
 | Test-only | `openpyxl`, `statsmodels`, `scikit-learn` (zone P: independent readers and second implementations) | no - contributor and CI machines only; `src/` never imports them | hash-locked in `requirements-dev.lock`, consumed frozen |
@@ -1186,9 +1193,9 @@ stays not started: nothing is signed by this project.
    confirm that the argument comes from `validate_local_path` in that
    same function; that run-time check, not the scan, is what holds the
    reader to local files.
-2. **Four direct runtime dependencies.** Open `pyproject.toml`; confirm
-   `dependencies` names numpy, pyarrow, scipy and pandas and nothing
-   else, and that `requires-python` is 3.11.
+2. **Five direct runtime dependencies.** Open `pyproject.toml`; confirm
+   `dependencies` names numpy, pyarrow, scipy, pandas and pyreadstat and
+   nothing else, and that `requires-python` is 3.11.
    `python-dateutil` and the rest of the transitive row in the table
    above arrive inside pandas's own requirements, and
    `requirements-install.lock` pins the whole closure by hash. Then

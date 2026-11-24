@@ -382,15 +382,14 @@ def test_a_held_column_named_as_ages_writes_no_age_past_the_mark() -> None:
     assert taxonomy.at_most_the_top_code(["999", "45"], frozenset(), 90, False) == ["999", "45"]
 
 
-def test_yes_on_values_alone_holds_the_column(tmp_path: pathlib.Path) -> None:
-    """Codex's item 1 (RULINGS 1 (1)): record numbers 1 to 100 its values alone read as ages, answered `yes` and nothing else, are held whole as before lane SH3, never kept as a count of ages."""
-    table = shapes.write(tmp_path, "record_numbers_like_ages", SMALL, 0)
+def _answered_yes(folder: pathlib.Path, table: pathlib.Path, column: str) -> None:
+    """``column``'s Safe Harbor question answered `yes` and nothing else, and the table described again with it."""
     assert shapes.quiet(cli.main, ["profile", f"{table}", "--replace"], small_tables_refused=False) in (0, 3)
-    questions = tmp_path / "t-questions.json"
+    questions = folder / "t-questions.json"
     document = json.loads(questions.read_text(encoding="utf-8"))
     answered = 0
     for entry in shapes._entries(document):
-        if entry.get("column") == "register_entry" and "yes" in [choice.get("answer") for choice in entry["answers_you_can_give"]]:
+        if entry.get("column") == column and "yes" in [choice.get("answer") for choice in entry["answers_you_can_give"]]:
             entry["your_answer"] = "yes"
             answered += 1
     assert answered == 1, document
@@ -398,7 +397,37 @@ def test_yes_on_values_alone_holds_the_column(tmp_path: pathlib.Path) -> None:
     assert shapes.quiet(
         cli.main, ["profile", f"{table}", "--replace", "--answers", f"{questions}"], small_tables_refused=False
     ) in (0, 3)
+
+
+def test_yes_on_values_alone_keeps_every_age_top_coded(tmp_path: pathlib.Path) -> None:
+    """The owner's decision A of batch 4zz (fidelity first), replacing Codex's item 1 of lane SH3 (RULINGS 1 (1)): a
+    column whose every value reads as an age, nothing beside its values saying so, answered `yes` and nothing else, is
+    kept top-coded at 90 as its open question read it -- it was held whole as record numbers -- and publishes no age
+    past 89 (mutant: `yes` holds it whole again)."""
+    table = shapes.write(tmp_path, "record_numbers_like_ages", SMALL, 0)
+    _answered_yes(tmp_path, table, "register_entry")
+    block = shapes.blocks(tmp_path)["register_entry"]
+    assert block["role"] != taxonomy.ROLE_IDENTIFIER, block
+    assert block["top_coded"] == taxonomy.TOP_CODE, block
+    column = shapes.FORMS["record_numbers_like_ages"][0]
+    assert shapes.ages_published(block, column) == 0, block
+
+
+def test_yes_on_values_alone_with_a_value_no_age_is_holds_the_column(tmp_path: pathlib.Path) -> None:
+    """...but a column one of whose values reads as no age (a number past 125 years among whole years) is held whole
+    by `yes`, as before: its values alone do not say every one is an age (mutant: every column so read)."""
+    cells = [f"{18 + place % 78}" for place in range(SMALL)]
+    cells[7] = "140"
+    table = fixtures.write(tmp_path, "t.csv", fixtures.single_column_table("register_entry", cells))
+    _answered_yes(tmp_path, table, "register_entry")
     assert shapes.blocks(tmp_path)["register_entry"]["role"] == taxonomy.ROLE_IDENTIFIER
+
+
+def test_every_value_an_age_reads_each_value() -> None:
+    assert taxonomy.every_value_an_age(["18", "95", "", "NA", "-1", "45.5"], False)
+    assert not taxonomy.every_value_an_age(["18", "95", "140"], False)
+    assert not taxonomy.every_value_an_age(["018", "095"], False)
+    assert not taxonomy.every_value_an_age(["", "NA"], False)
 
 
 def test_a_stated_unit_governs_the_answer_and_the_year_reading(tmp_path: pathlib.Path) -> None:

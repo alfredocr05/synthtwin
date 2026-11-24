@@ -22,7 +22,10 @@ refusal's own words ask for. Now the description and its summary stand
 as they were, the answers given since stay in the questions file, and the
 command shown types the person's own options, `--name` and
 `--private-folder` where typed, and --replace-description: run, it
-describes the table with those answers.
+describes the table with those answers. Since lane Q-FLOW's step 1 a later
+round is judged against the ledger as the run found it, so the refusal
+these cases read is of a description an EARLIER RUN wrote; a run's own
+first round no longer refuses its later ones.
 
 Every table is invented here, at the table floor of 20,000 rows, with
 generic names; each case is red on the merged line's head before the fix
@@ -165,15 +168,11 @@ def test_the_subject_question_alone_is_put_at_the_keyboard_and_the_taught_run_ap
     assert "(1 of 1 in this round): rows_per_person" in said, said[-2000:]
     assert said.count("): rows_per_person") == 1
     assert _subject_answer(questions) == asking.ANSWER_ONE_ROW_EACH
-    # The round's description is the first to publish between columns, so
-    # the record refuses it until --replace-description (its strict reading
-    # inside one run, the merged line's), and the answer stays (item 7).
-    assert result.verdict == results.REFUSED
-    assert not _publishes_between(table.parent / "cohort-profile.json")
-    words = _taught(said)
-    assert "--replace-description" in words and "--answers" in words
-    again, said_again = _run(words)
-    assert again.verdict == results.NO_MISS, said_again[-1500:]
+    # The round's description is the first to publish between columns. The
+    # record no longer refuses it for differing from the description this
+    # same run wrote a round before (lane Q-FLOW, step 1: the run is judged
+    # against the ledger as it found it), so the run ends publishing them.
+    assert result.verdict == results.NO_MISS, said[-2000:]
     assert _publishes_between(table.parent / "cohort-profile.json")
     assert _subject_answer(questions) == asking.ANSWER_ONE_ROW_EACH
 
@@ -194,9 +193,9 @@ def test_drawn_tables_whose_one_question_is_the_subject_question(tmp_path: pathl
         assert result.verdict == results.NO_MISS, said[-1500:]
         assert not _publishes_between(described)
         return
-    assert result.verdict == results.REFUSED
-    again, said_again = _run(_taught(said))
-    assert again.verdict == results.NO_MISS, said_again[-1500:]
+    # ...and the round that publishes between columns is not refused for
+    # differing from the run's own first round (lane Q-FLOW, step 1).
+    assert result.verdict == results.NO_MISS, said[-1500:]
     assert _publishes_between(described)
 
 
@@ -218,8 +217,8 @@ def test_an_entry_left_open_does_not_keep_the_subject_question_from_its_round(tm
     assert said.index("'cost'") < said.index("(1 of 1 in this round): rows_per_person")
     assert _subject_answer(questions) == asking.ANSWER_ONE_ROW_EACH
     assert _answer_of(questions, "cost") == ("", "")
-    assert result.verdict == results.REFUSED
-    assert "--replace-description" in _taught(said)
+    assert result.verdict == results.NO_MISS, said[-2500:]
+    assert _publishes_between(folder / "cohort-profile.json")
 
 
 def test_a_text_answers_file_answers_the_subject_question(tmp_path: pathlib.Path) -> None:
@@ -262,7 +261,13 @@ def test_a_refused_later_round_keeps_its_answers_and_teaches_the_run_that_applie
     """The review's table: `no` to the cost's dates is kept after the record's refusal, and the command shown applies it."""
     table = _visits(tmp_path / "v", 11)
     questions = table.parent / "visits-questions.json"
-    result, said = _run(["profile", f"{table}", "--person", "pid", "--code", "amount"], ask=["", "no", None])
+    # The table was described before, by a run of its own with nobody at the
+    # keyboard: a later round of this run that differs from THAT description
+    # is refused as before (lane Q-FLOW, step 1, keeps the strict reading for
+    # an earlier run's description).
+    earlier, said = _run(["profile", f"{table}", "--person", "pid", "--code", "amount"])
+    assert earlier.verdict == results.NO_MISS, said[-1500:]
+    result, said = _run(["profile", f"{table}", "--person", "pid", "--code", "amount", "--replace"], ask=["", "no", None])
     assert result.verdict == results.REFUSED
     assert "run again with --replace-description" in said
     assert _answer_of(questions, "cost") == ("asked", "no")
@@ -283,8 +288,11 @@ def test_drawn_tables_keep_every_answer_and_the_typed_name_after_the_refusal(tmp
     questions = table.parent / "visits-questions.json"
     named = ["--name", f"visits_{seed}"] if seed % 2 == 0 else []
     costs = [f"cost_{place}" if place else "cost" for place in range(dated)]
+    # ...described before by a run of its own (lane Q-FLOW, step 1).
+    earlier, said = _run(["profile", f"{table}", "--person", "pid", "--code", "amount"] + named)
+    assert earlier.verdict == results.NO_MISS, said[-1500:]
     result, said = _run(
-        ["profile", f"{table}", "--person", "pid", "--code", "amount"] + named,
+        ["profile", f"{table}", "--person", "pid", "--code", "amount", "--replace"] + named,
         ask=["no"] * dated + [None],
     )
     assert result.verdict == results.REFUSED, said[-1500:]

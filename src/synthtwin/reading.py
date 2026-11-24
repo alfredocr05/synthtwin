@@ -314,7 +314,7 @@ import typing
 import pandas
 import pyarrow.csv
 
-from synthtwin import dialect, errors, parsing, taxonomy, workbook
+from synthtwin import dialect, errors, native, parsing, taxonomy, workbook
 from synthtwin.paths import validate_local_path
 
 # The per-value size the standard reader will accept while a table is
@@ -428,6 +428,9 @@ _TAKEN_BY_CONVENTION = taxonomy.note(taxonomy.HEADER_NAMES_BY_CONVENTION)
 # WHERE THE ROW CANNOT BE TOLD FROM A RECORD (the owner's ruling of
 # 2026-09-17, item 8; plan P4-D232).
 _NOT_TOLD = taxonomy.note(taxonomy.HEADER_NAMES_NOT_TOLD)
+# A file from another system names its columns in its own schema (lane
+# FORMATS): no row is read as names.
+_STORED_BY_THE_FILE = taxonomy.note(taxonomy.HEADER_NAMES_STORED_BY_THE_FILE)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -508,6 +511,13 @@ class Table:
     # Neither is published in the description.
     file_bytes: int = 0
     fingerprint: int = 0
+    # WHAT A FILE FROM ANOTHER SYSTEM SAID ABOUT ITSELF (lane FORMATS):
+    # a Parquet, SAS, Stata or SPSS file's own form, its labels still the
+    # file's own (a `nativereading.NativeReading`, named loosely here
+    # because the reader is imported only where such a file is met); None
+    # for delimited text and for a workbook. The description publishes
+    # what `profile._published_native` admits of it.
+    native: "typing.Any" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -2328,8 +2338,14 @@ def read_table(
     small_cell_floor: int = parsing.DEFAULT_SMALL_CELL_FLOOR,
     missing_under: "taxonomy.Settings | None" = None,
     in_groups: bool = False,
+    native_form: "native.NativeForm | None" = None,
 ) -> Table:
     """Read a CSV table from a local path; return it as text.
+
+    ``native_form`` is the validator's alone (lane FORMATS): the native
+    block of the description a checked Parquet, SAS, Stata or SPSS file
+    is held to, whose widths the file's numbers and stamps are written in
+    (`nativereading.read_native`).
 
     ``in_groups`` (lane SR, plan P4-D400; `synthtwin profile` passes it)
     reads delimited text a line at a time, never holding its bytes or its
@@ -2512,6 +2528,20 @@ def read_table(
     # handle this audit cannot trace. Read in groups (lane SR, plan
     # P4-D400), the kind is decided from the file's first bytes alone,
     # read as its lines are.
+    # A FILE FROM ANOTHER SYSTEM (lane FORMATS), decided by its opening
+    # bytes as a workbook is: a Parquet, SAS, Stata or SPSS file is read by
+    # its own reader, and a kind no reader is admitted for is refused in
+    # words that name it. Asked before the delimited reading in both of its
+    # forms, so a binary file is never read as text.
+    try:
+        native_opening = _native_opening(table_path)
+    except PermissionError as error:
+        raise errors.ProfileError(errors.file_unreadable(shown, f"{error}")) from error
+    except OSError as error:
+        raise errors.ProfileError(errors.file_unreadable(shown, f"{error}")) from error
+    native_kind = native.kind_of(native_opening)
+    if native_kind != native.KIND_NONE:
+        return _read_native_table(raw_path, table_path, shown, native_kind, native_opening, native_form)
     if in_groups:
         try:
             opening = _opening_of(table_path)
@@ -3485,6 +3515,75 @@ def _opening_of(table_path: pathlib.Path) -> bytes:
         if len(found) >= _OPENING_CHARACTERS:
             break
     return bytes([ord(character) for character in found[:_OPENING_CHARACTERS]])
+
+
+def _native_opening(table_path: pathlib.Path) -> bytes:
+    """The file's first `native.OPENING_BYTES` bytes, read as `_opening_of` reads its first eight."""
+    run = _Pass()
+    found = ""
+    for line in _opened_lines(table_path, "latin-1", run):
+        found = found + line
+        if len(found) >= native.OPENING_BYTES:
+            break
+    return bytes([ord(character) for character in found[: native.OPENING_BYTES]])
+
+
+def native_system_of(raw_path: str) -> str:
+    """Which system's file a table is, decided from its opening bytes as `read_table` decides it, or ''.
+
+    The `synthtwin twin` command names the files it will write before
+    the table is read, and a native file's twin is a file of its system,
+    so the kind is asked here, by `native.kind_of`, which never consults
+    the name. Guarantees: the path passes the locality gate first; '' where
+    the file is not there, cannot be opened, or is no native file the
+    package reads.
+    """
+    validated = validate_local_path(raw_path, purpose="input")
+    table_path = pathlib.Path(validated)
+    if not table_path.is_file():
+        return ""
+    try:
+        kind = native.kind_of(_native_opening(table_path))
+    except OSError:
+        return ""
+    return kind if kind in native.FORMATS else ""
+
+
+def _read_native_table(
+    raw_path: str, table_path: pathlib.Path, shown: str, kind: str, opening: bytes,
+    native_form: "native.NativeForm | None" = None,
+) -> Table:
+    """A Parquet, SAS, Stata or SPSS file as a table of text (lane FORMATS).
+
+    The names are the file's own (`HEADER_NAMES_STORED_BY_THE_FILE`), so
+    `--first-row` decides nothing here; every row is a record. The file's
+    size and fingerprint are read as a Latin-1 text a line at a time, as
+    a delimited file's are, so the answers a twin keeps are bound to it.
+
+    The reader is imported HERE, inside the branch: a run that meets no
+    file from another system loads neither pyreadstat nor pyarrow's
+    Parquet reader.
+    """
+    from synthtwin import nativereading
+
+    found = nativereading.read_native(raw_path, kind, opening, native_form)
+    if not found.n_rows:
+        raise errors.shape_refusal(errors.no_data_rows(shown), errors.NO_DATA_TO_DESCRIBE)
+    facts = _facts_under(table_path, shown, "latin-1", dialect.ENCODING_LATIN1, False)
+    return Table(
+        column_names=list(found.names),
+        columns=found.columns,
+        n_rows=found.n_rows,
+        encoding=dialect.ENCODING_UTF8,
+        used_fallback_encoding=False,
+        header_source=HEADER_FROM_FILE,
+        header_evidence=_STORED_BY_THE_FILE,
+        header_by_convention=False,
+        survey=None,
+        file_bytes=facts.file_bytes if facts is not None else 0,
+        fingerprint=facts.fold if facts is not None else 0,
+        native=found,
+    )
 
 
 def opens_as_a_workbook(raw_path: str) -> bool:

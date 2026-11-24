@@ -860,10 +860,10 @@ DEPENDENCY_BEARING = (
     "pyproject.toml",
 )
 DEPENDENCY_COUNT_FORMS = (
-    "four runtime dependencies",
-    "four direct runtime dependencies",
+    "five runtime dependencies",
+    "five direct runtime dependencies",
 )
-DEPENDENCY_NAMES = ("pandas", "numpy", "pyarrow", "scipy")
+DEPENDENCY_NAMES = ("pandas", "numpy", "pyarrow", "scipy", "pyreadstat")
 
 # The front page tags every capability built or planned, and promises
 # in its own opening paragraph that it does. These are the tags that

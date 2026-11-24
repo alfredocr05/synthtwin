@@ -36,7 +36,7 @@ about 85). Mutant: the scores held in a dictionary a column again.
 
 THE TWIN IS THE SAME. The shipped commands on an invented visits table of
 20,000 rows (the reliability battery's T2, the patient layer on) write the
-twin the public head wrote, byte for byte, and the zone reads its columns
+twin pinned below (the public head's, moved only by lane TYPES-24's text zone), byte for byte, and the zone reads its columns
 each value once; on a table of six repeated numbers dealt together,
 `applied` gives the columns the public head gave. Mutants: the cells read
 without `once_a_value`; the dealing given the scores of the next column.
@@ -172,8 +172,9 @@ def test_the_cells_taken_are_worked_on_once_and_the_columns_are_the_same(wide) -
 
 
 # The sha256 of `applied`'s columns and order on the wide fixture (six repeated numbers dealt together) at seed 3,
-# on the public head e4d2e95b (lane W5-2M, before its change).
-WIDE_APPLIED_SHA = "7ed510c6bcc396463134f1e926159392c80563133cf544f40a2133a2f0f80a2a"
+# on the public head e4d2e95b (lane W5-2M, before its change); moved by lane STATS-B alone, whose draw reads each
+# patient's level and slope at the shares their shape holds its points at (7ed510c6... before it).
+WIDE_APPLIED_SHA = "9dae08352e3b2e824a9c7389f04a0f2ca13b87324fcd6caff9855e5670bd4b5d"
 
 
 def test_the_numbers_dealt_together_are_the_public_heads(wide) -> None:  # type: ignore[no-untyped-def]
@@ -247,7 +248,15 @@ def test_each_number_column_dealt_adds_a_few_bytes_a_row_to_what_the_dealing_hol
 # the route's twin moved with lane ZOO-Y's passes on it (the real-range pass, plan P4-D517): lane ZOO-Y's branch
 # alone (d498bb21) writes 3ecaa3b8..., and so does the merged line with W5-2M's compact stores on top, so the pin is
 # the line's own and W5-2M's change stays byte neutral (measured on the three trees, 2026-11-22).
-T2_TWIN_SHA = "3ecaa3b81c74182d4423f0acc4b9a863982bdf3c4da9c784d5a44947ee953e30"
+# ...moved by lane STATS-B alone (3ecaa3b8... before it: 7128e0de... on its branch), whose draw reads each patient's
+# level and slope at the shares their shape holds its points at, and whose relations zone reads again, given the chosen
+# parents, each one its screen left out (the visits table's twin, every other step as it was). LANE TYPES-24's text
+# zone moves it on purpose (its measurement columns dealt from the real census in the order the relations zone drew
+# them): its tree with the zone's entries switched off writes 3ecaa3b8... still, and with them 624dff3c... (measured
+# 2026-11-23), so nothing else of that lane moves the route's twin. LANE IN-5's dates zone (every twin date kept inside
+# its column's real months) moves it too: its branch alone writes 5f98408e..., and lane STATS-A's on top of it the
+# same. THE BATCH 4ZZ LINE, with all three, writes 018fce2f... (measured on the merged tree, 2026-11-23).
+T2_TWIN_SHA = "018fce2ff2510f1153daa5fa0de7601ef83264d44016fc66dec84693d217b20a"
 
 
 def test_the_shipped_commands_write_the_twin_the_public_head_wrote(tmp_path: pathlib.Path,

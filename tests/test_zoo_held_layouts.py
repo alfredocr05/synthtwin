@@ -1427,6 +1427,8 @@ def _the_walk_reading_again(cells: "list[str]", openings: "dict[int, str]", hole
     steps: "dict[int, int]" = {}
     plan: "dict[str, list[tuple[int, int, str]]]" = {}
     counts = [0, 0]
+    # ...the width each run is written at, noughts before it included, as the walk hands it on since lane STATS-A.
+    written: "dict[str, int]" = {}
     for cell in distinct:
         if generation._is_a_hole_spelling(cell, holes):
             continue
@@ -1435,8 +1437,10 @@ def _the_walk_reading_again(cells: "list[str]", openings: "dict[int, str]", hole
             if end - whole < 4 or generation._figure_run_stands(cell[start:end], openings, cell[whole:end]):
                 continue
             name = cell[whole:end] if 3 in openings else cell[start:end]
+            written[name] = max(written[name] if name in written else 0, end - whole)
             if name not in renamed:
-                renamed[name] = generation._renamed_run(name, openings, taken, steps, absent, counts, wide)
+                renamed[name] = generation._renamed_run(name, openings, taken, steps, absent, counts, wide, False,
+                                                        written[name])
             parts += [(whole, end, name)]
         if parts:
             plan[cell] = parts
@@ -1452,7 +1456,8 @@ def _the_walk_reading_again(cells: "list[str]", openings: "dict[int, str]", hole
                 continue
             for _whole, _end, name in plan[cell]:
                 tried[(name, renamed[name])] = True
-                fresh = generation._renamed_run(name, openings, taken, steps, absent, counts, wide)
+                fresh = generation._renamed_run(name, openings, taken, steps, absent, counts, wide, False,
+                                                written[name])
                 if (name, fresh) in tried:
                     continue
                 renamed[name] = fresh

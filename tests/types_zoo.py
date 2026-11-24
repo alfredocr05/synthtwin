@@ -392,9 +392,11 @@ DATE_COLUMNS = (
     Column("us_moment_ampm", "twelve_hour_stamps", lambda _draw, row: _twelve_hour(row.moment), "twelve-hour"),
     Column("day_mon_year", "day_month_name_year", lambda _draw, row: f"{row.moment:%d}-{zoo.MONTHS[row.moment.month - 1]}-{row.moment.year}"),
     Column("long_month_date", "long_month_names", lambda _draw, row: f"{MONTHS_EN[row.moment.month - 1]} {row.moment.day}, {row.moment.year}"),
-    Column("french_date", "month_names_french", lambda _draw, row: f"{row.moment.day} {MONTHS_FR[row.moment.month - 1]} {row.moment.year}", "keep"),
-    Column("german_date", "month_names_german", lambda _draw, row: f"{row.moment.day}. {MONTHS_DE[row.moment.month - 1]} {row.moment.year}"),
-    Column("spanish_date", "month_names_spanish", lambda _draw, row: f"{row.moment.day} de {MONTHS_ES[row.moment.month - 1]} de {row.moment.year}", "keep"),
+    # A visit's date in another language is a date of service, a Safe Harbor element: the person answers its Safe
+    # Harbor question `yes`, its reading question `keep` (lane TYPES-24; the zoo answers truthfully).
+    Column("french_date", "month_names_french", lambda _draw, row: f"{row.moment.day} {MONTHS_FR[row.moment.month - 1]} {row.moment.year}", "yes"),
+    Column("german_date", "month_names_german", lambda _draw, row: f"{row.moment.day}. {MONTHS_DE[row.moment.month - 1]} {row.moment.year}", "yes"),
+    Column("spanish_date", "month_names_spanish", lambda _draw, row: f"{row.moment.day} de {MONTHS_ES[row.moment.month - 1]} de {row.moment.year}", "yes"),
     Column("compact_day", "compact_yyyymmdd", lambda _draw, row: f"{row.moment:%Y%m%d}"),
     Column("epoch_seconds", "epoch_seconds", lambda _draw, row: f"{int((row.moment - EPOCH).total_seconds())}", "seconds-since-1970"),
     Column("epoch_millis", "epoch_milliseconds", lambda draw, row: f"{int((row.moment - EPOCH).total_seconds()) * 1000 + draw.randint(0, 999)}", "milliseconds-since-1970"),
@@ -1267,6 +1269,274 @@ FLOWSHEET_CHECKS = (
 )
 
 
+# -- 13. A CLINICAL TABLE: THE SHAPES BEDSIDE, LAB AND PHARMACY EXPORTS WRITE (lane TYPES-24)
+#
+# The families the battery lacked: a value and its unit or mark inside one
+# cell (`120/80 mmHg`, `10-20 mg`, `<0.5 mg/dL`, `37.2 °C`, `5 µg/L`, `5.2 H`,
+# `45 %`), clocks past midnight (`25:30`), scores and stages written as codes
+# (`E4V5M6`, `8/9`, `7/10`, `pT2N0M0`, `IIIa`), coded values of the public
+# systems with their own marks (ICD-10 `E11.9`, NDC `0002-1433-80`, LOINC
+# `2345-7`, several codes in one cell), a medication's directions (`1 tab PO
+# BID`), a gestational age (`39w2d`), a stature in feet and inches (`5'10"`), a
+# blood group (`A+`), an age with its unit (`45 y`), an ISO duration
+# (`PT1H30M`), a quarter (`Q1 2021`), a date with its unknown parts written
+# `UNK`, an ordinal date (`March 5th, 2021`), a clock to the millisecond, and
+# three identifiers with a layout of their own (a telephone number in the 555
+# exchange, a record number with its letters, an accession number). Each column carries what the person who
+# holds the table knows of it, as the zoo answers: a pressure or a pair of scores is two numbers `joined` in one
+# cell, a clock or a written measure is kept as it reads, a list of codes is codes, a date of service is a Safe
+# Harbor element (`yes`).
+
+CLINIC_UNITS = (("mg/dL", 50.0), ("mmol/L", 30.0), ("g/dL", 20.0))
+TNM = zoo._zipf(("pT1N0M0", "pT2N0M0", "pT1aN0M0", "pT2N1M0", "pT3N1M0", "pT1bN0M0", "pT3N2M0", "pT4N2M1", "pTisN0M0"))
+ICD10 = zoo._zipf(("E11.9", "I10", "J45.909", "Z79.4", "E78.5", "N18.3", "F32.9", "K21.9", "M54.5", "I48.91", "E66.9",
+                   "G47.33", "J44.9", "R07.9"))
+NDC = zoo._zipf(("0002-1433-80", "0071-0155-23", "0093-7146-56", "0378-0208-01", "50090-1510-0", "0173-0682-20",
+                 "68180-0513-01", "0006-0277-31", "59762-3304-1", "0054-4728-25"))
+LOINC = zoo._zipf(("2345-7", "718-7", "2160-0", "2823-3", "2951-2", "6690-2", "789-8", "777-3", "1742-6", "4548-4"))
+SIGS = zoo._zipf(("1 tab PO BID", "1 tab PO daily", "2 tabs PO TID", "1 cap PO QHS", "2 puffs INH q4h PRN",
+                  "10 units SC QAM", "1 tab PO q6h PRN pain", "5 mL PO BID", "1 patch TD daily", "1 drop OU BID"))
+BLOOD_GROUPS = (("O+", 37.0), ("A+", 34.0), ("B+", 9.0), ("O-", 7.0), ("A-", 6.0), ("AB+", 3.0), ("B-", 2.0),
+                ("AB-", 1.0))
+STAGES = (("I", 20.0), ("IIa", 15.0), ("IIb", 15.0), ("IIIa", 15.0), ("IIIb", 12.0), ("IIIc", 8.0), ("IVa", 8.0),
+          ("IVb", 7.0))
+QUARTERS = tuple((f"Q{quarter} {year}", 1.0) for year in (2020, 2021, 2022, 2023) for quarter in (1, 2, 3, 4))
+
+
+def _pressure(draw: random.Random, _row: Row) -> str:
+    upper = min(max(round(draw.gauss(128, 17)), 85), 210)
+    return f"{upper}/{min(max(round(upper * 0.62 + draw.gauss(0, 7)), 40), 130)}"
+
+
+def _ranged_dose(draw: random.Random, _row: Row) -> str:
+    low = draw.choice((5, 10, 20, 25, 50))
+    return f"{low}-{low * draw.choice((2, 3, 4))} mg"
+
+
+def _bounded_lab(draw: random.Random, _row: Row) -> str:
+    unit = draw.choices([unit for unit, _w in CLINIC_UNITS], [w for _u, w in CLINIC_UNITS])[0]
+    value = math.exp(draw.gauss(0.8, 0.9))
+    if value < 0.5:
+        return f"<0.5 {unit}"
+    if value > 20:
+        return f">20 {unit}"
+    return f"{value:.1f} {unit}"
+
+
+def _clock_past_midnight(draw: random.Random, _row: Row) -> str:
+    """A night shift's clock on the day it began: hours 18 to 30, `24:00` and past."""
+    minutes = draw.randint(18 * 60, 30 * 60)
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def _coma_parts(draw: random.Random, _row: Row) -> str:
+    eyes = draw.choices((1, 2, 3, 4), (5, 5, 10, 80))[0]
+    verbal = draw.choices((1, 2, 3, 4, 5), (8, 4, 6, 12, 70))[0]
+    motor = draw.choices((1, 2, 3, 4, 5, 6), (4, 2, 3, 6, 10, 75))[0]
+    return f"E{eyes}V{verbal}M{motor}"
+
+
+def _apgar_pair(draw: random.Random, _row: Row) -> str:
+    first = draw.choices(range(4, 11), (1, 2, 4, 10, 30, 45, 8))[0]
+    return f"{first}/{min(10, first + draw.choice((0, 1, 1, 2)))}"
+
+
+def _gestation(draw: random.Random, _row: Row) -> str:
+    days = min(max(round(draw.gauss(274, 12)), 168), 300)
+    return f"{days // 7}w{days % 7}d"
+
+
+def _stature_written(draw: random.Random, _row: Row) -> str:
+    inches = min(max(round(draw.gauss(67, 4)), 55), 80)
+    return f"{inches // 12}'{inches % 12}\""
+
+
+def _age_with_unit(draw: random.Random, _row: Row) -> str:
+    roll = draw.random()
+    if roll < 0.08:
+        return f"{draw.randint(1, 28)} d"
+    if roll < 0.2:
+        return f"{draw.randint(1, 23)} mo"
+    return f"{draw.randint(2, 88)} y"
+
+
+def _iso_duration(draw: random.Random, _row: Row) -> str:
+    minutes = int(draw.expovariate(1 / 95)) + 5
+    hours, minutes = divmod(minutes, 60)
+    return "PT" + (f"{hours}H" if hours else "") + (f"{minutes}M" if minutes else "")
+
+
+def _codes_in_a_cell(draw: random.Random, _row: Row) -> str:
+    codes = [value for value, _w in ICD10]
+    return ";".join(draw.sample(codes, draw.choices((1, 2, 3), (50, 35, 15))[0]))
+
+
+def _lab_flag_inline(draw: random.Random, _row: Row) -> str:
+    value = draw.gauss(4.2, 0.6)
+    flag = " H" if value > 5.1 else " L" if value < 3.5 else ""
+    return f"{value:.1f}{flag}"
+
+
+def _partial_unknown(draw: random.Random, row: Row) -> str:
+    roll = draw.random()
+    if roll < 0.15:
+        return f"UNK-UNK-{row.moment.year}"
+    if roll < 0.35:
+        return f"UNK-{row.moment:%m-%Y}"
+    return f"{row.moment:%d-%m-%Y}"
+
+
+def _ordinal_date(_draw: random.Random, row: Row) -> str:
+    day = row.moment.day
+    ending = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+    return f"{MONTHS_EN[row.moment.month - 1]} {day}{ending}, {row.moment.year}"
+
+
+def _telephone(draw: random.Random, _row: Row) -> str:
+    return f"({draw.choice((319, 515, 563, 641, 712))}) 555-{draw.randint(100, 199):04d}"
+
+
+CLINICAL_COLUMNS = (
+    Column("bp_pair", "blood_pressure_pairs", _pressure, "joined"),
+    Column("bp_with_unit", "blood_pressure_with_unit", lambda draw, row: f"{_pressure(draw, row)} mmHg", "measurement"),
+    Column("dose_range", "ranges_with_units", _ranged_dose),
+    Column("lab_bounded", "inequalities_with_units", _bounded_lab, "measurement"),
+    Column("temp_degrees", "degree_signs", lambda draw, _row: f"{draw.gauss(36.9, 0.5):.1f} °C", "measurement"),
+    Column("micro_dose", "micro_signs", lambda draw, _row: f"{draw.choice((5, 10, 25, 50, 100))} µg/L", "measurement"),
+    Column("percent_spaced", "percent_with_a_space", lambda draw, _row: f"{min(max(draw.gauss(62, 12), 5), 99):.0f} %", "measurement"),
+    Column("lab_flag_inline", "values_with_flags", _lab_flag_inline, "measurement"),
+    Column("shift_clock", "clocks_past_midnight", _clock_past_midnight, "keep"),
+    Column("coma_parts", "score_components", _coma_parts, "keep"),
+    Column("apgar_pair", "score_pairs", _apgar_pair, "joined"),
+    Column("pain_of_ten", "scores_out_of", lambda draw, _row: f"{draw.choices(range(11), (25, 6, 8, 9, 9, 9, 8, 8, 7, 6, 5))[0]}/10", "joined"),
+    Column("tnm_stage", "tnm_stages", _weighted(TNM), "code"),
+    Column("stage_roman", "roman_stages_with_letters", _weighted(STAGES)),
+    Column("icd10_code", "icd10_codes", _weighted(ICD10), "code"),
+    Column("ndc_code", "ndc_with_hyphens", _weighted(NDC), "code"),
+    Column("lab_test_code", "lab_test_codes", _weighted(LOINC), "code"),
+    Column("codes_listed", "several_codes_a_cell", _codes_in_a_cell, "code"),
+    Column("directions_text", "medication_directions", _weighted(SIGS)),
+    Column("gestation", "gestational_ages", _gestation, "keep"),
+    Column("stature_written", "feet_and_inches", _stature_written, "keep"),
+    Column("blood_group", "blood_groups", _weighted(BLOOD_GROUPS)),
+    Column("age_written", "ages_with_units", _age_with_unit, "measurement"),
+    Column("iso_duration", "iso_durations", _iso_duration, "keep"),
+    Column("quarter", "quarters", _weighted(QUARTERS)),
+    # Dates of service, Safe Harbor elements: the person answers their Safe Harbor question `yes` (the zoo answers truthfully).
+    Column("date_unknown_parts", "dates_with_unknown_parts", _partial_unknown, "yes"),
+    Column("ordinal_date", "ordinal_dates", _ordinal_date, "yes"),
+    Column("clock_millis", "clocks_to_the_millisecond",
+           lambda draw, row: f"{row.moment:%H:%M:%S}.{draw.randint(0, 999):03d}", "keep"),
+    Column("phone", "telephone_numbers", _telephone, "identifier"),
+    Column("key_lettered", "record_numbers_with_letters", lambda _draw, row: f"KEY{row.person[1:]:0>9}", "identifier"),
+    Column("accession", "accession_numbers", lambda _draw, row: f"S{row.moment:%y}-{row.index + 10000:06d}", "identifier"),
+)
+
+
+def _pairs_in_range(column: str, low: int, high: int, mark: str = "/") -> "Callable[[dict[str, object]], object]":
+    """Cells that do not split on `mark` into two whole numbers each between `low` and `high`."""
+
+    def run(frames: "dict[str, object]") -> int:
+        bad = 0
+        for cell in _t(column)(frames).dropna().astype(str):  # type: ignore[attr-defined]
+            head = re.match(r"(\d+)" + re.escape(mark) + r"(\d+)", cell)
+            if not head or not all(low <= int(part) <= high for part in head.groups()):
+                bad += 1
+        return bad
+
+    return run
+
+
+def _upper_over_lower(column: str) -> "Callable[[dict[str, object]], object]":
+    """The share of pressures whose first number is the larger, as a reader splitting `120/80` relies on."""
+
+    def run(frames: "dict[str, object]") -> object:
+        cells = _t(column)(frames).dropna().astype(str)  # type: ignore[attr-defined]
+        pairs = [re.match(r"(\d+)/(\d+)", cell) for cell in cells]
+        found = [pair for pair in pairs if pair]
+        return round(sum(1 for pair in found if int(pair.group(1)) > int(pair.group(2))) / max(len(found), 1), 2)
+
+    return run
+
+
+def _clock_minutes_bad(column: str) -> "Callable[[dict[str, object]], object]":
+    def run(frames: "dict[str, object]") -> int:
+        bad = 0
+        for cell in _t(column)(frames).dropna().astype(str):  # type: ignore[attr-defined]
+            found = re.fullmatch(r"(\d{2}):([0-5]\d)", cell)
+            if not found or not 18 <= int(found.group(1)) <= 30:
+                bad += 1
+        return bad
+
+    return run
+
+
+CLINICAL_CHECKS = (
+    _bad("blood_pressure_pairs", "a pressure splits into two numbers", "bp_pair", _pairs_in_range("bp_pair", 30, 260)),
+    Check("blood_pressure_pairs", "the upper number is the larger", "share", _upper_over_lower("bp_pair"), "bp_pair",
+          zoo.spoil_every("bp_pair", lambda text: "/".join(reversed(text.split("/"))))),
+    _pattern("blood_pressure_with_unit", "a pressure and its unit", "bp_with_unit", r"\d{2,3}/\d{2,3} mmHg"),
+    _bad("blood_pressure_with_unit", "a pressure with its unit splits into two numbers", "bp_with_unit",
+         _pairs_in_range("bp_with_unit", 30, 260)),
+    _pattern("ranges_with_units", "a dose range and its unit", "dose_range", r"\d+-\d+ mg"),
+    _bad("ranges_with_units", "a range's two ends read", "dose_range", _pairs_in_range("dose_range", 1, 400, "-")),
+    _pattern("inequalities_with_units", "a value or a bound and its unit", "lab_bounded",
+             r"(<|>)?\d+(\.\d)? (mg/dL|mmol/L|g/dL)"),
+    *_rare("inequalities_with_units", "some results are under the limit", "lab_bounded", r"^<",
+           zoo.spoil_every("lab_bounded", lambda text: text.lstrip("<")), "<0.5 mg/dL"),
+    _parses("inequalities_with_units", "lab_bounded", r"^[<>]| (mg/dL|mmol/L|g/dL)$"),
+    _pattern("degree_signs", "a temperature with its degree sign", "temp_degrees", r"\d{2}\.\d °C"),
+    _parses("degree_signs", "temp_degrees", r" °C$"),
+    _ranged("degree_signs", "temp_degrees", r" °C$"),
+    _listed("micro_signs", "amounts in micrograms a litre", "micro_dose", {f"{value} µg/L" for value in (5, 10, 25, 50, 100)}),
+    _pattern("percent_with_a_space", "a share and a spaced percent sign", "percent_spaced", r"\d{1,2} %"),
+    _ranged("percent_with_a_space", "percent_spaced", r" %$"),
+    _pattern("values_with_flags", "a value and its flag", "lab_flag_inline", r"\d\.\d( H| L)?"),
+    *_rare("values_with_flags", "some values are flagged high", "lab_flag_inline", r" H$",
+           zoo.spoil_every("lab_flag_inline", lambda text: text.replace(" H", "")), "5.9 H"),
+    _parses("values_with_flags", "lab_flag_inline", r" [HL]$"),
+    _bad("clocks_past_midnight", "a night clock reads 18:00 to 30:00", "shift_clock", _clock_minutes_bad("shift_clock")),
+    _pattern("score_components", "eyes, voice and movement", "coma_parts", r"E[1-4]V[1-5]M[1-6]"),
+    Check("score_components", "the share of full scores E4V5M6", "share",
+          lambda f: round(float((_t("coma_parts")(f) == "E4V5M6").mean()), 2), "coma_parts",  # type: ignore[attr-defined]
+          zoo.spoil_every("coma_parts", lambda text: "E1V1M1")),
+    _pattern("score_pairs", "two scores of ten", "apgar_pair", r"([0-9]|10)/([0-9]|10)"),
+    _bad("score_pairs", "the second score is no lower", "apgar_pair",
+         lambda f: int(sum(1 for cell in _t("apgar_pair")(f).dropna().astype(str)  # type: ignore[attr-defined]
+                           if "/" in cell and int(cell.split("/")[1]) < int(cell.split("/")[0]))),
+         zoo.spoil_every("apgar_pair", lambda _text: "9/8")),
+    _pattern("scores_out_of", "a score out of ten", "pain_of_ten", r"([0-9]|10)/10"),
+    _shares("scores_out_of", "pain_of_ten"),
+    _listed("tnm_stages", "TNM stages from the list", "tnm_stage", zoo._levels(TNM)),
+    _listed("roman_stages_with_letters", "stages in Roman figures with a letter", "stage_roman", {value for value, _w in STAGES}),
+    _listed("icd10_codes", "ICD-10 codes from the list", "icd10_code", zoo._levels(ICD10)),
+    _listed("ndc_with_hyphens", "NDC codes keep their hyphens and noughts", "ndc_code", zoo._levels(NDC)),
+    _listed("lab_test_codes", "LOINC codes with their check figure", "lab_test_code", zoo._levels(LOINC)),
+    _bad("several_codes_a_cell", "each code of a cell from the list", "codes_listed",
+         _list_items_bad("codes_listed", ";", zoo._levels(ICD10))),
+    *_present("several_codes_a_cell", "some cells hold several codes", "codes_listed", r";",
+              zoo.spoil_every("codes_listed", lambda text: text.split(";")[0])),
+    _listed("medication_directions", "directions from the list", "directions_text", zoo._levels(SIGS)),
+    _pattern("gestational_ages", "weeks and days", "gestation", r"(2[4-9]|3\d|4[0-2])w[0-6]d"),
+    _pattern("feet_and_inches", "feet and inches", "stature_written", r"[4-6]'([0-9]|1[01])\""),
+    _listed("blood_groups", "blood groups with their sign", "blood_group", {value for value, _w in BLOOD_GROUPS}),
+    _shares("blood_groups", "blood_group"),
+    _pattern("ages_with_units", "an age and its unit", "age_written", r"\d{1,2} (y|mo|d)"),
+    _pattern("iso_durations", "ISO durations", "iso_duration", r"PT(\d+H)?(\d+M)?"),
+    _listed("quarters", "quarters of a year", "quarter", {value for value, _w in QUARTERS}),
+    _pattern("dates_with_unknown_parts", "a day, month and year, unknown parts written UNK", "date_unknown_parts",
+             r"(\d{2}|UNK)-(\d{2}|UNK)-\d{4}"),
+    *_rare("dates_with_unknown_parts", "some days are unknown", "date_unknown_parts", r"^UNK-",
+           zoo.spoil_every("date_unknown_parts", lambda text: text.replace("UNK", "01")), "UNK-UNK-2022"),
+    _pattern("ordinal_dates", "a month, an ordinal day and a year", "ordinal_date",
+             r"(" + "|".join(MONTHS_EN) + r") \d{1,2}(st|nd|rd|th), \d{4}"),
+    _pattern("clocks_to_the_millisecond", "clocks to the millisecond", "clock_millis", r"\d{2}:\d{2}:\d{2}\.\d{3}"),
+    _pattern("telephone_numbers", "telephone numbers in the 555 exchange", "phone", r"\(\d{3}\) 555-\d{4}"),
+    _pattern("record_numbers_with_letters", "a key of three letters and nine figures", "key_lettered", r"KEY\d{9}"),
+    _pattern("accession_numbers", "a letter, two figures of the year and six figures", "accession", r"S\d{2}-\d{6}"),
+)
+CLINICAL_TABLE = _column_table("typed_clinical", CLINICAL_COLUMNS, CLINICAL_CHECKS)
+
 NUMBER_TABLE = _column_table("typed_numbers", NUMBER_COLUMNS, NUMBER_CHECKS)
 TEXT_TABLE = _column_table("typed_text", TEXT_COLUMNS, TEXT_CHECKS)
 DATE_TABLE = _column_table("typed_dates", DATE_COLUMNS, DATE_CHECKS)
@@ -1313,7 +1583,7 @@ FLOWSHEET_TABLE = Table(
 
 TABLES: "tuple[Table, ...]" = (
     NUMBER_TABLE, TEXT_TABLE, DATE_TABLE, CODE_TABLE, ID_TABLE, FLAG_TABLE, STRUCTURE_TABLE, STUDY_TABLE,
-    HEADER_TABLE, TOTAL_TABLE, UNITS_TABLE, BOOK_TABLE, BEDSIDE_TABLE, FLOWSHEET_TABLE,
+    HEADER_TABLE, TOTAL_TABLE, UNITS_TABLE, BOOK_TABLE, BEDSIDE_TABLE, FLOWSHEET_TABLE, CLINICAL_TABLE,
 )
 # Every type the battery proves, in the order the report lists them.
 TYPES: "tuple[str, ...]" = tuple(

@@ -185,16 +185,17 @@ def test_enter_keeps_the_reading_of_codes_against_measurements(
     assert {"stature", "clock"} <= put
 
 
-def test_the_safe_harbor_questions_are_put_after_the_files_and_enter_answers_none(
+def test_the_safe_harbor_questions_are_put_before_any_file_and_enter_answers_none(
     entered_ran: "dict[str, typing.Any]",
 ) -> None:
-    """The Safe Harbor questions are put at the keyboard after the files are written, and Enter answers none of them.
+    """The Safe Harbor questions are put at the keyboard before any file is written, in the one round's lists, and Enter answers none of them.
 
-    Lane EZ-a (plan P4-D479; the walkthrough's item 4): until it, the prompt
-    put none and they were answered in the questions file alone. Each Safe
-    Harbor question the file asks (the birth date and the weight's top-code
-    among them) is put; Enter leaves every one open, so the holds above
-    stand; every question shown is counted as put.
+    Lane EZ-a (plan P4-D479; the walkthrough's item 4) put them after the
+    files; lane Q-FLOW's step 2 puts every question in one round before
+    anything is written, the Safe Harbor ones in lists by kind. Each Safe
+    Harbor question the file asks (the birth date and the weight's
+    top-code among them) is put; Enter leaves every one open, so the
+    holds above stand; every question shown is counted as put.
     """
     from synthtwin import asking
 
@@ -207,13 +208,15 @@ def test_the_safe_harbor_questions_are_put_after_the_files_and_enter_answers_non
     ]
     assert {one.column for one in harbor} >= {"born", "item_w"}
     assert [one for one in harbor if not one.put] == []
-    # A later round heads each question with the number the questions file
-    # gives it, its place in the round after it (lane EZ-a's repair, LANE EZ
-    # RULINGS 4 (2)): 'Question 7 (1 of 2 in this round)'.
+    text = _text(screen)
+    lists = re.findall(r"\nQUESTION [0-9]+ OF [0-9]+: (?:AGES OVER 89|COLUMNS THAT MAY NAME A PERSON[^\n]*)", text)
+    assert lists, text[:3000]
+    assert text.index(lists[0]) < text.index("These three files will be written")
+    assert "MORE QUESTION(S), FROM THE QUESTIONS FILE" not in text
     shown = re.findall(
-        r"\n  (?:Column [0-9]+ of [0-9]+|Question [0-9]+ \([0-9]+ of [0-9]+ in this round\)): ", _text(screen)
+        r"\n  (?:Column [0-9]+ of [0-9]+|Question [0-9]+ \([0-9]+ of [0-9]+ in this round\)|\([0-9]+ of [0-9]+ in this round\)): ", text
     )
-    assert dict(result.steps[0].tally)["questions-put"] == len(shown)
+    assert dict(result.steps[0].tally)["questions-put"] >= len(shown) + len(harbor)
 
 
 def test_nobody_at_the_keyboard_is_taught_the_command_that_asks(held_ran: "dict[str, typing.Any]") -> None:

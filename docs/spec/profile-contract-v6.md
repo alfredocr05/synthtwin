@@ -667,7 +667,10 @@ written. A loader refuses an empty name and refuses a repeated one.
 
 ### 4.3 STRUCTURAL rules for `source`
 
-`source` is an object with exactly these seven keys and no others.
+`source` is an object with exactly these seven keys and no others, save
+an eighth, `native`, which stands only where the table came from a
+Parquet, SAS, Stata or SPSS file (section 4.3c): a description of a
+delimited file or a workbook never carries it.
 
 | key | JSON type | permitted values | meaning | disposition |
 |---|---|---|---|---|
@@ -675,6 +678,7 @@ written. A loader refuses an empty name and refuses a repeated one.
 | `encoding` | string | `utf-8-sig`, `latin-1`, `cp1252`, `utf-16-le`, `utf-16-be` | the encoding that read the table, which the twin is written in | REPORT-ONLY |
 | `used_fallback_encoding` | boolean | — | true when the fallback rather than the primary encoding read the file | REPORT-ONLY |
 | `workbook` | `null` or object | section 4.3b | how a spreadsheet workbook holds the table, or `null` where the file was delimited text | EXACT-CONTROL |
+| `native` | object, present only for a file from another system | section 4.3c | how a Parquet, SAS, Stata or SPSS file stores the table, so the twin is written as the same kind of file | LOADER-ONLY (validate holds a native twin's cells to the column blocks, not yet the block itself) |
 | `header_source` | string | `file`, `generated` | `file`: the column names came from the table's first row. `generated`: the names are synthtwin's own — the person said the first row was a record, or the first row could not be TOLD from a record (the owner's ruling of 2026-09-17, item 8; plan P4-D232) — and the columns are named `column_1`, `column_2`, … | EXACT-CONTROL |
 | `header_by_convention` | boolean | — | true when the first row was taken as names because nothing in the file said otherwise, rather than because the file showed it | REPORT-ONLY, with a required sentence |
 | `header_evidence` | string | any non-empty text | the header verdict in one plain sentence | REPORT-ONLY, with a required sentence |
@@ -1282,6 +1286,56 @@ majority.** `format_kinds` publishes a count per kind and the twin
 writes a cell per count; an absent cell is always `plain`, because
 nothing is written for it and every reader sees the general format
 there.
+
+### 4.3c LOADER-ONLY: `source.native`, how a file from another system holds the table
+
+Lane FORMATS (the owner's ruling of 2026-11-23). A table read from a
+Parquet, SAS transport (`.xpt`), SAS dataset (`.sas7bdat`), Stata (`.dta`)
+or SPSS (`.sav`) file -- the kind decided by the file's opening bytes,
+never its name -- is described from TEXT: every stored value is written
+by one exact rule a column (`synthtwin.native`: numbers at one count of
+decimal places, the fewest that writes each value exactly; four-byte
+numbers at their shortest; dates `YYYY-MM-DD` and stamps `YYYY-MM-DD
+HH:MM:SS[.f]`, a time zone's stamps in universal time with `+00:00`; SAS
+special missing values `.A` to `.Z` and `._`, Stata's `.a` to `.z`), so
+every column block, the settings, the notes and the written form
+(`dialect`, the ordinary form with the rows' order read off the cells)
+are the blocks the same table in CSV is described with. The block is:
+
+| key | JSON type | meaning |
+|---|---|---|
+| `format` | string | `parquet`, `sas-transport`, `sas-dataset`, `stata` or `spss` |
+| `version` | integer | the format's version as the file wrote it (Parquet 1; Stata's release 113 to 119; SPSS 2, or 3 for a compressed `.zsav`; SAS transport 5 or 8; a SAS dataset 0) |
+| `table_name` | string or `null` | a SAS member name, where `native.name_published` admits it |
+| `index` | object or `null` | pandas' index: `columns` (names of the table's columns), `start` (0 or 1) and `step` (1), or `null` |
+| `columns` | array | one entry per column, in order |
+
+Each entry of `columns` holds `storage` (one of `native.STORES`),
+`written_as` (one of `native.WRITTEN`), `width`, `precision`, `scale`,
+`places` (whole numbers or `null`), `fraction` (0, 3, 6 or 9), `utc`
+(truth or `null`), `zone` (a time zone database name or `null`),
+`required`, `display` (a display format of the format language's own
+words, or `null`), `label` (`native.column_label_published`), `label_set`,
+`value_labels` (an object from a code to its words, each held by the
+smallest group of the column's cells and admitted by
+`native.label_published`, or `null`), `categories` (a categorical's
+categories in its file's order, each so held and admitted, or `null`),
+`missing` (SPSS's codes: `values`, at most three, and a range `low` and
+`high`, or `null`), `measure` (`nominal`, `ordinal`, `scale` or `null`) and
+`pandas` (`pandas_type`, `numpy_type` and `ordered`, pandas' own words, or
+`null`).
+
+NOTHING ELSE OF THE FILE IS READ INTO IT: not its label, notes,
+documents or characteristics, its creator, host, release or dates, a path
+it names (a Parquet file whose column chunks live in other files is
+refused), nor any pair of text a Parquet file carries; pandas' block and
+Arrow's schema record are rebuilt for the twin from the fields above. The
+loader holds every text to the rule that admitted it, so a hand-made
+block can put nothing into a twin this version would not have published.
+`synthtwin generate` writes the twin as a file of the same kind (a SAS
+dataset's as a SAS transport file); `synthtwin validate` reads a native
+file in the widths its description publishes and withholds the rules
+of 4.3a, which describe delimited text, under their own gate.
 
 ### 4.4 `settings`
 
@@ -2094,7 +2148,7 @@ contract:
    widening it to arbitrary strings would be exactly the hole that lets
    a source-derived value into a sentence and be rebuilt successfully.
 
-**The census.** The table holds 133 forms and 129 argument positions.
+**The census.** The table holds 134 forms and 129 argument positions.
 Of those, 93 are whole numbers, 14 are package words, 17 are nested
 forms, and 5 are bound affix strings. No position is a string of any
 other kind. Lane ID-ROOM4 (plan P4-D489) added the one form NF139 and no
@@ -2166,7 +2220,7 @@ class over a committed battery, so it is a number a reader can run.
 
 So every argument position of every form is bound to WHAT IT IS, and
 the table below is closed over all 129 of them exactly as the form table
-is closed over the 133 forms. A position nobody bound is a number a
+is closed over the 134 forms. A position nobody bound is a number a
 sentence may print that no rule governs, and a producer that adds one
 is a producer this contract does not describe. The bindings are these:
 
@@ -3779,7 +3833,7 @@ names:
 
 | id | statement |
 |---|---|
-| NG14 | the form is one of the 133 in section 4.5.1 |
+| NG14 | the form is one of the 134 in section 4.5.1 |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of C6-119's four classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -13583,6 +13637,17 @@ withholds.
 > one asks which reading is right: run the command again with
 > --first-row names if that row holds the column names, or leave it as
 > it is if it is the first record.
+
+**NF140. `header_names_stored_by_the_file`** — arity 0. The verdict
+where the table came from a Parquet, SAS, Stata or SPSS file (lane
+FORMATS, the owner's ruling of 2026-11-23; section 4.3c): such a file
+stores each column's name in its own schema, apart from its rows, so no
+row is read as names and no question is put. `header_source` is `file`
+and `header_by_convention` false.
+
+> The column names are the file's own: a Parquet, SAS, Stata or SPSS
+> file stores the name of each column apart from its rows, so no row was
+> read as names and every row is a record.
 
 **NF60. `said_fewer_than_the_line` — the fragment that stands where a
 count may not** — arity 1. Argument 1: the census line, which is the
@@ -24354,7 +24419,7 @@ month-first parsed.
 | NG11 | on `remark_affixed_numbers_may_be_codes`: argument 3 equals the named block's `n_affixed` |
 | NG12 | argument 1 is character-for-character that block's `affix_prefix` and argument 2 its `affix_suffix`, AT THOSE POSITIONS, not merely as members of the pair |
 | NG13 | on `remark_a_label_is_a_built_in_stand_in`: argument 1 is 1, 2 or 3 |
-| NG14 | for every form: one of the 133 the note grammar enumerates |
+| NG14 | for every form: one of the 134 the note grammar enumerates |
 | NG15 | the argument count equals that form's arity |
 | NG16 | every argument is of one of the four argument classes |
 | NG17 | re-rendering the form with those arguments writes the leaf's text character for character |
@@ -25701,7 +25766,7 @@ this document, and the battery the plan requires turns red on it.
 | nothing-class blocks (`numeric_unrepresentable`, `identifier`, `free_text`) | lengths, word statistics, digit and code-alphabet counts, the whole-number test, the repetition multiset, on `numeric_unrepresentable` the whole-number and sign counts, on `free_text` the census of WRITTEN FORMS its cells wore (`shape_forms`), and on `identifier` the census of LAYOUTS (`layout_forms`, 7.12) and, by the owner's ruling of 2026-09-17, the literal PREFIX every cell of the column or of one named layout opens with (`layout_prefixes`, 7.12a, row 22) | no value, no spelling, no fragment of one but the prefix of row 22 — the form census included, whose every key is built from `%`, `@` and thirteen named marks -- characters no cell that has a form may contain, so a key can carry no letter and no figure of any cell; the multiplicity map publishes SIZES of unnamed groups under no floor, the form census under the floor with a `(withheld)` pool |
 | `empty` columns nobody declared | the absent SPELLINGS their cells wore and the two absence counts, exactly as any column that is not nothing-publishing | floor-governed |
 | `settings` | the rules the run applied, the floor's own value, how many values each declaration named, and which of THIS package's published words were among them | carries no cell, no column and no count of the table; a person's own spelling never enters |
-| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 133 closed forms: 129 argument positions, of which 93 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
+| `source.header_evidence`, `publication_notes[].note`, `detection_evidence`, `remarks` | sentences of the 134 closed forms: 129 argument positions, of which 93 are whole numbers, 14 package words, 17 nested forms and 5 bound affix strings | the whole numbers are counts the block beside them already publishes, EXCEPT the positions priced at rows 16 and 18 |
 | `relationships` | nothing: eight nulls | — |
 
 ### 12.3 The rows, each priced
@@ -26778,7 +26843,7 @@ width at least ONE (`1`, `2`, `10`), a cell written as a whole number
 writing at least one figure (C6-29c). `(withheld)` is again the only
 non-numeric key permitted.
 
-### 14.8 The note grammar — 133 forms
+### 14.8 The note grammar — 134 forms
 
 Defined in 4.5.1, which is the authority on every rendering and every
 argument. 129 argument positions: 93 whole numbers, 14 package words, 17
@@ -26970,6 +27035,7 @@ nested forms, 5 bound affix strings.
 | NG137 | `remark_made_up_dates_not_dates` | 0 |
 | NG138 | `evidence_sentences_as_text` | 0 |
 | NG139 | `evidence_made_up_spellings_real` | 0 |
+| NG140 | `header_names_stored_by_the_file` | 0 |
 
 **The twenty-one words of dates written as counts** (landing R4, plan
 P4-D384) are package words too: the twelve systems of 6.6.2, each at

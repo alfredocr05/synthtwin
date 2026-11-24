@@ -1036,7 +1036,9 @@ def test_a_family_reads_the_worst_word_of_its_parts_through_run(monkeypatch):
 
     def one_part_worse(scored):
         found = real(scored)
-        parts = {one.estimate.part for one in scored}
+        # A family's word is read from its tally since lane STATS-A (`chain_selftest.Tally`, its part named), a list's
+        # from its estimates.
+        parts = {scored.part} if isinstance(scored, chain_selftest.Tally) else {one.estimate.part for one in scored}
         word = chain_selftest.NOT_CARRIED if parts == {"three columns together"} else chain_selftest.CARRIED
         return (word,) + found[1:]
 

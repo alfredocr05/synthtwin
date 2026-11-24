@@ -115,6 +115,10 @@ from synthtwin import results
 # ...and the lines a terminal shows while a run works (lane EZ-a, plan
 # P4-D479): the standard library only.
 from synthtwin import progress
+# ...and the vocabulary of files from other systems (lane FORMATS), which
+# opens nothing and imports the standard library alone at its top: the
+# twin's file ending follows the description's native block.
+from synthtwin import native
 from synthtwin.paths import PathValidationError, validate_local_path
 
 _REPO_URL = "https://github.com/alfredocr05/synthtwin"
@@ -1037,9 +1041,52 @@ class _Session:
     # ...and whether this run put the subject question of the questions
     # file's `between_columns` entry at the keyboard (item 6).
     subject_entry_put: bool = False
+    # ...and the table's column names as the last description read them,
+    # each one an answer it takes at the keyboard as the questions file
+    # takes it (lane Q-FLOW, step 1; the review's defect 9: the question
+    # invites a column's name and the keyboard refused one).
+    subject_columns: "tuple[str, ...]" = ()
     # LANE W5-F14: the file `--linked-to` named on a `profile` or `generate`
     # line ('' where none): the study's other table, or its description.
     linked_to: str = ""
+    # A RUN NEVER REFUSES ITS OWN SECOND DESCRIPTION (lane Q-FLOW, step 1;
+    # the review's defect 1): by the table's content hash, the ledger entry
+    # that stood for that table before this run first recorded one (None
+    # where none stood). A later round of the same run is judged against
+    # it, never against the entry the run's own earlier round wrote
+    # (`_ledger_as_the_run_found_it`).
+    ledger_before: "dict[str, typing.Any]" = dataclasses.field(default_factory=dict)
+    # THE ONE ROUND (lane Q-FLOW, step 2; `_profile_rounds`): whether this
+    # keyboard run puts every question in one round before anything is
+    # written; whether the description running now is the HELD one, which
+    # writes nothing; the questions file that description would write, as
+    # its document; each column's reading in it (name, role, top-coded);
+    # the screen a held description holds back and the real one; the
+    # questions file in memory a description is handed as its answers; the
+    # readings the round's rules decided without a question, with why; for
+    # the screen alone, how many values of a column read as dates; and the
+    # columns read as dates by decision 4's rule, with its words.
+    one_round: bool = False
+    holding: bool = False
+    held_document: "dict[str, object] | None" = None
+    held_reading: "tuple[tuple[str, str, bool], ...]" = ()
+    screen_held: bool = False
+    real_screen: "list[tuple[str, str]] | str | None" = None
+    answers_in_memory: "tuple[str, str] | None" = None
+    auto_said: "list[tuple[str, str, str]]" = dataclasses.field(default_factory=list)
+    dated_counts: "dict[str, str]" = dataclasses.field(default_factory=dict)
+    dated_by_rule: "dict[str, str]" = dataclasses.field(default_factory=dict)
+    # ...and what the run had recorded before its held description, given
+    # back where that description is dropped (`_screen_given_back`).
+    held_before: "tuple[typing.Any, ...] | None" = None
+    # ...and the twin's own folder where the held description made it (its
+    # output names are settled in it), taken back where nothing is written.
+    folder_made_held: str = ""
+    # ...and every entry the round put or its rules answered, by its key
+    # (`_entry_key`), which no round after the files puts again.
+    round_keys: "list[tuple[str, str, str, str]]" = dataclasses.field(default_factory=list)
+    # ...and the columns whose first question its rule answered (decision 3).
+    decided_first: "tuple[str, ...]" = ()
 
 
 @dataclasses.dataclass
@@ -1164,6 +1211,14 @@ def _wrote(*written: "tuple[str, pathlib.Path]") -> None:
         return
     for kind, place in written:
         session.files += [results.FileWritten(kind, f"{place}")]
+
+
+def _put_not_decided(questions: "list[asking.Question]") -> "list[asking.Question]":
+    """The questions less those the one round's rule answered without putting them (`_Session.decided_first`)."""
+    session = _current()
+    if session is None or not session.decided_first:
+        return questions
+    return [question for question in questions if question.name not in session.decided_first]
 
 
 def _put_at_a_prompt(questions: "list[asking.Question]") -> None:
@@ -3255,7 +3310,7 @@ def _key_shown(answer: str, question: asking.Question) -> str:
 
 
 def _the_question(
-    question: asking.Question, place: int, total: int, held: bool = False
+    question: asking.Question, place: int, total: int, held: bool = False, enter_said: str = ""
 ) -> str:
     """One column's question, as the person sees it.
 
@@ -3294,6 +3349,9 @@ def _the_question(
         else "    Press Enter to keep the reading synthtwin made, which is "
         "the first one above."
     )
+    # ...or what Enter takes where the one round's rule chose it (decision 4).
+    if enter_said:
+        enter = f"    {enter_said}"
     return (
         f"\n  Column {place} of {total}: '{_shown(question.name)}'\n"
         f"    what synthtwin saw: {_one_stop(question.shape)}\n"
@@ -4825,7 +4883,8 @@ def _same_question(question: asking.Question, held: bool) -> "tuple[object, ...]
 
 
 def _question_groups(
-    questions: "list[asking.Question]", held: "tuple[str, ...]" = ()
+    questions: "list[asking.Question]", held: "tuple[str, ...]" = (), alone: "tuple[str, ...]" = (),
+    together_from: int = 0,
 ) -> "list[list[asking.Question]]":
     """The questions as they are put: each on its own, or past `_QUESTIONS_ONE_BY_ONE_MOST` the same ones together.
 
@@ -4835,12 +4894,12 @@ def _question_groups(
     function of its arguments; every question in exactly one group;
     raises nothing.
     """
-    if len(questions) <= _QUESTIONS_ONE_BY_ONE_MOST:
+    if len(questions) < (together_from or _QUESTIONS_ONE_BY_ONE_MOST + 1):
         return [[question] for question in questions]
     groups: "list[list[asking.Question]]" = []
     place_of: "dict[tuple[object, ...], int]" = {}
     for question in questions:
-        if question.reason in _PUT_ALONE_REASONS or question.name in held:
+        if question.reason in _PUT_ALONE_REASONS or question.name in held or question.name in alone:
             groups += [[question]]
             continue
         key = _same_question(question, question.name in held)
@@ -4895,6 +4954,7 @@ def _the_group_question(
 def _put_the_questions(
     questions: "list[asking.Question]",
     held: "tuple[str, ...]" = (),
+    distinct: "dict[str, int] | None" = None,
 ) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]], list[tuple[str, str, str]], list[str]] | None":
     """Put every question; return the columns named as codes and as IDs, and the questions left open.
 
@@ -4909,27 +4969,169 @@ def _put_the_questions(
     the columns that raised the same question are put as one
     (`_question_groups`, lane W5-302): the answer typed, Enter included,
     is each one's answer, as if typed at each.
+
+    IN THE ONE ROUND (lane Q-FLOW, step 2) its screen is the real one while
+    the held description holds its own back, a repeating column of fewer
+    than 1,000 different values whose name says no key or person is
+    answered `keep` without a question (decision 3, ``distinct`` each
+    column's count of different values), and Enter at a question about
+    numbers that may be dates takes the one plausible counting system its
+    name allows (decision 4). Each is said on the round's last screen.
     """
+    swapped = _on_the_real_screen()
+    try:
+        return _put_the_questions_on_screen(questions, held, distinct)
+    finally:
+        _back_to_the_held_screen(swapped)
+
+
+# THE REVIEW'S DEFECT 5: no answer fitted a column of durations written as
+# hours and minutes. A length of time under a day is written as a time of the
+# day is, and read so its layout and spread are kept; the word says so.
+_DURATION_WORD = "duration"
+_DURATION_SAID = (
+    "    Type duration if they are lengths of time (02:30 for two and a half hours): they are read as they are "
+    "written, hours and minutes, as times of the day are, so their layout and spread are kept."
+)
+
+
+def _duration_or_offered(question: asking.Question) -> "str | None":
+    """One answer to a question of times or labels written as times, `duration` among its words: the times reading where it is typed."""
+    session = _current()
+    keys = tuple((_key_shown(choice.answer, question), choice.answer) for choice in question.choices)
+    if session is not None:
+        session.offered_now = keys + ((_DURATION_WORD, question.choices[0].answer),)
+    try:
+        return _read_one_answer(_LEFT_OPEN)
+    finally:
+        if session is not None:
+            session.offered_now = ()
+
+
+_RECORD_NUMBER_WORDS = {
+    "measurement": asking.ANSWER_MEASUREMENT,
+    "measurements": asking.ANSWER_MEASUREMENT,
+    "code": asking.ANSWER_CODE,
+    "codes": asking.ANSWER_CODE,
+    # ...and the answer Enter stands for, given on purpose (it is then an
+    # answer of the questions file, as `3` typed at the column alone was).
+    "record number": asking.ANSWER_IDENTIFIER,
+    "record numbers": asking.ANSWER_IDENTIFIER,
+}
+
+
+def _put_the_record_numbers(listed: "list[asking.Question]") -> "dict[str, str] | None":
+    """The one round's list of the columns held as record numbers while their question is open: each column named with its answer, None where input ended.
+
+    Enter keeps every one held, as Enter kept each when it was put alone; a
+    name and `measurement` or `code` typed is that column's answer, where
+    its question offers it. What was seen of each is its question's own
+    words (no value of the table).
+    """
+    names = tuple(question.name for question in listed)
+    widest = max(len(_shown(name)) for name in names)
+    lines = ""
+    for question in listed:
+        name = _shown(question.name)
+        lines = lines + f"\n  {name}{' ' * (widest - len(name))}   {_one_stop(_first_clause(question.shape))}"
+    _say(
+        f"\n{'=' * 66}\n{len(listed)} COLUMN(S) LOOK LIKE RECORD NUMBERS\n{'=' * 66}\n"
+        "These columns look like record numbers (a key given to one record, report, sample, visit or person):"
+        f"{lines}\nThey stay hidden: none of their values is published, and the twin writes made-up values of "
+        "the same length and shape, so code written on it still runs.\n"
+        "Enter = keep every one of them hidden. If one of them is really a measurement or a code, type its "
+        f"name and measurement or code, for example: {_shown(names[0])} code"
+    )
+    while True:
+        read = _read_a_list_line(
+            names, tuple(_RECORD_NUMBER_WORDS),
+            "Please type a column's name listed above and measurement or code, or press Enter to keep them all hidden.",
+        )
+        if read is None:
+            return None
+        found: "dict[str, str]" = {}
+        refused = ""
+        for name, word in read:
+            question = [one for one in listed if one.name == name][0]
+            answer = _RECORD_NUMBER_WORDS[word] if word else ""
+            if not answer or answer not in [choice.answer for choice in question.choices]:
+                refused = name
+                break
+            found[name] = answer
+        if not refused:
+            return found
+        _say(f"    Please type measurement or code after {_shown(refused)}, or press Enter to keep them all hidden.")
+
+
+def _put_the_questions_on_screen(
+    questions: "list[asking.Question]",
+    held: "tuple[str, ...]",
+    distinct: "dict[str, int] | None",
+) -> "tuple[list[str], list[str], list[str], list[str], list[str], list[tuple[str, str]], list[tuple[str, str, str]], list[str]] | None":
+    """`_put_the_questions`' work, on whichever screen the run shows."""
+    from synthtwin import taxonomy
+
+    session = _current()
+    decided: "list[asking.Question]" = []
+    enter_gives: "dict[str, tuple[str, str]]" = {}
+    if session is not None and session.one_round:
+        kept: "list[asking.Question]" = []
+        for question in questions:
+            if distinct is not None and _few_valued_not_the_person(question, distinct):
+                decided += [question]
+                session.auto_said += [
+                    (
+                        question.name,
+                        f"read as codes or labels, not asked whether it names the person: fewer different values "
+                        f"than the {parsing.TABLE_PEOPLE_FLOOR:,} people a table holds",
+                        f"{distinct[question.name]:,} values",
+                    )
+                ]
+                continue
+            member, means = _plausible_date_count(question, taxonomy.SAFE_HARBOR_REFERENCE_YEAR)
+            if member:
+                enter_gives[question.name] = (member, means)
+            kept += [question]
+        questions = kept
+    # ...THE COLUMNS HELD AS RECORD NUMBERS WHILE THEIR QUESTION IS OPEN, in
+    # one list in the one round (the review's prompt 2): Enter keeps every
+    # one held, as it kept each before; a name and `measurement` or `code`
+    # typed is that column's answer. The person question is not among them.
+    listed: "list[asking.Question]" = []
+    if session is not None and session.one_round:
+        listed = [
+            question for question in questions
+            if question.name in held and question.reason != asking.BECAUSE_REPEATS_AND_MANY
+            and question.name not in enter_gives and asking.offers_identifier(question)
+        ]
+        questions = [question for question in questions if question not in listed]
     total = len(questions)
-    groups = _question_groups(questions, held)
+    groups = _question_groups(
+        questions, held, tuple(enter_gives), 2 if session is not None and session.one_round else 0
+    )
+    # ...decision 3's columns were put no question: the round's put list
+    # leaves them out (`_put_at_a_prompt`).
+    if session is not None:
+        session.decided_first = tuple(question.name for question in decided)
     together = (
         f" The columns that raised the same question are put together: "
         f"{len(groups)} questions for these {total} columns."
         if len(groups) < total
         else ""
     )
-    _say(
-        f"\n{'=' * 66}\n"
-        f"{total} COLUMN(S) CAN BE READ MORE THAN ONE WAY\n"
-        f"{'=' * 66}\n"
-        f"synthtwin cannot tell a coding system from a measurement -- "
-        f"they are written identically, and only you know which these "
-        f"are. Press Enter to leave a question unanswered, as a run with "
-        f"nobody at the keyboard leaves it. Your answers "
-        f"are recorded in the profile, and the exact "
-        f"options to repeat this run without typing are printed at the "
-        f"end.{together}"
-    )
+    if questions or listed:
+        _say(
+            f"\n{'=' * 66}\n"
+            f"{total + len(listed)} COLUMN(S) CAN BE READ MORE THAN ONE WAY\n"
+            f"{'=' * 66}\n"
+            f"synthtwin cannot tell a coding system from a measurement -- "
+            f"they are written identically, and only you know which these "
+            f"are. Press Enter to leave a question unanswered, as a run with "
+            f"nobody at the keyboard leaves it. Your answers "
+            f"are recorded in the profile, and the exact "
+            f"options to repeat this run without typing are printed at the "
+            f"end.{together}"
+        )
     codes: list[str] = []
     identifiers: list[str] = []
     measurements: list[str] = []
@@ -4940,16 +5142,50 @@ def _put_the_questions(
     left_open: "list[tuple[str, str, str]]" = []
     # -- lane TR (P4-D473): the columns answered `clock-figures`.
     figures: list[str] = []
+    # ...decision 3's columns, answered `keep` as if typed (lane Q-FLOW).
+    for question in decided:
+        _answer_taken(
+            asking.ANSWER_KEEP, question, _keep_beside_measurement(question), codes, identifiers,
+            measurements, commas, twelve, counted, left_open, figures,
+        )
+    if listed:
+        read = _put_the_record_numbers(listed)
+        if read is None:
+            return None
+        for question in listed:
+            listed_answer = read[question.name] if question.name in read else _LEFT_OPEN
+            _answer_taken(
+                listed_answer, question, _keep_beside_measurement(question), codes, identifiers,
+                measurements, commas, twelve, counted, left_open, figures,
+            )
     place = 0
     for group in groups:
         first = group[0]
         if len(group) == 1:
             place = place + 1
-            _say(_the_question(first, place, total, first.name in held))
+            enter_said = ""
+            if first.name in enter_gives:
+                enter_said = (
+                    f"Press Enter to read them as {enter_gives[first.name][1]}: its name says dates, and no other "
+                    f"way of counting gives dates of the last {_PLAUSIBLE_YEARS} years."
+                )
+            # (called with four arguments where no rule chose Enter, as the
+            # suite's stand-ins for the person wrap it)
+            if enter_said:
+                _say(_the_question(first, place, total, first.name in held, enter_said))
+            else:
+                _say(_the_question(first, place, total, first.name in held))
         else:
             _say(_the_group_question(group, place + 1, total, first.name in held))
             place = place + len(group)
-        answer = _answer_typed(_LEFT_OPEN, _keep_beside_measurement(first))
+        # ...A LENGTH OF TIME IS AN ANSWER OF ITS OWN in the one round (the
+        # review's defect 5): `duration` typed is the times reading, said so.
+        timed = session is not None and session.one_round and asking.offers_labels_written_as_times(first)
+        if timed:
+            _say(_DURATION_SAID)
+            answer = _duration_or_offered(first)
+        else:
+            answer = _answer_typed(_LEFT_OPEN, _keep_beside_measurement(first))
         # ONLY AN ANSWER THIS QUESTION OFFERS IS TAKEN (landing T1, its
         # second skeptic's item 2). `_read_one_answer` knows every key,
         # so `6` typed at a column of codes recorded a 12-hour clock on
@@ -4963,9 +5199,16 @@ def _put_the_questions(
                 "    Please type one of the numbers offered, or press Enter "
                 "to leave the question unanswered."
             )
-            answer = _answer_typed(_LEFT_OPEN, _keep_beside_measurement(first))
+            answer = _duration_or_offered(first) if timed else _answer_typed(_LEFT_OPEN, _keep_beside_measurement(first))
         if answer is None:
             return None
+        # ...ENTER TAKES DECISION 4'S SYSTEM, and the system taken is said on
+        # the last screen (lane Q-FLOW).
+        if first.name in enter_gives:
+            if answer == _LEFT_OPEN:
+                answer = enter_gives[first.name][0]
+            if answer == enter_gives[first.name][0] and session is not None:
+                session.dated_by_rule[first.name] = f"read as {enter_gives[first.name][1]}"
         # ...THE ANSWER IS EACH COLUMN'S OF ITS GROUP, as if typed at each.
         for question in group:
             both = _keep_beside_measurement(question)
@@ -5262,6 +5505,23 @@ def _persons_marked(kept: "list[dict[str, object]]") -> "list[dict[str, object]]
     return marked
 
 
+def _answers_document_at(answers_path: str, beside: "str | None" = None) -> "dict[str, object]":
+    """The questions file at ``answers_path`` as a document: from memory where the one round holds it there (`_Session.answers_in_memory`), else `contract.load_answers`.
+
+    THE ONE ROUND WRITES NOTHING BEFORE ITS ANSWERS ARE GIVEN (lane Q-FLOW,
+    step 2): the questions file its held description would write, with the
+    keyboard's answers in it, is handed to the description that writes
+    every file as the file at that name would be, read with the same
+    checks and refusals (`contract.answers_from_text`). Raises what they raise.
+    """
+    from synthtwin import contract
+
+    session = _current()
+    if session is not None and session.answers_in_memory is not None and f"{answers_path}" == session.answers_in_memory[0]:
+        return contract.answers_from_text(session.answers_in_memory[1], session.answers_in_memory[0])
+    return contract.load_answers(answers_path, beside)
+
+
 def _answers_loaded(answers_path: str) -> "dict[str, object]":
     """A questions file or a plain-text answers file, read, and the persons it says recorded (lane EZ-a, plan P4-D479).
 
@@ -5270,13 +5530,12 @@ def _answers_loaded(answers_path: str) -> "dict[str, object]":
     (`_Session.questions_beside`); the columns the file says name the
     person join the run's (`_persons_in_the_answers`).
     """
-    from synthtwin import contract
 
     session = _current()
     beside = None
     if session is not None and session.questions_beside is not None:
         beside = _questions_beside(*session.questions_beside) or None
-    document = contract.load_answers(answers_path, beside)
+    document = _answers_document_at(answers_path, beside)
     for name in _persons_in_the_answers(document):
         _person_said(name)
     return document
@@ -6549,8 +6808,18 @@ def _subject_question(repeating: "tuple[str, ...]") -> "str | None":
     Enter keeps counting them together as before (the empty text, as
     `tests/keyboard.py`'s reader gives, too), and the end of input is None.
     Every read goes through `_read_one_answer`. No value of the table is
-    shown: the columns' names, which the person typed.
+    shown: the columns' names, which the person typed. Under the one
+    round's held description it is put on the real screen (lane Q-FLOW).
     """
+    swapped = _on_the_real_screen()
+    try:
+        return _subject_question_on_screen(repeating)
+    finally:
+        _back_to_the_held_screen(swapped)
+
+
+def _subject_question_on_screen(repeating: "tuple[str, ...]") -> "str | None":
+    """`_subject_question`'s work, on whichever screen the run shows."""
     lines = ""
     keys: "list[tuple[str, str]]" = []
     place = 0
@@ -6775,8 +7044,11 @@ def _chained_description(
             notes_kept += [chain.chain_refused_note(refused)]
     digest = installation.description_digest(with_chain)
     between = installation.publishes_between(with_chain)
+    # ...JUDGED AGAINST THE LEDGER AS THE RUN FOUND IT (lane Q-FLOW, step 1):
+    # never against the entry this run's own earlier round recorded.
+    found_by_the_run = _ledger_as_the_run_found_it(chain_state.opened, chained.content)
     decision = installation.decide(
-        chain_state.opened,
+        found_by_the_run,
         name,
         chained.content,
         digest,
@@ -6797,7 +7069,7 @@ def _chained_description(
         # WHICH ROUND THIS IS (LANE CHON RULINGS 1 (2)): the run after one a
         # hold kept at null, the first to publish between columns, is told so
         # before the contract's own words, which give the remedy and why.
-        if between and _after_a_held_round(chain_state.opened, name, chained.content):
+        if between and _after_a_held_round(found_by_the_run, name, chained.content):
             _warn(_AFTER_A_HELD_ROUND, step=results.STEP_CONTENT)
         _warn(decision.words, step=results.STEP_CONTENT)
         # ...and a later round at the keyboard keeps the answers given since
@@ -7015,6 +7287,48 @@ def _degraded_line(sized: "typing.Any", statistical: "dict[str, object]") -> str
     )
 
 
+def _ledger_as_the_run_found_it(opened: "typing.Any", content: str) -> "typing.Any":
+    """The installation as the record judges this run's description by: the ledger as it stood before the run (lane Q-FLOW).
+
+    THE REVIEW'S DEFECT 1 (lane Q-REVIEW, section 8): a first-time person
+    who answered every question at the keyboard got no twin, because the
+    round after the files -- the first to publish between columns once
+    the subject or person question was answered -- differed from the
+    description the run's own first round had recorded seconds before,
+    and the record refused it in words that ask for --replace-description.
+    Under the owner's ruling of 2026-11-18 the description never leaves
+    the protected computer, and nobody can have shared a description this
+    run wrote while it was still asking. So where THIS RUN recorded the
+    entry of this table (`_Session.ledger_before` holds the content), the
+    entry the ledger held before the run takes its place, and where none
+    stood, none does: the round is judged exactly as the run's first round
+    was, against what the run found. A description of an earlier RUN is
+    still judged as before (plan P4-D512: the Windows bundle's trial types
+    --replace-description on each answered round, a command of its own).
+    Returns ``opened`` itself where nothing was recorded by this run.
+    """
+    session = _current()
+    if session is None or content not in session.ledger_before:
+        return opened
+    prior = session.ledger_before[content]
+    entries = [one for one in opened.entries if one.content != content]
+    if prior is not None:
+        entries += [prior]
+    return dataclasses.replace(opened, entries=tuple(entries))
+
+
+def _ledger_entry_before(opened: "typing.Any", content: str) -> None:
+    """Keep, once a run, the entry the ledger holds for ``content`` before this run records its own (`_Session.ledger_before`)."""
+    session = _current()
+    if session is None or content in session.ledger_before:
+        return
+    found = None
+    for entry in opened.entries:
+        if entry.content == content:
+            found = entry
+    session.ledger_before[content] = found
+
+
 def _after_a_held_round(opened: "typing.Any", name: str, content: str) -> bool:
     """Whether the ledger's entry of this table, under this name, published nothing between columns (`installation.Entry.between`)."""
     for entry in opened.entries:
@@ -7060,7 +7374,10 @@ def _private_folder_refusal(folder: pathlib.Path, profile_path: pathlib.Path, os
     if here.is_dir():
         for entry in here.iterdir():
             named = os.path.basename(f"{entry}")
-            if named.endswith((_TWIN_SUFFIX, _WORKBOOK_TWIN_SUFFIX, _REPORT_SUFFIX, "-profile.json")):
+            if named.endswith(
+                (_TWIN_SUFFIX, _WORKBOOK_TWIN_SUFFIX, _REPORT_SUFFIX, "-profile.json")
+                + native.TWIN_ENDINGS
+            ):
                 return (
                     "The private report was not written: the folder named for it, "
                     f"{_shown(str(folder))}, holds a description or a twin, and the private report never travels "
@@ -7300,6 +7617,72 @@ def _inside_record_at(description: "str | pathlib.Path", private: pathlib.Path) 
     return pathlib.Path(f"{private}", f"{resolved.stem}-{tag[:12]}{inside.SUFFIX}")
 
 
+# THE FITS KEPT BETWEEN ROUNDS (lane SPEED-2M): beside a table's inside record, in the private folder, the relations
+# zone's screen statistics and models of the last description of that table, each under a digest of everything it
+# was made from (`inside_relations.KeptFits`). The next description of the same table takes a fit whose inputs are
+# all the same instead of making it again; the record is the same bytes either way. The file carries the record's
+# protected marker and is written as a record is (mode 0600, the guard first); its name is the record's with
+# `_FITS_SUFFIX` after it, past the record's own suffix, so nothing that looks for records reads it as one.
+_FITS_SUFFIX = "-fits"
+
+
+
+
+def _fits_kept_read(record: pathlib.Path) -> "typing.Any":
+    """The fits kept beside the inside record at ``record`` by the last description (lane SPEED-2M); empty where none are.
+
+    A file that is missing, unmarked, damaged or of another version gives
+    an empty `inside_relations.KeptFits`: every fit is then made, as
+    before. Reads that one file; writes nothing; prints nothing; raises
+    nothing.
+    """
+    from synthtwin import inside, inside_relations
+
+    empty = inside_relations.KeptFits()
+    try:
+        path = pathlib.Path(f"{record}{_FITS_SUFFIX}")
+        if not path.is_file():
+            return empty
+        loaded = inside.load_record(path)
+        zones = loaded["zones"]
+        fits = zones["fits"] if isinstance(zones, dict) and "fits" in zones else None
+        if not isinstance(fits, dict) or "version" not in fits or fits["version"] != inside_relations.FITS_VERSION:
+            return empty
+        stats = fits["stats"] if "stats" in fits else None
+        models = fits["models"] if "models" in fits else None
+        if not isinstance(stats, dict) or not isinstance(models, dict):
+            return empty
+        return inside_relations.KeptFits(held_stats=stats, held_models=models)
+    except (inside.InsideError, OSError, ValueError, KeyError, TypeError, PathValidationError):
+        return empty
+
+
+def _fits_kept_written(kept: object, record: pathlib.Path, places: object) -> None:
+    """Keep this description's fits beside its inside record (lane SPEED-2M): this round's alone, so the file never grows.
+
+    Written as a record is (`inside.write_record`: the marker, mode 0600,
+    the guard first). Where it cannot be written, nothing is said and the
+    next description makes every fit, as before: the fits are a saving of
+    time, never a part of the record. Raises nothing.
+    """
+    from synthtwin import inside, inside_relations
+
+    if not isinstance(kept, inside_relations.KeptFits) or not isinstance(places, inside.Places):
+        return
+    body: "dict[str, object]" = {
+        "format": inside.FORMAT,
+        "version": inside.VERSION,
+        "mode": inside.MODE,
+        "table": {"fits_of": pathlib.Path(f"{record}").name},
+        "zones": {"fits": {"version": inside_relations.FITS_VERSION, "stats": kept.made_stats,
+                           "models": kept.made_models}},
+    }
+    try:
+        inside.write_record(body, pathlib.Path(f"{record}{_FITS_SUFFIX}"), places)
+    except (inside.InsideError, OSError, ValueError, TypeError, PathValidationError):
+        return
+
+
 # THE INSIDE RECORD'S SUB-SWITCH (batch 4w): the record is written and the twin drawn from it only where this is on.
 # On the shipped route since lane IN-2b: the drawn twin keeps the description's written forms (each drawn column is
 # written with the description's twin's own cells; a made-up date column holds a date where that twin does and its
@@ -7368,7 +7751,7 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     an internal mismatch; what `reading.column_values` raises; nothing
     else (a refused write is said, never raised).
     """
-    from synthtwin import inside, inside_holds, inside_missing, inside_relations, reading
+    from synthtwin import contract, inside, inside_holds, inside_missing, inside_relations, reading
 
     if not isinstance(read, reading.Table):
         raise TypeError("internal check: the table is not a table")
@@ -7448,6 +7831,24 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
                     if specs[place].why_kept in inside_relations.RECORD_NUMBERS)
     gathered: "inside_dates.Census | None" = inside_dates.census(person, _inside_date_readings(published), skipped,
                                                                  True, _inside_dated_held(published))
+    # THE TIES' SOURCES (lane STATS-B): each modelled column's cells on a fixed spread of at most
+    # `inside_dates.TIE_ROWS` rows, so a chain's gap can be fitted on the other columns of its row once the dates zone
+    # is built (`inside_dates.tie_chains`); a few thousand cells a column, never the table.
+    tie_at = inside_dates.tie_rows(rows)
+    tie_sources: "list[inside_dates.TieSource]" = []
+    # ...and each record-number column's cells on the same rows, for the identities between two of them (lane
+    # STATS-B, `inside_relations.identities_of`).
+    numbered_cells: "dict[str, list[str]]" = {}
+    # THE TEXT ZONE (lane TYPES-24): each column of free text, of a label's
+    # tail written as stand-ins, of record numbers or of dates in disguise
+    # the description held, read in the same pass for the templates its
+    # cells are written in (`inside_text.entry_of`).
+    from synthtwin import inside_text
+
+    text_entries: "dict[str, dict[str, object]]" = {}
+    text_floor = _text_zone_floor(settings_block)
+    text_held = _inside_dated_held(published)
+    text_keys = _keys_of_keyed_columns(blocks)
     try:
         for place, name in enumerate(read.column_names):
             if specs[place].name != name:
@@ -7464,9 +7865,24 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             block = blocks[place] if place < len(blocks) else None
             spec = inside_holds.narrowed_spec(specs[place], block, settings_block, cells)
             spec = inside_holds.carried_spec(spec, block, cells)
+            # ...a record-number column, or one of free text or codes the description makes up (an account's
+            # subscriber written beside its patient), each a candidate of an identity.
+            block_role = block["role"] if isinstance(block, dict) and "role" in block else ""
+            if (specs[place].why_kept in inside_relations.RECORD_NUMBERS
+                    or block_role in (contract.ROLE_TEXT, contract.ROLE_IDENTIFIER)):
+                numbered_cells[name] = [cells[row] for row in tie_at]
             found = inside_relations.encode(spec, cells, sample, persons)
             if found is not None:
                 encoded += [found]
+                tie_entry = found.entry
+                if "level" not in tie_entry or tie_entry["level"] != inside_relations.SEQUENCE_LEVEL:
+                    numbered = tie_entry["kind"] == inside_relations.NUMBER
+                    grid = tie_entry["grid"] if numbered and "grid" in tie_entry else []
+                    levels = tie_entry["levels"] if not numbered and "levels" in tie_entry else []
+                    tie_sources += [inside_dates.TieSource(
+                        name, "number" if numbered else "label", [cells[row] for row in tie_at],
+                        inside_dates.tie_grid([float(point) for point in typing.cast("list[float]", grid)]),
+                        [str(level) for level in typing.cast("list[str]", levels)], place)]
             else:
                 missing = inside_missing.kept_column(spec, block, cells, sample, persons)
                 if missing is not None:
@@ -7476,9 +7892,25 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
                     inside_dates.take_column(gathered, name, cells)
                 except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
                     gathered = None
+            text_mode, text_keep = _text_zone_mode(block, specs[place].why_kept, text_held, text_keys)
+            if text_mode == inside_text.MODE_CENSUS and not _census_allowed(name, cells, text_keep):
+                text_mode = ""
+            if text_mode:
+                # ...an addition: an entry that cannot be read leaves the column the description's twin's.
+                try:
+                    held_cells = _text_cells_held(cells, text_keep) if text_mode == inside_text.MODE_HELD else None
+                    found_text = inside_text.entry_of(cells, text_mode, text_keep,
+                                                      persons.person if persons is not None else None, text_floor,
+                                                      held_cells)
+                    if found_text is not None:
+                        text_entries[name] = found_text
+                except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+                    pass
             del cells
         owners = [persons.person[row] for row in sample] if persons is not None else None
-        zone = inside_relations.fit_zone(encoded, len(sample), rows, owners, person, frames)
+        # THE FITS KEPT FROM THE LAST ROUND (lane SPEED-2M): a fit whose every input is the same is taken, not made.
+        kept_fits = _fits_kept_read(target)
+        zone = inside_relations.fit_zone(encoded, len(sample), rows, owners, person, frames, kept_fits)
     except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
         # The description is written: a fit that stops leaves it and the exit
         # code as they are, and the twin is built from the description alone.
@@ -7489,6 +7921,9 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             caution=results.CAUTION_CHAIN,
         )
         return
+    # THE KEYED ZONE'S ROWS (lane SPEED-2M), taken while the persons are held: every row up to its bound, else
+    # whole persons hashed under it (`_keyed_rows_of`).
+    keyed_rows = _keyed_rows_of(rows, persons)
     persons = None
     encoded = []
     # THE MISSING-VALUES ZONE (lane IN-7, plan P4-D501): each kept column's
@@ -7513,6 +7948,12 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     if gathered is not None:
         try:
             built = inside_dates.zone_of(gathered)
+            # ...and each chain's tie to the other columns of its row (lane STATS-B): an addition, so a fit that
+            # stops leaves the zone as it was built.
+            try:
+                inside_dates.tie_chains(built, gathered, tie_at, tie_sources)
+            except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+                pass
             # ...and a zone holding no date column of its own is kept where it
             # counted dates the description holds (lane ZOO-Y, plan P4-D517).
             if built["order"] or inside_dates.held_columns(built):
@@ -7520,16 +7961,27 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
         except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
             dates_zone = None
     gathered = None
+    # THE IDENTITIES (lane STATS-B): a record-number column equal to another on the rows of some levels of a label.
+    identities: "list[dict[str, object]]" = []
+    if len(numbered_cells) >= 2:
+        try:
+            identities = inside_relations.identities_of(
+                numbered_cells, {source.name: source.cells for source in tie_sources if source.kind == "label"},
+                tuple(spec.name for spec in specs if spec.why_kept == inside_relations.NAMES_THE_PERSON))
+        except (ValueError, ArithmeticError, IndexError, KeyError, TypeError):
+            identities = []
+    numbered_cells = {}
+    tie_sources = []
     # THE KEYED ZONE (lane IN-4, plan P4-D499): where one person's rows are
     # typed by a key (an item, a test), each key level's rules inside a row,
-    # marginals and trajectories. It reads the table's columns whole, so it is
-    # built only for a table of at most `_KEYED_ZONE_MOST_ROWS` rows (the
-    # bound both zones kept before lane IN-8 read the dates a column at a
-    # time); a larger table's twin keeps the description's keyed values. It is
+    # marginals and trajectories. It reads its rows' columns whole as text,
+    # so a table of more than `_KEYED_ZONE_MOST_ROWS` rows is read on whole
+    # persons hashed under that bound (lane SPEED-2M, `_keyed_rows_of`): a
+    # person's rows all or none, each column a column at a time. It is
     # written only where its own sub-switch is on (`_keyed_zone_switched_on`,
     # on for the shipped route since lane IN-4b, plan P4-D504).
     keyed_zone: "dict[str, object] | None" = None
-    if person and rows <= _KEYED_ZONE_MOST_ROWS and _keyed_zone_switched_on():
+    if person and _keyed_zone_switched_on():
         whole: "dict[str, list[str]] | None" = None
         try:
             from synthtwin import inside_keyed
@@ -7537,9 +7989,9 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             dated = (tuple(str(each) for each in typing.cast("list[object]", dates_zone["order"]))
                      if dates_zone is not None else ())
             # THE KEY FROM THE SAMPLE FIRST (lane W5-302): a table holding no key is never read whole as text.
-            if _keyed_sample_holds_a_key(read, person, skipped + inside_keyed.kept_by_description(holding), dated):
-                whole = {name: [str(cell) for cell in reading.column_values(read, place)]
-                         for place, name in enumerate(read.column_names)}
+            if _keyed_sample_holds_a_key(read, person, skipped + inside_keyed.kept_by_description(holding), dated,
+                                         keyed_rows):
+                whole = _keyed_columns(read, keyed_rows)
                 tops, held = inside_keyed.key_blocks_of(holding)
                 keyed_zone = inside_keyed.build_zone(whole, person,
                                                      skipped + inside_keyed.kept_by_description(holding), dated, tops,
@@ -7561,10 +8013,15 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     }
     if dates_zone is not None:
         record["zones"]["dates"] = dates_zone  # type: ignore[index]
+    if text_entries:
+        record["zones"][inside_text.ZONE] = inside_text.zone_of(text_entries)  # type: ignore[index]
+    text_entries = {}
     if missing_zone is not None and inside_missing.carried(missing_zone):
         record["zones"][inside_missing.ZONE] = missing_zone  # type: ignore[index]
     if keyed_zone is not None:
         record["zones"]["keyed"] = keyed_zone  # type: ignore[index]
+    if identities:
+        record["zones"][inside_relations.IDENTITIES] = {"version": 1, "rules": identities}  # type: ignore[index]
     # THE LINKS ZONE (lane W5-F14): how this table joins the study's other
     # table `--linked-to` named, fitted on both real tables here.
     links_zone: "dict[str, object] | None" = None
@@ -7590,6 +8047,7 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             caution=results.CAUTION_CHAIN,
         )
         return
+    _fits_kept_written(kept_fits, target, places)
     _say(f"The {inside.describe(made.path)}. synthtwin generate builds the twin from it.")
     if links_zone is not None:
         _say(
@@ -7634,7 +8092,7 @@ def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
     if not isinstance(read, reading.Table) or not _inside_record_switched_on():
         return False
     rows = read.n_rows
-    if rows < parsing.TABLE_ROW_FLOOR or rows > _KEYED_ZONE_MOST_ROWS:
+    if rows < parsing.TABLE_ROW_FLOOR:
         return False
     places = inside.default_places()
     if inside.place_refusal(pathlib.Path(f"{places.private}", f"keyed-zone{inside.SUFFIX}"), places):
@@ -7644,6 +8102,7 @@ def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
         if len(specs) != len(read.column_names):
             return False
         person = ""
+        keyed_rows: "list[int] | None" = None
         for place in range(len(specs)):
             if specs[place].why_kept == inside_relations.NAMES_THE_PERSON and not person:
                 found = inside_relations.persons_of(reading.column_values(read, place))
@@ -7651,16 +8110,17 @@ def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
                     if len(found.rows_of) < parsing.TABLE_PEOPLE_FLOOR:
                         return False
                     person = specs[place].name
+                    keyed_rows = _keyed_rows_of(rows, found)
         if not person:
             return False
         readings = _inside_date_readings(published)
         dated = tuple(name for name in read.column_names if name in readings)
         skipped = tuple(spec.name for spec in specs if spec.why_kept in inside_relations.RECORD_NUMBERS)
         # THE KEY FROM THE SAMPLE FIRST (lane W5-302): a table holding no key is never read whole as text.
-        if not _keyed_sample_holds_a_key(read, person, skipped + inside_keyed.kept_by_description(published), dated):
+        if not _keyed_sample_holds_a_key(read, person, skipped + inside_keyed.kept_by_description(published), dated,
+                                         keyed_rows):
             return False
-        whole = {name: [str(cell) for cell in reading.column_values(read, place)]
-                 for place, name in enumerate(read.column_names)}
+        whole = _keyed_columns(read, keyed_rows)
         tops, held = inside_keyed.key_blocks_of(published)
         zone = inside_keyed.build_zone(whole, person, skipped + inside_keyed.kept_by_description(published), dated,
                                        tops, held, inside_keyed.typed_of(published))
@@ -7669,7 +8129,8 @@ def _keyed_zone_stands(read: object, published: "dict[str, object]") -> bool:
     return zone is not None
 
 
-def _keyed_sample_holds_a_key(read: object, person: str, skipped: "tuple[str, ...]", dated: "tuple[str, ...]") -> bool:
+def _keyed_sample_holds_a_key(read: object, person: str, skipped: "tuple[str, ...]", dated: "tuple[str, ...]",
+                              kept_rows: "list[int] | None" = None) -> bool:
     """Whether `inside_keyed.build_zone` finds a key in this table, read from the key's sample rows alone (lane W5-302).
 
     THE TABLE IS NOT HELD WHOLE TO LEARN IT HOLDS NO KEY. The keyed zone
@@ -7689,13 +8150,18 @@ def _keyed_sample_holds_a_key(read: object, person: str, skipped: "tuple[str, ..
 
     if not isinstance(read, reading.Table):
         raise TypeError("internal check: the table is not a table")
-    sample = inside_keyed.key_sample_rows(read.n_rows)
+    # ...on the rows the zone reads (``kept_rows``, lane SPEED-2M: whole persons past the bound), so the key found
+    # is the one `build_zone` finds on them.
+    count = read.n_rows if kept_rows is None else len(kept_rows)
+    sample = inside_keyed.key_sample_rows(count)
+    if kept_rows is not None:
+        sample = [kept_rows[at] for at in sample]
     sampled: "dict[str, list[str]]" = {}
     person_cells: "list[str]" = []
     for place, name in enumerate(read.column_names):
         cells = reading.column_values(read, place)
         if name == person:
-            person_cells = [str(cell) for cell in cells]
+            person_cells = [str(cell) for cell in cells] if kept_rows is None else [str(cells[row]) for row in kept_rows]
         sampled[name] = [str(cells[row]) for row in sample]
         del cells
     return bool(inside_keyed.sampled_key(person_cells, sampled, person, skipped, dated))
@@ -7793,8 +8259,41 @@ def _inside_report_head(drawn: "list[str]") -> str:
     )
 
 
-# THE KEYED ZONE'S BOUND (lane IN-4, kept at the 4x merge): the zone reads the table's columns whole.
+# THE KEYED ZONE'S BOUND (lane IN-4, kept at the 4x merge): the zone reads its rows' columns whole; past it, whole
+# persons hashed under it (lane SPEED-2M, `_keyed_rows_of`).
 _KEYED_ZONE_MOST_ROWS = 250_000
+
+
+def _keyed_rows_of(rows: int, persons: object) -> "list[int] | None":
+    """The rows the keyed zone reads (lane SPEED-2M): None (every row) up to `_KEYED_ZONE_MOST_ROWS`, else whole persons.
+
+    Past the bound, the rows of the persons whose fixed hash falls under
+    the bound's share of the rows (`inside_relations.sample_rows`, the
+    relations fit's own choice), so about that many rows, each person's
+    rows all or none, in the table's order: the zone's rules, marginals
+    and trajectories are read on them, and the twin's own cells are dealt
+    by them on every row. Raises nothing.
+    """
+    from synthtwin import inside_relations
+
+    if rows <= _KEYED_ZONE_MOST_ROWS or not isinstance(persons, inside_relations.Persons):
+        return None
+    return inside_relations.sample_rows(rows, _KEYED_ZONE_MOST_ROWS, persons)
+
+
+def _keyed_columns(read: object, kept_rows: "list[int] | None") -> "dict[str, list[str]]":
+    """Every column of the table as text on the keyed zone's rows (all where ``kept_rows`` is None), a column at a time."""
+    from synthtwin import reading
+
+    if not isinstance(read, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    out: "dict[str, list[str]]" = {}
+    for place, name in enumerate(read.column_names):
+        cells = reading.column_values(read, place)
+        out[name] = ([str(cell) for cell in cells] if kept_rows is None
+                     else [str(cells[row]) for row in kept_rows])
+        del cells
+    return out
 
 
 def _inside_date_readings(published: "dict[str, object]") -> "dict[str, str]":
@@ -7862,6 +8361,149 @@ def _inside_dated_held(published: "dict[str, object]") -> "tuple[str, ...]":
     return tuple(found)
 
 
+def _text_zone_floor(settings_block: object) -> int:
+    """The description's smallest group, which a word or a template of the text zone must reach in people."""
+    floor: object = None
+    if isinstance(settings_block, dict) and "small_cell_floor" in settings_block:
+        floor = settings_block["small_cell_floor"]
+    if not isinstance(floor, int) or isinstance(floor, bool) or floor < parsing.DEFAULT_SMALL_CELL_FLOOR:
+        return parsing.DEFAULT_SMALL_CELL_FLOOR
+    return floor
+
+
+# The roles whose cells the text zone may write again (lane TYPES-24): free text, a label column whose rare tail the
+# description's twin writes as stand-ins, and, through the identifier reading, record numbers.
+_TEXT_ZONE_ROLES = ("free_text", "long_tail_labels", "categorical")
+# ...and the measurement roles whose spellings it deals from the real census (`inside_text.MODE_CENSUS`).
+_TEXT_ZONE_NUMBERS = ("count", "continuous", "affixed_number", "numbers_with_labels")
+# A whole-number column whose numbers all lie from 0 to this, some past 89, and whose name names no measurement, may
+# hold ages: its census is not dealt (an age past 89 is a Safe Harbor element; the description's own twin keeps it).
+_CENSUS_AGE_MOST = 125
+
+
+def _census_allowed(name: str, cells: "list[str]", keep: "list[str]") -> bool:
+    """Whether a measurement column's real spellings may be dealt to the twin (`inside_text.MODE_CENSUS`).
+
+    None of them may be held by the inside record's own screen
+    (`inside_holds.held_spelling`: a person's details, a date, an age, a
+    run of five figures or more), nor may the column read as ages: whole
+    numbers from 0 to `_CENSUS_AGE_MOST`, some past 89, under a name that
+    names no measurement. At most `inside_text.CENSUS_SPELLINGS` of them.
+    """
+    from synthtwin import inside_holds, inside_relations, inside_text, taxonomy
+
+    absent = set(keep) | {""}
+    seen: "set[str]" = set()
+    whole_ages = True
+    past = False
+    for cell in cells:
+        if cell in absent or cell in seen or not parsing.trimmed(cell):
+            continue
+        seen |= {cell}
+        if len(seen) > inside_text.CENSUS_SPELLINGS or inside_holds.held_spelling(cell):
+            return False
+        value = inside_relations.number_of(cell)
+        if value is None or value < 0 or value > _CENSUS_AGE_MOST or value != int(value):
+            whole_ages = False
+        elif value > 89:
+            past = True
+    if whole_ages and past and not taxonomy.named_as_a_measurement(name):
+        return False
+    return bool(seen)
+
+
+def _text_zone_mode(block: object, why_kept: str, held: "tuple[str, ...]",
+                    keys: "frozenset[str]" = frozenset()) -> "tuple[str, list[str]]":
+    """The text zone's mode for one column of the description just written ('' for none), and the spellings it keeps.
+
+    A column whose dates in disguise the description holds is filled
+    (`MODE_HELD`); a column of record numbers other than the person's is
+    written again in its own layout (`MODE_IDENTIFIER`); free text is
+    (`MODE_FREE`); a label column whose tail the description's twin
+    writes as stand-ins has that tail written again (`MODE_TAIL`), its
+    published spellings kept. The column's missing spellings are always
+    kept. A column the keyed machinery types or keys (a value column
+    `keyed_by` a key, or a key of ``keys``) is left to it, and so is a
+    label whose held-back tail holds numbers (the description publishes
+    their mean, which its own twin keeps). Raises nothing; no I/O.
+    """
+    from synthtwin import inside_relations, inside_text
+
+    if not isinstance(block, dict) or "name" not in block or not isinstance(block["name"], str):
+        return "", []
+    role = block["role"] if "role" in block else None
+    keep: "list[str]" = []
+    missing = block["missing_by_source"] if "missing_by_source" in block else None
+    if isinstance(missing, dict):
+        for spelling in missing:
+            if isinstance(spelling, str):
+                keep += [spelling]
+    if why_kept == inside_relations.NAMES_THE_PERSON or block["name"] in keys:
+        return "", []
+    keyed_by = block["keyed_by"] if "keyed_by" in block else None
+    if isinstance(keyed_by, str) and keyed_by:
+        return "", []
+    if block["name"] in held and role in _TEXT_ZONE_ROLES + ("empty", "constant"):
+        return inside_text.MODE_HELD, keep
+    if why_kept == inside_relations.AN_IDENTIFIER:
+        return inside_text.MODE_IDENTIFIER, keep
+    if role == "free_text":
+        return inside_text.MODE_FREE, keep
+    if role in _TEXT_ZONE_NUMBERS:
+        from synthtwin import taxonomy, twin_checks
+
+        name = block["name"]
+        top = block["top_coded"] if "top_coded" in block else None
+        if top or taxonomy.named_as_an_age(name) or twin_checks.named_as_an_identifier(name):
+            return "", []
+        return inside_text.MODE_CENSUS, keep
+    if role not in _TEXT_ZONE_ROLES:
+        return "", []
+    suppressed = block["suppressed_rows"] if "suppressed_rows" in block else None
+    if not isinstance(suppressed, int) or isinstance(suppressed, bool) or suppressed <= 0:
+        return "", []
+    numbers = block["suppressed_numbers"] if "suppressed_numbers" in block else None
+    held_numbers = numbers["n_cells"] if isinstance(numbers, dict) and "n_cells" in numbers else 0
+    if isinstance(held_numbers, int) and not isinstance(held_numbers, bool) and held_numbers > 0:
+        return "", []
+    levels = block["levels"] if "levels" in block else None
+    for level in levels if isinstance(levels, list) else []:
+        variants = level["variants"] if isinstance(level, dict) and "variants" in level else None
+        if isinstance(variants, dict):
+            for spelling in variants:
+                if isinstance(spelling, str):
+                    keep += [spelling]
+    return inside_text.MODE_TAIL, keep
+
+
+def _keys_of_keyed_columns(blocks: "list[object]") -> "frozenset[str]":
+    """The columns the description names as the key some value column is typed by (`keyed_by`)."""
+    found: "set[str]" = set()
+    for block in blocks:
+        if isinstance(block, dict) and "keyed_by" in block and isinstance(block["keyed_by"], str) and block["keyed_by"]:
+            found |= {block["keyed_by"]}
+    return frozenset(found)
+
+
+def _text_cells_held(cells: "list[str]", keep: "list[str]") -> "list[bool] | None":
+    """Which cells of a column the description read as dates in disguise and held (`date_counts.dated_values_blanked`)."""
+    from synthtwin import date_counts
+
+    blanked = date_counts.dated_values_blanked(cells, frozenset(keep))
+    if blanked is None:
+        return None
+    return [blanked[row] == "" and parsing.trimmed(cells[row]) != "" for row in range(len(cells))]
+
+
+def _text_held_filled(zones: object) -> "set[str]":
+    """The columns whose dates in disguise the description held and the text zone fills (`inside_text.held_of`)."""
+    from synthtwin import inside_text
+
+    if isinstance(zones, dict) and inside_text.ZONE in zones:
+        return inside_text.held_of(zones[inside_text.ZONE])
+    return set()
+
+
 def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.Any") -> "typing.Any":
     """A twin drawn from the inside record: the only obligations excused are the calendar counts of a date column the
     dates zone made up (4w integration, narrowed by lane IN-2b).
@@ -7877,11 +8519,10 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
     reads: the weekday counts and the counts of its hours, minutes and
     seconds are judged at the draw's precision, each group within three
     standard deviations of a draw at its published share
-    (`_within_its_sampling_window`), and the stamps at midnight strictly.
-    Its day-level ladder and tails stay excused even where the dates zone
-    places a twin date outside the months the real column held dates in
-    (the orchestrator's decision on that ruling, plan P4-D525: carried to
-    lane IN-5, which owes the draw that keeps the span); its months are held where they are published
+    (`_within_its_sampling_window`), the stamps at midnight strictly, and
+    a ladder or tail miss is excused only where every twin date of the
+    column lies in the months the real column held dates in
+    (`_within_the_real_months`); its months are held where they are published
     (`inside_dates._held_months`:
     exactly for a column heading its own chain, as near as whole persons and
     chains allow for a person's timeline or a chained date). Where the report
@@ -7923,16 +8564,26 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
             if parsing.visible(each) in drawn:
                 made_up = made_up | {each}
         held_filled: "set[str]" = set()
-        for each in _held_dates_filled(record["zones"]):
+        for each in _held_dates_filled(record["zones"]) | _text_held_filled(record["zones"]):
             if parsing.visible(each) in drawn:
                 held_filled = held_filled | {each}
+        # A LADDER OR A TAIL IS EXCUSED ONLY INSIDE THE REAL MONTHS (the owner's ruling of 2026-11-22): the made-up
+        # day moves a date within its month, so a column with a twin date outside the months the real column held
+        # dates in keeps its ladder and tail misses. Read only where such a miss stands; a twin that cannot be read
+        # again, or a column the zone cannot place, excuses no ladder and no tail.
+        guarded = {check.column for check in outcome.checks if check.verdict == validation.MISSED
+                   and check.column in made_up and check.fact in _INSIDE_RANGE_GUARDED_FACTS}
+        within = _within_the_real_months(record["zones"], measured, guarded) if guarded else set()
+        text_filled = _text_held_filled(record["zones"])
     except (inside.InsideError, inside_relations.RelationsError, OSError, KeyError, TypeError, ValueError):
         return outcome
     changed = [
-        dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_HELD_CITATION)
+        dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION,
+                            citation=_INSIDE_HELD_TEXT_CITATION if check.column in text_filled else _INSIDE_HELD_CITATION)
         if check.verdict == validation.MISSED and check.column in held_filled and check.fact not in _INSIDE_HELD_KEPT_FACTS
         else dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_CITATION)
         if check.verdict == validation.MISSED and check.column in made_up and check.fact in _INSIDE_EXCUSED_DATE_FACTS
+        and (check.fact not in _INSIDE_RANGE_GUARDED_FACTS or check.column in within)
         else dataclasses.replace(check, verdict=validation.AUTHORIZED_DEVIATION, citation=_INSIDE_WINDOW_CITATION)
         if check.verdict == validation.MISSED and check.column in made_up and check.fact in _INSIDE_WINDOWED_DATE_FACTS
         and _within_its_sampling_window(check.published, check.achieved)
@@ -7948,6 +8599,38 @@ def _outcome_of_a_drawn_twin(description: str, measured: str, outcome: "typing.A
         missed=counted[validation.MISSED], not_checkable=outcome.census.not_checkable,
     )
     return dataclasses.replace(outcome, checks=tuple(changed), census=census)
+
+
+def _within_the_real_months(zones: object, measured: str, names: "set[str]") -> "set[str]":
+    """Of ``names``, the made-up date columns of the twin at ``measured`` whose every date lies in the real months.
+
+    The twin is read again with the product's reader, and each named
+    column's cells are placed against the record's calendar of it
+    (`inside_dates.outside_the_real_months`). A column the twin does not
+    hold, or the zone cannot place, is not returned, and a twin the reader
+    refuses returns none (the caller then excuses no ladder and no tail).
+    Raises `inside_dates.DatesError` for a damaged zone; reads that one
+    file.
+    """
+    from synthtwin import inside_dates, reading
+
+    dates = zones["dates"] if isinstance(zones, dict) and "dates" in zones else None
+    if not isinstance(dates, dict):
+        return set()
+    try:
+        # Read for its dates alone: nothing of this reading is published, so the default floor is the one passed.
+        read = reading.read_table(f"{measured}", reading.FIRST_ROW_NAMES, in_groups=True,
+                                  small_cell_floor=parsing.DEFAULT_SMALL_CELL_FLOOR)
+    except errors.ProfileError:
+        return set()
+    found: "set[str]" = set()
+    for place, column in enumerate(read.column_names):
+        if column not in names:
+            continue
+        outside = inside_dates.outside_the_real_months(dates, column, reading.column_values(read, place))
+        if outside == 0:
+            found = found | {column}
+    return found
 
 
 def _drawn_in_report(opening: str) -> "set[str]":
@@ -8016,13 +8699,11 @@ def _dates_made_up(zones: object) -> "set[str]":
 
 # THE ONLY OBLIGATIONS EXCUSED (the owner's ruling of 2026-11-22, batch 4z's fix round): of a date column the dates
 # zone made up, those that depend on the made-up day of the month alone -- its distinct days, its heavy days, its
-# day-of-month counts, and its exact day-level ladder rungs and tails (`_INSIDE_RANGE_GUARDED_FACTS`). THESE LAST STAY
-# EXCUSED where the dates zone places a twin date outside the months the real column held dates in (the
-# orchestrator's decision on the ruling, plan P4-D525): measured on batch 4z's line, the Windows bundle's invented
-# visits table held 46 of 20,000 visit dates up to four months before the real first month, the battery's cases table
-# dates up to 351 days outside and its accounts table up to 1,867, and keeping their ladder and tail misses turned
-# validate's exit to 3 on those twins; the draw that keeps the span is carried to lane IN-5
-# (`inside_dates.outside_the_real_months` counts such dates against the record's calendar).
+# day-of-month counts, and its exact day-level ladder rungs and tails (`_INSIDE_RANGE_GUARDED_FACTS`), these last only
+# where no twin date of the column falls outside the months the real column held dates in (the record's calendar,
+# `inside_dates.outside_the_real_months`): a made-up day moves a date inside its month and never out of the real span.
+# The dates zone keeps every twin date inside them (lane IN-5, batch 4zz: `inside_dates._kept_inside` and the rooms
+# its month-holding moves keep), so a ladder or tail miss outside the real months is a defect of the draw, kept MISSED.
 # STILL ENFORCED, because an analysis reads them: the weekday counts, the hour, minute and second counts and the
 # stamps at midnight (the clock), every date's spelling and the file's written form, the presence of every date and
 # the missing rate, the column's type, and every other obligation (identifiers, held columns, ages past 89, numbers,
@@ -8115,6 +8796,10 @@ _INSIDE_HELD_CITATION = ("the description reads this column's dates as blank cel
                          "is answered `no`, and the inside record's dates zone made up a date on the rows the real "
                          "dates stood on (weekday and clock kept, the day of the month made up), so the column's "
                          "counts are not the description's")
+_INSIDE_HELD_TEXT_CITATION = ("the description reads this column's dates as blank cells until their Safe Harbor question "
+                              "is answered `no`, and the inside record's text zone made up a date in the column's own "
+                              "spelling on as many rows as the real column held (year, month and weekday by the real "
+                              "counts, the day of the month made up), so the column's counts are not the description's")
 _INSIDE_REPORT_HEAD = "THIS TWIN WAS DRAWN FROM THE INSIDE RECORD"
 _INSIDE_CITATION = ("the twin's date column was made up by the inside record's dates zone (weekday and clock kept, "
                     "the day of the month made up), so its counts at the day's grain are not the description's")
@@ -8774,6 +9459,38 @@ def _entry_key(record: "results.Asked") -> "tuple[str, str, str, str]":
     return (record.section, record.subject, record.role, record.reason)
 
 
+# Every reason a Safe Harbor question is put for: such a question is never
+# left out of a round, whatever was asked of its column before.
+_SAFE_HARBOR_ENTRY_REASONS = asking.SAFE_HARBOR_REASONS + asking.SH2_SAFE_HARBOR_REASONS
+
+
+def _column_put_already(record: "results.Asked") -> bool:
+    """Whether an entry is a checklist question about a column whose Safe Harbor question this run already put (lane Q-FLOW, step 1).
+
+    THE REVIEW'S DEFECT 2 (lane Q-REVIEW, section 8): `age`, `crp` and
+    `cost`, answered `no` to their Safe Harbor question in the second
+    round, came back in the third as checklist questions (measurement,
+    code or record number), so one column was asked twice. That `no` says
+    the values are measurements, counts, codes or categories that name
+    no person, place, date or record, which is what the checklist asks
+    beside its reading: the entry stays in the questions file under the
+    reading it names (a measurement), which is what Enter would have
+    kept, and is not put again. Only a checklist entry is left out, and
+    only after a Safe Harbor question: a Safe Harbor entry is never left
+    out (HIPAA first), and a column put another question first (the
+    person question's `not a person`) is still asked whether it holds
+    record numbers. A fixed function of the entry and the run's prompts
+    so far; raises nothing.
+    """
+    session = _current()
+    if session is None or not record.column or record.section != results.SECTION_CHECKLIST:
+        return False
+    for column, _role, reason in session.put:
+        if column == record.column and reason in _SAFE_HARBOR_ENTRY_REASONS:
+            return True
+    return False
+
+
 def _entry_keys(record: "results.Asked") -> "tuple[tuple[str, str], ...]":
     """Each answer an entry offers, with the key the screen shows beside it.
 
@@ -8783,6 +9500,10 @@ def _entry_keys(record: "results.Asked") -> "tuple[tuple[str, str], ...]":
     1 to n (the walkthrough's items 8 to 10) are lane EZ-b's.
     """
     offered = [offer.answer for offer in record.offers]
+    if record.section == asking.BETWEEN_COLUMNS:
+        # THE SUBJECT QUESTION'S ANSWERS ARE NUMBERED (lane Q-FLOW, step 1;
+        # the review's defect 8: its keys were the whole phrases, typed out).
+        return tuple((f"{place + 1}", offered[place]) for place in range(len(offered)))
     both = asking.ANSWER_KEEP in offered and asking.ANSWER_MEASUREMENT in offered
     found: "list[tuple[str, str]]" = []
     used: "list[str]" = []
@@ -8805,10 +9526,11 @@ def _enter_said(record: "results.Asked") -> str:
     if record.section == asking.BETWEEN_COLUMNS:
         # The subject question (Codex's review of batch 4u, item 6): what
         # stands is its own sentence; a column is named in the file or typed.
+        # ...and a column's name typed is taken, as the questions file takes
+        # it (lane Q-FLOW, step 1; the review's defect 9).
         return (
-            f"Press Enter to leave it open. {_one_stop(now)} A column that identifies "
-            "the person is named in the questions file, or with --person when you run "
-            "the command again."
+            "Or type the name of the column that identifies the person, as it is "
+            f"written in your table's first row.\n    Press Enter to leave it open. {_one_stop(now)}"
         )
     if now == asking.ANSWER_IDENTIFIER:
         return (
@@ -8923,8 +9645,12 @@ def _put_the_entries(
         else:
             _say(_the_entry_group(group, [numbers[at] for at in places], place + 1, total))
             place = place + len(group)
+        # ...the subject question takes a column's name too (defect 9).
+        names: "tuple[str, ...]" = ()
+        if session is not None and record.section == asking.BETWEEN_COLUMNS:
+            names = session.subject_columns
         if session is not None:
-            session.offered_now = _entry_keys(record)
+            session.offered_now = _entry_keys(record) + tuple((name, name) for name in names)
         try:
             answer = _read_one_answer(_LEFT_OPEN)
         finally:
@@ -8932,7 +9658,7 @@ def _put_the_entries(
                 session.offered_now = ()
         if answer is None:
             return given, True
-        if answer not in [offer.answer for offer in record.offers]:
+        if answer not in [offer.answer for offer in record.offers] and answer not in names:
             answer = _LEFT_OPEN
         # ...THE ANSWER IS EACH ENTRY'S OF ITS GROUP, as if typed at each (lane W5-302).
         for one in group:
@@ -8951,7 +9677,7 @@ def _same_entry(record: "results.Asked") -> "tuple[object, ...]":
     return (record.section, record.role, record.reason, record.read_as_now, offered)
 
 
-def _entry_groups(entries: "list[results.Asked]") -> "list[list[int]]":
+def _entry_groups(entries: "list[results.Asked]", together_from: int = 0) -> "list[list[int]]":
     """The entries of a round at the keyboard as they are put, by place: each on its own, or past `_QUESTIONS_ONE_BY_ONE_MOST` the same ones together (lane W5-302).
 
     The entries that raised the same question (`_same_entry`) are put as
@@ -8964,7 +9690,7 @@ def _entry_groups(entries: "list[results.Asked]") -> "list[list[int]]":
     fixed function of its argument; every entry's place in exactly one
     group; raises nothing.
     """
-    if len(entries) <= _QUESTIONS_ONE_BY_ONE_MOST:
+    if len(entries) < (together_from or _QUESTIONS_ONE_BY_ONE_MOST + 1):
         return [[at] for at in range(len(entries))]
     groups: "list[list[int]]" = []
     place_of: "dict[tuple[object, ...], int]" = {}
@@ -9055,13 +9781,12 @@ def _subject_entry_now(questions: pathlib.Path) -> "list[results.Asked]":
     named in the file or with --person (`_enter_said`). Reads the file; no
     value of the table is in it.
     """
-    from synthtwin import contract
 
     session = _current()
     if session is None or session.subject_entry_put:
         return []
     try:
-        document = contract.load_answers(f"{questions}")
+        document = _answers_document_at(f"{questions}")
     except (PathValidationError, errors.ProfileError):
         return []
     probe = results.Asked(asking.BETWEEN_COLUMNS, 1, "", "", asking.ROWS_PER_PERSON, "", "")
@@ -9451,12 +10176,11 @@ def _typed_said(
 
 def _typed_replaced_in(questions: "pathlib.Path | None", typed: "tuple[tuple[str, str], ...]") -> "list[tuple[str, str]]":
     """The typed declarations an answer of the questions file replaces (`asking.typed_answered_over`); none where the file cannot be read."""
-    from synthtwin import contract
 
     if questions is None or not typed:
         return []
     try:
-        document = contract.load_answers(f"{questions}")
+        document = _answers_document_at(f"{questions}")
     except (errors.ProfileError, PathValidationError):
         return []
     return list(asking.typed_answered_over(document, typed))
@@ -9551,6 +10275,1146 @@ def _answers_kept_said(questions: pathlib.Path) -> str:
     )
 
 
+# -- THE ONE ROUND (lane Q-FLOW, step 2) ---------------------------------------
+#
+# THE QUESTION REVIEW'S PROPOSAL (lane Q-REVIEW, section 6; the owner's
+# decisions of 2026-11-23, delegated to the orchestrator: ACCEPT 1, 2, 3, 4,
+# 5 as stated, 6; REJECT 7). Where somebody is at the keyboard, every question
+# is put in ONE ROUND, BEFORE ANYTHING IS WRITTEN: the table is described
+# once without writing (a held description, `_Session.holding`), the
+# questions its file would hold are put grouped by kind, a last screen says
+# what will be hidden, capped, blanked and released, and only then is the
+# table described with the answers and every file written once. The
+# questions file keeps one entry a column, as before, and a run with nobody
+# at the keyboard reads the table exactly as before: nothing of this round
+# runs where nobody is asked.
+#
+# THE RULES OF ITS PROMPTS. Enter is always the cautious answer: it leaves
+# every entry of a prompt as nobody's run leaves it. Releasing a protected
+# value always takes the column's name typed (a Safe Harbor `no`). The legal
+# paragraph of the Safe Harbor rule is printed once a prompt, not once a
+# column. The units of an age are asked only of a column the person names as
+# an age. No value of the table is shown (the 2026-09-10 ruling stands:
+# decision 7 rejected); counts measured on the table are shown on this
+# screen and never written into the questions file.
+
+# The kinds of entry, in the order their prompts are put.
+_KIND_SUBJECT = "subject"
+_KIND_HARBOR = "harbor"
+_KIND_AGES = "ages"
+_KIND_DATED = "dated"
+_KIND_MORE = "more"
+_KIND_CHECKLIST = "checklist"
+_KIND_OTHER = "other"
+# The role of a column no value of which is published (`taxonomy.ROLE_IDENTIFIER`).
+_HIDDEN_ROLE = "identifier"
+_KINDS_IN_ORDER = (_KIND_SUBJECT, _KIND_HARBOR, _KIND_AGES, _KIND_DATED, _KIND_MORE, _KIND_CHECKLIST, _KIND_OTHER)
+
+# The Safe Harbor reasons whose open reading is the top-code: put in the list of ages.
+_AGES_REASONS = (asking.BECAUSE_SAFE_HARBOR_AGES, asking.BECAUSE_SAFE_HARBOR_YEARS)
+# ...whose `no` publishes MORE of a column described as it is now (Enter keeps it as it is).
+_MORE_REASONS = (asking.BECAUSE_SAFE_HARBOR_FEW_VALUES, asking.BECAUSE_SAFE_HARBOR_RARE_NAMES)
+
+# DECISION 5: A NAME THAT SAYS MONEY decides that the values of a number
+# column that read as dates are not dates (the twin's mean cost was 22% low
+# with 585 of 20,000 real costs blanked). Read whole, as words of the name
+# split at its marks; said on the last screen, where the person can undo it.
+_MONEY_WORDS = frozenset((
+    "amount", "amt", "balance", "bill", "billed", "cash", "charge", "charges",
+    "copay", "cost", "costs", "dollars", "eur", "euro", "euros", "expense",
+    "fee", "fees", "income", "paid", "pay", "payment", "price", "reimbursement",
+    "revenue", "salary", "spend", "spending", "usd", "wage", "wages",
+))
+# DECISION 4: A NAME THAT SAYS DATE lets Enter take the one counting system
+# whose dates lie in the last fifty years up to this year.
+_DATE_WORDS = frozenset(("date", "dates", "dated", "dt", "dte", "day"))
+_PLAUSIBLE_YEARS = 50
+
+
+def _years_named(means: str) -> "list[int]":
+    """Every four-figure year an answer's words name, in order. Raises TypeError for words that are not text (the offline audit's type gate)."""
+    if not isinstance(means, str):
+        raise TypeError("an answer's words must be text")
+    return [int(word) for word in means.replace(",", " ").split() if parsing.is_digit_text(word) and len(word) == 4]
+
+
+def _same_name(typed: str, name: str) -> bool:
+    """Whether a piece of a typed line is a column's name, whatever its capitals. Raises TypeError for either that is not text (the offline audit's type gate)."""
+    if not isinstance(typed, str):
+        raise TypeError("a typed line must be text")
+    if not isinstance(name, str):
+        raise TypeError("a column's name must be text")
+    return bool(name) and typed.lower() == name.lower()
+
+
+def _before(text: str, mark: str) -> str:
+    """A sentence up to a mark in it, the whole of it where the mark is not in it. Raises TypeError for words that are not text (the offline audit's type gate)."""
+    if not isinstance(text, str):
+        raise TypeError("a sentence must be text")
+    if not isinstance(mark, str):
+        raise TypeError("a mark must be text")
+    cut = text.find(mark)
+    return text if cut < 0 else text[:cut]
+
+
+def _first_clause(text: str) -> str:
+    """A sentence cut at its first semicolon, its outer spaces taken off. Raises TypeError for words that are not text (the offline audit's type gate)."""
+    if not isinstance(text, str):
+        raise TypeError("a sentence must be text")
+    cut = text.find(";")
+    return parsing.trimmed(text if cut < 0 else text[:cut])
+
+
+def _name_words_of(name: str) -> "list[str]":
+    """A column's name as its words, in small letters: split at every mark and at a small letter before a capital (`asking.key_name_words`)."""
+    return list(asking.key_name_words(name))
+
+
+def _says_money(name: str) -> bool:
+    """Whether a column's name says an amount of money (decision 5)."""
+    for word in _name_words_of(name):
+        if word in _MONEY_WORDS:
+            return True
+    return False
+
+
+def _says_date(name: str) -> bool:
+    """Whether a column's name says a date (decision 4)."""
+    for word in _name_words_of(name):
+        if word in _DATE_WORDS:
+            return True
+    return False
+
+
+# DECISION 3: a repeating column with fewer different values than the table's
+# people floor cannot name the people of a table the floor lets through, so at
+# the keyboard it is not asked whether it is the person; it is read as the
+# codes or labels it is (its values published only where 11 or more rows
+# share one). A column whose name says a key or a person is asked as before.
+_PERSON_LIKE_WORDS = frozenset(asking.PERSON_WORDS | {"household", "family"})
+
+
+def _few_valued_not_the_person(question: asking.Question, distinct: "dict[str, int]") -> bool:
+    """Whether the person question of a column need not be put at the keyboard (decision 3): fewer than 1,000 different values, a name that says no key or person."""
+    if question.reason != asking.BECAUSE_REPEATS_AND_MANY or question.name not in distinct:
+        return False
+    if asking.ANSWER_KEEP not in [choice.answer for choice in question.choices]:
+        return False
+    if distinct[question.name] >= parsing.TABLE_PEOPLE_FLOOR:
+        return False
+    if asking.named_as_a_key(question.name):
+        return False
+    for word in asking.key_name_words(question.name):
+        if word in _PERSON_LIKE_WORDS:
+            return False
+    return True
+
+
+def _plausible_date_count(question: asking.Question, this_year: int) -> "tuple[str, str]":
+    """The one counting system Enter takes for a question about numbers that may be dates (decision 4), and its words; ('', '') where none.
+
+    Only where the column's name says a date and exactly one system the
+    question offers reads every value as a date of the last fifty years
+    up to this year (`_PLAUSIBLE_YEARS`): the twin keeps the weekday and
+    the clock of its dates and makes up the day of the month, so no real
+    date reaches it. The years are those the question's own answers name.
+    """
+    if question.reason != asking.BECAUSE_DATE_COUNTS or not _says_date(question.name):
+        return "", ""
+    found: "list[tuple[str, str]]" = []
+    for choice in question.choices:
+        if choice.answer not in date_counts.MEMBERS:
+            continue
+        years = _years_named(choice.means)
+        if len(years) < 2:
+            continue
+        first, last = years[len(years) - 2], years[len(years) - 1]
+        if this_year - _PLAUSIBLE_YEARS <= first <= last <= this_year:
+            found += [(choice.answer, choice.means)]
+    if len(found) != 1:
+        return "", ""
+    return found[0]
+
+
+_LIST_MARKS = " ,;\t"
+
+
+def _names_typed(
+    line: str, names: "tuple[str, ...]", words: "tuple[str, ...]" = ()
+) -> "list[tuple[str, str]] | None":
+    """Each column a typed line names, in order, with the word typed after it ('' where none); None where anything typed is no name or word offered.
+
+    Names are matched whole, as typed first and then whatever their
+    capitals where only one name reads so (two are no answer), the longest
+    first (`age_m` before `age`), between spaces, commas or semicolons;
+    each of ``words`` (lower-case, a phrase of several words allowed) may
+    follow a name. A fixed function of the three. Raises TypeError for a
+    line that is not text (the offline audit's type gate, as `_cleaned`).
+    """
+    if not isinstance(line, str):
+        raise TypeError("a typed line must be text")
+    text = line.strip()
+    by_length = sorted(names, key=len, reverse=True)
+    words_by_length = sorted(words, key=len, reverse=True)
+    found: "list[tuple[str, str]]" = []
+    while True:
+        while text[:1] and text[:1] in _LIST_MARKS:
+            text = text[1:]
+        if not text:
+            return found
+        # ...the name typed exactly first, and a name typed in other capitals only where no other name reads so
+        # (batch 4zz's fix round, the outside review's item 7: of columns `value` and `VALUE`, `VALUE` typed released
+        # `value`'s age cap); two such names are no answer, asked again.
+        hit = ""
+        for name in by_length:
+            if text[: len(name)] == name and (len(text) == len(name) or text[len(name)] in _LIST_MARKS):
+                hit = name
+                break
+        if not hit:
+            alike = [name for name in by_length
+                     if _same_name(text[: len(name)], name) and (len(text) == len(name) or text[len(name)] in _LIST_MARKS)]
+            if len(alike) != 1:
+                return None
+            hit = alike[0]
+        text = text[len(hit) :]
+        rest = text
+        while rest[:1] in (" ", "\t") and rest[:1]:
+            rest = rest[1:]
+        said = ""
+        for word in words_by_length:
+            ahead = rest[: len(word)]
+            if ahead.lower() == word and (len(rest) == len(word) or rest[len(word)] in _LIST_MARKS):
+                said = word
+                rest = rest[len(word) :]
+                break
+        if said:
+            text = rest
+        found += [(hit, said)]
+
+
+def _read_a_list_line(names: "tuple[str, ...]", words: "tuple[str, ...]", again: str) -> "list[tuple[str, str]] | None":
+    """One typed line read as names (and words) of a grouped prompt's columns; [] for Enter, None where the person ended input.
+
+    Anything that is not a name or a word offered is asked again with
+    ``again``, never guessed (the reader's rule, `_read_one_answer`). A
+    line made only of what Ctrl+D or Ctrl+Z arrive as in a Windows
+    console ends the answers (`_ends_input`).
+    """
+    while True:
+        line = _asked("    > ")
+        if line is None or _ends_input(line):
+            return None
+        read = _names_typed(line, names, words)
+        if read is not None:
+            return read
+        _say(f"    {again}")
+
+
+def _seen_short(record: "results.Asked") -> str:
+    """What synthtwin saw of a column, as its entry says it, cut to its first clause: no Safe Harbor sentence, no legal paragraph, no value."""
+    return _first_clause(_before(record.saw, ". Could a value of"))
+
+
+def _round_header(number: int, total: int, title: str) -> str:
+    """The heading of one prompt of the one round: its number of all of them, and what it asks."""
+    return f"\n{'=' * 66}\nQUESTION {number} OF {total}: {title}\n{'=' * 66}"
+
+
+def _listed_with_seen(records: "list[results.Asked]", counts: "dict[str, str] | None" = None) -> str:
+    """One line a column: its name, padded, and what was seen of it (or the count measured on this screen)."""
+    widest = 0
+    for record in records:
+        widest = max(widest, len(_shown(record.subject)))
+    lines = ""
+    for record in records:
+        name = _shown(record.subject)
+        said = counts[record.subject] if counts is not None and record.subject in counts else _seen_short(record)
+        lines = lines + f"\n  {name}{' ' * (widest - len(name))}   {said}"
+    return lines
+
+
+def _names_of(records: "list[results.Asked]") -> "tuple[str, ...]":
+    """The columns of a prompt's entries, each once, in order."""
+    names: "list[str]" = []
+    for record in records:
+        if record.subject not in names:
+            names += [record.subject]
+    return tuple(names)
+
+
+def _each_named(records: "list[results.Asked]", read: "list[tuple[str, str]]") -> "list[tuple[results.Asked, str]]":
+    """Each entry of a column the line named, with the word typed after its name ('' where none); a column named twice takes its last word."""
+    said: "dict[str, str]" = {}
+    for name, word in read:
+        said[name] = word
+    given: "list[tuple[results.Asked, str]]" = []
+    for record in records:
+        if record.subject in said:
+            given += [(record, said[record.subject])]
+    return given
+
+
+def _put_the_subject_prompt(record: "results.Asked", number: int, total: int) -> "list[tuple[results.Asked, str]] | None":
+    """The subject question as the one round's first prompt: two numbered answers, or a column of the table typed; Enter leaves it open."""
+    session = _current()
+    words = [offer.answer for offer in record.offers]
+    one = asking.ANSWER_ONE_ROW_EACH if asking.ANSWER_ONE_ROW_EACH in words else ""
+    none = asking.ANSWER_NO_PERSON_COLUMN if asking.ANSWER_NO_PERSON_COLUMN in words else ""
+    _say(
+        _round_header(number, total, "WHO IS EACH ROW ABOUT?")
+        + "\nCan one person (a patient, a participant or another subject) stand on more than one row of this table?"
+        + ("\n  [1] no: every row describes a different person" if one else "")
+        + ("\n  [2] yes, but no column says whose rows they are" if none else "")
+        + "\n  or type the name of the column that identifies the person, as it is written in your table's first row."
+        + "\nEnter = not sure: the table is described, but nothing that links two columns is published."
+    )
+    names = session.subject_columns if session is not None else ()
+    keys: "list[tuple[str, str]]" = []
+    if one:
+        keys += [("1", one)]
+    if none:
+        keys += [("2", none)]
+    if session is not None:
+        session.offered_now = tuple(keys) + tuple((name, name) for name in names)
+    try:
+        answer = _read_one_answer(_LEFT_OPEN)
+    finally:
+        if session is not None:
+            session.offered_now = ()
+    if answer is None:
+        return None
+    if answer == _LEFT_OPEN:
+        return []
+    return [(record, answer)]
+
+
+def _put_the_harbor_prompt(records: "list[results.Asked]", number: int, total: int) -> "list[tuple[results.Asked, str]] | None":
+    """Every column a Safe Harbor question holds whole, in one list: Enter keeps each hidden, a column's name typed is its `no` (decision 2)."""
+    _say(
+        _round_header(number, total, "COLUMNS THAT MAY NAME A PERSON, A PLACE OR A DATE")
+        + "\nThe Safe Harbor rule of 45 CFR 164.514(b)(2) counts as identifiers a person's name, a place smaller than a state, any "
+        "date of a person other than its year (an age over 89 among them) and a number given to one person. "
+        "These columns look like one of them:"
+        + _listed_with_seen(records)
+        + "\nThey stay hidden until you say otherwise: none of their values is published, and the twin writes "
+        "made-up values in their layouts, so code written on it still runs."
+        + f"\n{asking.SAFE_HARBOR_CLASSES}"
+        + "\nEnter = keep every one of them hidden. Type a column's name only if you are sure it holds none of "
+        "these (several names: a space or a comma between them)."
+    )
+    read = _read_a_list_line(
+        _names_of(records), (),
+        "Please type the names of columns listed above, or press Enter to keep them all hidden.",
+    )
+    if read is None:
+        return None
+    return [(record, asking.ANSWER_SAFE_HARBOR_NO) for record, _word in _each_named(records, read)]
+
+
+def _unit_words(records: "list[results.Asked]") -> "tuple[str, ...]":
+    """The units of an age any of these entries offers as an answer (`asking.AGE_UNIT_ANSWERS`)."""
+    found: "list[str]" = []
+    for record in records:
+        for offer in record.offers:
+            if offer.answer in asking.AGE_UNIT_ANSWERS and offer.answer not in found:
+                found += [offer.answer]
+    return tuple(found)
+
+
+def _put_the_ages_prompt(records: "list[results.Asked]", number: int, total: int) -> "list[tuple[results.Asked, str]] | None":
+    """Every column the age top-code reaches, in one list: Enter reads each as an age (capped at 90), a name typed is its `no`, a name and a unit its unit (decisions 2 and 6)."""
+    units = _unit_words(records)
+    _say(
+        _round_header(number, total, "AGES OVER 89")
+        + "\nThe Safe Harbor rule of 45 CFR 164.514(b)(2) counts an age over 89 as an identifier. These columns hold numbers "
+        "between 0 and 125 (or years, or ages in another unit) as ages are written, some past 89:"
+        + f"\n  {_joined_or_none([_shown(name) for name in _names_of(records)])}"
+        + "\nEvery column you leave is read as an age: each value from 90 up is read as 90 (\"90 or more\") in the "
+        "description and in the twin, and nothing else of the column changes."
+        + f"\n{asking.SAFE_HARBOR_CLASSES}"
+        + "\nEnter = read every one of them as an age. Type the names of any that are NOT ages (a lab value, a "
+        "score, a percentage)."
+        + (
+            f" If an age is counted in months, weeks or days, type its name and the unit, for example: "
+            f"{_shown(records[0].subject)} months"
+            if units
+            else ""
+        )
+    )
+    while True:
+        read = _read_a_list_line(
+            _names_of(records), units,
+            "Please type the names of columns listed above (an age's name may be followed by its unit), or press "
+            "Enter to read them all as ages.",
+        )
+        if read is None:
+            return None
+        refused = [
+            name for name, word in read
+            if word and word not in [offer.answer for record in records if record.subject == name for offer in record.offers]
+        ]
+        if not refused:
+            break
+        _say(f"    {_shown(refused[0])} is not offered a unit: type its name alone if it is not an age.")
+    return [
+        (record, word if word else asking.ANSWER_SAFE_HARBOR_NO) for record, word in _each_named(records, read)
+    ]
+
+
+def _put_the_dated_prompt(
+    records: "list[results.Asked]", number: int, total: int, counts: "dict[str, str]"
+) -> "list[tuple[results.Asked, str]] | None":
+    """Every column whose values beside its others read as dates, in one list with what blanking them costs (decision 5): Enter keeps them blank, a name typed is its `no`."""
+    _say(
+        _round_header(number, total, "NUMBERS THAT MAY BE DATES OF PEOPLE")
+        + "\nSome values of these columns are written the way a spreadsheet or a database writes a date (a number "
+        "of five figures counting days, seconds since 1970, or a date written as text), beside their other values:"
+        + _listed_with_seen(records, counts)
+        + "\nUntil you say otherwise each such value is read as a possible date of a person and left blank in the "
+        "description and in the twin, so the twin's average and spread of the column move."
+        + f"\n{asking.SAFE_HARBOR_CLASSES}"
+        + "\nEnter = keep those values blank. If a column is an amount, a count or a lab value, type its name: its "
+        "values are then read as they are written."
+    )
+    read = _read_a_list_line(
+        _names_of(records), (),
+        "Please type the names of columns listed above, or press Enter to keep those values blank.",
+    )
+    if read is None:
+        return None
+    return [(record, asking.ANSWER_SAFE_HARBOR_NO) for record, _word in _each_named(records, read)]
+
+
+def _put_the_more_prompt(records: "list[results.Asked]", number: int, total: int) -> "list[tuple[results.Asked, str]] | None":
+    """The columns whose `no` would publish more of what is described now (values too few rows hold, numbers one cell holds): Enter keeps them as they are."""
+    _say(
+        _round_header(number, total, "COLUMNS THAT COULD PUBLISH MORE")
+        + "\nThese columns are described with their rare values held back:"
+        + _listed_with_seen(records)
+        + f"\n{asking.SAFE_HARBOR_CLASSES}"
+        + "\nEnter = keep them as they are described now. Type a column's name only if you are sure its rare "
+        "values name no person, place or date: the description then also names them, without how many rows "
+        "hold each, and the twin writes them."
+    )
+    read = _read_a_list_line(
+        _names_of(records), (),
+        "Please type the names of columns listed above, or press Enter to keep them as they are.",
+    )
+    if read is None:
+        return None
+    return [(record, asking.ANSWER_SAFE_HARBOR_NO) for record, _word in _each_named(records, read)]
+
+
+_CHECKLIST_WORDS = {
+    "code": asking.ANSWER_CODE,
+    "codes": asking.ANSWER_CODE,
+    "record number": asking.ANSWER_IDENTIFIER,
+    "record numbers": asking.ANSWER_IDENTIFIER,
+    "identifier": asking.ANSWER_IDENTIFIER,
+    "measurement": asking.ANSWER_MEASUREMENT,
+    "measurements": asking.ANSWER_MEASUREMENT,
+}
+
+
+def _put_the_checklist_prompt(
+    records: "list[results.Asked]", number: int, total: int, categories: "list[results.Asked] | None" = None
+) -> "list[tuple[results.Asked, str]] | None":
+    """The number columns read as measurements, and decision 3's columns read as categories, in one list: Enter keeps every reading, a measurement's name and `code` or `record number` changes it.
+
+    A column read as categories without its question (decision 3) is
+    listed so the person sees its reading before anything is written, and
+    is told how to hold it as record numbers: held so, a key with fewer
+    different values than the people floor counts the table's people by
+    itself unless a column says the person, and the table would be refused
+    after the round, so the keyboard does not take that answer for it.
+    """
+    kept = list(categories or [])
+    lines = ""
+    if records:
+        lines = lines + (
+            "\nThese columns are read as measurements, so the twin keeps their averages, their spreads and how they "
+            f"move with the other columns:\n  {_joined_or_none([_shown(name) for name in _names_of(records)])}"
+        )
+    if kept:
+        lines = lines + (
+            "\nThese repeat with fewer different values than the people a table holds, so they are read as "
+            "categories, each value that 11 or more rows share published:"
+            f"\n  {_joined_or_none([_shown(name) for name in _names_of(kept)])}"
+            "\n  (If one of them is a record number, stop here with Ctrl+C and run the command again with "
+            "--identifier and its name, and --person and the column that names the person.)"
+        )
+    if not records:
+        # Only categories to show: nothing to answer here.
+        _say(_round_header(number, total, "NUMBER COLUMNS: MEASUREMENTS OR CODES?") + lines + "\nPress Enter to go on.")
+        read = _read_a_list_line((), (), "Please press Enter to go on.")
+        return None if read is None else []
+    example = f"{_shown(records[0].subject)} code"
+    _say(
+        _round_header(number, total, "NUMBER COLUMNS: MEASUREMENTS OR CODES?")
+        + lines
+        + "\nA coding system and a column of counts are written alike, so only you know which these are."
+        + "\nEnter = keep this reading for every one. To change one, type its name and code (a coding system, each "
+        "value naming a thing) or record number (a key nothing should publish), for example: "
+        f"{example}"
+    )
+    names = _names_of(records) + _names_of(kept)
+    category_names = _names_of(kept)
+    while True:
+        read = _read_a_list_line(
+            names, tuple(_CHECKLIST_WORDS),
+            "Please type a column's name listed above and code or record number, or press Enter to keep them all.",
+        )
+        if read is None:
+            return None
+        bare = [name for name, word in read if not word]
+        wrong = [name for name, _word in read if name in category_names]
+        if not bare and not wrong:
+            break
+        if wrong:
+            _say(
+                f"    {_shown(wrong[0])} stays read as categories here: to hold it as record numbers, stop with "
+                "Ctrl+C and run the command again with --identifier and its name, and --person and the column that "
+                "names the person. Or press Enter to keep the readings listed."
+            )
+        else:
+            _say(f"    Please type code or record number after {_shown(bare[0])}, or press Enter to keep them all.")
+    given = [(record, _CHECKLIST_WORDS[word]) for record, word in _each_named(records, read)]
+    return [(record, answer) for record, answer in given if answer in [offer.answer for offer in record.offers]]
+
+
+def _round_kind(record: "results.Asked") -> str:
+    """Which prompt of the one round an entry of the questions file is put in."""
+    if record.section == asking.BETWEEN_COLUMNS:
+        return _KIND_SUBJECT
+    if record.reason in _AGES_REASONS:
+        return _KIND_AGES
+    if record.reason == asking.BECAUSE_SAFE_HARBOR_DATED_VALUES:
+        return _KIND_DATED
+    if record.reason in _MORE_REASONS:
+        return _KIND_MORE
+    if record.reason in _SAFE_HARBOR_ENTRY_REASONS:
+        return _KIND_HARBOR
+    if record.section == results.SECTION_CHECKLIST:
+        return _KIND_CHECKLIST
+    return _KIND_OTHER
+
+
+def _put_the_other_prompt(
+    records: "list[results.Asked]", number: int, total: int
+) -> "list[tuple[results.Asked, str]] | None":
+    """Every other entry (about the file, how values are written, a column held under another question) as the rounds after the files put them, the same ones together from the first (no Safe Harbor entry is among them)."""
+    session = _current()
+    _say(
+        _round_header(number, total, "HOW SOME COLUMNS ARE READ")
+        + "\nPress Enter at each to leave it as it is read now, which is said on its last line."
+    )
+    given: "list[tuple[results.Asked, str]]" = []
+    groups = _entry_groups(records, together_from=1)
+    place = 0
+    for places in groups:
+        group = [records[at] for at in places]
+        record = group[0]
+        if len(group) == 1:
+            place = place + 1
+            _say(_the_entry(record, 0, place, len(records)))
+        else:
+            _say(_the_entry_group(group, [0 for _one in group], place + 1, len(records)))
+            place = place + len(group)
+        if session is not None:
+            session.offered_now = _entry_keys(record)
+        try:
+            answer = _read_one_answer(_LEFT_OPEN)
+        finally:
+            if session is not None:
+                session.offered_now = ()
+        if answer is None:
+            return None
+        if answer not in [offer.answer for offer in record.offers]:
+            continue
+        for one in group:
+            given += [(one, answer)]
+    return given
+
+
+def _put_one_prompt(
+    kind: str, records: "list[results.Asked]", number: int, total: int, categories: "list[results.Asked] | None" = None
+) -> "list[tuple[results.Asked, str]] | None":
+    """Put one prompt of the one round; return each entry answered with its answer ([] where all were left as they stand), None where the person ended input."""
+    session = _current()
+    if kind == _KIND_SUBJECT:
+        return _put_the_subject_prompt(records[0], number, total)
+    if kind == _KIND_HARBOR:
+        return _put_the_harbor_prompt(records, number, total)
+    if kind == _KIND_AGES:
+        return _put_the_ages_prompt(records, number, total)
+    if kind == _KIND_DATED:
+        return _put_the_dated_prompt(records, number, total, session.dated_counts if session is not None else {})
+    if kind == _KIND_MORE:
+        return _put_the_more_prompt(records, number, total)
+    if kind == _KIND_CHECKLIST:
+        return _put_the_checklist_prompt(records, number, total, categories)
+    return _put_the_other_prompt(records, number, total)
+
+
+def _joined_or_none(names: "list[str]") -> str:
+    """Names joined with commas, or `none`."""
+    if not names:
+        return "none"
+    said = ""
+    for name in names:
+        said = f"{said}, {name}" if said else name
+    return said
+
+
+def _the_last_screen(
+    given: "dict[tuple[str, str, str, str], tuple[results.Asked, str]]",
+    numbers: "dict[str, int]",
+    twin: bool,
+    dated: "list[results.Asked]",
+) -> str:
+    """The last screen of the one round, before anything is written: what the twin will hide, cap, blank and release, and the readings decided without a question.
+
+    Read from the held description's own reading of each column
+    (`_Session.held_reading`: its role, and whether the age top-code
+    reaches it) and from every answer given in the round (``given``, each
+    entry's), so a column released by an answer is said released and
+    nowhere else; ``dated`` are the entries about values that read as
+    dates put in the round, blank unless answered `no`. ``numbers`` says
+    which prompt each column was put in, for answering it again. Names
+    only, and counts measured on this computer; no value of the table.
+    """
+    session = _current()
+    reading = session.held_reading if session is not None else ()
+    counts = session.dated_counts if session is not None else {}
+    answered: "dict[str, list[tuple[results.Asked, str]]]" = {}
+    subject = ""
+    for key in given:
+        record, answer = given[key]
+        if record.section == asking.BETWEEN_COLUMNS:
+            subject = answer
+            continue
+        if record.subject not in answered:
+            answered[record.subject] = []
+        answered[record.subject] += [(record, answer)]
+    # ...a column a rule decided and the person then answered is said by the answer.
+    decided = [
+        (column, words, detail)
+        for column, words, detail in (session.auto_said if session is not None else [])
+        if column not in answered
+    ]
+    hidden: "list[str]" = []
+    capped: "list[str]" = []
+    released: "list[str]" = []
+    changed: "list[str]" = []
+    by_rule = [column for column, _words, _detail in decided]
+    for name, role, top_coded in reading:
+        shown = _shown(name)
+        if name in by_rule:
+            # ...said once, on its own line below, with why.
+            continue
+        answers = answered[name] if name in answered else []
+        released_by = [record for record, answer in answers if answer == asking.ANSWER_SAFE_HARBOR_NO]
+        units = [answer for _record, answer in answers if answer in asking.AGE_UNIT_ANSWERS]
+        coded = [
+            asking.ANSWER_IDENTIFIER if answer == asking.ANSWER_RECORD else answer
+            for _record, answer in answers
+            if answer in (asking.ANSWER_CODE, asking.ANSWER_IDENTIFIER, asking.ANSWER_RECORD)
+        ]
+        if released_by:
+            kind = _round_kind(released_by[0])
+            released += [
+                f"{shown} (not an age)" if kind == _KIND_AGES
+                else f"{shown} (its values read as they are written)" if kind == _KIND_DATED
+                else f"{shown} (said to name nothing the rule protects)"
+            ]
+            continue
+        if coded and coded[0] == asking.ANSWER_IDENTIFIER:
+            hidden += [shown]
+            continue
+        if coded:
+            changed += [f"{shown} (codes)"]
+        if role == _HIDDEN_ROLE:
+            hidden += [shown]
+        elif units:
+            capped += [f"{shown} (counted in {units[0]})"]
+        elif top_coded:
+            capped += [shown]
+    blanked: "list[str]" = []
+    for record in dated:
+        key = _entry_key(record)
+        if key in given and given[key][1] == asking.ANSWER_SAFE_HARBOR_NO:
+            continue
+        said = f" ({counts[record.subject]})" if record.subject in counts else ""
+        blanked += [f"{_shown(record.subject)}{said}"]
+    lines = f"\n{'=' * 66}\nBEFORE ANYTHING IS WRITTEN\n{'=' * 66}"
+    if subject:
+        lines = lines + "\n  who each row is about: " + (
+            "every row a different person" if subject == asking.ANSWER_ONE_ROW_EACH
+            else "several rows a person, no column says whose" if subject == asking.ANSWER_NO_PERSON_COLUMN
+            else f"the person is named by {_shown(subject)}"
+        )
+    lines = lines + (
+        f"\n  hidden (the twin writes made-up values in their layouts): {_joined_or_none(hidden)}"
+        f"\n  ages capped at 90: {_joined_or_none(capped)}"
+        f"\n  values that read as dates, left blank: {_joined_or_none(blanked)}"
+        f"\n  released by your answers: {_joined_or_none(released)}"
+    )
+    if changed:
+        lines = lines + f"\n  read otherwise by your answers: {_joined_or_none(changed)}"
+    # ...each rule's sentence once, its columns after it.
+    sentences: "list[str]" = []
+    for _column, words, _detail in decided:
+        if words not in sentences:
+            sentences += [words]
+    for words in sentences:
+        named = [
+            f"{_shown(column)} ({detail})" if detail else _shown(column)
+            for column, said, detail in decided
+            if said == words
+        ]
+        lines = lines + f"\n  decided without a question, {words}: {_joined_or_none(named)}"
+    built = "describe the table and build the twin" if twin else "describe the table"
+    again = " Type a question's number to answer it again." if numbers else ""
+    return (
+        lines
+        + f"\nPress Enter to {built}.{again} To stop here, press Ctrl+C or Ctrl+D (on Windows: Ctrl+Z, then "
+        "Enter): nothing is written until you press Enter."
+    )
+
+
+def _on_the_real_screen() -> "tuple[bool, object]":
+    """Where a held description holds its screen back, hand a prompt the real one; what to give back after it (`_back_to_the_held_screen`)."""
+    session = _current()
+    if session is None or not session.screen_held:
+        return False, None
+    held = session.screen
+    session.screen = session.real_screen
+    session.screen_held = False
+    return True, held
+
+
+def _back_to_the_held_screen(swapped: "tuple[bool, object]") -> None:
+    """Give a held description its held screen back after a prompt (`_on_the_real_screen`)."""
+    session = _current()
+    if session is None or not swapped[0]:
+        return
+    session.real_screen = session.screen
+    held = swapped[1]
+    session.screen = held if isinstance(held, (list, str)) or held is None else []
+    session.screen_held = True
+
+
+def _dated_counts_measured(read: object, names: "list[str]") -> "dict[str, str]":
+    """For each column named, how many of its values read as dates and are left blank, of how many it holds, in words for the screen alone (decision 5).
+
+    Counted on the table here, with the reader the description blanks them
+    with (`date_counts.dated_values_blanked`); never written into the
+    questions file or any published file (no count of a table's own goes
+    there). Raises TypeError where the table is not a table (an internal
+    invariant), and what `reading.column_values` raises.
+    """
+    from synthtwin import reading
+
+    if not isinstance(read, reading.Table):
+        raise TypeError("internal check: the table is not a table")
+    counts: "dict[str, str]" = {}
+    for name in names:
+        for place, held in enumerate(read.column_names):
+            if held != name:
+                continue
+            cells = reading.column_values(read, place)
+            blanked = date_counts.dated_values_blanked(cells)
+            present = 0
+            gone = 0
+            for at in range(len(cells)):
+                if not parsing.trimmed(cells[at]):
+                    continue
+                present = present + 1
+                if blanked is not None and not parsing.trimmed(blanked[at]):
+                    gone = gone + 1
+            counts[name] = f"{gone:,} of {present:,} values"
+    return counts
+
+
+def _decided_in_the_round(entries: "list[results.Asked]") -> "tuple[list[results.Asked], list[tuple[results.Asked, str]]]":
+    """The entries the round still puts, and those its rules answer without a question (decisions 4 and 5), each with its answer.
+
+    DECISION 5: a column whose values beside its others read as dates, and
+    whose name says an amount of money (`_says_money`), is answered `no`:
+    its values are read as written. DECISION 4: a column read as dates by
+    the one plausible counting system its name and values allow
+    (`_Session.dated_by_rule`) is answered `no` to the question whether
+    its five-figure numbers are ZIP codes: the twin writes dates, the day
+    of each month made up. Each is said on the last screen
+    (`_Session.auto_said`), where the person can see it before anything is
+    written. Every other entry, every Safe Harbor question among them, is
+    put.
+    """
+    session = _current()
+    kept: "list[results.Asked]" = []
+    decided: "list[tuple[results.Asked, str]]" = []
+    for record in entries:
+        if record.reason == asking.BECAUSE_SAFE_HARBOR_DATED_VALUES and _says_money(record.subject):
+            decided += [(record, asking.ANSWER_SAFE_HARBOR_NO)]
+            if session is not None:
+                session.auto_said += [
+                    (record.subject, "its values that read as dates are read as written: its name says an amount of money", "")
+                ]
+            continue
+        if (
+            record.reason == asking.BECAUSE_SAFE_HARBOR_ZIP_DATES
+            and session is not None
+            and record.subject in session.dated_by_rule
+        ):
+            decided += [(record, asking.ANSWER_SAFE_HARBOR_NO)]
+            session.auto_said += [
+                (
+                    record.subject,
+                    "read as dates and not asked whether its numbers are ZIP codes: its name says dates, and one way "
+                    f"of counting gives dates of the last {_PLAUSIBLE_YEARS} years",
+                    session.dated_by_rule[record.subject],
+                )
+            ]
+            continue
+        kept += [record]
+    return kept, decided
+
+
+def _the_one_round(
+    entries: "list[results.Asked]", categories: "list[results.Asked] | None" = None
+) -> "dict[tuple[str, str, str, str], tuple[results.Asked, str]] | None":
+    """Put every entry left, grouped by kind, then the last screen; return each entry answered with its answer, None where the person ended input.
+
+    One prompt a kind (`_round_kind`, in `_KINDS_IN_ORDER`), each entry of
+    it recorded as put at a prompt. At the last screen Enter goes on, a
+    prompt's number puts that prompt again (its earlier answers given up),
+    and the end of input stops the run with nothing written.
+    """
+    session = _current()
+    grouped: "dict[str, list[results.Asked]]" = {}
+    for record in entries:
+        kind = _round_kind(record)
+        if kind not in grouped:
+            grouped[kind] = []
+        grouped[kind] += [record]
+    # ...decision 3's columns, listed as categories in the checklist's prompt.
+    if categories and _KIND_CHECKLIST not in grouped:
+        grouped[_KIND_CHECKLIST] = []
+    prompts = [(kind, grouped[kind]) for kind in _KINDS_IN_ORDER if kind in grouped]
+    total = len(prompts)
+    given: "dict[tuple[str, str, str, str], tuple[results.Asked, str]]" = {}
+    numbers: "dict[str, int]" = {}
+
+    def put(at: int) -> bool:
+        kind, records = prompts[at - 1]
+        listed_too = list(categories or []) if kind == _KIND_CHECKLIST else []
+        for record in records + listed_too:
+            key = _entry_key(record)
+            if key in given:
+                del given[key]
+        got = _put_one_prompt(kind, records, at, total, listed_too)
+        if got is None:
+            return False
+        for record, answer in got:
+            given[_entry_key(record)] = (record, answer)
+        for record in records + listed_too:
+            numbers[record.subject] = at
+        for record in records:
+            if session is not None:
+                one = (record.column, record.role, record.reason)
+                if one not in session.put:
+                    session.put += [one]
+        if session is not None:
+            session.prompted = session.prompted + max(1, len(records))
+        return True
+
+    for at in range(1, total + 1):
+        if not put(at):
+            return None
+    while True:
+        dated = grouped[_KIND_DATED] if _KIND_DATED in grouped else []
+        _say(_the_last_screen(given, numbers, bool(session is not None and session.twin_step), dated))
+        line = _asked("    > ")
+        if line is None or _ends_input(line):
+            return None
+        typed = _cleaned(line)
+        if not typed:
+            return given
+        if parsing.is_digit_text(typed) and 1 <= int(typed) <= total:
+            if not put(int(typed)):
+                return None
+            continue
+        _say("    Please press Enter to go on, or type the number of a question above to answer it again.")
+
+
+def _the_one_round_on() -> bool:
+    """Whether this run puts its questions in the one round: the profile step of `synthtwin twin` with somebody at the keyboard.
+
+    The twin is the command the person who holds the table runs (lane
+    Q-REVIEW measured it); `synthtwin profile` at a keyboard keeps its
+    rounds after the files, each judged against the ledger as the run
+    found it (step 1).
+    """
+    session = _current()
+    return session is not None and session.twin_step and session.ask is not None
+
+
+def _hold_the_screen() -> None:
+    """Begin the one round's held description: what the run shows is held back, but for its prompts, and what it has recorded so far is kept."""
+    session = _current()
+    if session is None:
+        return
+    session.one_round = True
+    session.holding = True
+    session.held_document = None
+    session.auto_said = []
+    session.dated_counts = {}
+    session.dated_by_rule = {}
+    session.held_before = (
+        list(session.warnings), list(session.files), list(session.left_behind), list(session.refusal_words),
+        session.step, session.key, session.on_disk,
+    )
+    session.real_screen = session.screen
+    session.screen = []
+    session.screen_held = True
+
+
+def _screen_given_back(shown: bool) -> None:
+    """End the held description: the real screen back, and what it held back shown (``shown``: the description refused, or kept nothing for the round) or dropped, with what it recorded."""
+    session = _current()
+    if session is None:
+        return
+    session.holding = False
+    held: "list[tuple[str, str]]" = []
+    if session.screen_held:
+        if isinstance(session.screen, list):
+            held = list(session.screen)
+        session.screen = session.real_screen
+        session.screen_held = False
+        session.real_screen = None
+    if shown:
+        for stream, text in held:
+            _show(stream, text)
+        return
+    if session.held_before is not None:
+        warnings, files, left, refused, step, key, on_disk = session.held_before
+        session.warnings, session.files, session.left_behind, session.refusal_words = warnings, files, left, refused
+        session.step, session.key, session.on_disk = step, key, on_disk
+    session.held_before = None
+
+
+def _the_one_round_described(
+    table: str,
+    out_dir: "str | None",
+    smallest_group: int,
+    floor_chosen: bool,
+    forced_identifiers: list[str],
+    forced_codes: list[str],
+    forced_measurements: list[str],
+    forced_decimal_commas: list[str],
+    kept_values: list[str],
+    missing_values: list[str],
+    first_row: str,
+    day_first: bool,
+    sheet: str,
+    metadata_rows_given: str,
+    delimiter_given: str,
+    date_counts_given: "list[list[str]] | None",
+    forced_twelve_hours: "list[str] | None",
+    centuries_given: "list[str] | None",
+    date_columns_given: "list[str] | None",
+    first_row_typed: bool,
+    small_tables_refused: bool,
+    replace: bool,
+    chain: "ChainRun | None",
+) -> str:
+    """The one round after its held description: every question left put, the last screen, then the table described with the answers and every file written once.
+
+    The questions file the held description would have written is handed
+    over from memory (`_Session.answers_in_memory`) with the round's
+    answers beside 'your_answer', exactly as the rounds after the files
+    hand the file on disk back: the answers given at the first prompt
+    stand in it under `answered_before`, the typed declarations an answer
+    replaced are left off (`_typed_left`), and nobody is asked during the
+    description (the subject question, should it come again, on the real
+    screen: `_Session.subject_reader`). The end of input at a prompt or at
+    the last screen writes nothing, in the first prompt's words.
+    """
+    from synthtwin import canonical, contract, profile
+
+    session = _current()
+    assert session is not None and session.held_document is not None
+    questions = f"{profile.questions_output_path(pathlib.Path(table), out_dir)}"
+    session.answers_in_memory = (questions, canonical.serialize(session.held_document))
+    try:
+        # ...less the person question decision 3 answered `keep` at the
+        # first prompt, put again in the file under that reading: no round
+        # puts it, nor any round after the files.
+        by_rule = [
+            one for one in session.questions
+            if one.column in session.decided_first and one.reason == asking.BECAUSE_REPEATS_AND_MANY
+        ]
+        for record in by_rule:
+            if _entry_key(record) not in session.round_keys:
+                session.round_keys += [_entry_key(record)]
+        entries = [
+            one
+            for one in session.questions
+            if one.section != results.SECTION_HELD and one.offers and not one.put and not _column_put_already(one)
+            and one not in by_rule
+        ]
+        entries = _subject_entry_now(pathlib.Path(questions)) + entries
+        entries, decided = _decided_in_the_round(entries)
+        # ...each entry put or answered by a rule is the round's: put at a
+        # prompt as far as every later rule reads (`_column_put_already`).
+        for record in entries + [one for one, _answer in decided]:
+            if _entry_key(record) not in session.round_keys:
+                session.round_keys += [_entry_key(record)]
+            one = (record.column, record.role, record.reason)
+            if record.column and one not in session.put:
+                session.put += [one]
+        given: "dict[tuple[str, str, str, str], tuple[results.Asked, str]] | None" = {}
+        if entries or decided or session.put or session.auto_said:
+            given = _the_one_round(entries, by_rule)
+        if given is None:
+            _warn(errors.the_questions_were_not_finished(), step=results.STEP_QUESTIONS)
+            _folder_for_the_round_taken_back()
+            return results.REFUSED
+        answered = [given[key] for key in given] + decided
+        document = contract.answers_from_text(session.answers_in_memory[1], questions)
+        for record, answer in answered:
+            entry = _entry_of(document, record)
+            if entry is not None:
+                entry["your_answer"] = answer
+        session.answers_in_memory = (questions, canonical.serialize(document))
+        typed = _typed_said(
+            forced_identifiers, forced_codes, forced_measurements, forced_decimal_commas, forced_twelve_hours,
+            date_counts_given, centuries_given, date_columns_given, day_first, delimiter_given, first_row,
+            first_row_typed,
+        )
+        replaced = _typed_replaced_in(pathlib.Path(questions), typed)
+        session.typed_replaced = replaced
+        first_row_word = (
+            asking.ANSWER_FIRST_ROW_NAMES if first_row == _FIRST_ROW_NAMES
+            else asking.ANSWER_FIRST_ROW_DATA if first_row == _FIRST_ROW_DATA
+            else asking.TYPED_FIRST_ROW_AUTOMATIC
+        )
+        first_row_left = (asking.FIRST_ROW_SUBJECT, first_row_word) not in replaced
+        delimiter_word = asking.delimiter_answer(
+            _DELIMITER_SPELLINGS[delimiter_given] if delimiter_given in _DELIMITER_SPELLINGS else ""
+        )
+        screen, asking_now = session.screen, session.ask
+        session.ask = None
+        session.subject_reader = (screen, asking_now)
+        try:
+            verdict = _described_once(
+                table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
+                forced_identifiers=_typed_left(forced_identifiers, asking.ANSWER_IDENTIFIER, replaced),
+                forced_codes=_typed_left(forced_codes, asking.ANSWER_CODE, replaced),
+                forced_measurements=_typed_left(forced_measurements, asking.ANSWER_MEASUREMENT, replaced),
+                forced_decimal_commas=_typed_left(forced_decimal_commas, asking.ANSWER_DECIMAL_COMMA, replaced),
+                answers_path=questions, kept_values=kept_values, missing_values=missing_values,
+                first_row=first_row if first_row_left else _FIRST_ROW_AUTOMATIC,
+                day_first=day_first and (asking.DAY_FIRST_SUBJECT, asking.ANSWER_DAY_FIRST) not in replaced,
+                sheet=sheet, metadata_rows_given=metadata_rows_given,
+                delimiter_given=delimiter_given if (asking.DELIMITER_SUBJECT, delimiter_word) not in replaced else "",
+                date_counts_given=[
+                    pair for pair in date_counts_given or []
+                    if len(pair) != 2 or (f"{pair[0]}", f"{pair[1]}") not in replaced
+                ],
+                forced_twelve_hours=_typed_left(forced_twelve_hours, asking.ANSWER_TWELVE_HOUR, replaced),
+                centuries_given=[one for one in centuries_given or [] if _century_left(one, replaced)],
+                date_columns_given=_typed_left(date_columns_given, asking.ANSWER_DATES, replaced),
+                first_row_typed=first_row_typed and first_row_left,
+                small_tables_refused=small_tables_refused, replace=replace,
+                chain=_switch_of_a_later_round(chain),
+            )
+        finally:
+            session.ask = asking_now
+            session.subject_reader = None
+        if verdict == results.NO_MISS:
+            for record, answer in answered:
+                _answer_stands(answer, (record.column, record.role, record.reason))
+        _folder_for_the_round_taken_back()
+        return verdict
+    finally:
+        session.answers_in_memory = None
+
+
+def _folder_for_the_round() -> None:
+    """Make the twin's own folder for the held description, whose output names are settled in it, and remember it (`_Session.folder_made_held`): no file is written in it until the round's answers are given."""
+    session = _current()
+    if session is None or not session.folder_to_make:
+        return
+    made = session.folder_to_make
+    _make_the_twins_folder()
+    session.folder_made_held = made
+
+
+def _folder_for_the_round_taken_back() -> None:
+    """Remove the twin's folder the held description made, where the run ends with nothing written in it (the end of input at a prompt, a refusal)."""
+    session = _current()
+    if session is None or not session.folder_made_held:
+        return
+    folder = pathlib.Path(session.folder_made_held)
+    session.folder_made_held = ""
+    if folder.is_dir() and not any(folder.iterdir()):
+        folder.rmdir()
+
+
+def _answers_held_in_memory(answers_path: str) -> bool:
+    """Whether the answers this description reads are the one round's, handed over from memory (`_Session.answers_in_memory`)."""
+    session = _current()
+    return session is not None and session.answers_in_memory is not None and f"{answers_path}" == session.answers_in_memory[0]
+
+
+def _holding_now() -> bool:
+    """Whether the description running now is the one round's held one (`_Session.holding`), which writes nothing."""
+    session = _current()
+    return session is not None and session.holding
+
+
+def _distinct_of(document: "dict[str, object]") -> "dict[str, int]":
+    """Each column's count of different values, as its block publishes it (`n_distinct`), for decision 3."""
+    found: "dict[str, int]" = {}
+    blocks = document["columns"] if "columns" in document else None
+    for block in blocks if isinstance(blocks, list) else []:
+        if isinstance(block, dict) and "name" in block and "n_distinct" in block:
+            count = block["n_distinct"]
+            if isinstance(count, int) and not isinstance(count, bool):
+                found[f"{block['name']}"] = count
+    return found
+
+
+def _held_for_the_round(
+    questions_document: "dict[str, object]",
+    published: "dict[str, object]",
+    read: object,
+    records: "tuple[results.Asked, ...]",
+) -> str:
+    """Keep what the one round reads of a held description, and end it with nothing written (lane Q-FLOW, step 2).
+
+    The questions file it would write, as a document; each column's
+    reading (its role, and whether the age top-code reaches it); and, for
+    the screen alone, how many values of each column asked about values
+    that read as dates are left blank. Returns the verdict of a
+    description that finished.
+    """
+    session = _current()
+    if session is None:
+        return results.NO_MISS
+    session.held_document = questions_document
+    reading: "list[tuple[str, str, bool]]" = []
+    blocks = published["columns"] if "columns" in published else None
+    for block in blocks if isinstance(blocks, list) else []:
+        if isinstance(block, dict) and "name" in block and "role" in block:
+            reading += [(f"{block['name']}", f"{block['role']}", "top_coded" in block)]
+    session.held_reading = tuple(reading)
+    dated = [one.subject for one in records if one.reason == asking.BECAUSE_SAFE_HARBOR_DATED_VALUES]
+    session.dated_counts = _dated_counts_measured(read, dated) if dated else {}
+    return results.NO_MISS
+
+
 def _profile_rounds(
     table: str,
     out_dir: "str | None",
@@ -9600,21 +11464,61 @@ def _profile_rounds(
     """
     from synthtwin import profile
 
-    verdict = _described_once(
-        table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
-        forced_identifiers=forced_identifiers, forced_codes=forced_codes,
-        forced_measurements=forced_measurements, forced_decimal_commas=forced_decimal_commas,
-        answers_path=answers_path, kept_values=kept_values, missing_values=missing_values,
-        first_row=first_row, day_first=day_first, sheet=sheet, metadata_rows_given=metadata_rows_given,
-        delimiter_given=delimiter_given, date_counts_given=date_counts_given,
-        forced_twelve_hours=forced_twelve_hours, centuries_given=centuries_given,
-        date_columns_given=date_columns_given, first_row_typed=first_row_typed,
-        small_tables_refused=small_tables_refused, replace=replace, chain=chain,
-    )
     session = _current()
+    one_round = session is not None and session.rounds_follow and _the_one_round_on()
+    if session is not None and one_round:
+        _hold_the_screen()
+    held_ok = False
+    try:
+        verdict = _described_once(
+            table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
+            forced_identifiers=forced_identifiers, forced_codes=forced_codes,
+            forced_measurements=forced_measurements, forced_decimal_commas=forced_decimal_commas,
+            answers_path=answers_path, kept_values=kept_values, missing_values=missing_values,
+            first_row=first_row, day_first=day_first, sheet=sheet, metadata_rows_given=metadata_rows_given,
+            delimiter_given=delimiter_given, date_counts_given=date_counts_given,
+            forced_twelve_hours=forced_twelve_hours, centuries_given=centuries_given,
+            date_columns_given=date_columns_given, first_row_typed=first_row_typed,
+            small_tables_refused=small_tables_refused, replace=replace, chain=chain,
+        )
+        held_ok = bool(one_round and verdict == results.NO_MISS and session is not None and session.held_document is not None)
+    finally:
+        if session is not None and one_round:
+            _screen_given_back(shown=not held_ok)
+            if not held_ok:
+                _folder_for_the_round_taken_back()
+    if session is not None and one_round:
+        if held_ok:
+            verdict = _the_one_round_described(
+                table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
+                forced_identifiers=forced_identifiers, forced_codes=forced_codes,
+                forced_measurements=forced_measurements, forced_decimal_commas=forced_decimal_commas,
+                kept_values=kept_values, missing_values=missing_values,
+                first_row=first_row, day_first=day_first, sheet=sheet, metadata_rows_given=metadata_rows_given,
+                delimiter_given=delimiter_given, date_counts_given=date_counts_given,
+                forced_twelve_hours=forced_twelve_hours, centuries_given=centuries_given,
+                date_columns_given=date_columns_given, first_row_typed=first_row_typed,
+                small_tables_refused=small_tables_refused, replace=replace, chain=chain,
+            )
+        elif verdict == results.NO_MISS:
+            # A held description that kept nothing for the round (no path of
+            # it does): described again as before, every file written.
+            verdict = _described_once(
+                table=table, out_dir=out_dir, smallest_group=smallest_group, floor_chosen=floor_chosen,
+                forced_identifiers=forced_identifiers, forced_codes=forced_codes,
+                forced_measurements=forced_measurements, forced_decimal_commas=forced_decimal_commas,
+                answers_path=answers_path, kept_values=kept_values, missing_values=missing_values,
+                first_row=first_row, day_first=day_first, sheet=sheet, metadata_rows_given=metadata_rows_given,
+                delimiter_given=delimiter_given, date_counts_given=date_counts_given,
+                forced_twelve_hours=forced_twelve_hours, centuries_given=centuries_given,
+                date_columns_given=date_columns_given, first_row_typed=first_row_typed,
+                small_tables_refused=small_tables_refused, replace=replace, chain=chain,
+            )
     if session is None or not session.rounds_follow:
         return verdict
     put: "set[tuple[str, str, str, str]]" = {_entry_key(one) for one in session.questions if one.put}
+    # ...and every entry the one round put or answered (lane Q-FLOW, step 2).
+    put = put | set(session.round_keys)
     # THE COMMAND LINE IS THE OLDEST STATEMENT OF THE COMMAND (lane EZ-a's
     # second repair; Codex's item 1): what a later round, its repeat line and
     # the taught command leave off it, as each answer of the file replaces it.
@@ -9631,6 +11535,7 @@ def _profile_rounds(
             one
             for one in session.questions
             if one.section != results.SECTION_HELD and one.offers and _entry_key(one) not in put
+            and not _column_put_already(one)
         ]
         # THE SUBJECT QUESTION, IN A ROUND OF ITS OWN once the file's other
         # entries are put (Codex's review of batch 4u, item 6), the only
@@ -11417,9 +13322,13 @@ def _run_profile_body(
                     )
                     + identities_kept,
                 ),
+                # ...each column's count of different values (decision 3).
+                _distinct_of(document),
             )
             if given is not None:
-                _put_at_a_prompt(asked_about)
+                # ...but a question the one round's rule answered was put
+                # at no prompt (decision 3, lane Q-FLOW).
+                _put_at_a_prompt(_put_not_decided(asked_about))
             if given is None:
                 _warn(
                     errors.the_questions_were_not_finished(),
@@ -12025,9 +13934,16 @@ def _run_profile_body(
     # ONLY WHERE SOMETHING BESIDE ITS VALUES ESTABLISHES IT AS AGES (lane
     # SH3's repair, Codex's item 1 and the orchestrator's LANE SH3 RULINGS
     # 1 (1): an answer keeps the meaning it had when it was given): a unit
-    # in its cells, its name, or a unit answered. A column its values alone
-    # read as ages -- `patient_number` cycling through 1 to 100 -- is held
-    # whole by `yes`, as before lane SH3, carried answers files too.
+    # in its cells, its name, or a unit answered -- AND, BY THE OWNER'S
+    # DECISION A OF BATCH 4ZZ (2026-11-23, fidelity first, replacing that
+    # ruling's holding by values alone): a column its open question reads
+    # as ages whose every value reads as an age in years
+    # (`taxonomy.every_value_an_age`) keeps that top-code under `yes` too,
+    # where it was held whole: a column named `col_007` of whole years 18
+    # to 95 lost every statistic and the relation a later column reads off
+    # it, which `years` kept. Ages past 89 are read as 90 either way; a
+    # column the people count holds keeps no top-code here (it is no
+    # top-coded block). Carried answers files too.
     ages_kept_top_coded: "dict[str, bool]" = {}
     for block in _described_columns(document):
         if (
@@ -12037,6 +13953,17 @@ def _run_profile_body(
             and ages_established[f"{block['name']}"]
         ):
             ages_kept_top_coded[f"{block['name']}"] = True
+        elif (
+            "top_coded" in block
+            and block["top_coded"] == taxonomy.TOP_CODE
+            and f"{block['name']}" not in harbor_reasons
+            and f"{block['name']}" in safe_harbor_yes
+        ):
+            for column_at in range(len(read.column_names)):
+                if read.column_names[column_at] == f"{block['name']}" and taxonomy.every_value_an_age(
+                    reading.column_values(read, column_at), f"{block['name']}" in forced_decimal_commas
+                ):
+                    ages_kept_top_coded[f"{block['name']}"] = True
     # ...and a column answered with the unit of its ages: read in it, and
     # top-coded only where a value reaches that unit's mark.
     for name, _unit in ages_counted_in:
@@ -12336,7 +14263,14 @@ def _run_profile_body(
     if chain_state is not None and chain_state.moments_left_out:
         text = text + parsing.visible_lines(chain_state.moments_left_out) + "\n"
     _at(results.STEP_OUTPUTS)
-    _make_the_twins_folder()
+    # THE ONE ROUND'S HELD DESCRIPTION WRITES NOTHING (lane Q-FLOW, step 2):
+    # no folder, file, ledger entry, inside record or private report; its
+    # questions are worked out as below and kept for the round's prompts.
+    holding = _holding_now()
+    if holding:
+        _folder_for_the_round()
+    else:
+        _make_the_twins_folder()
     profile_path, summary_path = profile.default_output_paths(
         pathlib.Path(table), out_dir
     )
@@ -12360,7 +14294,8 @@ def _run_profile_body(
 
     shown_profile_path = _shown(profile_path)
     shown_summary_path = _shown(summary_path)
-    _say(text)
+    if not holding:
+        _say(text)
     questions_path = profile.questions_output_path(
         pathlib.Path(table), out_dir
     )
@@ -12428,6 +14363,9 @@ def _run_profile_body(
     if (
         answers_path is not None
         and not questions_collides
+        # ...not where the one round handed its answers over from memory
+        # (lane Q-FLOW, step 2): they were typed, not read from a file.
+        and not _answers_held_in_memory(answers_path)
         and profile.is_the_same_file(
             questions_path,
             pathlib.Path(
@@ -12550,95 +14488,99 @@ def _run_profile_body(
     # recognizes it and still gives its own advice. Both halves are
     # needed: one says what they are holding, the other says why it
     # stopped (review item P1-R7-F1).
-    # THE LEDGER'S ENTRY IS WRITTEN FIRST, the description after it, so
-    # two runs can never both find no entry and both publish (contract
-    # 4.6b.4); behind the chain's switch alone.
-    if chain_state is not None and chain_state.entry is not None:
-        from synthtwin import installation
+    if not holding:
+        # THE LEDGER'S ENTRY IS WRITTEN FIRST, the description after it, so
+        # two runs can never both find no entry and both publish (contract
+        # 4.6b.4); behind the chain's switch alone.
+        if chain_state is not None and chain_state.entry is not None:
+            from synthtwin import installation
 
-        installation.record(chain_state.opened, chain_state.entry)
-        chain_state.recorded = True
-    state = profile.DiskState()
-    try:
-        left_behind = profile.write_both_files(
-            profile_path,
-            summary_path,
-            profile.serialize(published),
-            text,
-            state=state,
-        )
-    except BaseException:
-        if state.sentence:
-            _stopped_writing(_shown(state.sentence))
-        elif state.both_files_written:
-            if chain_state is not None:
-                chain_state.described = True
-            _wrote(
-                (results.FILE_DESCRIPTION, profile_path),
-                (results.FILE_SUMMARY, summary_path),
+            # ...what stood for this table before the run, kept once a run, so a
+            # later round of it is judged against that (lane Q-FLOW, step 1).
+            _ledger_entry_before(chain_state.opened, chain_state.entry.content)
+            installation.record(chain_state.opened, chain_state.entry)
+            chain_state.recorded = True
+        state = profile.DiskState()
+        try:
+            left_behind = profile.write_both_files(
+                profile_path,
+                summary_path,
+                profile.serialize(published),
+                text,
+                state=state,
             )
-            # The other end of the same promise. Both renames finished
-            # and then the run stopped -- a person pressing Ctrl-C in
-            # that last instant -- so there is no failure of the write to
-            # report and nothing to put back. Saying nothing would leave
-            # them believing nothing was written while two complete
-            # real-derived files sat in their folder, and would keep the
-            # earlier profile's working name to ourselves (review item
-            # P1-R8-F1). The transaction leaves no sentence in this case
-            # precisely so that these words, the ones a finished run
-            # uses, are what they read.
-            _say(
-                f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}"
-            )
-            if state.left_behind:
-                _left_behind([state.left_behind], _left_behind_note([state.left_behind]))
-        raise
-    if chain_state is not None:
-        chain_state.described = True
-    _wrote(
-        (results.FILE_DESCRIPTION, profile_path),
-        (results.FILE_SUMMARY, summary_path),
-    )
-    _described_carried(profile_path, chain_state is not None)
-    # THE INSIDE RECORD (lane IN-2, plan P4-D496): the table, still open, read
-    # into the record the twin is built from, once the description is written.
-    _inside_record_written(read, published, profile_path, rows_described)
-    # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
-    # where the patient layer stands in the description written, its
-    # patients' visits as a model, joining that record (Codex's review of
-    # batch 4w, item 14), never in the description.
-    if chain_state is not None and chain_state.grain is not None:
-        _inside_trajectories(read, published, profile_path)
-    # THE PRIVATE REPORT (lane ST, plan P4-D458), behind the chain's switch
-    # alone, once the ledger holds the run and the description is written.
-    if chain_state is not None:
-        # A list grown in place and frozen once (the quadratic-growth guard,
-        # tests/test_no_quadratic_list_growth.py), never a tuple copied.
-        places: "list[tuple[pathlib.Path, str]]" = [
-            (pathlib.Path(source), errors.INPUT_TABLE),
-            (profile_path, errors.INPUT_DESCRIPTION),
-            (summary_path, errors.INPUT_SUMMARY),
-            (questions_path, "questions file"),
-        ]
-        if answers_path is not None:
-            places += [(pathlib.Path(answers_path), "questions file you answered")]
-        # ...F10 naming each column of dates whose twin writes record
-        # numbers, read off the description written (Codex's review of batch
-        # 4q, item 3; `_dates_not_carried`).
-        _private_report(
-            chain_state, profile_path, settings.small_cell_floor, tuple(places), _dates_not_carried(published)
+        except BaseException:
+            if state.sentence:
+                _stopped_writing(_shown(state.sentence))
+            elif state.both_files_written:
+                if chain_state is not None:
+                    chain_state.described = True
+                _wrote(
+                    (results.FILE_DESCRIPTION, profile_path),
+                    (results.FILE_SUMMARY, summary_path),
+                )
+                # The other end of the same promise. Both renames finished
+                # and then the run stopped -- a person pressing Ctrl-C in
+                # that last instant -- so there is no failure of the write to
+                # report and nothing to put back. Saying nothing would leave
+                # them believing nothing was written while two complete
+                # real-derived files sat in their folder, and would keep the
+                # earlier profile's working name to ourselves (review item
+                # P1-R8-F1). The transaction leaves no sentence in this case
+                # precisely so that these words, the ones a finished run
+                # uses, are what they read.
+                _say(
+                    f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}"
+                )
+                if state.left_behind:
+                    _left_behind([state.left_behind], _left_behind_note([state.left_behind]))
+            raise
+        if chain_state is not None:
+            chain_state.described = True
+        _wrote(
+            (results.FILE_DESCRIPTION, profile_path),
+            (results.FILE_SUMMARY, summary_path),
         )
-    if left_behind:
-        # A caution, not a refusal. The profile is good, so the exit
-        # code stays 0; the reader is simply told what to delete.
-        #
-        # This goes out BEFORE the "Written:" confirmation on purpose.
-        # Both are ordinary prints and a stop can land between them; if
-        # only one of the two reaches the person, it must be the one
-        # naming a file that may hold text taken from their table, not
-        # the one confirming what already went well.
-        _left_behind(left_behind, _left_behind_note(left_behind))
-    _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
+        _described_carried(profile_path, chain_state is not None)
+        # THE INSIDE RECORD (lane IN-2, plan P4-D496): the table, still open, read
+        # into the record the twin is built from, once the description is written.
+        _inside_record_written(read, published, profile_path, rows_described)
+        # THE TRAJECTORIES ZONE OF THE INSIDE RECORD (lane IN-3, plan P4-D498):
+        # where the patient layer stands in the description written, its
+        # patients' visits as a model, joining that record (Codex's review of
+        # batch 4w, item 14), never in the description.
+        if chain_state is not None and chain_state.grain is not None:
+            _inside_trajectories(read, published, profile_path)
+        # THE PRIVATE REPORT (lane ST, plan P4-D458), behind the chain's switch
+        # alone, once the ledger holds the run and the description is written.
+        if chain_state is not None:
+            # A list grown in place and frozen once (the quadratic-growth guard,
+            # tests/test_no_quadratic_list_growth.py), never a tuple copied.
+            places: "list[tuple[pathlib.Path, str]]" = [
+                (pathlib.Path(source), errors.INPUT_TABLE),
+                (profile_path, errors.INPUT_DESCRIPTION),
+                (summary_path, errors.INPUT_SUMMARY),
+                (questions_path, "questions file"),
+            ]
+            if answers_path is not None:
+                places += [(pathlib.Path(answers_path), "questions file you answered")]
+            # ...F10 naming each column of dates whose twin writes record
+            # numbers, read off the description written (Codex's review of batch
+            # 4q, item 3; `_dates_not_carried`).
+            _private_report(
+                chain_state, profile_path, settings.small_cell_floor, tuple(places), _dates_not_carried(published)
+            )
+        if left_behind:
+            # A caution, not a refusal. The profile is good, so the exit
+            # code stays 0; the reader is simply told what to delete.
+            #
+            # This goes out BEFORE the "Written:" confirmation on purpose.
+            # Both are ordinary prints and a stop can land between them; if
+            # only one of the two reaches the person, it must be the one
+            # naming a file that may hold text taken from their table, not
+            # the one confirming what already went well.
+            _left_behind(left_behind, _left_behind_note(left_behind))
+        _say(f"\nWritten:\n  {shown_profile_path}\n  {shown_summary_path}")
     # THE QUESTIONS FILE, AFTER THE PAIR AND OUTSIDE THEIR TRANSACTION
     # (amendment A-P4-58). The description and its summary are one
     # outcome because either alone is a failure state; nothing is built
@@ -13002,6 +14944,94 @@ def _run_profile_body(
         put=_asked_at_a_prompt(),
     )
     _questions_put_in_the_result(question_records, len(read.column_names))
+    # ...and the names the subject question takes typed (lane Q-FLOW, step 1).
+    profiled = _current()
+    if profiled is not None:
+        profiled.subject_columns = tuple(read.column_names)
+    # THE QUESTIONS FILE AS A DOCUMENT, BUILT BEFORE IT IS WRITTEN (lane
+    # Q-FLOW, step 2), so the one round's held description keeps it for the
+    # round's prompts and writes nothing.
+    questions_document = asking.questions_document_of(
+        _shown(pathlib.Path(table).name),
+        # Every entry, rendered from the result's records.
+        question_records,
+        # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
+        # WHOLE (plan P4-D341). The population notice, in
+        # the description's own words, because this file
+        # travels on its own and a page naming the columns
+        # of a small table without saying it is a small
+        # table says less than the other four do. A twin's
+        # profile step adds the sentence binding its answers
+        # to its reading (lane TT's repair, `_bound_reading`).
+        _table_sentences(document) + _binding_said()
+        # ...and why a column is held whatever the answer
+        # (lane ID-ROOM4, plan P4-D489).
+        + (
+            [_made_up_held_said(spelled_held, spelled_apart, spelled_unmade)]
+            if spelled_held
+            else []
+        ),
+        # ...and EVERY ANSWER THIS RUN ACTED ON, from the file,
+        # from an earlier run's kept answers or from the
+        # command line, so that handing this file back keeps
+        # them all (plans P4-D401 and P4-D408).
+        answered=_persons_marked(asking.answered_before(
+            _answers_given(
+                read.column_names, forced_codes,
+                forced_identifiers, forced_measurements,
+                forced_decimal_commas, twelve_hours, counted,
+                centuries, centuries_kept, date_columns,
+                dates_kept, identities_kept_answered,
+                answered_missing_dates, answered_real_values,
+                kept_code_shapes, first_row,
+                metadata_answer, declared_delimiter, day_first,
+                answered_month_first, tuple(safe_harbor_no),
+                tuple(safe_harbor_yes), tuple(units_kept),
+                tuple(commas_kept), ages_counted_in,
+                tuple(safe_harbor_dates_no),
+                tuple(safe_harbor_dates_yes),
+                tuple(clock_figures),
+                # -- lane NOTES (P4-D481): only a column whose
+                # question is still its own (the kind's answer
+                # replaces it, `asking.answered_before`).
+                tuple(sentences_text),
+                people_keys_kept=people_keys_kept,
+                values_keyed=tuple(values_keyed),
+                values_kept_whole=tuple(values_kept_whole),
+            )
+        )),
+        # ...with the names those answers use (P4-D408).
+        answered_columns=list(read.column_names),
+        # ...and, behind the chain's switch alone, its one
+        # entry (lane CHa, plan P4-D418).
+        chain_pairs=_chain_pairs(chain_state),
+        # ...and the subject question, where it was put (lane
+        # GRa, plan P4-D449), its answer written back.
+        chain_subject=(
+            asking.rows_per_person_entry(
+                chain_state.rows_answer, chain_state.subject_keys
+            )
+            if chain_state is not None and chain_state.subject_put
+            else None
+        ),
+        chain_said=(
+            (chain_state.persons_said, chain_state.records_said)
+            if chain_state is not None
+            else ((), ())
+        ),
+        chain_requests=(
+            (chain_state.add, chain_state.drop)
+            if chain_state is not None
+            else ((), ())
+        ),
+        # -- lane IN-4c (P4-D514): each key block's own question,
+        # open, and every one answered, written back.
+        measurements_asked=asking.measurement_section(
+            blocks_asked, measurement_answered, settings.small_cell_floor
+        ),
+    )
+    if holding:
+        return _held_for_the_round(questions_document, published, read, question_records)
     if questions_collides:
         # Said once, before the files existed. Repeating it here would
         # be the same sentence twice with the run's outcome between
@@ -13020,85 +15050,7 @@ def _run_profile_body(
         left_questions = writing.write_one_file(
             questions_path,
             canonical.serialize(
-                asking.questions_document_of(
-                    _shown(pathlib.Path(table).name),
-                    # Every entry, rendered from the result's records.
-                    question_records,
-                    # ...AND WHAT THIS RUN SAID ABOUT THE TABLE AS A
-                    # WHOLE (plan P4-D341). The population notice, in
-                    # the description's own words, because this file
-                    # travels on its own and a page naming the columns
-                    # of a small table without saying it is a small
-                    # table says less than the other four do. A twin's
-                    # profile step adds the sentence binding its answers
-                    # to its reading (lane TT's repair, `_bound_reading`).
-                    _table_sentences(document) + _binding_said()
-                    # ...and why a column is held whatever the answer
-                    # (lane ID-ROOM4, plan P4-D489).
-                    + (
-                        [_made_up_held_said(spelled_held, spelled_apart, spelled_unmade)]
-                        if spelled_held
-                        else []
-                    ),
-                    # ...and EVERY ANSWER THIS RUN ACTED ON, from the file,
-                    # from an earlier run's kept answers or from the
-                    # command line, so that handing this file back keeps
-                    # them all (plans P4-D401 and P4-D408).
-                    answered=_persons_marked(asking.answered_before(
-                        _answers_given(
-                            read.column_names, forced_codes,
-                            forced_identifiers, forced_measurements,
-                            forced_decimal_commas, twelve_hours, counted,
-                            centuries, centuries_kept, date_columns,
-                            dates_kept, identities_kept_answered,
-                            answered_missing_dates, answered_real_values,
-                            kept_code_shapes, first_row,
-                            metadata_answer, declared_delimiter, day_first,
-                            answered_month_first, tuple(safe_harbor_no),
-                            tuple(safe_harbor_yes), tuple(units_kept),
-                            tuple(commas_kept), ages_counted_in,
-                            tuple(safe_harbor_dates_no),
-                            tuple(safe_harbor_dates_yes),
-                            tuple(clock_figures),
-                            # -- lane NOTES (P4-D481): only a column whose
-                            # question is still its own (the kind's answer
-                            # replaces it, `asking.answered_before`).
-                            tuple(sentences_text),
-                            people_keys_kept=people_keys_kept,
-                            values_keyed=tuple(values_keyed),
-                            values_kept_whole=tuple(values_kept_whole),
-                        )
-                    )),
-                    # ...with the names those answers use (P4-D408).
-                    answered_columns=list(read.column_names),
-                    # ...and, behind the chain's switch alone, its one
-                    # entry (lane CHa, plan P4-D418).
-                    chain_pairs=_chain_pairs(chain_state),
-                    # ...and the subject question, where it was put (lane
-                    # GRa, plan P4-D449), its answer written back.
-                    chain_subject=(
-                        asking.rows_per_person_entry(
-                            chain_state.rows_answer, chain_state.subject_keys
-                        )
-                        if chain_state is not None and chain_state.subject_put
-                        else None
-                    ),
-                    chain_said=(
-                        (chain_state.persons_said, chain_state.records_said)
-                        if chain_state is not None
-                        else ((), ())
-                    ),
-                    chain_requests=(
-                        (chain_state.add, chain_state.drop)
-                        if chain_state is not None
-                        else ((), ())
-                    ),
-                    # -- lane IN-4c (P4-D514): each key block's own question,
-                    # open, and every one answered, written back.
-                    measurements_asked=asking.measurement_section(
-                        blocks_asked, measurement_answered, settings.small_cell_floor
-                    ),
-                )
+                questions_document
             ),
             sources=guarded_questions,
             state=questions_state,
@@ -13246,10 +15198,45 @@ def _twin_stem(name: str) -> str:
     return name
 
 
+def _native_twin_bytes(loaded: "typing.Any", twin: "typing.Any") -> "bytes | None":
+    """The twin's bytes as a file of its table's system, or None after a refusal said why (lane FORMATS).
+
+    The twin's columns are read as text a block at a time
+    (`generation.twin_column_blocks`) and handed to `nativewriting`, which
+    stores each cell in its source's storage; a column it had to store
+    wider -- a whole number past its type's range, a text past its fixed
+    width -- is named on the screen, a caution and not a refusal.
+    """
+    from synthtwin import generation, nativewriting
+
+    form = loaded.source.native
+    if form is None:
+        return None
+    columns: "list[list[str]]" = []
+    for place in range(generation.twin_width(twin)):
+        cells: "list[str]" = []
+        for block in generation.twin_column_blocks(twin, place):
+            cells = cells + list(block)
+        columns += [cells]
+    try:
+        written = nativewriting.twin_file(form, tuple(twin.names), columns, twin.n_rows)
+    except nativewriting.NativeWriteError as refused:
+        _warn(_shown(f"{refused}"))
+        return None
+    for name, before, after in written.widened:
+        _warn(
+            f"The twin's column {_shown(name)} is stored as {after} where the table stored it as {before}: "
+            f"the twin holds values {before} cannot hold, and none of them was cut to fit.",
+            caution=results.CAUTION_MADE_UP_COLUMNS,
+        )
+    return written.data
+
+
 def _twin_paths(
     description: pathlib.Path,
     out_dir: "str | None",
     packaged: bool = False,
+    system: str = "",
 ) -> "tuple[pathlib.Path, pathlib.Path]":
     """Where the twin and its report go (plan P2-D10).
 
@@ -13282,6 +15269,11 @@ def _twin_paths(
                 errors.output_folder_missing(f"{folder}", errors.TWIN_WORDS)
             )
     ending = _WORKBOOK_TWIN_SUFFIX if packaged else _TWIN_SUFFIX
+    # A FILE FROM ANOTHER SYSTEM'S TWIN IS A FILE OF THAT SYSTEM (lane
+    # FORMATS): `.parquet`, `.dta`, `.sav`, or `.xpt` for a SAS file of
+    # either kind (`native.twin_format`).
+    if system:
+        ending = native.TWIN_SUFFIXES[system]
     twin_target = validate_local_path(
         f"{folder / (stem + ending)}", purpose="output file"
     )
@@ -13355,7 +15347,162 @@ def _twin_drawn(description: str, loaded: "typing.Any", record: "dict[str, objec
                                                           written=dates_written)
             except (ArithmeticError, IndexError, KeyError, TypeError, ValueError):
                 pass
+    # THE TIES OF THE DATES ZONE, LAST (lane STATS-B): each chained gap dealt again within its cells by the other
+    # columns of its row as the twin now holds them, after every zone that writes or moves them.
+    if record is not None:
+        twin = _gaps_tied_again(twin, loaded, record, seed)
+        if _identities_switched_on():
+            twin = _identities_held(twin, loaded, record)
     return twin, drawn_inside
+
+
+# THE IDENTITIES' OWN SUB-SWITCH (lane STATS-B): the record holds the identities between record-number and code
+# columns whatever it is (a model, never data), and the twin is drawn with them only where it is on. OFF on the
+# shipped route until the owner rules: held, the battery's accounts twin writes each `Self` account's subscriber as its
+# (made-up) patient, as the real table does (K-RU-01's account script 0 to 9 of 9 runs), and the subscriber column
+# then holds the patient keys' made-up form, wider than its own, so validate misses its published lengths, its one
+# shape and its count of different values (exit 3 on that table, every other obligation held). Set on in place, the
+# twin holds them; the product reads no environment.
+_IDENTITIES_SHIPPED = False
+
+
+def _identities_switched_on() -> bool:
+    """Whether the twin is drawn with the record's identities (`_identities_held`): its own sub-switch alone (read in place)."""
+    return _IDENTITIES_SHIPPED
+
+
+def _identities_held(twin: "typing.Any", loaded: "typing.Any", record: "dict[str, object]") -> "typing.Any":
+    """The twin with each identity of the record held (`inside_relations.identities_held`, lane STATS-B): a
+    record-number column written as the other one's twin cell, a made-up number, on the rows the rule names.
+
+    A record without identities, a twin held as a workbook or a rule that
+    cannot be read leaves the twin as it stands; each changed column's counts
+    are taken again from its cells. Deterministic: a fixed function of the
+    twin and the record. Raises nothing of its own.
+    """
+    from synthtwin import generation, inside_relations, twinstore
+
+    zones = record["zones"] if "zones" in record else None
+    found = zones[inside_relations.IDENTITIES] if isinstance(zones, dict) and inside_relations.IDENTITIES in zones else None
+    if twin.held_columns is None or not isinstance(found, dict) or "rules" not in found:
+        return twin
+    names = list(twin.names)
+    place_of: "dict[str, int]" = {}
+    for at in range(len(names)):
+        place_of[names[at]] = at
+    wanted: "list[str]" = []
+    for rule in found["rules"] if isinstance(found["rules"], list) else []:
+        if isinstance(rule, dict):
+            for key in ("column", "equals", "by"):
+                if key in rule and isinstance(rule[key], str) and rule[key] in place_of and rule[key] not in wanted:
+                    wanted += [rule[key]]
+    cells: "dict[str, list[str]]" = {}
+    for name in wanted:
+        cells[name] = twinstore.column_cells(twin.held_columns[place_of[name]])
+    try:
+        changed = inside_relations.identities_held(found["rules"], cells)
+    except (inside_relations.RelationsError, ArithmeticError, IndexError, KeyError, TypeError, ValueError):
+        return twin
+    cells = {}
+    if not changed:
+        return twin
+    every_hole = generation.every_hole_spelling(loaded)
+    blocks: "dict[str, typing.Any]" = {}
+    for column in loaded.columns:
+        blocks[f"{column.name}"] = column
+    held = list(twin.held_columns)
+    outcomes = list(twin.outcomes)
+    for name in changed:
+        at = place_of[name]
+        written = changed[name]
+        held[at] = twinstore.held_column(written)
+        if name in blocks and at < len(outcomes):
+            counted = generation.recounted(
+                written, tuple(generation.holes_reserved(blocks[name], every_hole)),
+                generation.declared_a_decimal_comma(blocks[name], loaded),
+            )
+            outcomes[at] = dataclasses.replace(outcomes[at], n_present=counted[0], n_missing=counted[1],
+                                               n_distinct=counted[2], n_distinct_folded=counted[3])
+    return dataclasses.replace(twin, held_columns=tuple(held), outcomes=tuple(outcomes))
+
+
+def _gaps_tied_again(twin: "typing.Any", loaded: "typing.Any", record: "dict[str, object]", seed: int) -> "typing.Any":
+    """The twin with each tied chain's gaps dealt again by the dates zone's ties (`inside_dates.tied_again`, lane STATS-B).
+
+    Only the date columns a tie moves are written again, each with its counts
+    taken again from its cells, as the trajectories zone does; a record without
+    a tie, a twin held as a workbook, or a tie that cannot be read leaves the
+    twin as it stands. Deterministic: a fixed function of the twin, the record
+    and the seed. Raises nothing of its own.
+    """
+    from synthtwin import generation, inside_dates, twinstore
+
+    zones = record["zones"] if "zones" in record else None
+    dates_zone = zones["dates"] if isinstance(zones, dict) and "dates" in zones else None
+    if twin.held_columns is None or not inside_dates.tied(dates_zone):
+        return twin
+    zone = typing.cast("dict[str, object]", dates_zone)
+    names = list(twin.names)
+    place_of: "dict[str, int]" = {}
+    for at in range(len(names)):
+        place_of[names[at]] = at
+    wanted = inside_dates.tie_dates(zone) + inside_dates.tie_columns(zone)
+    # ...and the zone's person column, so a dependent each person holds one value of is never dealt row by row.
+    if "person" in zone and isinstance(zone["person"], str) and zone["person"]:
+        wanted += [zone["person"]]
+    cells: "dict[str, list[str]]" = {}
+    for name in wanted:
+        if name in place_of and name not in cells:
+            cells[name] = twinstore.column_cells(twin.held_columns[place_of[name]])
+    # A column another zone writes by its own rule (a keyed table's values and their copies, a trajectory's repeated
+    # numbers and outcomes) is never dealt as a gap's dependent.
+    exclude: "set[str]" = set()
+    if isinstance(zones, dict):
+        from synthtwin import inside_keyed, inside_trajectories
+
+        try:
+            if "keyed" in zones:
+                keyed_zone = inside_keyed.zone_of_record(record)
+                if keyed_zone is not None:
+                    exclude |= set(inside_keyed.written_columns(keyed_zone)) | {str(keyed_zone["key"])}
+            trajectories = (inside_trajectories.checked_zone(zones[inside_trajectories.ZONE])
+                            if inside_trajectories.ZONE in zones else None)
+            if trajectories is not None:
+                for entry in (list(typing.cast("list[object]", trajectories["numbers"]))
+                              + list(typing.cast("list[object]", trajectories["binaries"]))):
+                    if isinstance(entry, dict) and isinstance(entry["column"], str):
+                        exclude |= {entry["column"]}
+                # ...and a person's fixed fields, which the zone writes once a person.
+                for fixed in typing.cast("list[object]", trajectories["fixed"]):
+                    if isinstance(fixed, str):
+                        exclude |= {fixed}
+        except (inside_keyed.KeyedError, ArithmeticError, IndexError, KeyError, TypeError, ValueError):
+            exclude |= set(place_of)
+    try:
+        moved = inside_dates.tied_again(zone, cells, int(twin.n_rows), seed, exclude)
+    except (inside_dates.DatesError, ArithmeticError, IndexError, KeyError, TypeError, ValueError):
+        return twin
+    cells = {}
+    if not moved:
+        return twin
+    every_hole = generation.every_hole_spelling(loaded)
+    blocks: "dict[str, typing.Any]" = {}
+    for column in loaded.columns:
+        blocks[f"{column.name}"] = column
+    held = list(twin.held_columns)
+    outcomes = list(twin.outcomes)
+    for name in moved:
+        at = place_of[name]
+        written = moved[name]
+        held[at] = twinstore.held_column(written)
+        if name in blocks and at < len(outcomes):
+            counted = generation.recounted(
+                written, tuple(generation.holes_reserved(blocks[name], every_hole)),
+                generation.declared_a_decimal_comma(blocks[name], loaded),
+            )
+            outcomes[at] = dataclasses.replace(outcomes[at], n_present=counted[0], n_missing=counted[1],
+                                                n_distinct=counted[2], n_distinct_folded=counted[3])
+    return dataclasses.replace(twin, held_columns=tuple(held), outcomes=tuple(outcomes))
 
 
 def _linked_twin(twin: "typing.Any", loaded: "typing.Any", record: "dict[str, object] | None", named: str,
@@ -13548,8 +15695,11 @@ def _run_generate(
     # it is written by all follow from `source.workbook` rather than
     # from anything this run reads.
     packaged = loaded.source.workbook is not None
+    # ...AND A FILE FROM ANOTHER SYSTEM'S TWIN IS A FILE OF THAT SYSTEM (lane
+    # FORMATS), written from the twin's text by `nativewriting`.
+    system = loaded.source.native.system if loaded.source.native is not None else ""
     twin_path, report_path = _twin_paths(
-        pathlib.Path(description), out_dir, packaged
+        pathlib.Path(description), out_dir, packaged, system
     )
     writing.refuse_if_folder(twin_path, errors.TWIN_WORDS)
     writing.refuse_if_folder(report_path, errors.TWIN_WORDS)
@@ -13610,6 +15760,9 @@ def _run_generate(
         if session is not None and session.linked_to and not packaged:
             twin, link_said = _linked_twin(twin, loaded, record, session.linked_to, seed, least_floor, chain,
                                            description)
+            # ...and the identities held again over the persons the link wrote (lane STATS-B).
+            if record is not None and _identities_switched_on():
+                twin = _identities_held(twin, loaded, record)
         elif session is not None and session.linked_to:
             _warn(f"The twin is not linked to the twin of {_shown(session.linked_to)}: a workbook's twin is built "
                   f"from its description alone.", caution=results.CAUTION_CHAIN)
@@ -13641,8 +15794,16 @@ def _run_generate(
     twin_codec = dialect.WRITING_CODECS[loaded.source.encoding]
     twin_members: "list[tuple[str, int, typing.Iterable[str]]] | None" = None
     twin_stream: "typing.Iterable[str] | None" = None
+    twin_data: "bytes | None" = None
     if packaged:
         twin_members = sheetwriting.workbook_stream(loaded, twin)
+    elif loaded.source.native is not None:
+        # EVERY CELL IS READ BACK INTO ITS SOURCE'S STORAGE BEFORE ANYTHING
+        # IS SHOWN OR WRITTEN (lane FORMATS): a cell no storage of its column
+        # holds stops the run here, with nothing on disk.
+        twin_data = _native_twin_bytes(loaded, twin)
+        if twin_data is None:
+            return results.REFUSED
     else:
         # EVERY PIECE IS ASKED BEFORE ANYTHING IS SHOWN OR WRITTEN, and
         # then made again for the write (plan P4-D415). Each of the
@@ -13708,6 +15869,7 @@ def _run_generate(
             words=errors.TWIN_WORDS,
             first_encoding=twin_codec,
             first_newline="",
+            first_data=twin_data,
             first_members=twin_members,
             first_stream=twin_stream,
         )
@@ -13857,7 +16019,7 @@ def _quality_path(
 
 
 def _measured_path(
-    description: str, twin_given: "str | None", packaged: bool = False
+    description: str, twin_given: "str | None", packaged: bool = False, system: str = ""
 ) -> str:
     """Which file this run measures: the one named, or the twin beside it.
 
@@ -13870,7 +16032,7 @@ def _measured_path(
     if twin_given is not None:
         return twin_given
     twin_path, _report_path = _twin_paths(
-        pathlib.Path(description), None, packaged
+        pathlib.Path(description), None, packaged, system
     )
     return f"{twin_path}"
 
@@ -13973,7 +16135,8 @@ def _run_validate(
         return results.REFUSED
     _at(results.STEP_OUTPUTS)
     measured = _measured_path(
-        description, twin_given, loaded.source.workbook is not None
+        description, twin_given, loaded.source.workbook is not None,
+        loaded.source.native.system if loaded.source.native is not None else "",
     )
     quality_path = _quality_path(pathlib.Path(description), measured, out_dir)
     writing.refuse_if_folder(quality_path, errors.QUALITY_WORDS)
@@ -14888,7 +17051,7 @@ def _twin_outputs(table: str, folder: pathlib.Path) -> "list[pathlib.Path]":
     profile_path, summary_path = profile.default_output_paths(source, f"{folder}")
     questions_path = profile.questions_output_path(source, f"{folder}")
     packaged = reading.opens_as_a_workbook(table)
-    twin_path, report_path = _twin_paths(profile_path, None, packaged)
+    twin_path, report_path = _twin_paths(profile_path, None, packaged, reading.native_system_of(table))
     quality_path = _quality_path(profile_path, f"{twin_path}", None)
     for target, words in (
         (twin_path, errors.TWIN_WORDS),

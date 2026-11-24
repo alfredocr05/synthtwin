@@ -5241,3 +5241,160 @@ def test_codex_s_leak_through_a_renamed_reader_goes_red():
         '    return len(words) + len(piece.tolist())\n'
     )
     assert _SCANNER.scan_source(renamed, module_name="synthtwin.arrays", zone="D") == []
+
+
+# -- lane FORMATS: the readers of files from other systems -------------------
+#
+# pyarrow.parquet.read_table and pyreadstat's four reads, in
+# synthtwin.nativereading alone, zone R: the clean specimen is the shape the
+# module writes, and each mutant is one bypass class the admission must
+# refuse -- a thread pool, a second path, pandas frames, a writer, a process
+# pool, a name outside the surfaces, another module, another zone.
+
+_NATIVE_READER = textwrap.dedent(
+    """
+    import pyarrow.parquet
+    import pyreadstat
+
+    from synthtwin.paths import validate_local_path
+
+
+    def read_parquet(raw_path):
+        validated = validate_local_path(raw_path, purpose="input")
+        table = pyarrow.parquet.read_table(validated, use_threads=False)
+        rows = int(table.num_rows)
+        width = int(table.num_columns)
+        column = table.column(0)
+        values = []
+        kept = []
+        for piece in range(int(column.num_chunks)):
+            piece_array = column.chunk(piece)
+            values += piece_array.to_pylist()
+            kept = piece_array.dictionary.to_pylist()
+        return rows, width, values, kept
+
+
+    def read_stata(raw_path):
+        validated = validate_local_path(raw_path, purpose="input")
+        try:
+            found = pyreadstat.read_dta(
+                validated, output_format="dict", disable_datetime_conversion=True, user_missing=True
+            )
+        except pyreadstat.ReadstatError:
+            return None
+        data = found[0]
+        meta = found[1]
+        names = meta.column_names.copy()
+        return names, data["age"].copy(), meta.table_name
+    """
+)
+
+
+def test_the_native_readers_in_their_one_form_scan_clean(tmp_path):
+    """The two admissions, as synthtwin.nativereading writes them."""
+    violations = _scan_in(tmp_path, "nativereading", _NATIVE_READER)
+    assert violations == [], violations
+
+
+def test_each_native_reader_setting_outside_its_form_goes_red(tmp_path):
+    """Bypass class: a thread pool, a second path, pandas frames, dates pandas made, hidden settings."""
+    for old, new, needle in (
+        ("use_threads=False", "use_threads=True", "use_threads=False written as the literal False"),
+        ("use_threads=False", "use_threads=False, filesystem=None", "'filesystem'"),
+        ("validated, use_threads=False", "validated, None, use_threads=False", "the one positional argument"),
+        ('output_format="dict", ', "", "output_format='dict'"),
+        ('output_format="dict"', 'output_format="pandas"', "output_format='dict'"),
+        ("disable_datetime_conversion=True", "disable_datetime_conversion=False", "disable_datetime_conversion=True"),
+        ("user_missing=True", "user_missing=MISSING", "literal True or False"),
+        ("user_missing=True", "user_missing=True, catalog_file=validated", "'catalog_file'"),
+        ("user_missing=True", "user_missing=True, encoding='latin1'", "'encoding'"),
+    ):
+        mutated = _NATIVE_READER.replace(old, new)
+        assert mutated != _NATIVE_READER, old
+        violations = _scan_in(tmp_path / str(abs(hash(old + new))), "nativereading", mutated)
+        _assert_red(violations, needle)
+
+
+def test_every_other_name_of_the_native_readers_goes_red(tmp_path):
+    """Bypass class: a writer, a process pool, a chunked reader, a name off a surface."""
+    for old, new, needle in (
+        ("pyreadstat.read_dta(", "pyreadstat.read_file_multiprocessing(", "pyreadstat.read_file_multiprocessing"),
+        ("pyreadstat.read_dta(", "pyreadstat.write_dta(", "pyreadstat.write_dta"),
+        ("pyreadstat.read_dta(", "pyreadstat.read_file_in_chunks(", "pyreadstat.read_file_in_chunks"),
+        ("meta.column_names.copy()", "meta.notes.copy()", "what pyreadstat.read_dta returned"),
+        ('data["age"].copy()', 'data["age"].to_numpy()', "what pyreadstat.read_dta returned"),
+        ("table.column(0)", "table.to_pandas()", "the table pyarrow.parquet.read_table returned"),
+        ("int(table.num_rows)", "len(table.schema)", "the table pyarrow.parquet.read_table returned"),
+        (".dictionary.to_pylist()", ".buffers()", "a piece of a column of the table pyarrow.parquet.read_table returned"),
+        ("pyarrow.parquet.read_table(", "pyarrow.parquet.ParquetFile(", "pyarrow.parquet.ParquetFile"),
+    ):
+        mutated = _NATIVE_READER.replace(old, new)
+        assert mutated != _NATIVE_READER, old
+        violations = _scan_in(tmp_path / str(abs(hash(old + new))), "nativereading", mutated)
+        _assert_red(violations, needle)
+
+
+def test_the_native_readers_on_an_unvalidated_path_go_red(tmp_path):
+    """Bypass class: either reader handed a path validate_local_path never saw."""
+    mutated = _NATIVE_READER.replace(
+        'validated = validate_local_path(raw_path, purpose="input")', "validated = raw_path"
+    )
+    violations = _scan_in(tmp_path, "nativereading", mutated)
+    _assert_red(violations, "validate_local_path")
+
+
+def test_the_native_readers_in_another_module_go_red(tmp_path):
+    """Bypass class: the admission is scoped to synthtwin.nativereading, zone R; anywhere else it is refused."""
+    violations = _scan_in(tmp_path, "reading", _NATIVE_READER)
+    _assert_red(violations, "reading a SAS, Stata or SPSS file (lane FORMATS)")
+    _assert_red(violations, "reading a Parquet file's values (lane FORMATS)")
+    violations = _scan_in(tmp_path / "writer", "nativewriting", _NATIVE_READER)
+    _assert_red(violations, "pyreadstat")
+
+
+def test_each_native_admission_is_what_lets_the_reader_scan_clean(tmp_path, monkeypatch):
+    """THE MUTATION CASE OF EACH ADMISSION (plan P4-D409 part 7): without it, the clean specimen goes red."""
+    for table_name, key in (
+        ("_MODULE_SCOPED_ADMISSIONS", "pyreadstat"),
+        ("_MODULE_SCOPED_ADMISSIONS", "pyarrow.parquet"),
+        ("_LIBRARY_ZONES", "pyreadstat"),
+        ("_LIBRARY_ZONES", "pyarrow.parquet"),
+    ):
+        table = dict(getattr(_SCANNER, table_name))
+        table[key] = frozenset({"synthtwin.reading"}) if table_name == "_MODULE_SCOPED_ADMISSIONS" else frozenset(
+            {"G"}
+        )
+        with monkeypatch.context() as patched:
+            patched.setattr(_SCANNER, table_name, table)
+            violations = _scan_in(tmp_path / (table_name + key), "nativereading", _NATIVE_READER)
+        assert violations, (table_name, key)
+    for key in ("read_dta", "read_table"):
+        attributes = dict(_SCANNER._ALLOWED_MODULE_ATTRS)
+        library = "pyreadstat" if key == "read_dta" else "pyarrow.parquet"
+        attributes[library] = attributes[library] - {key}
+        with monkeypatch.context() as patched:
+            patched.setattr(_SCANNER, "_ALLOWED_MODULE_ATTRS", attributes)
+            violations = _scan_in(tmp_path / ("names" + key), "nativereading", _NATIVE_READER)
+        _assert_red(violations, key)
+    surfaces = dict(_SCANNER._RESTRICTED_SURFACES)
+    surfaces.pop("pyreadstat.read_dta")
+    with monkeypatch.context() as patched:
+        patched.setattr(_SCANNER, "_RESTRICTED_SURFACES", surfaces)
+        violations = _scan_in(tmp_path / "surfaces", "nativereading", _NATIVE_READER)
+    _assert_red(violations, "copy")
+
+
+def test_the_native_writer_may_import_no_library(tmp_path):
+    """Zone W writes with the standard library: pyarrow's Parquet writer in synthtwin.nativewriting goes red."""
+    violations = _scan_in(
+        tmp_path,
+        "nativewriting",
+        """
+        import pyarrow.parquet
+
+
+        def write(table, path):
+            pyarrow.parquet.write_table(table, path)
+        """,
+    )
+    _assert_red(violations, "pyarrow.parquet")

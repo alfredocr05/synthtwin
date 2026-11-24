@@ -2204,9 +2204,47 @@ def _numbers_dealt(wants: "list[_Want]", have: "list[str]", rank: "dict[int, int
         want = by_row[ranked[at]]
         place, cell = numbers[at]
         if want.written:
-            cell = _in_form(cell, _plain_value(want.drawn, _plain_share(want.drawn, want.share)), want.cap)
+            cell = _carried(cell, _plain_value(want.drawn, _plain_share(want.drawn, want.share)), want.cap, want.drawn)
         out[want.row] = cell
     return out
+
+
+def _carried(cell: str, value: float, cap: int, drawn: _Drawn) -> str:
+    """`value` in `cell`'s own written form (`_in_form`), or in its level's own commonest form where the cell's form
+    cannot carry it (lane STATS-B).
+
+    A cell of a pooled stand-in written in whole numbers dealt to a level of
+    thousandths wrote every value of the level as `0` (187 troponin cells of
+    the battery's laboratory twin, whose real cells are `.012` and the like):
+    where the form writes a value other than nought as nought, or more than
+    half of it away, or with a number of decimals the level never writes (a
+    whole number on a level written to one place, 119 C-reactive protein
+    cells; a glucose's two units' forms crossed, 191), the value is written
+    with its level's commonest decimals (`drawn.decimals`) and, where most of
+    the level's cells write a point with no figure before it (`drawn.dotted`),
+    so; never past `cap`. Raises nothing.
+    """
+    written = _in_form(cell, value, cap)
+    shown = plain_number(written)
+    own_places = [places for places, count in drawn.decimals if count > 0]
+    foreign = bool(own_places) and shown is not None and decimals_of(f"{written}".strip().lstrip("+-")) not in own_places
+    if shown is None or ((value == 0.0 or (shown != 0.0 and abs(shown - value) <= 0.5 * abs(value))) and not foreign):
+        return written
+    if cap and value > cap:
+        value = float(cap)
+    places = 0
+    best = -1
+    for count_places, count in drawn.decimals:
+        if count > best:
+            best, places = count, count_places
+    own = _written(value, places)
+    if plain_number(own) in (None, 0.0):
+        return written
+    if drawn.dotted * 2 > max(1, drawn.plain) and own[:2] == "0.":
+        own = own[1:]
+    elif drawn.dotted * 2 > max(1, drawn.plain) and own[:3] == "-0.":
+        own = "-" + own[2:]
+    return own
 
 
 def _flags_dealt(zone: "dict[str, object]", cells: "dict[str, list[str]]", out: "dict[str, list[str]]",
@@ -2333,17 +2371,18 @@ def _copies_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", ou
     whole column's or its row's key level's), its sentinel elsewhere; a row whose two cells are both empty stays
     so. A copy whose source a level holds as identifiers is not written (its made-up cells would land in a published
     column), nor one any of whose own key blocks the description holds (batch 4y's fix round), nor one whose
-    sentinel the description's twin does not write, nor one whose source a level writes under a top code while the
-    copy carries no top code of its own for the whole column (lane IN-4c: its capped cells would land in a column
-    published uncapped, whose own facts the copy would then break -- a laboratory value a key block top-codes as a
-    possible age, copied into its numeric copy)."""
+    sentinel the description's twin does not write. A copy whose source a level writes under a top code IS written
+    by its rule (lane STATS-B, reversing lane IN-4c's hold): its cells on that level's rows are the source's, so
+    never past the source's top code, and a copy is never more than its source shows. Held back, the copy was the
+    description's twin's own column, its sentinel on about one row in twelve of every test and its numbers no
+    test's, so an analysis reading the copy (a potassium mean, the sentinel filtered out) read 25,927 against the
+    real 4.1; written, the copy's own facts the cap moves (its numbers above 90 on the capped levels' rows) are the
+    price."""
     for rule_entry in _list(zone["copies"]):
         rule = _object(rule_entry)
         origin = _text(rule["from"])
         copy_name = _text(rule["column"])
         if held_anywhere(zone, origin) or ("held" in rule and rule["held"] is True):
-            continue
-        if capped_anywhere(zone, origin) and not (int(rule["cap"]) if "cap" in rule else 0):
             continue
         source = _current(out, cells, origin)
         current = _current(out, cells, copy_name)
