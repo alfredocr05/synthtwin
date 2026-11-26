@@ -3144,7 +3144,12 @@ def run_table(
     in it, the record is written as on a person's computer, the twin is
     drawn from it, and ``inside_record`` says whether it was: the SHIPPED
     route, which the KPI drivers measure (lane ZOO-X measured that the
-    zoo's twins had all been the description's alone).
+    zoo's twins had all been the description's alone). A RECORD WRITTEN IS
+    NO TWIN DRAWN (lane LEDGER; Codex's review of batch 4z, item 15): the
+    first describe writes the record, so a walk whose answered round or
+    generate then failed was counted drawn from it; it is counted only
+    where generate succeeded and the twin's own report opens with the
+    head a drawn twin's report opens with.
     """
     import kpi_rules
 
@@ -3153,10 +3158,16 @@ def run_table(
     with kpi_rules.own_data_folder(private_beside):
         result = _walk_table(table, folder, n, seed, small_tables_refused)
         if private_beside is not None:
-            from synthtwin import inside
+            from synthtwin import cli, inside
 
             private = inside.default_places().private
-            result["inside_record"] = bool(private.exists() and any(private.glob(f"*{inside.SUFFIX}")))
+            written = bool(private.exists() and any(private.glob(f"*{inside.SUFFIX}")))
+            steps = result["steps"] if isinstance(result.get("steps"), dict) else {}
+            generated = isinstance(steps.get("generate"), dict) and steps["generate"].get("exit") == 0
+            report = folder / f"{table.name}-twin-report.txt"
+            head = cli._INSIDE_REPORT_HEAD
+            opening = report.read_text(encoding="utf-8", errors="replace")[: len(head)] if generated and report.is_file() else ""
+            result["inside_record"] = written and opening == head
         return result
 
 

@@ -507,8 +507,10 @@ def _bounds_lines(chain: "validation.ChainLines | None" = None) -> "list[str]":
     UNDER THE CHAIN'S SWITCH (lane CHv, plan P4-D430; skeptic 1's item 7)
     paragraph 1 says what WAS checked between columns and what was not,
     because a report carrying a between-columns section cannot also say
-    that nothing of the kind is carried. Without the chain's lines the
-    paragraph is the one above, byte for byte.
+    that nothing of the kind is carried. Either way paragraph 1 ends by
+    saying that the inside record's relations are checked nowhere here
+    and what a drawn date's made-up day excuses (`_inside_scope_lines`,
+    lane DOCS).
     """
     first = _no_structure_lines() if chain is None else _chain_scope_lines(chain)
     return [
@@ -516,13 +518,14 @@ def _bounds_lines(chain: "validation.ChainLines | None" = None) -> "list[str]":
         "WHAT THIS REPORT DOES NOT SAY",
         _RULE,
         "",
-    ] + first + [
+    ] + first + _inside_scope_lines() + [
         "",
-        "2. ROWS ARE TREATED AS INDEPENDENT, and this description",
-        "   never says what one row of the real table is. Nothing here",
-        "   checks anything about groups of rows -- rows per person, per",
-        "   visit, per site -- because the description carries no such",
-        "   fact.",
+        "2. GROUPS OF ROWS ARE CHECKED ONLY AS FAR AS THIS DESCRIPTION",
+        "   PUBLISHES THEM. Where it names the person each row is about,",
+        "   what it publishes about each person's rows is checked above;",
+        "   nothing else about groups of rows -- per visit, per site, one",
+        "   person's course over their visits -- is checked here, because",
+        "   the description carries no such fact.",
         "",
         "3. NUMBERS COMPUTED ON THE TWIN ARE NOT RESEARCH RESULTS. Develop",
         "   your analysis against a twin, then run the finished analysis on",
@@ -543,18 +546,29 @@ def _bounds_lines(chain: "validation.ChainLines | None" = None) -> "list[str]":
 def _no_structure_lines() -> "list[str]":
     """Paragraph 1 of what the report does not say, on every report without the chain's lines."""
     return [
-        "1. NO CROSS-COLUMN STRUCTURE WAS VALIDATED, because none is",
-        "   carried. This version of synthtwin describes and builds every",
-        "   column on its own and carries",
-        "   no cross-column structure at all: no fact about how two",
-        "   columns move together, so there is nothing of the kind for a",
-        "   check to measure -- not a correlation, not a formula tying one",
-        "   column to another, not a shared pattern of which cells are",
-        "   empty, not an ordering between two event columns. A file that",
-        "   passes every check in this report can still behave nothing",
-        "   like your table under any analysis that uses two columns at",
-        "   once.",
-        "   Cross-column structure arrives in a later version of synthtwin.",
+        "1. NOTHING BETWEEN COLUMNS WAS CHECKED. This description",
+        "   publishes nothing between columns, so a twin built from the",
+        "   description alone carries no relation between two columns and",
+        "   there is nothing of the kind for a check here to measure --",
+        "   not a correlation, not a formula tying one column to another,",
+        "   not a shared pattern of which cells are empty, not an ordering",
+        "   between two event columns. A file that passes every check in",
+        "   this report can still behave nothing like your table under any",
+        "   analysis that uses two columns at once.",
+    ]
+
+
+def _inside_scope_lines() -> "list[str]":
+    """What paragraph 1 says of the inside record on every report (lane DOCS): its relations are checked nowhere here."""
+    return [
+        "   The relations between columns a twin drawn from the inside",
+        "   record carries are fitted on the computer that holds your",
+        "   table and published nowhere, so no line here checks them:",
+        "   check on your table any effect the twin shows. A date column",
+        "   the inside record drew keeps the real month, weekday and time",
+        "   of day, with the day of the month made up, so only what that",
+        "   made-up day moves is excused for it: its counts at the grain",
+        "   of a day.",
     ]
 
 
@@ -999,7 +1013,7 @@ def _chain_level(level: int) -> str:
 
 
 def _chain_verdict(verdict: str) -> str:
-    """A chain line's verdict in the report's words: HELD, MISSED, WITHHELD, or NOT CHECKABLE."""
+    """A chain line's verdict in the report's words: HELD, MISSED, WITHHELD, NOT CHECKABLE, or AUTHORIZED-DEVIATION (a drawn twin's family line inside its sampling window)."""
     return verdict if verdict else "NOT CHECKABLE"
 
 
@@ -1264,11 +1278,11 @@ def _expectations_lines(chain: "validation.ChainLines | None" = None) -> "list[s
         "  * any target about how rows group -- per person, per visit, per",
         "    site.",
         "",
-        "Both of those need cross-column structure that this version of",
-        "synthtwin deliberately does not carry: the description publishes",
-        "none, so there is nothing for a check to measure against. Carrying",
-        "them is later work with its own plan and its own change to what a",
-        "description publishes. Nothing here promises when.",
+        "This description publishes neither, so there is nothing for a",
+        "check to measure against. What a twin drawn from the inside",
+        "record carries of them is fitted on the computer that holds your",
+        "table and published nowhere: the place to check an analysis that",
+        "uses them is your table.",
     ]
 
 
@@ -1531,7 +1545,8 @@ def _handling_lines(
         "WHAT SYNTHTWIN SAYS ABOUT THE ROWS OF A TWIN, unchanged by any",
         "verdict here. Building a twin reads no table: it",
         "samples or copies no row of yours, and every cell is worked out",
-        "from the description and the seed. That says where the values came",
+        "from the description, the inside record where one stands beside",
+        "it, and the seed. That says where the values came",
         "from. It does NOT say that no row of a twin can equal a row of",
         "your table -- holding a published count exactly can",
         "force a twin row to match a real one, with nothing copied, and",

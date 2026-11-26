@@ -544,13 +544,17 @@ _BASE_CODE_DIGESTS = (
 # lists: this table draws no family): its one moved value, measured at
 # batch 4u's checks (the other seven files byte for byte the public head
 # 218eb506's, no value of the table in the section).
+# RELEASE 36 (lane DOCS, plan P4-D541): the summary, the quality report and the twin's report re-recorded -- their
+# sentences of what the twin carries between columns and of the smallest table moved (47, 53 and 51 lines, wording
+# alone, diffed against the public head's files: no verdict, count or value line moved); the five other files are
+# the public head's byte for byte (a5a7b7f7..., 691689f0... and 45031e95... before).
 _BASE_ZOO_DIGESTS: "dict[str, str]" = {
     "instrument_magnitudes-profile-unanswered.json": "863aed59954ecf79562e58f5d1d26acbb7a6bd9acd0dc9b72116f36e9f71a4ef",
     "instrument_magnitudes-profile.json": "ddbd93a698ea68a52b0531d3c6e542f16e76134e2be5c83abdefd1c8f9df7bc7",
-    "instrument_magnitudes-profile.txt": "a5a7b7f7af7a7f21d3b8d8539837e7266a2ff77438aaef7fec6dfa13c0a90be3",
+    "instrument_magnitudes-profile.txt": "2acc80c64f3aeeb0345e27b27963829ec4fd6caca8d125132a280e3685586ba3",
     "instrument_magnitudes-questions.json": "f740e0f1f220219e7125d91750c3b4f431931c3730232e57030809615146e423",
-    "instrument_magnitudes-twin-quality.txt": "691689f07c8b7d6f36d3fd31daef417947679bd3993e0f5a02227401a591913b",
-    "instrument_magnitudes-twin-report.txt": "45031e95f5befbc51856c35e470047bece8eddaca8c8dfb936ac1b21d66a57b4",
+    "instrument_magnitudes-twin-quality.txt": "bd8d0fb602900dcc1a9a9c2946dc8c71eece65e585e9f8dbd2e37d54319724d9",
+    "instrument_magnitudes-twin-report.txt": "c205c31302a5941ceed11b65e7cf3daecddcd6f99cde54f16cfb5073d6069ea7",
     "instrument_magnitudes-twin.csv": "4b07194be4e289e1e43e185652fd99ef4d709924280542b3768ac610d9e44846",
     "instrument_magnitudes.csv": "eb09775694e5497e6e7da9c656c3f6b3fe18b8051bd2f9cacb23625df0fd067e",
 }

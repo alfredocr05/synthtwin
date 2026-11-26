@@ -79,6 +79,9 @@ KEPT_SHARE = 0.5
 SELECT_CAP = 12
 # A key of its own for an unlinked block: the tries of a new spelling before the block is linked instead.
 OWN_KEY_TRIES = 64
+# The widest run of figures `float(10 ** width)` reads (10 ** 308 is binary64's last power of ten), and 2 ** 53.
+_FLOAT_FIGURES = 308
+_TWO_53 = 9007199254740992.0
 _ITERATIONS = 25
 _CHANGE = 1e-8
 _ETA_CAP = 30.0
@@ -645,7 +648,12 @@ def _own_key(key: str, bound: int, seed: int, block: int, spellings: "dict[str, 
     if width == 0:
         return ""
     for attempt in range(OWN_KEY_TRIES):
-        drawn = int(_uniform(seed, 7, (block << 8) + attempt) * float(10 ** width))
+        share = _uniform(seed, 7, (block << 8) + attempt)
+        # A run of figures past binary64's reach (309 figures and more) is drawn in whole numbers: `float(10 **
+        # width)` raised OverflowError there (Codex's review of batch 4y, item 12). Every narrower run is drawn as
+        # it always was, so no twin's bytes move.
+        drawn = int(share * float(10 ** width)) if width <= _FLOAT_FIGURES else (
+            int(share * _TWO_53) * 10 ** width) >> 53
         figures = f"{drawn:0{width}d}"[-width:]
         candidate = key[:start] + figures + key[end:]
         wide = len(parsing.merged_key(candidate))

@@ -604,6 +604,12 @@ def test_only_the_refusal_battery_composes_a_description_of_its_own() -> None:
 # it passes it to, because a module that describes tables under several
 # option sets builds that list before handing it over.
 THE_PRODUCT_WROTE_IT = '["profile"'
+# ...and the reliability battery's route S (`reliability_battery.make_twins`, release 36's landing), which runs the
+# product's `profile` and `generate` itself: a module that loads the description route S wrote has decided no byte of
+# it either. Recognised only while the battery's own source still builds the product's command (checked below), so
+# the clause cannot come to match a route that composes its own bytes.
+THE_BATTERY_RAN_THE_PRODUCT = "B.make_twins("
+BATTERY = pathlib.Path(__file__).with_name("reliability_battery.py")
 
 
 def test_every_module_that_loads_a_description_asks_the_fixture_for_it() -> None:
@@ -616,6 +622,11 @@ def test_every_module_that_loads_a_description_asks_the_fixture_for_it() -> None
     fixture, or a real `synthtwin profile` run in the same test -- unless
     it is the one module allowed to compose bytes of its own.
     """
+    battery_runs_the_product = THE_PRODUCT_WROTE_IT in BATTERY.read_text(encoding="utf-8")
+    assert battery_runs_the_product, (
+        "tests/reliability_battery.py no longer builds the product's profile command, so route S is no "
+        "longer a route on which the product wrote the description"
+    )
     missing = []
     for path in _test_modules():
         source = path.read_text(encoding="utf-8")
@@ -624,6 +635,8 @@ def test_every_module_that_loads_a_description_asks_the_fixture_for_it() -> None
         if path.name in MAY_COMPOSE_ITS_OWN:
             continue
         if THE_ONE_PLACE in source or THE_PRODUCT_WROTE_IT in source:
+            continue
+        if THE_BATTERY_RAN_THE_PRODUCT in source and battery_runs_the_product:
             continue
         missing.append(path.name)
     assert not missing, (

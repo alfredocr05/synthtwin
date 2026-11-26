@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "synthtwin"
 version = "0.1.0.dev0"
-description = "Create a synthetic twin of your tabular data: same shape, each column behaving like the same column of yours, built from a description of your table rather than from its rows. No cross-column structure yet. Fully offline."
+description = "Create a synthetic twin of your tabular data: same shape, each column behaving like the same column of yours, built from a description of your table rather than from its rows, with the relations between columns drawn from a model kept on the computer that holds the table. Fully offline."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }

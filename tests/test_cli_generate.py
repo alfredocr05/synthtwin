@@ -622,8 +622,11 @@ def test_the_report_states_the_same_things_every_run(
     for wanted in (
         # the seed
         "Seed: 0.",
-        # columns generated independently
-        "EVERY COLUMN WAS BUILT ON ITS OWN",
+        # what a column built from the description alone carries between
+        # columns, and where the relations come from (lane DOCS)
+        "1. BETWEEN COLUMNS.",
+        "built from the description alone carries",
+        "The relations between columns come from the inside",
         # rows independent, grain undescribed
         "EVERY ROW WAS BUILT ON ITS OWN",
         "never says",

@@ -127,7 +127,9 @@ def _patient_more(kind: str, place: int, draw: random.Random) -> str:
     if kind == "ip":
         return f"10.{draw.randint(0, 255)}.{draw.randint(0, 255)}.{draw.randint(1, 254)}"
     if kind == "url":
-        return f"https://portal.example.org/p/{draw.randint(10000, 99999)}"
+        # A host that is no word (release 36's landing): with `example` the fragment search read the summary's
+        # "the shortest true example" as a piece of every real address, a sentence of the product and no value.
+        return f"https://portal.qzvhost.org/p/{draw.randint(10000, 99999)}"
     if kind == "card16":
         return " ".join(f"{draw.randint(1000, 9999)}" for _group in range(4))
     if kind == "email_angle":

@@ -2302,7 +2302,13 @@ def _gap_at(grid: "list[int]", share: float) -> int:
     place = min(max(share, 0.0), 1.0) * (len(grid) - 1)
     low = int(place)
     high = low + 1 if low + 1 < len(grid) else low
-    return int(grid[low] + (grid[high] - grid[low]) * (place - low) + 0.5)
+    # Rounded to the nearest minute on BOTH sides of nought (Codex's review of batch 4y, item 11): `int(x + 0.5)`
+    # truncates toward nought, so a gap of -60 minutes read -59 and one of -1 read 0 (an event written at its
+    # anchor's minute). The floor of `x + 0.5`, taken by `int` and one step down where `int` rounded up, is the
+    # same number for every gap at or above nought.
+    halfway = grid[low] + (grid[high] - grid[low]) * (place - low) + 0.5
+    whole = int(halfway)
+    return whole - 1 if whole > halfway else whole
 
 
 def _month_of(seconds: int) -> "tuple[int, int]":

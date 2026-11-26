@@ -1365,6 +1365,18 @@ def _key_template(template: "dict[str, object]", key: str, cells: "list[str]", v
                 # ...a figure other than nought where one is free: a key opening with a nought only where every other
                 # opening figure is a real key's.
                 others = [figure for figure in free_figures if figure != "0"]
+                # ...AND NEVER A NOUGHT WHERE THE KEY IS ITS FIGURES ALONE (lane LEDGER, HIPAA): `0456` is the real key
+                # `456` written another way -- read as a number it IS that key -- so a key of figures alone whose every
+                # other opening figure is a real key's has no mark here. Measured on the health data zoo's
+                # `i2b2_facts` at 20,000 rows on the shipped route: the encounter numbers of two to four figures
+                # opened with a nought, and 233 real encounter numbers (491 cells) stood in the twin as numbers.
+                # FIGURES ALONE IS READ OFF THE WHOLE KEY (batch 4zy's landing, the outside review's item 2): a letter
+                # the floor's people write is a literal part of the key, outside its slots, so `L` and six figures has
+                # one slot too -- and `L012345` is no real key either way. Read by its slots alone, such a class lost
+                # its mark, fell to the room rule and was written in another class's template (400 `K` keys of four
+                # figures beside 19,600 `L` keys of six: no `L` key left in the twin).
+                if not others and len(_parts_of(key)) == 1:
+                    continue
                 mark = [place, 0, others if others else ["0"]]
                 break
     template["mark"] = mark

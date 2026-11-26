@@ -2721,12 +2721,13 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         "'synthtwin generate' uses this description to build a synthetic",
         "twin: a table with the same columns, the same number of rows, and",
         "each column holding the kinds of values and the counts recorded",
-        "below, every cell of it worked out from this description and a",
-        "seed. The twin is built from this file alone: your table is not",
-        "opened again, and the generator samples or copies no row of it.",
-        "Numbers computed on a twin are not research results -- develop your",
-        "analysis on the twin, then run the finished analysis on your real",
-        "table.",
+        "below, every cell of it worked out from this description, the",
+        "inside record written beside it on this computer (the screen",
+        "names it where one is written), and a seed.",
+        "Your table is not opened again, and the generator samples or",
+        "copies no row of it. Numbers computed on a twin are not research",
+        "results -- develop your analysis on the twin, then run the",
+        "finished analysis on your real table.",
         "",
         "After that, 'synthtwin validate' measures the twin against this",
         "description and writes the quality report: which of the",
@@ -2735,25 +2736,29 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         "command prints the next one for you when it finishes, so you",
         "never have to work out a command line from this page.",
         "",
-        # WHAT THE DESCRIPTION DOES NOT DESCRIBE (plan P2-D11, residual
-        # R-P2-3). This page is where a person first meets the idea of a
-        # twin of their table, and every column below is described on
-        # its own -- so a reader who is not told otherwise here will
-        # assume the twin keeps what holds BETWEEN their columns. It
-        # does not, and the honest place to say so is beside the promise
-        # rather than only in the twin's own report.
-        "What this description does NOT describe. Every column below is",
-        "described on its own, and the twin is built the same way, so it",
-        "carries no cross-column structure at all: nothing that links two",
-        "of your columns is in it -- not a taller person weighing more,",
-        "not a code that only ever appears beside one region, not two",
-        "columns left empty in the same rows.",
-        "",
-        "Every row is built on its own too, and this description",
-        "never says what one row of your table is, so if your table holds",
-        "several rows per person or per visit, anything that groups rows",
-        "behaves differently on the twin than it does on your table.",
-        "Cross-column structure arrives in a later version of synthtwin.",
+        # WHAT THE TWIN CARRIES BETWEEN COLUMNS (plan P2-D11, residual
+        # R-P2-3; restated by lane DOCS once the inside record shipped).
+        # This page is where a person first meets the idea of a twin of
+        # their table, and every column below is described on its own --
+        # so the page says where what holds BETWEEN their columns comes
+        # from, how far it goes, and what a twin without it carries.
+        "What the twin carries between columns. Every column below is",
+        "described on its own, and between columns this description",
+        "publishes only tables of counts over bands of two or more",
+        "columns, under the same floor as everything else here. The",
+        "relations between columns are in the inside record: a model of",
+        "your table fitted on its rows and holding none of them, which",
+        "'synthtwin profile' writes in a private folder on this computer",
+        "and never prints. A twin drawn from it keeps how a number or a",
+        "label depends on the columns before it, which cells are empty",
+        "together and, where a column names the person, each person's",
+        "rows in order with their dates as one timeline; a date it draws",
+        "keeps the real month, weekday and time of day, with the day of",
+        "the month made up. The relations are approximate, and the twin",
+        "can show one your table does not have: check on your table any",
+        "effect the twin shows. A twin built from the description alone,",
+        "where no inside record stands beside it, carries nothing between",
+        "columns but those tables of counts.",
         "",
         # THE QUALIFIED CLAIM, IN THE PLACE A PERSON ACTUALLY READS IT
         # (plan P2-D11). "Built from the description" is a statement
@@ -2772,8 +2777,9 @@ def render(document: dict[str, object], encoding_note: str) -> str:
         "description publishes that label with the count 100 -- so the",
         "twin has to write it in all 100 of its rows, and each of those",
         "rows is the row you have. Nothing was copied; there was no other",
-        "answer. 100 rows is the smallest table synthtwin describes, so",
-        "that is the smallest table this can happen to.",
+        "answer. 100 rows is the shortest true example: synthtwin",
+        "describes no table under 20,000 rows, and the same arithmetic",
+        "holds there for any column its published facts pin completely.",
         "synthtwin offers no formal privacy guarantee.",
         "",
         _RULE,

@@ -717,57 +717,110 @@ def test_the_check_says_how_many_seconds_it_took(tmp_path: pathlib.Path, monkeyp
     assert re.search(r"The check took \d+\.\d s\.", capsys.readouterr().out), "the seconds on a refusal too"
 
 
+# WHAT THE TWO WINDOWS GUIDES MUST SAY, AND MUST NO LONGER SAY (lane DOCS): since the inside record (plans P4-D495
+# to P4-D504) the twin is drawn on the protected computer and only the twin and its report leave it (the owner,
+# 2026-11-18); a description carried out and built elsewhere gives a twin with nothing between columns. The memory
+# sentence is the measured 2,000,000 x 50 run's (4.1 GB at the most, about 13 hours), and synthtwin writes the
+# installation's key and the inside record in the account's own data folder.
+_GUIDE_NEEDED = (
+    "Task Manager",
+    "Ctrl+Z, then Enter",
+    "do not click inside the window",
+    "START-HERE",
+    "twin-work",
+    "Get-FileHash",
+    "C:\\Program Files",
+    "opens no network connection",
+    "writes no registry key",
+    "Extract All writes about 8,400 files and can take several minutes",
+    "this can take a minute or more; the window prints how many seconds it took",
+    "If it says to unzip the zip first",
+    "What it writes. synthtwin writes beside the table the person names, in the folder given with --out-dir",
+    "%LOCALAPPDATA%\\synthtwin",
+    "Only the twin, my-table-twin.csv in my-table-synthtwin, with its report my-table-twin-report.txt, and only after "
+    "your institution's approval",
+    "synthtwin twin my-table.csv",
+    "about 4.1 GB of memory at the most",
+    "FIRST, CHECK THE ZIP (before you unzip it)",
+    "Get-FileHash -Algorithm SHA256 .\\synthtwin-*-windows-ready.zip",
+    "The trusted start.",
+)
+_GUIDE_GONE = (
+    "up to a minute",
+    "Nothing else on the computer was changed",
+    "Only the description",
+    "writes only beside the table",
+    "at least 16 GB",
+)
+_HOW_TO_NEEDED = (
+    "Windows refuses file paths of 260 characters or more",
+    "any place of up to 99 characters (100 with its separator)",
+    "Extract All writes about 8,400 files and can take several minutes",
+    "This can take a minute or more",
+    "the window prints how many seconds it took",
+    "Its first run is owed to the push that carries it; STATE names the first green run.",
+    "**Only the twin, `my-table-twin.csv` in `my-table-synthtwin`, with its report `my-table-twin-report.txt`, and "
+    "only after your institution's approval.**",
+    "**What it writes.** synthtwin writes beside the table the person names",
+    "`%LOCALAPPDATA%\\synthtwin`",
+    "Do not build a twin on another computer from the description",
+    "synthtwin twin my-table.csv",
+    "about 4.1 GB of memory at the most",
+    "It keeps no history of what you type (not yet measured on Windows)",
+    "START-HERE takes no file",
+    "Unzip synthtwin's zip first",
+)
+_HOW_TO_GONE = (
+    "longer than 260", "up to 100 characters", "up to a minute", "under the same approval",
+    "leaves nothing behind", "Nothing else was changed", "nothing else on the computer changes",
+    "Only the description", "writes only beside the table", "at least 16 GB",
+    "the one file the twin is built from", "build the twin from the description:",
+)
+
+
+def _unmet(text: str, needed: "tuple[str, ...]", gone: "tuple[str, ...]") -> "list[str]":
+    """Each needed sentence a guide lacks and each retired one it still carries, read with its spaces collapsed."""
+    flowing = " ".join(text.split())
+    return [f"missing: {line}" for line in needed if line not in flowing] + [
+        f"retired: {line}" for line in gone if line in flowing
+    ]
+
+
 def test_the_guide_in_the_folder_is_plain() -> None:
     guide = (WINDOWS / "INSTALL-WINDOWS.txt").read_text(encoding="utf-8")
     flowing = " ".join(guide.split())
-    for needed in (
-        "Task Manager",
-        "Ctrl+Z, then Enter",
-        "do not click inside the window",
-        "Only the description",
-        "START-HERE",
-        "twin-work",
-        "Get-FileHash",
-        "C:\\Program Files",
-        "opens no network connection",
-        "writes no registry key",
-        "Extract All writes about 8,400 files and can take several minutes",
-        "this can take a minute or more; the window prints how many seconds it took",
-        "If it says to unzip the zip first",
-        "What it writes. synthtwin writes only beside the table the person names, in the folder given with --out-dir",
-        "Only the description, my-table-profile.json, and only after your institution's approval",
-        "FIRST, CHECK THE ZIP (before you unzip it)",
-        "Get-FileHash -Algorithm SHA256 .\\synthtwin-*-windows-ready.zip",
-        "The trusted start.",
-    ):
-        assert needed in flowing, needed
+    assert _unmet(guide, _GUIDE_NEEDED, _GUIDE_GONE) == []
     assert flowing.index("FIRST, CHECK THE ZIP") < flowing.index("BEFORE YOU START"), "the zip is checked first"
-    assert "up to a minute" not in flowing and "Nothing else on the computer was changed" not in flowing
     physician = guide[: guide.index("\nFOR IT\n")]
     for jargon in ("pip", "venv", "wheel"):
         assert not re.search(rf"\b{jargon}\b", physician, re.I), jargon
 
 
 def test_the_how_to_says_only_what_is_true() -> None:
-    """docs/windows-install.md: the path budget's arithmetic, the first run owed, one file leaving, one write paragraph."""
-    page = " ".join((REPO / "docs" / "windows-install.md").read_text(encoding="utf-8").split())
-    for needed in (
-        "Windows refuses file paths of 260 characters or more",
-        "any place of up to 99 characters (100 with its separator)",
-        "Extract All writes about 8,400 files and can take several minutes",
-        "This can take a minute or more",
-        "the window prints how many seconds it took",
-        "Its first run is owed to the push that carries it; STATE names the first green run.",
-        "**Only the description, `my-table-profile.json`, and only after your institution's approval.**",
-        "**What it writes.** synthtwin writes only beside the table the person names",
-        "It keeps no history of what you type (not yet measured on Windows)",
-        "START-HERE takes no file",
-        "Unzip synthtwin's zip first",
-    ):
-        assert needed in page, needed
-    for gone in ("longer than 260", "up to 100 characters", "up to a minute", "under the same approval",
-                 "leaves nothing behind", "Nothing else was changed", "nothing else on the computer changes"):
-        assert gone not in page, gone
+    """docs/windows-install.md: the path budget's arithmetic, the first run owed, only the twin leaving, the writes."""
+    page = (REPO / "docs" / "windows-install.md").read_text(encoding="utf-8")
+    assert _unmet(page, _HOW_TO_NEEDED, _HOW_TO_GONE) == []
+
+
+def test_the_windows_guides_check_would_see_the_old_leaving_rule() -> None:
+    """The mutants (lane DOCS): each guide with its leaving sentence, memory sentence or writes sentence put back as
+    it stood before the inside record is refused by the check above, and the guide as it stands is not."""
+    guide = (WINDOWS / "INSTALL-WINDOWS.txt").read_text(encoding="utf-8")
+    page = (REPO / "docs" / "windows-install.md").read_text(encoding="utf-8")
+    old_guide = (
+        guide.replace("Only the twin, my-table-twin.csv in my-table-synthtwin, with its",
+                      "Only the description, my-table-profile.json, and only after your")
+    )
+    assert any(line.startswith("retired: Only the description") for line in _unmet(old_guide, _GUIDE_NEEDED,
+                                                                                  _GUIDE_GONE))
+    old_memory = guide.replace("about 4.1 GB of memory at the most", "at least 16 GB of memory")
+    assert "retired: at least 16 GB" in _unmet(old_memory, _GUIDE_NEEDED, _GUIDE_GONE)
+    old_page = page.replace("**What it writes.** synthtwin writes beside the table",
+                            "**What it writes.** synthtwin writes only beside the table")
+    assert "retired: writes only beside the table" in _unmet(old_page, _HOW_TO_NEEDED, _HOW_TO_GONE)
+    old_route = page.replace("Do not build a twin on another computer from the description",
+                             "Build the twin from the description:")
+    assert _unmet(old_route, _HOW_TO_NEEDED, _HOW_TO_GONE) != []
 
 
 def _decision(number: str) -> str:

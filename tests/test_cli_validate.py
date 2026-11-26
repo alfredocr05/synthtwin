@@ -1654,10 +1654,16 @@ def test_the_report_carries_its_limits_on_every_run(
     capsys.readouterr()
     report = _said(_quality_of(description).read_text(encoding="utf-8"))
     for wanted in (
-        # V7.3: the three inherited limits and the verdict-scope sentence
-        "NO CROSS-COLUMN STRUCTURE WAS VALIDATED",
-        "ROWS ARE TREATED AS INDEPENDENT",
-        "never says what one row of the real table is",
+        # V7.3: the three inherited limits and the verdict-scope sentence,
+        # restated by lane DOCS: nothing between columns checked here, the
+        # inside record's relations checked nowhere here, a drawn date's
+        # made-up day, and groups of rows only as far as published
+        "NOTHING BETWEEN COLUMNS WAS CHECKED",
+        "record carries are fitted on the computer that holds your",
+        "check on your table any effect the twin shows",
+        "of day, with the day of the month made up",
+        "GROUPS OF ROWS ARE CHECKED ONLY AS FAR AS THIS DESCRIPTION",
+        "the description carries no such fact",
         "NOT RESEARCH RESULTS",
         "not a verdict that the file is fit for any analysis",
         "cannot tell a",
@@ -1667,7 +1673,7 @@ def test_the_report_carries_its_limits_on_every_run(
         "CHECKED IN THIS VERSION",
         "NOT CHECKABLE IN THIS VERSION",
         "any target that ties two columns together",
-        "Nothing here promises when.",
+        "the place to check an analysis that",
         # V7.5: every file a full run leaves behind, the fifth of them
         # named by plan amendment A-P3-8 and the sixth by A-P4-58
         "All six files a full run produces",

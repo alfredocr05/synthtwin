@@ -159,7 +159,12 @@ def test_in_a_temporary_folder_no_record_is_written_and_nothing_is_said(tmp_path
     product = B.make_twins(folder, "T2", T.text("T2", SMALL_ROWS, 2), (0,), True)
     assert not product.errors, product.errors
     assert _records(folder) == []
-    assert outputs and not [text for text in outputs if "inside record" in text]
+    # NOTHING IS SAID OF A RECORD OF THIS RUN (release 36's landing): since lane DOCS (plan P4-D541) every summary and
+    # report says what the twin carries and names the inside record in general terms, so the words alone are no
+    # longer a sign; what a temporary folder must never print is a sentence about THIS run's record -- that one was
+    # written and where (`inside.describe`), that it was not written, or that the twin was drawn from it.
+    of_this_run = ("inside record (stays on this computer):", "inside record was not written", cli._INSIDE_REPORT_HEAD)
+    assert outputs and not [text for text in outputs for said in of_this_run if said in text]
     report = pathlib.Path(folder, "out", "visits-twin-report.txt").read_text(encoding="utf-8")
     assert not report.startswith(HEAD)
 

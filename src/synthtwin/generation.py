@@ -125,17 +125,24 @@ three lines are the whole of the surface, and
 other method on the stream, and any attribute at all on what the draw
 returns.
 
-WHAT THIS MODULE DOES NOT BUILD (plan P2-D11, residual R-P2-3). Columns
-are generated independently and the twin therefore carries no
-cross-column structure at all -- no correlation, no formula between two
-columns, no shared pattern of empty cells, no ordering between two event
-columns. Rows are treated as independent and the grain is undescribed:
-the description never says what one row of the real table is. The
-relationship manifest a loaded description carries is eight reserved
-slots, every one empty -- the loader refuses a description that fills
-any of them -- and nothing here reads it, because there is nothing in it
-to read. The report states both limits on every run. Cross-column
-structure arrives in a later phase (Phase 5).
+WHAT THIS MODULE BUILDS BETWEEN COLUMNS (plan P2-D11, residual R-P2-3;
+restated by lane DOCS once the inside record shipped). Built from the
+description alone, a twin carries between columns only what a switched
+description publishes there -- the chain's family tables and, where the
+description names the person, the patient layer's rows a person in order
+(the chain walk and the patient walk) -- and nothing else: no
+correlation beyond those tables, no formula between two columns, no
+shared pattern of empty cells, no ordering between two event columns.
+The relations between columns come from the inside record
+(`generate_inside`, lane IN-2, plan P4-D496): a model fitted on the
+real table on the computer that holds it, from which the modelled
+columns are drawn anew -- a number or a label by its relations to the
+columns before it, which cells are empty together, each person's dates
+as one timeline and their repeated readings' own level and slope -- each
+drawn date keeping the real month, weekday and time of day with the day
+of the month made up. The relations are approximate; any effect the twin
+shows is checked on the real table. The report states what the twin
+carries between columns on every run.
 """
 
 import dataclasses
@@ -77208,6 +77215,16 @@ def _inside_ranged(profile: contract.Profile, zones: object, finished: "list[twi
                 kept_texts |= {cell}
                 if parts is not None:
                     kept_values |= {parts[0]}
+        # EACH VALUE PAST AN END TAKES ONE NEW VALUE (lane LEDGER; Codex's review of batch 4z, item 9): the spellings
+        # of one value (`11` and `11.0`) each drew a value of their own, so one value became two. The new value is
+        # drawn once a value, at the fewest decimals its spellings carry, and each spelling writes it in its own
+        # decimals, sign and width (`_range_respelled`); a value with one spelling draws as it always drew.
+        fewest: "dict[float, int]" = {}
+        for cell in cells:
+            parts = _plain_number_parts(cell)
+            if parts is not None and not points[0] <= parts[0] <= points[-1]:
+                fewest[parts[0]] = parts[1] if parts[0] not in fewest else min(fewest[parts[0]], parts[1])
+        new_values: "dict[float, float | None]" = {}
         given: "dict[str, str]" = {}
         out: "list[str]" = []
         moved = 0
@@ -77217,31 +77234,39 @@ def _inside_ranged(profile: contract.Profile, zones: object, finished: "list[twi
                 out += [cell]
                 continue
             if cell not in given:
-                value, decimals = parts
-                first = len(points) - 1 - _RANGE_POINTS if value > points[-1] else 0
-                written = ""
-                for _try in range(_RANGE_TRIES):
-                    step = int(inside_dates.uniform_of(state) * _RANGE_POINTS)
-                    low = points[first + step]
-                    high = points[first + step + 1]
-                    drawn = min(max(low + inside_dates.uniform_of(state) * (high - low), points[0]), points[-1])
-                    written = f"{drawn:.{decimals}f}"
-                    if float(written) > points[-1] or float(written) < points[0]:
-                        written = f"{low:.{decimals}f}"
-                    if cell[:1] == "+" and written[:1] != "-":
-                        written = "+" + written
-                    if written not in kept_texts and float(written) not in kept_values:
-                        break
-                    written = ""
-                if not written:
-                    # ...ELSE THE FREE VALUE NEAREST THE END, walked inward on
-                    # the cell's own decimals through the outer tenth; and where
-                    # none is free the cell stays as it was, so no count falls.
-                    written = _free_inside(points, value > points[-1], decimals, kept_values, cell[:1] == "+")
-                given[cell] = written if written else cell
+                value = parts[0]
+                if value not in new_values:
+                    decimals = fewest[value]
+                    first = len(points) - 1 - _RANGE_POINTS if value > points[-1] else 0
+                    found: "float | None" = None
+                    for _try in range(_RANGE_TRIES):
+                        step = int(inside_dates.uniform_of(state) * _RANGE_POINTS)
+                        low = points[first + step]
+                        high = points[first + step + 1]
+                        drawn = min(max(low + inside_dates.uniform_of(state) * (high - low), points[0]), points[-1])
+                        written = f"{drawn:.{decimals}f}"
+                        if float(written) > points[-1] or float(written) < points[0]:
+                            written = f"{low:.{decimals}f}"
+                        # ...AND THE FALLBACK READ AGAIN (Codex's review of batch 4z, item 10): `low` rounded to the
+                        # cell's decimals can itself fall past the end (0.258 written `0.3` beside a real greatest
+                        # value of 0.26), and it was taken unread; such a draw is the next try's.
+                        if float(written) > points[-1] or float(written) < points[0]:
+                            continue
+                        if _range_respelled(float(written), decimals, cell) not in kept_texts and float(written) not in kept_values:
+                            found = float(written)
+                            break
+                    if found is None:
+                        # ...ELSE THE FREE VALUE NEAREST THE END, walked inward on
+                        # the cell's own decimals through the outer tenth; and where
+                        # none is free the cell stays as it was, so no count falls.
+                        free = _free_inside(points, value > points[-1], decimals, kept_values, False)
+                        found = float(free) if free else None
+                    new_values[value] = found
+                    if found is not None:
+                        kept_values |= {found}
+                found_value = new_values[value]
+                given[cell] = cell if found_value is None else _range_respelled(found_value, parts[1], cell)
                 kept_texts |= {given[cell]}
-                if written:
-                    kept_values |= {float(written)}
             out += [given[cell]]
             moved = moved + (1 if given[cell] != cell else 0)
         del cells
@@ -77275,6 +77300,37 @@ def _free_inside(points: "list[float]", high: bool, decimals: int, taken: "set[f
             return "+" + written if plus and written[:1] != "-" else written
         walked = walked + 1
     return ""
+
+
+def _range_respelled(value: float, decimals: int, cell: str) -> str:
+    """``value`` written at ``decimals`` places in ``cell``'s own form: its plus sign, and the width of a whole part
+    written with leading noughts (`0084` is four figures wide), so a padded column keeps its padding (lane LEDGER;
+    Codex's review of batch 4z, item 7: `0084` came back `128`). A cell with no plus sign and no leading nought
+    reads as `f"{value:.{decimals}f}"`. Raises TypeError for a cell that is not text; no I/O."""
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a cell was not text")
+    text = f"{value:.{decimals}f}"
+    sign = ""
+    if text[:1] == "-":
+        sign = "-"
+        text = text[1:]
+    elif cell[:1] == "+":
+        sign = "+"
+    body = cell[1:] if cell[:1] == "+" or cell[:1] == "-" else cell
+    width = _figures_before_the_point(body)
+    if width > 1 and body[:1] == "0":
+        whole = _figures_before_the_point(text)
+        if whole < width:
+            text = "0" * (width - whole) + text
+    return sign + text
+
+
+def _figures_before_the_point(text: str) -> int:
+    """How many characters stand before a text's first point (all of them where it holds none). Raises nothing."""
+    for at in range(len(text)):
+        if text[at] == ".":
+            return at
+    return len(text)
 
 
 def _plain_number_parts(cell: str) -> "tuple[float, int] | None":
@@ -88075,11 +88131,109 @@ def _the_mark_published(column: contract.ColumnBlock) -> "bool | None":
     return numbers.percentiles.maximum >= mark
 
 
+def top_category_held(
+    profile: contract.Profile, held: "tuple[twinstore.HeldColumn, ...]", names: "list[str]"
+) -> "tuple[tuple[twinstore.HeldColumn, ...], set[str]]":
+    """A top-coded column's published mark held by at least its floor's rows and people in the finished twin (lane LEDGER).
+
+    THE 2,000,000-ROW PROOF'S TWO MISSES (lane SPEED-2M's report 2, traced
+    by lane LEDGER on the kept twin): a column of numbers top-coded at 90
+    whose real top category at least the floor of people held publishes
+    the mark as its largest value (`_the_mark_published`), and the twin's
+    high tail, drawn from the published distances, wrote the mark on ONE
+    row; validate describes the twin again with the producer's rule (plan
+    P4-D454: a top category fewer than the floor's rows, or people under
+    each subject column `top_category_people` names, is pooled below the
+    mark) and counted one value fewer than published (775 of 776; 786 of
+    787). Where the mark is published and fewer than
+    `top_category_pooled` rows, or people under each named subject column,
+    hold it, cells of the high tail (past the published 99th percentile,
+    so no published bin moves) are written as the mark, the largest values
+    first and only a spelling's repeats (one cell of each spelling is kept,
+    so the counts of different spellings and values stand), each from a person the mark
+    does not hold yet, until the floor is met or no such cell is left. A
+    column of numbers bare in point form alone (`_plain_number_parts`);
+    every other column, and a twin that already holds the mark on the
+    floor's people, is left as it is. Guarantees: a fixed function of the
+    description and the cells (no draw); returns the columns, changed or
+    not, and the names of the columns changed. Raises nothing; no I/O.
+    """
+    place_of: "dict[str, int]" = {}
+    for at in range(len(names)):
+        place_of[names[at]] = at
+    out = list(held)
+    changed: "set[str]" = set()
+    for column in profile.columns:
+        facts = column.facts
+        if not column.top_coded or column.top_category_pooled <= 0 or not isinstance(facts, contract.NumericFacts):
+            continue
+        if _the_mark_published(column) is not True or column.name not in place_of:
+            continue
+        top = facts.percentiles.maximum
+        edge = facts.percentiles.p99
+        if top is None or edge is None or edge >= top:
+            continue
+        holders: "list[list[str]]" = []
+        for subject in column.top_category_people:
+            if subject in place_of:
+                holders += [twinstore.column_cells(out[place_of[subject]])]
+        if len(holders) != len(column.top_category_people):
+            continue
+        floor = column.top_category_pooled
+        cells = twinstore.column_cells(out[place_of[column.name]])
+        values: "list[float | None]" = []
+        counts: "dict[str, int]" = {}
+        mark_text = ""
+        at_mark: "list[int]" = []
+        for row in range(len(cells)):
+            parts = _plain_number_parts(cells[row])
+            value = parts[0] if parts is not None else None
+            values += [value]
+            if value is None:
+                continue
+            counts[cells[row]] = (counts[cells[row]] if cells[row] in counts else 0) + 1
+            if value == top:
+                at_mark += [row]
+                if not mark_text:
+                    mark_text = cells[row]
+        if not mark_text:
+            continue
+        seen: "list[set[str]]" = []
+        for people in holders:
+            seen += [{people[row] for row in at_mark if parsing.trimmed(people[row])}]
+        if len(at_mark) >= floor and all(len(each) >= floor for each in seen):
+            continue
+        written = [cell for cell in cells]
+        for _negative, row in sorted((-value, row) for row, value in enumerate(values)
+                                     if value is not None and edge < value < top):
+            if len(at_mark) >= floor and all(len(each) >= floor for each in seen):
+                break
+            if counts[cells[row]] <= 1:
+                continue
+            if holders:
+                blank = any(not parsing.trimmed(people[row]) for people in holders)
+                fresh = any(people[row] not in seen[at] for at, people in enumerate(holders))
+                if blank or not fresh:
+                    continue
+            written[row] = mark_text
+            counts[cells[row]] = counts[cells[row]] - 1
+            at_mark += [row]
+            for at in range(len(holders)):
+                seen[at] = seen[at] | {holders[at][row]}
+        if written != cells:
+            out[place_of[column.name]] = twinstore.held_column(written)
+            changed = changed | {column.name}
+    return tuple(out), changed
+
+
 
 # The generator's own readings and words, named for the patient walk
 # (lane GRb, plan P4-D465; `synthtwin.patient_walk`), which reads a twin's
 # cells into their bands exactly as the walk above reads them.
 WORD_CEILING = _WORD_CEILING
+# ...and the drawn route's row order kept after the ties (`cli._gaps_tied_again`; lane LEDGER).
+sorted_again = _sorted_again
+all_empty_rows = _all_empty_rows
 reader_reading = _reader_reading
 reader_edges = _reader_edges
 declared_a_decimal_comma = _declared_a_decimal_comma

@@ -2688,10 +2688,15 @@ def draw_number(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: in
 
 
 def draw_label(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int, words: "list[int] | bytearray",
-               allowed: "set[str]", owners: "list[int] | None" = None) -> Drawn:
+               allowed: "set[str]", owners: "list[int] | None" = None, spill: bool = False) -> Drawn:
     """A label column: each row's level by its fitted log odds; a level the description does not publish, and the rest, filled later.
 
     `owners` draws a column held once a person, as `draw_number` does.
+    `spill` (a column the description publishes nothing of, whose rows
+    nothing fills later; lane LEDGER) writes a rest row past the listed
+    spellings as one of them, the overflow spread over the listed rows by
+    their counts, so no such row is left empty where the real column held
+    a value; without it such a row is None (filled later), as before.
     """
     levels = _list(_get(entry, "levels"))
     rest = _int(_get(entry, "rest"))
@@ -2700,9 +2705,11 @@ def draw_label(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int
     # spellings by their counts (the rows of the spellings it does not list are filled as before).
     carried = "carried" in entry and entry["carried"] is True
     others: "list[tuple[str, int]]" = []
+    listed = 0
     if carried and "others" in entry:
         for pair in _list(entry["others"]):
             others += [(_text(_list(pair)[0]), _int(_list(pair)[1]))]
+            listed += _int(_list(pair)[1])
     places: "list[float] | None" = [] if others else None
     codes = _draw_label(_dict(_get(entry, "value")), frames, rows, words, count, places)
     if owners is not None:
@@ -2716,7 +2723,17 @@ def draw_label(entry: "dict[str, object]", frames: "dict[str, Frame]", rows: int
             text = _text(levels[code])
             cells += [text if (carried or text in allowed or not _bare(text)) else None]
         elif places is not None:
-            cells += [_other_of(others, rest, places[row])]
+            found = _other_of(others, rest, places[row])
+            if found is None and spill and 0 < listed < rest:
+                # PAST THE LISTED SPELLINGS ON A COLUMN NOTHING FILLS LATER (lane LEDGER): the rows of the rest's
+                # unlisted spellings (each held by fewer rows than the floor, or past `OTHERS_CAP`) were written
+                # empty, so a twin of a column the real table never leaves empty held thousands of empty cells
+                # (the data-type zoo's clinical table at 20,000 rows: 4,940 of a blood pressure written with its
+                # unit, 896 of an ISO duration, 233 of a coma score's parts, 28 of a gestational age). Such a row's
+                # place in the overflow is spread over the listed rows, so each listed spelling takes its share.
+                over = (places[row] * rest - listed) / (rest - listed)
+                found = _other_of(others, listed, min(max(over, 0.0), 1.0 - 1e-12))
+            cells += [found]
         else:
             cells += [None]
     return Drawn(cells, Frame(LABEL, [], [], codes))
@@ -3465,7 +3482,7 @@ def draw_columns(zone: "dict[str, object]", profile: contract.Profile, held: "di
                     allowed: "set[str]" = set()
                     for modelled in _list(_get(entry, "levels")):
                         allowed = allowed | {_text(modelled)}
-                    drawn = draw_label(entry, frames, rows, words, allowed, owners if held_once else None)
+                    drawn = draw_label(entry, frames, rows, words, allowed, owners if held_once else None, spill=True)
             elif kind == NUMBER:
                 drawn = redeal_number(entry, frames, words, strict, dealing, owners if split else None)
             else:

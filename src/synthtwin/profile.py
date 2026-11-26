@@ -4351,6 +4351,9 @@ _ROLES_WITHOUT_VALUES = (
     taxonomy.ROLE_EMPTY,
     taxonomy.ROLE_UNREPRESENTABLE,
 )
+# The different cells a value label's count reads once each (a column of two million different numbers holds a
+# bounded map: past it a cell is read again).
+_VALUE_LABEL_MEMO = 4096
 
 
 def _published_native(
@@ -4369,10 +4372,12 @@ def _published_native(
     `native.column_label_published` admits it (the identifier rules a
     column's name meets on the CSV route); a value label where the CODE is
     held by at least ``floor`` of the column's cells AND its text is
-    admitted, and no value label at all of a column whose role publishes
-    no value or that the description holds back (``held_back``: a
-    declared identifier, a column held for Safe Harbor or within each
-    person); SPSS's missing codes where each is a number or an admitted
+    admitted (a code of a column stored as numbers counted by its value),
+    and no value label at all of a column whose
+    role publishes no value, that the description holds back
+    (``held_back``: a declared identifier, a column held for Safe Harbor
+    or within each person) or that its block top-codes (any `top_coded`
+    key: an age past 89 is a code the cap withholds); SPSS's missing codes where each is a number or an admitted
     text, of a column whose values are published only; a member name the rule admits; pandas' type words (a closed
     list) and the index pandas named, where it names columns of the
     table or a range starting at 0 or 1. The file's own label, notes,
@@ -4394,14 +4399,50 @@ def _published_native(
         name = table.column_names[place]
         role = columns[place]["role"] if place < len(columns) and "role" in columns[place] else ""
         published_values = role not in _ROLES_WITHOUT_VALUES and name not in held_back
+        # NO VALUE LABEL OF A COLUMN THE DESCRIPTION TOP-CODES (batch 4zy's landing, the outside review's item 1,
+        # HIPAA): a label's code is a value of the column, and the cap withholds every value past its mark, so an SPSS
+        # age column whose 1,000 cells read `95.00` with the label `95: "Senior"` wrote the code 95 -- an age past
+        # 89 -- into the twin's dictionary once codes were counted by value (and wrote it by spelling where the cells
+        # read `95`). Every `top_coded` key the description can write (the mark, the year cut, the ends, the bands,
+        # the words) withholds the column's labels whole.
+        block_here = columns[place] if place < len(columns) else {}
+        top_coded = False
+        for key in block_here:
+            written_key = f"{key}"
+            if written_key[: len("top_coded")] == "top_coded":
+                top_coded = True
         labels: "tuple[tuple[str, str], ...] | None" = None
-        if column.value_labels and published_values:
+        if column.value_labels and published_values and not top_coded:
             counted: "dict[str, int]" = {}
             for code, _text in column.value_labels:
                 counted[code] = 0
+            # A NUMBER'S CODE IS COUNTED BY ITS VALUE (lane LEDGER; Codex's review of batch 4zz, item 16): an SPSS
+            # column of codes 1, 1.5 and 2.25 is written `1.00`, `1.50` and `2.25` by its display format, so read by
+            # spelling only the third code was held by the floor's cells and the other two labels were dropped. A
+            # cell of a column stored as numbers counts under every code whose value it holds; a text column's codes
+            # are counted by spelling alone.
+            by_value: "dict[float, list[str]]" = {}
+            if column.storage != native.STORE_TEXT:
+                for code, _text in column.value_labels:
+                    code_value = native.exact_double(code)
+                    if code_value is not None and code_value == code_value:
+                        by_value[code_value] = (by_value[code_value] if code_value in by_value else []) + [code]
+            read_once: "dict[str, float | None]" = {}
             for cell in reading.column_values(table, place):
                 if cell in counted:
                     counted[cell] = counted[cell] + 1
+                    continue
+                if not by_value:
+                    continue
+                if cell in read_once:
+                    held_value = read_once[cell]
+                else:
+                    held_value = native.exact_double(cell)
+                    if len(read_once) < _VALUE_LABEL_MEMO:
+                        read_once[cell] = held_value
+                if held_value is not None and held_value in by_value:
+                    for code in by_value[held_value]:
+                        counted[code] = counted[code] + 1
             chosen: "list[tuple[str, str]]" = []
             for code, text in column.value_labels:
                 if counted[code] < floor:
@@ -6518,6 +6559,35 @@ def _held_block(block: "dict[str, object]") -> bool:
     )
 
 
+def _key_cells_as_described(
+    key_block: "dict[str, object]", cells: "list[str]", absent: "tuple[str, ...]", name: str
+) -> "list[str]":
+    """A key column's cells as its own block read them: its values that read as dates blank where it held them.
+
+    THE KV3 REFUSAL AT 100,000 ROWS (lane LEDGER; carried at batch 4zz's
+    landing, the same on the base): a key column whose description holds
+    its values that read as dates as blank cells (its remark,
+    `taxonomy.REMARK_DATED_VALUES_HELD`, plan P4-D446) counted 28 such cells
+    blank, and the keyed pairs read them as rare keys, so the pool of rare
+    keys held 28 rows more than the key column pools and `generate`
+    refused the description (`n10`'s pooled rows 8,654, `n12`'s pool 8,682).
+    The cells are held here as the column's describe held them
+    (`date_counts.dated_values_blanked`, ages kept up to the reach of the
+    unit its name states), so a rare key is a row the key column pools.
+    A block with no such remark keeps its cells. Guarantees: a fixed
+    function of the four; raises nothing; no I/O.
+    """
+    remarks = key_block["remarks"] if "remarks" in key_block else None
+    if not isinstance(remarks, list) or taxonomy.note(taxonomy.REMARK_DATED_VALUES_HELD) not in remarks:
+        return cells
+    named = taxonomy.age_mark_named(name)
+    mark = named if named else taxonomy.TOP_CODE
+    blanked = date_counts.dated_values_blanked(
+        cells, frozenset(absent), taxonomy.TOP_CODE_REACH_CEILING * mark / taxonomy.TOP_CODE
+    )
+    return cells if blanked is None else blanked
+
+
 def _written_key(entry: "dict[str, object]") -> str:
     """A published key level's commonest spelling, the key block's name (`_commonest_written`)."""
     return _commonest_written(entry)
@@ -6667,7 +6737,7 @@ def _values_typed_by_key(
                 and key in names_checked
                 and isinstance(listed_levels, list)
             ):
-                checked_cells = reading.column_values(table, key_at)
+                checked_cells = _key_cells_as_described(key_block, reading.column_values(table, key_at), absent[key_at], key)
                 checked_levels = _key_levels(checked_cells, frozenset(absent[key_at]))
                 kept_labels = frozenset(
                     f"{entry['label']}" for entry in listed_levels if isinstance(entry, dict)
@@ -6693,7 +6763,7 @@ def _values_typed_by_key(
         published = key_block["levels"]
         if not isinstance(published, list) or len(published) < 1:
             continue
-        key_cells = reading.column_values(table, key_at)
+        key_cells = _key_cells_as_described(key_block, reading.column_values(table, key_at), absent[key_at], key)
         levels = _key_levels(key_cells, frozenset(absent[key_at]))
         value_cells = reading.column_values(table, value_at)
         written: "dict[str, str]" = {}

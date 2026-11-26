@@ -500,6 +500,13 @@ def test_no_fourth_governing_document_can_appear_unsealed() -> None:
     ], plans
     pages = sorted(path.name for path in (REPO_ROOT / "docs").glob("*.md"))
     assert pages == [
+        # The manual (lane DOCS, plan P4-D541, release 36): the page a
+        # person reads end to end. Like the Windows how-to below it
+        # decides nothing the code owes, so it is not a governing
+        # document and not sealed; it is listed here by release 36's
+        # landing (the lane added it unlisted), and its sentences are
+        # read by the claim inventory, whose SURFACES name it.
+        "MANUAL.md",
         # The plan of record, sealed since the governance pass of stage
         # 3's review. Nothing else may stand beside it unsealed.
         "STATE.md",

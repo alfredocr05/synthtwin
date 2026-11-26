@@ -813,9 +813,13 @@ MIXED_SEED = 8101
 # `between_columns` -- its `add`, `drop` and carried pairs, each empty, and
 # its question -- and no subject question, the table being one column
 # (a2364bd0...8c47 before). The other four files did not move.
+# AND THE SUMMARY AND THE TWIN'S REPORT RE-RECORDED AT RELEASE 36 (lane DOCS, plan P4-D541): their sentences of
+# what the twin carries between columns and of the smallest table moved ("100 rows is the shortest true example",
+# the report's paragraphs 1 and 2) -- 47 and 51 lines, wording alone, diffed against the public head's files
+# (1a615c00...bddeed and 03fb04b1...bd213 before); the description, the questions file and the twin did not move.
 MIXED_AT_668F276 = {
     "mixed-1000-s1-profile.json": "4c31290cc223df3d9b92e42780ddbfe3ab86320bd6a12de702c4b7ca18987408",
-    "mixed-1000-s1-profile.txt": "1a615c0070fd7173faa26a3fa86ad6307232bb9d997c4514bbd2ecfbe2bddeed",
+    "mixed-1000-s1-profile.txt": "23cd50b033845f952052407924cb3f3c45790f846a98e71de871860a072b0e9f",
     # The questions file's how-to names the plain-text answers file and
     # where a question's number is printed since lane EZ-a (plan P4-D479),
     # and since its repair 2 that a column is named exactly and the numbers
@@ -828,7 +832,7 @@ MIXED_AT_668F276 = {
     # and nothing else.
     "mixed-1000-s1-questions.json": "19330f2e95ae92114da0828b13583902b7c32ae7be64783f4cfc0629bb03659c",
     "mixed-1000-s1-twin.csv": "fcae8034d6551018be81752c89d66faff8d7589e764565b89225cc9bde9d235a",
-    "mixed-1000-s1-twin-report.txt": "03fb04b18cfefb7f15cb60309a209342d9e7a3a7166b923e868b6e05594bd213",
+    "mixed-1000-s1-twin-report.txt": "d28da4db3f76da23bb04160f4425e45d4722d33f3d16d45e471c4fb516c95f25",
 }
 
 

@@ -1783,13 +1783,15 @@ def test_a_shrinking_parametrize_list_is_an_integrity_fault() -> None:
 def test_a_kpi_test_that_fails_before_recording_is_a_drop() -> None:
     """A product exception or an assertion before the value is recorded: FAIL (exit 1), not INTEGRITY.
 
-    K-2B-28 stands in as an OPEN entry its own KPI test measures (K-2B-46,
-    which stood here, turned GREEN with the g-sentinel repair).
+    K-P4-23 stands in as an OPEN entry its own KPI test measures (K-2B-46,
+    which stood here first, turned GREEN with the g-sentinel repair, and
+    K-2B-28, which stood here next, became an accepted limit in batch 4zy).
     """
-    entry = ENTRIES["K-2B-28"]
+    entry = ENTRIES["K-P4-23"]
+    assert entry["status"] == "OPEN" and entry["test"], entry["status"]
     row = _row(entry, {entry["test"]: [{"outcome": "failed", "kpi": None}]})
     assert row["verdict"] == kpi_rules.FAIL and not row["pass"], row
-    recorded = {"id": "K-2B-28", "value": entry["value_at"]["value"], "detail": ""}
+    recorded = {"id": "K-P4-23", "value": entry["value_at"]["value"], "detail": ""}
     row = _row(entry, {entry["test"]: [{"outcome": "failed", "kpi": recorded}]})
     assert row["verdict"] == kpi_rules.FAIL, row
     row = _row(entry, {entry["test"]: [{"outcome": "passed", "kpi": recorded}]})
@@ -1890,14 +1892,22 @@ def test_the_runner_carries_every_driver_s_exit_status() -> None:
 
 
 def test_an_open_seconds_target_is_never_improved_where_seconds_are_not_judged() -> None:
-    """K-S1-06: its target is in seconds; off the quiet reference machine it can fail, never improve."""
-    entry = ENTRIES["K-S1-06"]
-    met = {"ratio_4x_rows": 4.0, "seconds_100k_x20": 300.0, "seconds_2m_x50": 1000.0}
+    """K-BC-13: its target is in seconds; off the quiet reference machine it can fail, never improve.
+
+    K-S1-06 stood here until batch 4zy made it an accepted limit on the
+    owner's own hours; K-BC-13 is an OPEN entry whose target is stated in
+    seconds and peak memory.
+    """
+    entry = ENTRIES["K-BC-13"]
+    assert entry["status"] == "OPEN" and "seconds_per_table_200k" in entry["target"], entry["status"]
+    met = {"fast_part_seconds": 20.0, "controls_failing": 0, "pinned_nodes_failing": 0,
+           "seconds_per_table_200k": 1000.0, "peak_mb_200k": 900.0, "tables_200k": 6,
+           "controls_failing_200k": 0}
     assert kpi_rules.judge(entry, met, seconds_count=False).word == kpi_rules.OPEN_HELD
     assert kpi_rules.judge(entry, met, seconds_count=True).word == kpi_rules.IMPROVED
-    worse = dict(met, ratio_4x_rows=9.0)
+    worse = dict(met, controls_failing=1)
     assert kpi_rules.judge(entry, worse, seconds_count=False).word == kpi_rules.OPEN_WORSE
-    slow = dict(met, seconds_100k_x20=1000.0)
+    slow = dict(met, seconds_per_table_200k=4000.0)
     assert kpi_rules.judge(entry, slow, seconds_count=True).word == kpi_rules.OPEN_WORSE
     assert kpi_rules.judge(entry, slow, seconds_count=False).word == kpi_rules.OPEN_HELD
 

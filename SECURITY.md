@@ -199,15 +199,20 @@ Stated here so that no reader has to discover them independently:
   **The structure that carries that reasoning** is worth stating,
   because it is what makes the floor defensible and it is not a claim
   about how much is published. A description is a set of PER-COLUMN
-  facts. It records that a column holds `20.4` and how many rows do.
-  It does not record WHICH row except on a table sorted by that column,
-  whose description publishes the order (`row_order`), so row k holds
-  the k-th value; and it does not record what that row holds in any
-  other column. So a description shows a reader the shape
-  of each column on its own, and no person can be assembled out of
-  them: the
-  thing that identifies is the joining of one row's values across
-  columns, and no description carries it.
+  facts, and beside them, between columns, only tables of counts over
+  BANDS of two or more columns (the chain, contract 4.6b), each option
+  of which the floor decides. It records that a column holds `20.4` and
+  how many rows do. It does not record WHICH row except on a table
+  sorted by that column, whose description publishes the order
+  (`row_order`), so row k holds the k-th value; and it does not record
+  what that row holds in any other column, only how many rows fall in a
+  band of one column and a band of another, under the floor. So a
+  description shows a reader the shape of each column and of its bands
+  together, and no person can be assembled out of them: the thing that
+  identifies is the joining of one row's values across columns, and no
+  description carries it. The inside record, which does model how one
+  row's values go together, never leaves the computer that holds the
+  table (the entry on what the twin carries, below).
 
   **The two qualifications, so nobody has to find them.** First, the
   joined role publishes facts about how the positions INSIDE one cell
@@ -362,9 +367,10 @@ Stated here so that no reader has to discover them independently:
 
 - **The record claim is a claim about provenance, and it is not a claim
   that no twin row equals a real row** (plan P2-D11). The generator is
-  handed the profile and a seed and nothing else: it reads no source
-  table, is never given a path to one, and samples or copies no row of
-  one. That says where the twin's values come from. It is deliberately
+  handed the profile, the inside record beside it where one stands (a
+  model fitted on the table that holds none of its rows), and a seed: it
+  reads no source table, is never given a path to one, and samples or
+  copies no row of one. That says where the twin's values come from. It is deliberately
   weaker than the categorical wording this project used to carry - a
   flat assertion that a twin holds nothing of yours - which was
   withdrawn everywhere in Phase 2, because reproducing published counts
@@ -397,18 +403,35 @@ Stated here so that no reader has to discover them independently:
   amendment A-P3-8).
 - **What the twin carries, stated so that neither its risk nor its
   usefulness is overstated.** The twin reproduces the facts the profile
-  publishes about each column ON ITS OWN. It carries no cross-column
-  structure at all - no correlation between two columns, no formula
-  tying one to another, no shared pattern of which cells are empty, no
-  ordering between two event columns - and rows are treated as
-  independent while the grain is undescribed: the profile never says
-  what one row of the real table is. That is stated here for two
-  reasons. It bounds what an attacker can reconstruct from a twin to
-  the per-column facts the profile already published, which is the
-  security-relevant half; and it bounds what a researcher may conclude
-  from one, which is why the twin's own report repeats it on every run.
-  Cross-column structure arrives in a later phase (Phase 5), and no
-  surface of this project may describe it as present before it is.
+  publishes about each column, and the relations between columns come
+  from the inside record (plans P4-D495 to P4-D504): a model of the
+  table fitted on its rows, holding none of them, written only in a
+  private folder on the computer that holds the table (0600 in a 0700
+  folder; a temporary, downloads, cloud-synchronised, version-controlled,
+  network or shared place is refused), never printed, and never copied
+  by the export, which copies the twin and its report alone. The twin
+  drawn from it carries how a number or a label depends on the columns
+  before it, which cells are empty together and, where a column names
+  the person, each person's rows in order with their dates as one
+  timeline; each date it draws keeps the real month, weekday and time
+  of day, with the day of the month made up; identifiers are made up. A
+  twin built from the description alone carries nothing between columns
+  beyond the chain's published tables. That is stated here for two
+  reasons. The security-relevant half: what a reader of the twin can
+  reconstruct is no longer bounded by the per-column facts the profile
+  published, because the twin carries relations fitted on the real
+  rows; what bounds the twin instead is that every Safe Harbor rule is
+  applied to it, its identifiers are made up, and the five
+  twin-versus-real checks (`python -m synthtwin.twin_checks REAL TWIN`:
+  exact row copies, nearest-record distance, patient copies,
+  identifiers and rare dates, rare combinations) read the twin against
+  the real table on that computer. They are a separate step a person
+  runs before the twin leaves, not part of `synthtwin twin`, and the
+  Windows ready folder gives them no command word yet.
+  The other half bounds what a researcher may conclude: the relations
+  are approximate and the twin can show one the table does not have, so
+  any effect the twin shows is checked on the real table, which is why
+  the twin's own report says so on every run.
 - **The profile is computed from real data.** It holds no row of the
   table, but it is not anonymous: it publishes labels that at least
   `small_cell_floor` rows share, the steps of a numeric, date or clock
@@ -467,9 +490,10 @@ Stated here so that no reader has to discover them independently:
   eleven rows share it, with how many rows did, and pools the rest into
   a count that names none of them. `--smallest-group` raises it and
   never lowers it (plan P4-D426). What a named label discloses is that
-  somebody in the table had that value: this version publishes nothing
-  that crosses two columns, so it says nothing about who, or about
-  anything else in that person's row. Handle it under your
+  somebody in the table had that value: between columns this version
+  publishes only the chain's tables of counts over bands, under the same
+  floor, so it says nothing about who, or about anything else in that
+  person's row. Handle it under your
   institution's rules for real-derived material - together with the
   plain-language summary beside it, the twin, the twin's report and the
   quality report, per the entry above. Profile version 4 widened what it
@@ -921,7 +945,8 @@ Stated here so that no reader has to discover them independently:
   **What none of it changes:** no cell of a nothing-publishing column
   is published, beyond the prefix above, the floor still governs every
   named spelling except where this entry says otherwise, and the description still carries no
-  fact that crosses two columns. The authority is contract 6 section
+  fact that crosses two columns beyond the chain's tables of counts over
+  bands, which the floor governs. The authority is contract 6 section
   12, which prices every row of the inventory; this entry exists so
   that an institution reading THIS document is not told less than the
   contract says.

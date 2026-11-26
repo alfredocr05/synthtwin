@@ -33,18 +33,22 @@ checks the zip against that value before anything in it runs.
   press Ctrl+Shift+Esc to open Task Manager, choose Performance, then
   **Memory** (the total is at the top right) and **CPU** ("Cores" and
   "Logical processors"). synthtwin's own computer check cannot read the
-  memory on Windows, so these numbers are yours to keep. For a table of
-  2,000,000 rows by 50 columns, use a computer with at least 16 GB of
-  memory, and close other programs.
+  memory on Windows, so these numbers are yours to keep. Measured on an
+  invented table of 2,000,000 rows by 50 columns, the whole run used
+  about 4.1 GB of memory at the most, half of an 8 GB computer, and took
+  about 13 hours; close other programs while it runs.
 - **Free disk space**: about 1 GB for the folder, plus about three times
   the size of your table for synthtwin's files.
-- **Your table**, saved as a CSV file: the final analysis table, at
-  least 20,000 rows and, where patients have several rows, at least
-  1,000 patients. synthtwin makes twins of large tables only and refuses
-  anything smaller. From Excel: File, Save As, "CSV UTF-8 (Comma
-  delimited)". After that, **never open and save the CSV in Excel again**
-  before synthtwin reads it: Excel rewrites codes such as `0250` and
-  dates in its own way.
+- **Your table**: the final analysis table, at least 20,000 rows and,
+  where patients have several rows, at least 1,000 patients. synthtwin
+  makes twins of large tables only and refuses anything smaller. It
+  reads a CSV file, an Excel workbook, or a Parquet, SAS (`.sas7bdat`,
+  `.xpt`), Stata (`.dta`) or SPSS (`.sav`) file as your statistics
+  program saved it, and writes the twin as the same kind of file (a SAS
+  dataset's twin as `.xpt`). For a CSV from Excel: File, Save As, "CSV
+  UTF-8 (Comma delimited)". After that, **never open and save the CSV in
+  Excel again** before synthtwin reads it: Excel rewrites codes such as
+  `0250` and dates in its own way.
 
 No internet, no administrator rights and no Python are needed: the
 folder carries its own.
@@ -142,7 +146,9 @@ folder.
 
 The window is yours until you close it. It keeps no history of what you
 type (not yet measured on Windows); synthtwin's own files stay beside
-the table. Next time, double-click START-HERE again.
+the table, and its private record in your account's own data folder
+(section 10, "What it writes"). Next time, double-click START-HERE
+again.
 
 ## 5. The commands
 
@@ -160,36 +166,37 @@ asks Windows for the file's size):
 synthtwin doctor my-table.csv
 ```
 
-**Describe your table**, naming the column that says which patient each
-row is about (here `subject_id`):
+**Make the twin, in one command:**
 
 ```
-synthtwin profile my-table.csv --identifier subject_id
+synthtwin twin my-table.csv
 ```
 
-For a large table the screen can stay still for a long time while
-synthtwin reads: that is normal. When it asks a question on the screen,
-type the number shown in square brackets and press Enter; Enter alone
-leaves the question open. **To stop, press Ctrl+C. To end your answers,
+synthtwin reads your table, then asks on the screen, in one round and
+before it writes anything, every question your values cannot settle.
+Where your table may hold several rows a patient, the first asks who
+each row is about: type the name of the column that says which patient
+a row belongs to (here `subject_id`) and press Enter.
+Enter alone there means "not sure", and the twin then keeps nothing
+about each patient's rows. In the lists that follow, Enter alone keeps
+every column as synthtwin read it, and typing a column's name changes
+that column's reading. A last screen says what the twin will hide, cap,
+blank and release. Then everything is written into the folder
+`my-table-synthtwin` beside your table, with your answers, so a later
+run there asks nothing. **To stop, press Ctrl+C. To end your answers,
 press Ctrl+Z, then Enter.**
 
-**Answer the questions left open in the file.** synthtwin writes them
-into `my-table-questions.json` beside your table. Open it in Notepad,
-write one of the offered answers beside `"your_answer"` (keep the
-quotation marks; type them in Notepad, not in a word processor), save
-it, and describe the table again with your answers:
+For a large table the screen can stay still for a long time while
+synthtwin reads: that is normal.
 
-```
-synthtwin profile my-table.csv --identifier subject_id --answers my-table-questions.json --replace
-```
+**Read the description** in `my-table-synthtwin\my-table-profile.txt`,
+in Notepad: its section "WHAT THIS PROFILE CARRIES FROM YOUR TABLE"
+names every column whose real values it carries. It stays on this
+computer.
 
-An answer can bring a new question (a column of five-figure codes
-answered `code` is then asked whether its values could be ZIP codes):
-answer it the same way and run the same command again.
-
-**Read the description** in `my-table-profile.txt`, in Notepad, before
-anything leaves the computer: its section "WHAT THIS PROFILE CARRIES
-FROM YOUR TABLE" names every column whose real values it carries.
+**Read the twin's report**, `my-table-twin-report.txt` in the same
+folder, before you use the twin: it names the columns drawn from the
+inside record and what the twin carries between columns.
 
 ## 6. Long runs
 
@@ -260,16 +267,22 @@ so it is safe to correct and run again.
 
 ## 8. What may leave the protected computer
 
-**Only the description, `my-table-profile.json`, and only after your
-institution's approval.** It is the one file the twin is built from. It
-holds no row of your table, but it is not anonymous: it names your
-columns and holds counts, labels and summaries computed from your real
-data. Your institution's rules for material derived from real data
-apply to it.
+**Only the twin, `my-table-twin.csv` in `my-table-synthtwin`, with its
+report `my-table-twin-report.txt`, and only after your institution's
+approval.** The twin holds no row of your table, but its cells were
+worked out from facts about your real data, so your institution's rules
+for material derived from real data apply to it.
 
-Read `my-table-profile.txt`, the same description in words, on the
-protected computer; it stays there with `my-table-questions.json`,
-which you need for every later run.
+The description, `my-table-profile.json`, the same description in
+words, `my-table-profile.txt`, the questions file, the quality report
+and the inside record stay on the protected computer: the description
+names your columns and holds counts, labels and summaries computed from
+your real data, and the inside record is a model of your table.
+
+The five twin-versus-real checks, which read the twin against your table
+for copied rows, copied patients, real identifiers and rare dates, and
+rare combinations, have no command word in this folder yet: that is a
+known gap. Until it is closed, ask the project before a twin leaves.
 
 Every file a full run writes carries facts computed from the real
 table, so the same rules apply to each of them, on any computer. The
@@ -277,29 +290,20 @@ table itself, and any part, sample or copy of it, never leaves.
 
 ## 9. On the other computer: the twin
 
-On a computer of your own (a Mac, or any computer with synthtwin
-installed from its bundle, as the project's README says), build the
-twin from the description:
+Write and test your analysis code on the twin, on the computer your
+institution let it go to. It is meant to run unchanged on the real table, back
+on the protected computer, and the twin's report says what it carries.
 
-```
-synthtwin generate my-table-profile.json --seed 7
-```
-
-and measure the twin against the description:
-
-```
-synthtwin validate my-table-profile.json --twin my-table-twin.csv
-```
-
-Write and test your analysis code on `my-table-twin.csv`; it is meant to
-run unchanged on the real table, back on the protected computer.
+Do not build a twin on another computer from the description: there is
+no inside record there, and a twin built from the description alone
+carries nothing between columns but the description's tables of counts.
 
 ## 10. For IT
 
 **What it is.** One folder: synthtwin, python.org's embeddable Python
 3.14 for Windows x64 (its programs signed by the Python Software
 Foundation, its Visual C++ runtime files by Microsoft) and the libraries
-numpy, pandas, pyarrow, scipy, python-dateutil, six and tzdata,
+numpy, pandas, pyarrow, scipy, pyreadstat, python-dateutil, six and tzdata,
 installed into `python\lib` when the folder was built in the project's
 public CI run, from the project's hash-pinned
 `requirements-install.lock`, with every wheel's SHA-256 checked (pip
@@ -335,9 +339,14 @@ Its only `.exe` files are `python.exe` and
 `.pyd` and `.dll` files are those of their wheels, each wheel checked by
 its SHA-256 against the lock.
 
-**What it writes.** synthtwin writes only beside the table the person
-names, in the folder given with `--out-dir`, or, for the computer
-check's test file, removed at once, in the window's current folder. It
+**What it writes.** synthtwin writes beside the table the person names,
+in the folder given with `--out-dir`, or, for the computer check's test
+file, removed at once, in the window's current folder; and in the
+account's own data folder, `%LOCALAPPDATA%\synthtwin`: the
+installation's key and its record of earlier descriptions, the private
+report of each run (or in the folder `--private-folder` names), and, in
+`inside`, the inside record of each table described, a model of that
+table which must stay on this computer. It
 writes no registry key, no environment variable and nothing inside its
 own folder (its Python runs with `-I -B`, every library was compiled
 when the folder was built, and `python314._pth` limits what it loads to

@@ -634,56 +634,88 @@ def _published_class(census: "dict[str, int | None]", kind: str) -> int:
 CHAINED_HEADING = "BETWEEN COLUMNS, AND TWO THINGS TRUE OF EVERY TWIN"
 
 
-def _independence_lines() -> "list[str]":
-    """The two limits that hold for every twin this version builds.
+def _independence_lines(grain: bool = False) -> "list[str]":
+    """What the twin carries between columns and across a person's rows, stated in every report.
 
-    Both are stated in every report (plan P2-D11, residual R-P2-3). They
-    are not failures of this run: they are what this version of synthtwin
-    models, and somebody who does not know them can draw a conclusion
-    from the twin that the real table would not support.
+    Three paragraphs (plan P2-D11, residual R-P2-3, restated by lane DOCS
+    once the inside record and the patient layer shipped): 1, what a
+    column built from the description alone carries between columns --
+    nothing -- and where the relations between columns come from instead
+    (the inside record; a twin drawn from it says so at the top of the
+    report, `cli._inside_report_head`); 2, what the twin carries across
+    one person's rows, which depends on whether the description names
+    the person (``grain``: the description publishes the patient layer,
+    `contract.RelationshipManifest.grain`); 3, that numbers on the twin
+    are not results. On a twin of a switched description the chain's
+    block takes paragraph 1's place (`report`).
 
-    The wording is held to the same words the charter, `README.md`,
-    `SECURITY.md`, the package docstring, the command's status screen and
-    the profiler's summary use -- no cross-column structure at all, rows
-    treated as independent, the grain undescribed, and cross-column
-    structure arriving in a later phase -- and
+    The load-bearing words are the ones the charter, `README.md`,
+    `SECURITY.md`, the package docstring, the command's status screen,
+    the profiler's summary and the quality report use -- the relations
+    between columns come from the inside record, a twin built from the
+    description alone carries none beyond what the description
+    publishes, a drawn date has the day of the month made up, and any
+    effect the twin shows is checked on the real table -- and
     `tests/test_claim_inventory.py` holds every one of those surfaces to
-    it (review item P2-C1-F7). A twin that a reader believes carries
-    structure between its columns is worse than no twin: the reader gets
-    a number, not an error.
+    them. A reader who believes the twin carries more than it does gets a
+    number, not an error; one told it carries less never runs the
+    analysis the twin was built for.
+
+    Guarantees: a fixed function of ``grain``; no I/O; raises nothing.
     """
-    return [
-        "1. EVERY COLUMN WAS BUILT ON ITS OWN. This version of synthtwin",
-        "   carries no cross-column structure at all -- no fact about how",
-        "   two columns move together -- so nothing that links two columns",
-        "   of your table is in the twin: not a taller person weighing",
+    first = [
+        "1. BETWEEN COLUMNS. This description publishes nothing between",
+        "   columns, so a column built from the description alone carries",
+        "   no relation to any other column: not a taller person weighing",
         "   more, not a later date costing more, not a code that only ever",
         "   appears beside one region, not two columns left empty in the",
-        "   same rows. Analysis code developed on the twin is meant to",
-        "   run unchanged on your table, and nothing here guarantees that",
-        "   it will: a step that depends on more than the description",
-        "   publishes, such as a cut into quartiles, can succeed on the",
-        "   twin and fail on your table. A number it computes from two",
-        "   columns of the twin means nothing about your table.",
-        "   Cross-column structure arrives in a later version of",
-        "   synthtwin.",
+        "   same rows. The relations between columns come from the inside",
+        "   record, a model of your table that 'synthtwin profile' fits on",
+        "   the computer that holds it and keeps there; a twin drawn from",
+        "   it says so at the top of this report and names the columns",
+        "   drawn. Analysis code developed on the twin is meant to run",
+        "   unchanged on your table, and nothing here guarantees that it",
+        "   will: a step that depends on more than the twin holds, such",
+        "   as a cut into quartiles, can succeed on the twin and fail on",
+        "   your table. A number computed from two columns built from the",
+        "   description alone means nothing about your table.",
         "",
-        "2. EVERY ROW WAS BUILT ON ITS OWN, and the description of your",
-        "   table never says what one row of it is. Where you named an",
-        "   IDENTIFIER column, the twin does repeat its identities in the",
-        "   same pattern yours does -- how many of them appear once,",
-        "   twice or eight times is a published fact of that column and",
-        "   the twin holds it. What carries nothing further is WHICH",
-        "   identity gets which count, and which rows share one: the rows",
-        "   of a subject in the twin hold unrelated dates, readings and",
-        "   outcomes. So anything that groups rows -- an average per",
-        "   person, a repeated-measures model, the number of visits one",
-        "   person had -- behaves differently on the twin than it will on",
-        "   your table. The twin is faithful one row at a time, and a",
-        "   twin of a repeated-measures table misdescribes the",
-        "   subject-level truth even where every column of it is right on",
-        "   its own.",
-        "",
+    ]
+    if grain:
+        rows = [
+            "2. EACH PERSON'S ROWS. Your description names the person each",
+            "   row is about. The twin's persons have as many rows each as",
+            "   your table's persons do, in the same proportions, and in",
+            "   order; where the twin was drawn from the inside record, each",
+            "   person's dates also run as one timeline, a date keeping the",
+            "   real month, weekday and time of day with the day of the",
+            "   month made up, and each person's repeated readings keep that",
+            "   person's own level and slope. Anything else about groups of",
+            "   rows -- per visit, per site -- is not carried: check on your",
+            "   table any finding about persons that the twin shows.",
+            "",
+        ]
+    else:
+        rows = [
+            "2. EVERY ROW WAS BUILT ON ITS OWN, because your description",
+            "   names no person who stands on several rows, so it never says",
+            "   what one row of your table is. Where you named an",
+            "   IDENTIFIER column, the twin does repeat its identities in the",
+            "   same pattern yours does -- how many of them appear once,",
+            "   twice or eight times is a published fact of that column and",
+            "   the twin holds it. What carries nothing further is WHICH",
+            "   identity gets which count, and which rows share one: the rows",
+            "   of a subject in the twin hold unrelated dates, readings and",
+            "   outcomes. So anything that groups rows -- an average per",
+            "   person, a repeated-measures model, the number of visits one",
+            "   person had -- behaves differently on the twin than it will on",
+            "   your table, and a twin of a repeated-measures table",
+            "   misdescribes the subject-level truth. Where one person stands",
+            "   on several rows, name that column with --person and describe",
+            "   the table again.",
+            "",
+        ]
+    return first + rows + [
         "3. NUMBERS COMPUTED ON THE TWIN ARE NOT RESEARCH RESULTS. Develop",
         "   your analysis on the twin, then run the finished analysis on",
         "   your real table, inside the environment that holds it.",
@@ -2013,8 +2045,10 @@ def _handling_lines() -> "list[str]":
     return [
         "WHERE THE TWIN'S VALUES CAME FROM. Building the twin read no",
         "table: it samples or copies no row of yours, and every cell was",
-        "worked out from the description and the seed. That says where the",
-        "values came from, and it is the claim synthtwin makes.",
+        "worked out from the description, the inside record where one",
+        "stood beside it (a model fitted on your table that holds none of",
+        "its rows) and the seed. That says where the values came from,",
+        "and it is the claim synthtwin makes.",
         "",
         "It does NOT say that no row of the twin can equal a row of your",
         "table. The description publishes counts, and holding a count",
@@ -2022,9 +2056,10 @@ def _handling_lines() -> "list[str]":
         "rows and one column, whose single label is shared by all of them,",
         "publishes that label with the count 100 -- so the twin holds it",
         "in all 100 rows, and every row matches. Nothing was copied; there",
-        "was nothing else to write. 100 rows is the smallest table",
-        "synthtwin describes. The smaller the table and the fewer its",
-        "columns, the more often that happens.",
+        "was nothing else to write. 100 rows is the shortest true example:",
+        "synthtwin describes no table under 20,000 rows, and the same",
+        "arithmetic holds there for any column its published facts pin.",
+        "The fewer a table's columns, the more often that happens.",
         "",
         "HOW TO KEEP THESE FILES. All six files of a full run -- the",
         "description, the plain-language summary beside it, the",
@@ -2065,9 +2100,12 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
       (plan P2-D10). The caller puts the finished text through the
       display boundary once more on its way to the screen and to disk.
 
-    What it always says, whatever the run did: the seed; that columns
-    were built independently; that rows were built independently and the
-    description never said what one row is; where the twin's values came
+    What it always says, whatever the run did: the seed; what the twin
+    carries between columns (the chain's block on a switched description,
+    else that a column built from the description alone carries no
+    relation and that the relations come from the inside record); what
+    it carries across one person's rows, by whether the description names
+    the person (`_independence_lines`); where the twin's values came
     from and the one case in which a twin row can equal a real one; that
     all six files a full run leaves behind carry facts computed from
     real data and are kept
@@ -2135,7 +2173,9 @@ def report(profile: contract.Profile, twin: generation.Twin) -> str:
         _RULE,
         "",
     ]
-    standing = _independence_lines()
+    # PARAGRAPH 2 BY WHETHER THE DESCRIPTION NAMES THE PERSON (lane DOCS):
+    # the patient layer (`grain`) gives each twin person their rows in order.
+    standing = _independence_lines(profile.relationships.grain is not None)
     if block:
         # ON A SWITCHED TWIN THE BLOCK TAKES PARAGRAPH 1'S PLACE (plan
         # P4-D458); paragraphs 2 and 3 stand word for word.

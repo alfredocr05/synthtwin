@@ -2702,7 +2702,19 @@ GOLDEN_REPORT_SHA256 = (
     # LINE MOVES, the remark's note, which now says no twin record number
     # is spelled as a real one "or as a real one written another way"
     # (the merged key). The twin's cells did not move.
-    "691f19efcea895c42700ea06a4ac75adb57a42b58fa53aeb89aab5e431938768"
+    # RE-RECORDED AT LANE DOCS (2026-11-25), once the inside record and
+    # the patient layer shipped: diffed line by line against 8cebca0f,
+    # the report goes from 855 lines to 860 and only three paragraphs
+    # move. Paragraph 1 is now "1. BETWEEN COLUMNS": a column built from
+    # the description alone carries no relation, and the relations come
+    # from the inside record. Paragraph 2 keeps its heading and its
+    # account of identities and says why every row was built on its own
+    # (the description names no person) and what to do (--person). The
+    # provenance paragraph names the inside record beside the
+    # description, and "100 rows is the smallest table synthtwin
+    # describes" becomes the shortest true example under the 20,000-row
+    # floor. No fact, value, window or verdict moved; the twin did not.
+    "efb1a4edd68e801cd0e4b06169b336d3d3275641adb8377bafb2d2183c5c3e71"
 )
 
 
@@ -3531,7 +3543,16 @@ GOLDEN_QUALITY_SHA256 = (
     # REPORT-ONLY, listed with its sentence -- so 214 become 215 in the
     # two counts that say so; every check and every verdict is as it was,
     # the moved `record_code` cells held as the old ones were.
-    "07f7bdbaf9b158357ac8957080f8e9fc9de17853e4347421a398782d13cd6660"
+    # RE-RECORDED AT LANE DOCS (2026-11-25): diffed line by line against
+    # 8cebca0f, 2,282 lines become 2,289 and four passages of words move,
+    # nothing else: paragraph 1 ("NOTHING BETWEEN COLUMNS WAS CHECKED",
+    # then that the inside record's relations are checked nowhere here
+    # and what a drawn date's made-up day of the month excuses),
+    # paragraph 2 (groups of rows checked only as far as the description
+    # publishes them), the expectations section's last paragraph, and the
+    # provenance sentence, which names the inside record. Every check,
+    # verdict and census count is as it was.
+    "6c55f02c02503eab536a24c16bdb0ea3c655d65294188c1a9c8e992f3d48b4e2"
 )
 
 

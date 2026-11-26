@@ -9,10 +9,11 @@
 > project rests on. Every capability on this page is tagged **[built]**
 > or **[planned]** so there is no ambiguity about which is which.
 >
-> **The one thing to know before you use a twin:** it is faithful one
-> column at a time. It carries no cross-column structure at all -- see
-> "What the twin does not carry" below, which is the section to read
-> before any other.
+> **The one thing to know before you use a twin:** its columns relate
+> to each other the way yours do only where it was drawn from the inside
+> record, on the computer that holds your table, and even then
+> approximately -- see "What the twin carries, and what it does not"
+> below, which is the section to read before any other.
 
 > **This repository goes public at Phase 3's visibility flip** - the
 > owner decision recorded in the Phase 3 plan, executed the moment that
@@ -25,23 +26,29 @@
 > claimed before its evidence exists.
 
 synthtwin creates a **synthetic twin** of a tabular dataset: a table
-with the same shape as yours, and with each column behaving like the
-same column of yours, worked out from a description of your table
-rather than from its rows - built entirely on your machine, with no
-network access of any kind. What that does and does not promise about
-your rows is set out in "The twin's rows, stated exactly" below, and
-what it does and does not promise about two columns together is set out
-in "What the twin does not carry". Both are worth reading before you
-rely on a twin.
+with the same shape as yours, with each column behaving like the same
+column of yours and the relations between columns drawn from a model
+fitted on your table, worked out from a description of your table and
+that model rather than from its rows - built entirely on your machine,
+with no network access of any kind. What that does and does not promise
+about your rows is set out in "The twin's rows, stated exactly" below,
+and what it does and does not promise about two columns together is set
+out in "What the twin carries, and what it does not". Both are worth
+reading before you rely on a twin.
 
 ## What synthtwin does today [built]
 
 Given one table of real data, three commands produce the six files a
-full run leaves behind, of four kinds:
+full run leaves behind (`synthtwin twin` runs the three in one), of four
+kinds, and beside them, in a private folder of the
+computer that holds your table, the inside record the twin is drawn
+from:
 
 1. **A synthetic twin** - a table of the same shape whose columns each
-   behave like the matching column of the original, every cell of it
-   worked out from the description rather than taken from your file.
+   behave like the matching column of the original and relate to one
+   another as the inside record fitted them on your table, every cell of
+   it worked out from the description and that record rather than taken
+   from your file.
 2. **A schema file** - a plain description of every column: its type, its
    range or its categories, and how the twin version of it was built.
    You get it twice, once for a program to read and once in words - and
@@ -64,21 +71,21 @@ full run leaves behind, of four kinds:
 
 ## What synthtwin does not do yet [planned]
 
-5. **A relationships file** - the dependencies between columns, so that
-   a twin could preserve them. **Nothing of this exists today.** The
-   description carries a reserved block for it whose every slot is
-   empty, and synthtwin refuses a description that fills one. Until it
-   is built, the twin carries no cross-column structure at all. Nothing
-   the quality report checks is a cross-column fact, because the
-   description publishes none.
+5. **A page that names the relations** - which columns move together
+   in your table and how closely the twin follows each. The relations
+   themselves are built (see "What the twin carries, and what it does
+   not" below); a page a person reads that names them is not. The
+   quality report checks between columns only the tables of counts the
+   description publishes, because the inside record publishes nothing.
+6. **Health-record exchange files** - FHIR and HL7 files are not read.
 
 ## Who it is for
 
 Researchers who work with records that must never go anywhere near AI
 tooling, cloud services, or any network - and who are not programmers.
-The tool is being designed to run from a single command, and every error
-message is required to tell a non-programmer what happened and what to do
-next.
+The whole journey runs from a single command, `synthtwin twin`, and every
+error message is required to tell a non-programmer what happened and what
+to do next.
 
 ## What works today
 
@@ -104,6 +111,15 @@ beside it:
   one way, what it saw in each and what it read each as, with the
   answers you can give. Fill it in and hand it back with `--answers`.
   It is written on every run, whether there were questions or not.
+
+It also writes **the inside record**, in a private folder on this
+computer: a model of your table fitted on its rows, holding none of
+them, from which the twin's relations between columns are drawn. The
+screen names its place and size; nothing of it is ever printed, and it
+is not meant to leave this computer. A folder synchronised to a cloud,
+under version control, on a network or open to other accounts is
+refused for it in plain words (a temporary folder without a word), and
+the twin is then built from the description alone.
 
 Years of birth are judged against a year written in synthtwin itself,
 not read from your computer's clock: 2027 in this release, so a year up
@@ -238,9 +254,10 @@ none of them, so a label rarer than that does not reach your twin by
 name. `--smallest-group` can raise that number -- `--smallest-group 20`
 pools every group under twenty rows -- and never lower it: a number
 under eleven is refused and nothing is written. What a named value tells
-anybody is that somebody in your table had it -- synthtwin publishes
-nothing that crosses two columns, so it says nothing about who, or
-about anything else that person's row holds. What each setting costs
+anybody is that somebody in your table had it -- between columns the
+description publishes only tables of counts over bands of two or more
+columns, under the same floor, so it says nothing about who, or about
+anything else that person's row holds. What each setting costs
 is written out under the options below. It is
 real-derived material, and your institution's rules for such material
 apply to it. The same is true of every other file a full run produces:
@@ -252,10 +269,12 @@ summary is on that list for the reason that makes it easy to forget --
 it is the readable one, so it is the one that gets pasted into an email,
 and it repeats the real labels the profile publishes.
 
-The second reads that description -- and nothing else, not your table
-again -- and writes two more files beside it:
+The second reads that description and the inside record beside it --
+never your table again -- and writes two more files beside it:
 
-- `my-table-twin.csv` - the synthetic twin;
+- `my-table-twin.csv` - the synthetic twin (a table read from a
+  workbook, or from a Parquet, SAS, Stata or SPSS file, gets a twin of
+  the same kind);
 - `my-table-twin-report.txt` - what the twin carries, what it only
   approximates and what it does not carry at all, in plain language.
   It is also printed on the screen. Keep it with the twin: it is the
@@ -263,9 +282,10 @@ again -- and writes two more files beside it:
 
 The twin has the same columns in the same order, the same number of
 rows, and the same amount of missing data as your table, and each of
-its columns behaves like the matching column of yours. Read "What the
-twin does not carry" below before you draw anything from two of its
-columns at once.
+its columns behaves like the matching column of yours, with the
+relations between them that the inside record carries. Read "What the
+twin carries, and what it does not" below before you draw anything from
+two of its columns at once.
 
 The third reads the description and one CSV file -- by default the twin
 beside it, or whatever `--twin` names -- and writes one more file:
@@ -566,8 +586,8 @@ synthtwin generate my-table-profile.json --replace
 
 `--out-dir` works as it does above. `--seed` is a whole number from 0 to
 18446744073709551615 that decides which twin you get: the same
-description, seed and version of synthtwin always give the same twin,
-byte for byte, and a different seed gives a different twin that follows
+description, inside record, seed and version of synthtwin always give
+the same twin, byte for byte, and a different seed gives a different twin that follows
 the description just as closely. `--replace` lets a re-run write over
 the twin and the report an earlier run left at those names; without it a
 run that finds either name taken stops and changes nothing, because
@@ -592,37 +612,84 @@ line the generator prints when it finishes always spells out `--twin`.
 `--replace` lets a re-run write over a quality report an earlier run
 left at that name, on the same reasoning as above.
 
-## What the twin does not carry
+## What the twin carries, and what it does not
 
 This is the section to read before you trust a number computed from a
-twin, and it is not a list of bugs -- it is what this version of
-synthtwin models.
+twin. It is not a list of bugs: it is what this version of synthtwin
+models, and how well, measured.
 
-**No cross-column structure, of any kind.** Every column of the twin is
-built on its own, from the facts the description publishes about that
-column alone. Nothing that links two columns of your table is in the
-twin: not a taller person weighing more, not a later date costing more,
-not a code that only ever appears beside one region, not a column that
-is another column times twelve, not two columns that are empty in the
-same rows, and not one event date always falling before another.
+**Each column on its own.** Each column of the twin holds what the
+description publishes about that column: its kinds of values, its
+spread, its counts, its common labels and spellings, how much of it is
+missing and how the missing cells were written.
+
+**The relations between columns come from the inside record.** On the
+computer that holds your table, `synthtwin profile` writes the inside
+record in a private folder: a model of your table fitted on its rows,
+holding none of them, never printed, and not meant to leave that
+computer. `synthtwin generate` draws the twin from it there. A twin
+drawn from it carries:
+
+- how a number or a label depends on the columns before it -- a taller
+  person weighing more, a later date costing more, a code that appears
+  beside one region -- with interactions, curves and steps where the
+  fit finds them beyond chance;
+- which cells are empty together, and who is missing;
+- where a column names the person (the first question of a run asks
+  which one does), each person's rows in order, with their dates as one
+  timeline and their repeated readings keeping that person's own level
+  and slope;
+- on a long table of one measurement a row, each kind of measurement
+  with its own values;
+- free text, structured cells and record numbers in the layouts at least
+  the floor of people write, keeping only words that many people write
+  and drawing every number anew.
+
+Every date it draws keeps the real month, weekday and time of day, with
+the day of the month made up. Record numbers, names, places and the
+other Safe Harbor identifiers are made up and carry no relation to
+anything. The report beside the twin opens by naming the columns drawn
+from the record.
+
+**How well, measured.** On invented test tables of 20,000 rows, never on
+real data (release 35): 405 runs of analysis scripts -- comparisons,
+regressions, survival, ordinal and multinomial models, prediction,
+missing-data methods -- each ran unchanged on the twin, all 405; the
+twin reached the same statistical conclusion as the real table in 94.4
+per cent of runs, against 89.8 per cent for a second real sample of the
+same size; on twelve more advanced analyses, 79.6 per cent against
+78.7. On an invented table of 302 columns, all 15 relations written into
+it were found. These are measurements on invented tables, not a promise
+about yours.
+
+**What it does not carry.**
+
+- **The day of the month** of a drawn date is made up, so an analysis of
+  the exact calendar day -- a holiday, a pattern by day of the month --
+  cannot match.
+- **A relation exactly, or only the relations your table has.** The
+  relations are approximate, and the twin can show one your table does
+  not have. Check on your table any effect the twin shows, and never
+  read a negative finding from the twin.
+- **Groups of rows other than the person** -- per visit, per site --
+  beyond what the relations carry; where no column names the person,
+  rows are built on their own.
+- **Two tables joined by their contents.** `--linked-to` makes the
+  persons of two twins join as the tables' persons do; what a person's
+  rows hold, and their dates, are not joined across the two tables.
+- **Anything between columns, in a twin built from the description
+  alone.** Where no inside record stands beside the description (none
+  was written, it was written beside another version of the description,
+  or the description was moved to another computer), the twin carries
+  nothing between columns but the tables of counts the description
+  publishes.
+
 Analysis code you develop on the twin is **meant to run unchanged** on
-your table, and nothing here guarantees that it will: a step that depends
-on more than the description publishes, such as a cut into quartiles, can
-succeed on the twin and fail on your table. A number that code computes
-from two columns of the twin means nothing about your table.
-
-**Rows are treated as independent, and the grain is undescribed.** The
-description never says what one row of your table is. If your table
-holds several rows per person, per visit or per site, the twin does not
-know that, so anything that groups rows -- an average per person, a
-repeated-measures model, a count of visits each -- behaves differently
-on the twin than it will on your table. The twin is faithful one row at
-a time, and a twin of a repeated-measures table misdescribes the
-subject-level truth even where every column of it is right on its own.
-
-Cross-column structure arrives in a later phase (Phase 5, in
-`docs/plans/`). Every twin's own report states both limits, on every
-run, whether or not anything else went wrong.
+your table, and nothing here guarantees that it will: a step that
+depends on more than the twin holds, such as a cut into quartiles, can
+succeed on the twin and fail on your table. Every twin's own report
+states what it carries between columns, on every run, whether or not
+anything else went wrong.
 
 ## What exists today
 
@@ -639,8 +706,9 @@ run, whether or not anything else went wrong.
   description. Arrow (Feather), ORC and SPSS portable files are named
   and refused.
 - **[built]** `synthtwin generate` - the twin and the report described
-  above, built from the description and a seed and from nothing else.
-  The generator never opens your table; it is not given a path to one.
+  above, built from the description, the inside record beside it and a
+  seed. The generator never opens your table; it is not given a path to
+  one.
 - **[built]** `synthtwin validate` - the quality report described
   above, measured by describing the file again with the profiler's own
   producer and comparing. It never reaches the generator, so its
@@ -648,8 +716,9 @@ run, whether or not anything else went wrong.
   work, and it consumes no randomness at all.
 - **[built]** The generation report, which names every published fact
   the twin missed, every fact it only approximates with the bound it was
-  held to, and the two limits under "What the twin does not carry"
-  above. It passes no verdict of its own and says so, and it ends by
+  held to, and what the twin carries between columns and across each
+  person's rows (see "What the twin carries, and what it does not"
+  above). It passes no verdict of its own and says so, and it ends by
   teaching the `validate` command line that produces one.
 - **[built]** The `synthtwin` command's version and status output.
 - **[built]** The offline guarantee's layered checks: a best-effort
@@ -666,10 +735,12 @@ run, whether or not anything else went wrong.
   generating script and byte-compared in CI.
 - **[built]** Continuous integration with a single aggregate gate, and
   the written plans and their review record in `docs/plans/`.
-- **[planned]** Relationships between columns. The description
-  describes each column on its own, and the twin therefore carries no
-  cross-column structure at all; how columns move together arrives in a
-  later phase (Phase 5).
+- **[built]** Relationships between columns, drawn from the inside
+  record kept on the computer that holds your table (see "What the twin
+  carries, and what it does not" above).
+- **[built]** `synthtwin twin` - the whole journey in one command, every
+  question your values cannot settle put in one round before anything
+  is written.
 - **[planned]** The release: signed, reproducible, attested offline
   bundles, one per kind of computer, which CI already builds and tests
   (plan P4-D416). It is never published on PyPI: the owner decided on
@@ -697,8 +768,10 @@ will work there unchanged.
 
 **Profile and generator are separate [built].** The architecture keeps
 the profiler and the generator apart: the profiler runs where the real
-data lives and writes a profile file; the generator needs only that
-profile. The real data never has to move. The separation is held by the
+data lives and writes a profile file and, beside it in a private
+folder, the inside record; the generator needs only those two, on that
+same computer. The real data never has to move, and only the twin and
+its report are meant to leave. The separation is held by the
 import graph rather than by anybody's care -- one module opens a CSV
 table, and a `generate` run never reaches it at any instant, from the
 moment the command starts. `validate` does reach it, and must: measuring
@@ -712,8 +785,8 @@ imports numpy, which loads `numpy.random`. What is enforced is that no
 module of synthtwin on that path imports a random source and that the
 run draws from none -- a trap over every source in the process, with the
 whole command run at it. The boundary this architecture keeps is that
-GENERATION reads a description and nothing else -- not that only one
-command opens a file.
+GENERATION reads a description and the inside record beside it, and
+nothing else -- not that only one command opens a file.
 
 **Dependencies are governed [built].** synthtwin has five direct
 runtime dependencies, on Python 3.11 and later: numpy, pyarrow, scipy,
@@ -723,9 +796,9 @@ twin of such a file, and of a Parquet file, is written by the standard
 library alone. pandas is justified in writing in
 `docs/plans/phase-1-profiler.md` and reduced by the import scanner to
 `read_csv` and the one setting that fixes how it stores text; numpy is
-justified in `docs/plans/phase-2-generator.md` and reduced to
-`numpy.random.default_rng` plus the single drawing call on the random
-stream it returns; pyarrow (a fast reader, and text held as exact
+justified in `docs/plans/phase-2-generator.md` and reduced to the
+seeded random streams and the names of the one audited array helper,
+`synthtwin.arrays` (plan P4-D466); pyarrow (a fast reader, and text held as exact
 bytes) and scipy (a solver that searches, and the private self-test's
 fits) are justified in `docs/plans/phase-4-columns.md` (P4-D409) and
 reduced to a few enumerated names each -- membership in an allowed
@@ -733,12 +806,11 @@ library grants nothing on its own. Each library is also held to the
 ZONES it may run in, so that no library's floating-point arithmetic
 decides a byte of the twin or of anything published, and numba, which
 may compile one audited piece of the generator once CI proves it gives
-the same bytes, is optional. numpy is used only by the generator's one random stream: the
-profiler, which is the half that reads your table, imports it nowhere.
-(It was declared directly in Phase 1 too, until review round 1 showed
-that its reductions made published statistics depend on the order of the
-rows; the profiler computes those statistics itself now, and what
-returned in Phase 2 is the random stream alone.) The policy
+the same bytes, is optional. No statistic the description publishes is
+computed with numpy: the profiler computes each one itself, in a fixed
+order. (numpy was declared directly in Phase 1 too, until review round 1
+showed that its reductions made published statistics depend on the
+order of the rows.) The policy
 distinguishes the *direct* dependency (declared with an honest lower
 bound that a CI job installs and tests) from the *complete closure*
 (every package, including build tooling and everything a dependency
@@ -752,10 +824,11 @@ that path.
 
 ## The twin's rows, stated exactly
 
-The generator is given the profile and a seed, and nothing else. It is
-never handed a path to your table, it does not open one, and it samples
-or copies no row of it. Every value in the twin is worked out from the
-description.
+The generator is given the profile, the inside record beside it where
+one stands (a model fitted on your table that holds none of its rows),
+and a seed. It is never handed a path to your table, it does not open
+one, and it samples or copies no row of it. Every value in the twin is
+worked out from the description and that record.
 
 That is a statement about where the twin's values come from. It is not a
 promise that no row of the twin can equal a row of yours, and an earlier
@@ -802,20 +875,22 @@ These are design limits, stated up front so nobody discovers them late:
 | Limit | What it means for you |
 | --- | --- |
 | One flat table at a time | synthtwin models a single table. Multi-table databases and cross-file joins are out of scope. |
-| One column at a time | The twin reproduces what the description publishes about each column on its own. It carries **no cross-column structure** at all -- no correlation, no formula between two columns, no shared pattern of empty cells, no ordering between two event dates. Cross-column structure arrives in a later phase (Phase 5). See "What the twin does not carry" above. |
-| One row at a time | Rows are treated as independent and the grain is undescribed: the description never says what one row of your table is, so a table with several rows per subject yields a twin that misdescribes the subject-level picture. |
+| Relations only from the inside record | The relations between columns are drawn from the inside record on the computer that holds your table, and they are approximate. A twin built from the description alone carries nothing between columns but the tables of counts the description publishes. Check on your table any effect the twin shows. See "What the twin carries, and what it does not" above. |
+| Persons, not visits or sites | Where a column names the person, each person's rows keep their number, order and timeline. Other groups of rows -- per visit, per site -- are not modelled, and where no column names the person, rows are built on their own. |
+| The day of the month is made up | A date drawn from the inside record keeps the real month, weekday and time of day, with the day of the month made up, so an analysis of the exact calendar day cannot match. |
 | Only what the description publishes is reproduced | A pattern the profiler does not publish is not in the twin, whether or not the profiler could in principle have seen it. |
-| No free text | Narrative or note columns are described by their length and word counts only; their values are never published, and the twin will not invent sentences. A column of CODES that reaches this role -- short cells, no spaces, marks from a small list -- also publishes the SHAPE its values were written in, so its twin's cells split and measure the way the real ones do. A shape carries no letter and no figure of any value: `4548-4` says `9999-9`. |
-| Delimited text only, for now | The profiler reads delimited text files -- comma, semicolon, tab or vertical bar -- saved as UTF-8, as UTF-16 with its byte-order mark, or as Western European text, and the twin is written the same way the table was. Native spreadsheet, statistics-package, database and columnar formats come later. |
-| The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is planned but not built. A file of a few hundred megabytes is comfortable on an ordinary machine; several gigabytes is not, and you are told so in words rather than by a crash. |
+| Free text is made up | Narrative or note columns are described by their length and word counts only, and their values are never published. A twin drawn from the inside record writes them in the layouts at least the floor of people write, keeping only words that many people write and drawing every number anew; built from the description alone, their cells are filler of the right length. A column of CODES that reaches this role -- short cells, no spaces, marks from a small list -- also publishes the SHAPE its values were written in, so its twin's cells split and measure the way the real ones do. A shape carries no letter and no figure of any value: `4548-4` says `9999-9`. |
+| The files it reads | Delimited text files -- comma, semicolon, tab or vertical bar -- saved as UTF-8, as UTF-16 with its byte-order mark, or as Western European text; Excel workbooks; and Parquet, SAS transport, SAS dataset, Stata and SPSS files. The twin is written as the same kind of file, a SAS dataset's as SAS transport. FHIR and HL7 files, database files, and Arrow (Feather), ORC and SPSS portable files are not read. |
+| The table has to fit in memory | A table is read into memory whole; reading very large files in pieces is not built. Measured on an invented table of 2,000,000 rows by 50 columns, end to end -- describe, one answered round, build, check and the five twin checks: 13.05 hours (9.8 without the answered round), and about 4.1 GB of memory at the most, half of an 8 GB computer. A Parquet, SAS, Stata or SPSS file is held whole as text, which takes more memory than its size on disk suggests. A table too large for the computer's memory is told to you in words rather than by a crash. |
 | The file is read twice | Once to check its shape and once to read its values, by two different readers whose results must agree. That costs a second pass over the file and buys the guarantee that a malformed row is refused rather than quietly turned into missing values. |
-| Small tables degrade | With few rows, the statistics the profiler measures are noisy, and the twin's fidelity drops accordingly. Two files say where: the generation report names each approximate fact with the value the twin reached beside the published one, and `synthtwin validate` writes the quality report, which is where a small table shows as missed obligations rather than as a feeling. |
+| Small tables are refused | A table under 20,000 rows that hold a value, or under 1,000 people where one person has several rows, is refused and nothing is written. Near that size more counts fall under the floor and are pooled or withheld, and two files say where: the generation report names each approximate fact with the value the twin reached beside the published one, and `synthtwin validate` writes the quality report, where it shows as missed obligations rather than as a feeling. |
 | The quality report protects the report, not the file | `synthtwin validate` may say about the file it checked only what `synthtwin profile` run on that file would publish, and prints WITHHELD where it may not say a number. That protects the **report**, which travels to people who may not hold the file. It is not a defence against somebody who has the checked file and runs the check again and again with descriptions they wrote themselves, watching which lines change: that person can narrow a number one report withholds, and synthtwin does not try to stop them, because they can read the file. The control that matters is who may hold the file. See `SECURITY.md`. |
 
 ## Determinism [built]
 
-The guarantee, exactly as scoped: the same profile, the same seed, the
-same synthtwin version, and the same locked dependency set produce
+The guarantee, exactly as scoped: the same profile, the same inside
+record beside it, the same seed, the same synthtwin version, and the
+same locked dependency set produce
 byte-identical output **on the same platform**. Cross-platform equality
 is verified empirically by golden-hash tests on every cell of the CI
 matrix and is reported as a tested result - it is never promised beyond
@@ -939,9 +1014,9 @@ computer needs, before it changes anything; makes a fresh private environment na
 `.venv` inside the bundle's folder so nothing else on the computer
 changes (an earlier one there is replaced, so every file in it is
 checked again, and a package you installed into it yourself must be
-installed again afterwards); installs the four libraries synthtwin
-needs -- numpy, pandas, pyarrow and scipy -- and synthtwin itself from
-the bundle and nothing else; and ends by running `synthtwin doctor`
+installed again afterwards); installs the five libraries synthtwin
+needs -- numpy, pandas, pyarrow, scipy and pyreadstat -- and synthtwin
+itself from the bundle and nothing else; and ends by running `synthtwin doctor`
 (below). It is a `.bat` file on Windows, not a PowerShell script,
 because many managed computers refuse to run PowerShell scripts.
 

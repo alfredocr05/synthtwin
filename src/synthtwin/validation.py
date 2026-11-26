@@ -91,20 +91,22 @@ WHAT IS NOT CHECKED HERE, AND CANNOT BE, STATED BEFORE ANY VERDICT
 BELOW READS AS COVERAGE (V7.3, plan P2-D11 residual R-P2-3). A
 validator's silence is read as a pass: somebody holding a report that
 missed nothing will believe the file was checked for whatever they came
-to it for. This version checks not one cross-column fact, because the
-description publishes none -- it
-carries no cross-column structure at all: no correlation between two
-columns, no formula tying one to another, no shared pattern of which
-cells are empty, no ordering between two event columns. There is
-therefore nothing of that kind for a check here to measure against.
-For the same reason,
-rows are treated as independent and the grain is undescribed: the
-description
-never says what one row of the real table is, so nothing here checks
-anything about groups of rows -- per person, per visit, per site.
-Cross-column structure arrives in a later phase (Phase 5), and the
-quality report states both limits on every run rather than leaving a
-reader to notice their absence.
+to it for. Between columns this module checks only the tables of counts
+a switched description publishes (the chain's family tables, V12), and
+about groups of rows only what the description publishes about each
+person's rows (the patient layer). It checks nothing else between
+columns -- no correlation between two columns, no formula tying one to
+another, no shared pattern of which cells are empty, no ordering
+between two event columns -- because the description publishes none of
+it. The relations between columns that a twin drawn from the inside
+record carries are fitted on the computer that holds the table and
+published nowhere, so nothing here can check them; any effect the twin
+shows is checked on the real table. A twin built from the description
+alone carries nothing between columns beyond the published tables. Of a
+date column the inside record drew (the real month, weekday and time of
+day kept, the day of the month made up) only what the made-up day moves
+is excused. The quality report states these limits on every run rather
+than leaving a reader to notice their absence.
 
 WHAT IT NEVER IMPORTS (V1.4). The generation module. The corner
 classifier below is written from the specification, so a shared design

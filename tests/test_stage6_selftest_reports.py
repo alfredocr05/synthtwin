@@ -637,7 +637,7 @@ def test_the_shared_block_is_the_structural_grades_and_the_descriptions_words_an
     assert block == expected
     assert [(entry["columns"][0], entry["columns"][1], entry["word"]) for entry in switched["words"]] == list(loaded.relationships.words)
     # Paragraph 1 gives way to the block; paragraphs 2 and 3 stand.
-    assert "1. EVERY COLUMN WAS BUILT ON ITS OWN" not in switched["report"]
+    assert "1. BETWEEN COLUMNS." not in switched["report"]
     assert "2. EVERY ROW WAS BUILT ON ITS OWN" in switched["report"]
 
 
@@ -1104,7 +1104,7 @@ def test_a_switched_twin_whose_chain_is_off_grades_every_family_n_and_gives_no_r
     expected = ["1. " + chain_grades.HEADING] + [f"{code} {name}: {grade}." for code, name, grade in chain_grades.off_grades()]
     assert block == expected + [chain_grades.ONCE_LINE]
     assert all(line.endswith(": N (not carried).") for line in block[1:10])
-    assert "1. EVERY COLUMN WAS BUILT ON ITS OWN" not in report and "2. EVERY ROW WAS BUILT ON ITS OWN" in report
+    assert "1. BETWEEN COLUMNS." not in report and "2. EVERY ROW WAS BUILT ON ITS OWN" in report
     for reason in (chain.OFF_PERSON, chain.OFF_FEW, "no chain is published", "because", chain_grades.PAIRS_HEADING[:20]):
         assert all(reason not in line for line in block)
     assert chain_grades.PAIRS_HEADING not in report

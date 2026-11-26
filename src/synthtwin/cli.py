@@ -289,32 +289,39 @@ _QUALITY_SUFFIX = "-quality.txt"
 
 _STATUS = """synthtwin {version}
 
-Status: early. `synthtwin profile <your-table.csv>` reads a CSV table on
-this computer and writes a description of it -- what each column holds,
-how its values are spread, and what is missing. Then `synthtwin generate
+Status: early. `synthtwin twin <your-table.csv>` does the whole journey
+in one command, asking first what your values cannot settle. Step by
+step: `synthtwin profile <your-table.csv>` reads your table on this
+computer (CSV, a workbook, or a Parquet, SAS, Stata or SPSS file) and
+writes a description of it -- what each column holds, how its values are
+spread, and what is missing -- and, beside it in a private folder on
+this computer, the inside record. Then `synthtwin generate
 <your-table-profile.json>` builds the synthetic twin from that
-description and a seed, and from nothing else, and writes it beside a
+description, the inside record and a seed, and writes it beside a
 report saying what the twin carries and what it does not. Then
 `synthtwin validate <your-table-profile.json>` measures that twin
 against the description and writes the quality report: which of the
 description's obligations the file met, which it missed, and which
 nothing written in a CSV could evidence either way.
 
-What the twin does NOT carry, before anything else here claims more.
-This version builds every column on its own and carries no cross-column
-structure at all: nothing that links two columns of your table is in the
-twin -- not a taller person weighing more, not a later date costing
-more, not a code that only ever appears beside one region, not two
-columns left empty in the same rows. Every row is built on its own too,
-and the description never says what one row of your table is, so a table
-holding several rows per person yields a twin that behaves differently
-from your table under anything that groups rows. Analysis code you
-develop on the twin is meant to run unchanged on your table, and nothing
-here guarantees that it will: a step that depends on more than the
-description publishes, such as a cut into quartiles, can succeed on the
-twin and fail on your table. A number it computes from two columns of
-the twin means nothing about your table.
-Cross-column structure arrives in a later version of synthtwin.
+What the twin carries between columns, and what it does not. The
+relations between columns come from the inside record: a model of your
+table fitted on its rows, holding none of them, kept in a private
+folder on this computer and never printed. A twin drawn from it keeps
+how a number or a label depends on the columns before it, which cells
+are empty together and, where a column names the person, each person's
+rows in order with their dates as one timeline; a date it draws keeps
+the real month, weekday and time of day, with the day of the month made
+up. Record numbers, names, places and other identifiers are made up and
+carry no relation to anything. The relations are approximate, and the
+twin can show one your table does not have: check on your table any
+effect the twin shows, and never read a negative finding from the twin.
+A twin built from the description alone -- where no inside record
+stands beside it -- carries nothing between columns but the tables of
+counts the description publishes. Analysis code you develop on the twin
+is meant to run unchanged on your table, and nothing here guarantees
+that it will: a step that depends on more than the twin holds, such as a
+cut into quartiles, can succeed on the twin and fail on your table.
 
 What that does and does not promise about your rows. The generator is
 never handed your table, does not open one, and samples or copies no row
@@ -479,15 +486,20 @@ _PAGE_HEADS = {
         # One line since batch 4u's merge of lane CHON, so that lane EZ-a's
         # --person line and the lane's line of the installation's four
         # options fit `K-S8-05`'s 60 lines a page together.
-        "Describe TABLE (CSV or workbook): a description, its summary, a questions file.",
+        # The kinds of file it reads since lane FORMATS (plan P4-D531), still
+        # one line of 79 characters at most (lane DOCS).
+        "Describe TABLE (CSV, workbook, Parquet, SAS, Stata or SPSS) in three files.",
     ),
     _GENERATE: (
         "usage: synthtwin generate DESCRIPTION [options]",
         "Build the twin from DESCRIPTION, the file 'synthtwin profile' wrote, "
-        "and from nothing else, and write the twin (TABLE-twin.csv, or "
-        "TABLE-twin.xlsx for a workbook) and its report (TABLE-twin-report.txt) "
-        "beside it. The same description, seed and version always give the "
-        "same twin, byte for byte.",
+        "and from the inside record it wrote beside it in this computer's "
+        "private folder, which carries the relations between columns (a twin "
+        "built from the description alone carries none), and write the twin "
+        "(TABLE-twin.csv, or for a workbook or a statistics file a file of "
+        "its kind) and its report "
+        "(TABLE-twin-report.txt) beside it. The same description, record, "
+        "seed and version always give the same twin, byte for byte.",
     ),
     _VALIDATE: (
         "usage: synthtwin validate DESCRIPTION [options]",
@@ -2271,11 +2283,12 @@ def _parse_arguments(
             "Create a synthetic twin of your tabular data: same shape, "
             "and each column behaving like the same column of yours, "
             "worked out from a description of your table rather than "
-            "from its rows. Every column is built on its own, so the "
-            "twin carries no cross-column structure at all. Run "
-            "synthtwin with no arguments for what that does and does "
-            "not promise about your rows and about two columns "
-            "together."
+            "from its rows. The relations between columns come from "
+            "the inside record synthtwin profile keeps on this "
+            "computer; a twin built from the description alone "
+            "carries none. Run synthtwin with no arguments for what "
+            "that does and does not promise about your rows and about "
+            "two columns together."
         ),
         epilog=_HELP_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -2358,8 +2371,8 @@ def _parse_arguments(
         help=(
             "which twin to build, as a whole number from 0 to "
             "18446744073709551615 written in figures (default: "
-            "%(default)s). The same description, seed and version of "
-            "synthtwin always give the same twin, byte for byte; a "
+            "%(default)s). The same description, inside record, seed and "
+            "version of synthtwin always give the same twin, byte for byte; a "
             "different seed gives a different twin that follows the "
             "description just as closely. Used by 'generate' only"
         ),
@@ -7259,7 +7272,8 @@ def _guard_line(sized: "typing.Any") -> str:
         f"them is projected at about {chain.hours_of(sized.seconds_plain)} hours of computing already, and "
         f"relating even two columns would take it past the {chain.hours_of(chain.RUN_SECONDS_AT_MOST)} hours "
         "this version allows a whole run (relating them all, about "
-        f"{chain.hours_of(sized.seconds_whole)}), so every column of the twin is carried on its own."
+        f"{chain.hours_of(sized.seconds_whole)}). The twin's relations between columns then come from the inside "
+        "record alone, where one is written on this computer."
     )
 
 
@@ -7895,6 +7909,8 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             text_mode, text_keep = _text_zone_mode(block, specs[place].why_kept, text_held, text_keys)
             if text_mode == inside_text.MODE_CENSUS and not _census_allowed(name, cells, text_keep):
                 text_mode = ""
+            if text_mode in _TEXT_ZONE_WORDED and _names_a_person(name, cells):
+                text_mode = ""
             if text_mode:
                 # ...an addition: an entry that cannot be read leaves the column the description's twin's.
                 try:
@@ -8240,8 +8256,8 @@ def _inside_report_head(drawn: "list[str]") -> str:
 
     They say what the rest of the report cannot: which columns were drawn
     from the record, what those carry, and that the report's sentences on
-    columns and rows built independently speak of the other columns only.
-    No value and no count of the record is printed.
+    columns built from the description alone speak of the other columns
+    only. No value and no count of the record is printed.
     """
     if not drawn:
         return ""
@@ -8252,10 +8268,12 @@ def _inside_report_head(drawn: "list[str]") -> str:
         "A number or a label among them holds the description's own twin's cells for\n"
         "it, each row's cell chosen by its relations to the drawn columns before it\n"
         "(interactions, curves and steps at a class's cut points included), fitted on\n"
-        "the real table inside; a date among them keeps the real weekday and clock\n"
-        "with the day of the month made up. Every other column is the description's\n"
-        "own twin's, made by every rule it keeps. Where the report below says columns\n"
-        "or rows were built independently, it speaks of those other columns only.\n\n"
+        "the real table inside; a date among them keeps the real month, weekday and\n"
+        "clock with the day of the month made up. Every other column is the\n"
+        "description's own twin's, made by every rule it keeps. Where the report below\n"
+        "speaks of columns built from the description alone, it speaks of those other\n"
+        "columns only. The relations are approximate: check on your table any effect\n"
+        "the twin shows.\n\n"
     )
 
 
@@ -8379,6 +8397,80 @@ _TEXT_ZONE_NUMBERS = ("count", "continuous", "affixed_number", "numbers_with_lab
 # A whole-number column whose numbers all lie from 0 to this, some past 89, and whose name names no measurement, may
 # hold ages: its census is not dealt (an age past 89 is a Safe Harbor element; the description's own twin keeps it).
 _CENSUS_AGE_MOST = 125
+# THE MODES THAT WRITE A REAL COLUMN'S OWN WORDS AND NUMBERS INTO THE TWIN (free text and a label's tail by their kept
+# words, a measurement by its census), which a column naming a person never takes (`_names_a_person`; lane LEDGER).
+_TEXT_ZONE_WORDED = ("free", "tail", "census")
+# The different present cells `_names_a_person` reads, and the share of them (in thousandths) that names a person.
+_PERSON_CELLS_READ = 400
+_PERSON_CELLS_SHARE = 500
+
+
+def _names_a_person(name: str, cells: "list[str]") -> bool:
+    """Whether a column's name or cells name a person, so the text zone never writes its real words into the twin.
+
+    THE PUBLIC HEAD'S LEAK (lane LEDGER, HIPAA; batch 4zz's text zone):
+    a column the description reads as free text -- a street address, an
+    e-mail address, a telephone number nobody was asked about -- was
+    written in its real templates, every word the floor's people write
+    kept and every number drawn inside the real ends, so on the health
+    data zoo's `phi_registry` at 20,000 rows 1,548 real street addresses
+    (1,580 cells) and 72 real e-mail addresses stood in the twin. A
+    column the twin checks name as an identifier element by its name
+    (`twin_checks.named_as_an_identifier`: a key, a person, persons'
+    names, a line of an address, a place, a coordinate, a device), or
+    whose different present cells read as a person's details
+    (`twin_checks.a_persons_detail`) or as e-mail addresses at half or
+    more of the first `_PERSON_CELLS_READ` read, keeps the description's
+    own twin's cells. Guarantees: a fixed function of the two. Raises
+    TypeError for a name or a cell that is not text. No I/O.
+    """
+    from synthtwin import twin_checks
+
+    if not isinstance(name, str):
+        raise TypeError("internal check: a column's name is text")
+    if twin_checks.named_as_an_identifier(name):
+        return True
+    seen: "set[str]" = set()
+    personal = 0
+    for cell in cells:
+        if not isinstance(cell, str):
+            raise TypeError("internal check: a cell is text")
+        if cell in seen or not parsing.trimmed(cell) or parsing.is_missing_text(cell):
+            continue
+        seen |= {cell}
+        if twin_checks.a_persons_detail(cell) or _an_email_address(cell):
+            personal += 1
+        if len(seen) >= _PERSON_CELLS_READ:
+            break
+    return bool(seen) and personal * 1000 >= _PERSON_CELLS_SHARE * len(seen)
+
+
+def _an_email_address(cell: str) -> bool:
+    """Whether a cell is one e-mail address: a name, one `@`, and a domain of two or more parts cut by `.`, nothing
+    else (read character by character, ASCII letters and figures). Raises TypeError for a cell that is not text; no I/O."""
+    if not isinstance(cell, str):
+        raise TypeError("internal check: a cell is text")
+    text = parsing.trimmed(cell)
+    at = -1
+    for place in range(len(text)):
+        character = text[place]
+        if character == "@":
+            if at >= 0:
+                return False
+            at = place
+        elif not ("a" <= character <= "z" or "A" <= character <= "Z" or "0" <= character <= "9"
+                  or character in "._%+-"):
+            return False
+    if at <= 0 or at >= len(text) - 3:
+        return False
+    domain = text[at + 1:]
+    dots = 0
+    for place in range(len(domain)):
+        if domain[place] == ".":
+            if place == 0 or place == len(domain) - 1 or domain[place - 1] == ".":
+                return False
+            dots += 1
+    return dots >= 1
 
 
 def _census_allowed(name: str, cells: "list[str]", keep: "list[str]") -> bool:
@@ -15353,6 +15445,13 @@ def _twin_drawn(description: str, loaded: "typing.Any", record: "dict[str, objec
         twin = _gaps_tied_again(twin, loaded, record, seed)
         if _identities_switched_on():
             twin = _identities_held(twin, loaded, record)
+    # THE PUBLISHED TOP CATEGORY HELD BY ITS FLOOR'S PEOPLE, LAST (lane LEDGER): after every zone that writes or moves
+    # a column's cells or its people, so validate's description of the twin keeps a top-coded column's published mark
+    # (`generation.top_category_held`; the 2,000,000-row proof's two columns one value short).
+    if twin.held_columns is not None:
+        kept, topped = generation.top_category_held(loaded, twin.held_columns, list(twin.names))
+        if topped:
+            twin = dataclasses.replace(twin, held_columns=kept)
     return twin, drawn_inside
 
 
@@ -15502,6 +15601,14 @@ def _gaps_tied_again(twin: "typing.Any", loaded: "typing.Any", record: "dict[str
             )
             outcomes[at] = dataclasses.replace(outcomes[at], n_present=counted[0], n_missing=counted[1],
                                                 n_distinct=counted[2], n_distinct_folded=counted[3])
+    # THE ROWS SORTED AGAIN WHERE THE TIES MOVED THE SORT COLUMN (lane LEDGER; Codex's review of batch 4zz, item 17):
+    # the ties run after the record's draw sorted the rows, so a file sorted by an end date the ties dealt again came
+    # back with 8,987 adjacent pairs out of order; its rows move whole to their places by that column again, as the
+    # draw sorts them (`generation.sorted_again`: the all-empty records kept where they stand, a row-sequence column
+    # written again in row order).
+    order = loaded.source.dialect.row_order
+    if order.column and order.column <= len(held) and names[order.column - 1] in moved:
+        held = generation.sorted_again(held, order, generation.all_empty_rows(tuple(held), int(twin.n_rows)), loaded)
     return dataclasses.replace(twin, held_columns=tuple(held), outcomes=tuple(outcomes))
 
 

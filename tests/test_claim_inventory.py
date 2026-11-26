@@ -93,11 +93,17 @@ The repair is the same shape as the first family's: a negative list of
 the claim forms that may never appear, a positive list of the marks
 every deciding surface must carry, and a vacuity floor proving the
 negative list still matches the text it was written to keep out. What
-the four positive marks say is the plain truth of this phase -- the twin
-reproduces the published facts of each column ON ITS OWN, it carries no
-cross-column structure of any kind, rows are treated as independent and
-the grain is undescribed, and cross-column structure arrives in a later
-phase.
+the positive marks said until lane DOCS was the plain truth of the phase
+that wrote them -- the twin carried no cross-column structure, rows were
+treated as independent, structure arrived later. That stopped being true
+when the chain, the patient layer and the inside record shipped (plans
+P4-D464, P4-D496 to P4-D507), and the marks moved with it: they now say
+where the relations between columns come from (the inside record), what
+a twin built from the description alone carries instead, that a drawn
+date's day of the month is made up, and that any effect the twin shows
+is checked on the real table. The old wording is banned in its turn
+(`RETIRED_STRUCTURE_CLAIMS`), because a reader told the twin carries
+nothing between columns never runs the analysis it was built for.
 
 WHY THE SURFACE LISTS DIFFER BETWEEN THE TWO FAMILIES. The record claim
 is decided at the moment a person moves a file, so it belongs on the
@@ -207,6 +213,9 @@ SURFACES = (
     # the folder, each telling a person what may leave that computer.
     "docs/windows-install.md",
     "scripts/windows/INSTALL-WINDOWS.txt",
+    # The manual (lane DOCS): the page the physician who makes the twin
+    # reads -- what to type, what Enter does, what may leave.
+    "docs/MANUAL.md",
 )
 
 # THE SURFACES THE WITHDRAWN-DEFENCE BAN WALKS, which is every one of
@@ -658,6 +667,10 @@ CLAIM_BEARING = (
     # structure list left the record claim unpinned in the module that
     # produces the verdict.
     "src/synthtwin/validation.py",
+    # The manual (lane DOCS) is where a physician decides what may leave
+    # the protected computer, so it carries the whole qualified claim and,
+    # through `STRUCTURE_BEARING`, the whole structure statement.
+    "docs/MANUAL.md",
 )
 
 # -- the second family: what the twin carries, and what is built ------
@@ -726,71 +739,99 @@ RETIRED_DEPENDENCY_CLAIMS = (
     "exactly two third-party libraries",
 )
 
-# The four marks of the truthful statement of this phase. As with
+# The five marks of the truthful statement of what the twin carries
+# between columns (lane DOCS, once the chain, the patient layer and the
+# inside record shipped: plans P4-D464 and P4-D495 to P4-D507). As with
 # `QUALIFIED_MARKS`, each entry is a tuple of accepted phrasings so a
-# surface may speak in its own register while the load-bearing words
-# stay identical and greppable. The registers are: the normative one
-# (charter, security document, package and module docstrings), which
-# says "rows are treated as independent"; and the plain one (the front
-# page, the status screen, the two files a run writes for a person),
-# which says a row "is built on its own". A person reading the report
-# beside their twin is not reading a specification.
+# surface may speak in its own register while the load-bearing words stay
+# identical and greppable. The registers are: the normative one (charter,
+# security document, package and module docstrings), which says "any
+# effect the twin shows is checked on the real table"; and the plain one
+# (the front page, the status screen, the files a run writes for a
+# person), which says "check on your table any effect the twin shows". A
+# person reading the report beside their twin is not reading a
+# specification.
 #
 # Why each mark and not only the first:
 #
-# 1. "No cross-column structure" is the fact itself, and it is stated
-#    absolutely -- no correlation, no formula, no shared pattern of
-#    empty cells, no ordering between two event columns -- because a
-#    hedged version of it reads as "mostly".
-# 2. Without the row mark, a reader takes the column statement as the
-#    whole of the limit, and the twin of a repeated-measures table
-#    misdescribes the subject-level truth while every column of it is
-#    right on its own.
-# 3. The grain mark says WHY the row one holds: the description never
-#    says what one row of the real table is, so this is not something
-#    the generator neglected to carry.
-# 4. Without the later-phase mark, the first three read as a permanent
-#    property of the product rather than as the bound of the built
-#    phase, and a reader who needs cross-column structure has no idea
-#    whether waiting is an option.
+# 1. "Relations between columns" is the capability itself. A surface that
+#    never names it reads, to a person who has met the old wording, as
+#    the old wording.
+# 2. "Inside record" says where they come from: a model fitted on the
+#    table, on the computer that holds it. Without it the first mark
+#    reads as a property of every twin, wherever it was built.
+# 3. "Built from the description alone" says what a twin WITHOUT the
+#    record carries -- nothing between columns beyond the published
+#    tables -- which is the twin somebody gets who carries the
+#    description to another computer and builds there.
+# 4. The effect check says the relations are approximate and can show
+#    one the table does not have: without it the first mark reads as a
+#    promise of fidelity.
+# 5. The made-up day of the month is the one thing every drawn date loses
+#    by design (the owner, 2026-11-18), and an analysis of the calendar
+#    day cannot match.
 STRUCTURE_MARKS = (
     (
-        ("no cross-column structure",),
+        ("relations between columns",),
+        "the statement that the twin carries relations between columns",
+    ),
+    (
+        ("inside record",),
         (
-            "the statement that the twin carries no cross-column "
-            "structure at all"
+            "the statement that those relations come from the inside "
+            "record fitted on the computer that holds the table"
+        ),
+    ),
+    (
+        ("built from the description alone",),
+        (
+            "the statement of what a twin built from the description "
+            "alone carries between columns"
         ),
     ),
     (
         (
-            "rows are treated as independent",
-            "every row was built on its own",
-            "every row is built on its own",
-        ),
-        "the statement that rows are treated as independent",
-    ),
-    (
-        (
-            "never says what one row",
-            "never said what one row",
-            "the grain is undescribed",
+            "check on your table any effect the twin shows",
+            "any effect the twin shows is checked on the real table",
         ),
         (
-            "the statement that the grain is undescribed -- that the "
-            "description never says what one row of the real table is"
+            "the statement that the relations are approximate and any "
+            "effect the twin shows is checked on the real table"
         ),
     ),
     (
-        (
-            "cross-column structure arrives in a later phase",
-            "cross-column structure arrives in a later version",
-        ),
-        (
-            "the statement that cross-column structure arrives in a "
-            "later phase, so that the three limits above read as this "
-            "phase's bound rather than as the product's nature"
-        ),
+        ("the day of the month made up", "the day of the month is made up"),
+        "the statement that a drawn date's day of the month is made up",
     ),
+)
+
+# THE WORDING THE MARKS ABOVE REPLACED (lane DOCS). Each was true of the
+# phase that wrote it and is false of the twin that ships: the chain, the
+# patient layer and the inside record carry relations between columns and
+# across a person's rows, so a surface that still says the twin carries
+# no cross-column structure tells a researcher not to run the analysis
+# the twin was built for. They are banned on every surface that speaks to
+# a person about a twin, and NOT on the change log, whose dated entries
+# record what was said when (`STRUCTURE_RETIRED_SURFACES`).
+RETIRED_STRUCTURE_CLAIMS = (
+    "carries no cross-column structure",
+    "no cross-column structure at all",
+    "no cross-column structure yet",
+    "rows are treated as independent",
+    "cross-column structure arrives in a later",
+    "every column was built on its own",
+    "builds every column on its own",
+    "every column is built on its own",
+    "100 rows is the smallest table",
+    "description and a seed, and from nothing else",
+    "description and a seed and from nothing else",
+    "the profile and a seed and nothing else",
+    "the profile and a seed, and nothing else",
+    "and from nothing else, and write the twin",
+    "the twin is built from this file alone",
+    "delimited text only, for now",
+    "publishes nothing that crosses two columns",
+    "every column of the twin is carried on its own",
 )
 
 # The surfaces that must carry the whole structure statement. These are
@@ -805,11 +846,25 @@ STRUCTURE_MARKS = (
 # carrying the structure statement is the sharper of the two: a
 # validator's silence is read as coverage, somebody holding a quality
 # report that missed nothing will believe the file was checked for
-# whatever they care about, and this version checks not one
-# cross-column fact -- because the description publishes none. A module
-# that measures obligations and does not say which obligations do not
-# exist has left out the largest thing about itself.
+# whatever they care about, and it checks between columns only the
+# tables the description publishes -- never the inside record's
+# relations, which are published nowhere. A module that measures
+# obligations and does not say which obligations it cannot see has left
+# out the largest thing about itself.
 STRUCTURE_BEARING = CLAIM_BEARING + ("src/synthtwin/generation.py",)
+
+# Where the wording `RETIRED_STRUCTURE_CLAIMS` replaced may not stand
+# (lane DOCS): every surface that has to state the truth, and the pages a
+# person meets beside them -- the package's own description, the two
+# Windows guides (the manual is in `STRUCTURE_BEARING`). Every other surface in `SURFACES` is
+# left out on purpose: the change log records what each batch said when
+# it said it, and the specifications and plans are sealed governing documents
+# whose own amendments say what moved.
+STRUCTURE_RETIRED_SURFACES = STRUCTURE_BEARING + (
+    "pyproject.toml",
+    "docs/windows-install.md",
+    "scripts/windows/INSTALL-WINDOWS.txt",
+)
 
 # Where a person finds out which commands exist. Both command words are
 # required on each, because naming one and not the other is how the
@@ -875,10 +930,12 @@ DEPENDENCY_NAMES = ("pandas", "numpy", "pyarrow", "scipy", "pyreadstat")
 #
 # VALIDATION MOVED FROM PLANNED TO BUILT when `synthtwin validate`
 # shipped (plan P3-D7, stage 2), and the tag moved in the same commit as
-# the command. Relationships between columns did NOT move and must not:
-# the description still publishes eight empty slots, the twin still
-# carries no cross-column structure, and the quality report checks no
-# cross-column fact because there is none to check.
+# the command. RELATIONSHIPS BETWEEN COLUMNS MOVED TO BUILT at lane DOCS,
+# in the commit that rewrote every surface's account of them: the chain
+# publishes tables between columns, the patient layer a person's rows, and
+# the inside record carries the fitted relations the twin is drawn from
+# (plans P4-D464, P4-D496 to P4-D507). `synthtwin twin` is tagged built
+# beside the three it runs.
 FRONT_PAGE_TAGS = (
     ("## what synthtwin does today [built]", "the built-capability heading"),
     (
@@ -892,9 +949,10 @@ FRONT_PAGE_TAGS = (
     ("**[built]** `synthtwin generate`", "the generator, tagged built"),
     ("**[built]** `synthtwin validate`", "the validator, tagged built"),
     (
-        "**[planned]** relationships between columns",
-        "cross-column structure, tagged planned",
+        "**[built]** relationships between columns",
+        "the relations between columns, tagged built",
     ),
+    ("**[built]** `synthtwin twin`", "the one command, tagged built"),
     (
         "**[planned]** the release: signed, reproducible, attested offline bundles",
         (
@@ -1255,46 +1313,162 @@ def test_no_public_surface_claims_relationship_fidelity() -> None:
             if retired in text:
                 offenders.append(f"{relative}: {retired!r}")
     assert not offenders, (
-        "These surfaces claim a fidelity this phase does not have:\n  "
+        "These surfaces claim a fidelity the twin does not have:\n  "
         + "\n  ".join(offenders)
-        + "\n\nEvery column of the twin is generated on its own from the "
-        "facts published about that column, and the profile's eight "
-        "relationship slots are empty. Nothing that holds BETWEEN two "
-        "columns -- a correlation, a formula, a shared pattern of empty "
-        "cells, an ordering between two event dates -- is in the twin, "
-        "and rows are treated as independent while the grain is "
-        "undescribed. Say that instead, and name the later phase the "
-        "structure arrives in."
+        + "\n\nThe twin carries relations between columns only as far as "
+        "the inside record's fit reaches, approximately, and a twin built "
+        "from the description alone carries none beyond the published "
+        "tables. Say that instead: where the relations come from, how far "
+        "they go, and that any effect the twin shows is checked on the "
+        "real table."
     )
+
+
+def _structure_missing(relative: str, text: str) -> "list[str]":
+    """Each mark of `STRUCTURE_MARKS` one surface's text (as `_text` reads it) does not carry, named."""
+    return [
+        f"{relative} is missing {what_it_is} (expected one of {list(forms)})"
+        for forms, what_it_is in STRUCTURE_MARKS
+        if not any(form in text for form in forms)
+    ]
+
+
+def _structure_retired(relative: str, text: str) -> "list[str]":
+    """Each form of `RETIRED_STRUCTURE_CLAIMS` one surface's text (as `_text` reads it) still carries, named."""
+    return [f"{relative}: {retired!r}" for retired in RETIRED_STRUCTURE_CLAIMS if retired in text]
 
 
 def test_structure_bearing_surfaces_state_the_whole_limit() -> None:
-    """The deciding surfaces each carry all four marks of the limit.
+    """The deciding surfaces each carry all five marks of what the twin carries between columns.
 
-    The positive half. Deleting "same relationships" satisfies the ban
-    above and leaves a reader with no statement at all, which is the
-    worse failure of the two: a person who is told nothing assumes the
-    twin behaves like their table, because that is what a twin is for.
+    The positive half. Deleting the old wording satisfies the ban below
+    and leaves a reader with no statement at all, which is the worse
+    failure of the two: a person who is told nothing assumes the twin
+    behaves like their table in every respect, because that is what a
+    twin is for.
     """
     missing: list[str] = []
     for relative in STRUCTURE_BEARING:
-        text = _text(relative)
-        for forms, what_it_is in STRUCTURE_MARKS:
-            if not any(form in text for form in forms):
-                missing.append(
-                    f"{relative} is missing {what_it_is} "
-                    f"(expected one of {list(forms)})"
-                )
+        missing += _structure_missing(relative, _text(relative))
     assert not missing, (
-        "These surfaces have to state what the twin carries and what it "
-        "does not, in full, and each is missing part of it:\n  "
+        "These surfaces have to state what the twin carries between "
+        "columns and what it does not, in full, and each is missing part "
+        "of it:\n  "
         + "\n  ".join(missing)
-        + "\n\nAll four parts are load-bearing: the column statement "
-        "alone leaves a repeated-measures reader believing the twin "
-        "describes their subjects, and all three limits without the "
-        "later-phase mark read as the product's nature rather than as "
-        "this phase's bound."
+        + "\n\nAll five parts are load-bearing: the relations without the "
+        "inside record read as true of every twin, without the twin built "
+        "from the description alone they hide what a moved description "
+        "gives, without the effect check they read as a promise, and "
+        "without the made-up day an analysis of the calendar day is "
+        "trusted that cannot match."
     )
+
+
+def test_no_deciding_surface_says_the_twin_carries_nothing_between_columns() -> None:
+    """The negative half (lane DOCS): the wording the marks replaced stands on no surface that speaks of a twin."""
+    offenders: list[str] = []
+    for relative in STRUCTURE_RETIRED_SURFACES:
+        offenders += _structure_retired(relative, _text(relative))
+    assert not offenders, (
+        "These surfaces still say what stopped being true when the chain, "
+        "the patient layer and the inside record shipped:\n  "
+        + "\n  ".join(offenders)
+        + "\n\nThe twin drawn from the inside record carries relations "
+        "between columns and each person's rows; the smallest table "
+        "synthtwin describes has 20,000 rows; the generator reads the "
+        "inside record beside the description; the profiler reads "
+        "workbooks and Parquet, SAS, Stata and SPSS files. Say what is "
+        "true now."
+    )
+
+
+def test_the_structure_ban_would_notice_the_wording_it_replaced() -> None:
+    """A vacuity floor for `RETIRED_STRUCTURE_CLAIMS`: each sentence below stood on a public surface at 8cebca0f."""
+    retired_text = {
+        "the status screen": (
+            "This version builds every column on its own and carries no "
+            "cross-column structure at all: nothing that links two columns "
+            "of your table is in the twin"
+        ),
+        "the summary's row paragraph": (
+            "Every row is built on its own too, and this description never "
+            "says what one row of your table is. Cross-column structure "
+            "arrives in a later version of synthtwin."
+        ),
+        "the twin report's paragraph 1": (
+            "1. EVERY COLUMN WAS BUILT ON ITS OWN. This version of synthtwin"
+        ),
+        "the quality report's paragraph 2": (
+            "2. ROWS ARE TREATED AS INDEPENDENT, and this description"
+        ),
+        "the summary's smallest table": (
+            "Nothing was copied; there was no other answer. 100 rows is "
+            "the smallest table synthtwin describes"
+        ),
+        "the summary's provenance": (
+            "The twin is built from this file alone: your table is not "
+            "opened again"
+        ),
+        "the status screen's provenance": (
+            "builds the synthetic twin from that description and a seed, "
+            "and from nothing else"
+        ),
+        "the generate page": (
+            "Build the twin from DESCRIPTION, the file 'synthtwin profile' "
+            "wrote, and from nothing else, and write the twin"
+        ),
+        "the package description": (
+            "built from a description of your table rather than from its "
+            "rows. No cross-column structure yet. Fully offline."
+        ),
+        "the front page's file limit": (
+            "| Delimited text only, for now | The profiler reads delimited "
+            "text files"
+        ),
+        "the front page's floor paragraph": (
+            "synthtwin publishes nothing that crosses two columns, so it "
+            "says nothing about who"
+        ),
+        "the chain size guard's screen line": (
+            "so every column of the twin is carried on its own."
+        ),
+        "the security document": (
+            "The generator is handed the profile and a seed and nothing "
+            "else: it reads no source table"
+        ),
+    }
+    uncaught = [
+        f"{what}: {sentence!r}"
+        for what, sentence in retired_text.items()
+        if not _structure_retired(what, " ".join(sentence.lower().split()))
+    ]
+    assert not uncaught, (
+        "These sentences stood on public surfaces and are no longer caught "
+        "by RETIRED_STRUCTURE_CLAIMS:\n  " + "\n  ".join(uncaught)
+    )
+    for relative in STRUCTURE_RETIRED_SURFACES:
+        assert relative in SURFACES, f"{relative} must also be in SURFACES"
+
+
+@pytest.mark.parametrize("relative", STRUCTURE_BEARING)
+def test_each_structure_mark_turns_red_on_its_mutant(relative: str) -> None:
+    """The mutants (lane DOCS): every mark taken out of a surface, and the old wording put back into it, turn it red.
+
+    Each surface as it stands is clean; with every accepted form of one
+    mark replaced, `_structure_missing` names that mark and no other; with
+    one retired sentence appended, `_structure_retired` names it.
+    """
+    text = _text(relative)
+    assert _structure_missing(relative, text) == []
+    assert _structure_retired(relative, text) == []
+    for forms, what_it_is in STRUCTURE_MARKS:
+        mutant = text
+        for form in forms:
+            mutant = mutant.replace(form, "~")
+        found = _structure_missing(relative, mutant)
+        assert len(found) == 1 and what_it_is in found[0], (relative, what_it_is, found)
+    for retired in RETIRED_STRUCTURE_CLAIMS:
+        assert _structure_retired(relative, text + " " + retired) == [f"{relative}: {retired!r}"]
 
 
 def test_no_public_surface_describes_a_built_capability_as_absent() -> None:
