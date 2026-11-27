@@ -183,6 +183,8 @@ import dataclasses
 import math
 
 from synthtwin import calendar_clock, calendar_rules, contract, errors, parsing
+# -- release 37, lane PRIVACY: the built-in list of common given names the owner ruled for.
+from synthtwin import given_names
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
 from synthtwin import date_counts
 # -- lane DST (P4-D474): the rule families an offset follows its date by.
@@ -45332,9 +45334,99 @@ def _persons_name_kind(text: str, named: bool) -> int:
     return max(_persons_name_kind_read(reading, named) for reading in _name_readings(text))
 
 
+# THE GIVEN-NAME READING (release 37, lane PRIVACY; the owner ruled for a
+# built-in list of common given names, `given_names`): measured on the
+# shipped route at the owner's floor, a column of 1,000 names written in
+# small letters (`cedar, aaa`), each on 20 rows, put no question and its
+# twin wrote 20,000 of 20,000 cells as real names, because every shape the
+# reader reads asks for a capital. A value the shapes leave unread is a
+# person's name written whole where it holds no figure but an ordinal
+# suffix, is no longer than `PERSONS_NAME_LONGEST`, holds at most
+# `_GIVEN_NAME_WORDS_AT_MOST` runs of letters, one of them a given name of
+# the list once folded (`given_names.fold`), and is that one word alone
+# (`maria`, `MARIA`, `María`), or beside its initials (`maria g.`), or,
+# where it writes no capital, written with each word opening with a
+# capital, a name written whole by the reader's own rule (`garcia, maria`,
+# `maria garcia`, `de la cruz, maria`). The column is then
+# held only as the value arm holds one: `NAMES_AT_LEAST` such values and
+# half of the different values read.
+_GIVEN_NAME_WORDS_AT_MOST = 6
+
+
+def _folded_words(text: str) -> "list[str]":
+    """The runs of letters of one reading of a value (`_name_read`: the reader's one definition of a space, a dash and an apostrophe), each folded as the given-name list is read (`given_names.fold`), a combining mark kept with its letter. Guarantees: a fixed function of the text. Raises TypeError for a text that is not text. No I/O."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    words: "list[str]" = []
+    run = ""
+    for character in _name_read(text):
+        if _a_letter(character) or (run and _a_combining_mark(character)):
+            run = run + character
+        elif run:
+            words += [given_names.fold(run)]
+            run = ""
+    if run:
+        words += [given_names.fold(run)]
+    return words
+
+
+def _a_name_by_its_given_name(text: str) -> bool:
+    """Whether one reading of a value is a person's name by the given name it holds (THE GIVEN-NAME READING above): no figure outside an ordinal suffix (`_a_figure_outside_a_suffix`), at most `PERSONS_NAME_LONGEST` characters, one to `_GIVEN_NAME_WORDS_AT_MOST` runs of letters, one of them on the list (`given_names.GIVEN_NAMES`), and either that one run alone, or beside at most `_INITIALS_AT_MOST` initials, or, where the value writes no capital, each word opening with a capital (`_capitalised`), a name written whole (`_a_persons_name_read`). Guarantees: a fixed function of the text; a value the list holds no word of is never read by it. Raises TypeError for a text that is not text. No I/O."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    if _a_figure_outside_a_suffix(text) or not _within_the_longest(text):
+        return False
+    words = _folded_words(text)
+    if not words or len(words) > _GIVEN_NAME_WORDS_AT_MOST:
+        return False
+    if not any(word in given_names.GIVEN_NAMES for word in words):
+        return False
+    initials = sum(1 for word in words if len(word) == 1)
+    if len(words) - initials == 1 and initials <= _INITIALS_AT_MOST:
+        # ...the given name alone, or beside its initials (`maria`, `maria g.`).
+        return True
+    read = _name_read(text)
+    if _writes_a_capital(read):
+        # ...a value that writes a capital was read by its own capitals (the
+        # shapes): written again with a capital on every word, a label written
+        # in sentence case would read as a name (`Charcot-Marie-Tooth disease`).
+        return False
+    return _a_persons_name_read(_capitalised(read))
+
+
+def _writes_a_capital(text: str) -> bool:
+    """Whether a text holds a letter written as a capital (the given-name reading's guard: such a value is read by its own capitals). Raises TypeError for a text that is not text."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return text != text.lower()
+
+
+def _capitalised(text: str) -> str:
+    """A text with each run of letters opening with a capital and its other letters small, as `str.title` writes it (`garcia, maria` -> `Garcia, Maria`, `o'neil` -> `O'Neil`); a combining mark is kept as written. Raises TypeError for a text that is not text."""
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    written = ""
+    inside = False
+    for character in text:
+        if _a_letter(character):
+            written = written + _letter_written(character, not inside)
+            inside = True
+        else:
+            written = written + character
+            inside = inside and _a_combining_mark(character)
+    return written
+
+
+def _letter_written(character: str, capital: bool) -> str:
+    """One letter written as a capital, or small. Raises TypeError for a character that is not text."""
+    if not isinstance(character, str):
+        raise TypeError(_NOT_TEXT_HERE)
+    return character.upper() if capital else character.lower()
+
+
 def _persons_name_kind_read(text: str, named: bool) -> int:
-    """What one reading of a value (`_name_readings`), which holds no character that prints nothing, is to the reader: `_persons_name_kind`'s rule. Under a heading that says a person's name, a role is no name, save (batch 4t's fix round 4) a family name alone beside a word kept as a role (`_a_family_name_beside_a_role`), read as lane CZ-G-b's base read it, and a word kept as a role alone (`_A_WORD_KEPT_AS_A_ROLE_ALONE`), which the column settles (`_kinds_settled`)."""
-    whole = _a_persons_name_read(text)
+    """What one reading of a value (`_name_readings`), which holds no character that prints nothing, is to the reader: `_persons_name_kind`'s rule. Under a heading that says a person's name, a role is no name, save (batch 4t's fix round 4) a family name alone beside a word kept as a role (`_a_family_name_beside_a_role`), read as lane CZ-G-b's base read it, and a word kept as a role alone (`_A_WORD_KEPT_AS_A_ROLE_ALONE`), which the column settles (`_kinds_settled`). A value the shapes leave unread is a name written whole by the given name it holds (`_a_name_by_its_given_name`, release 37)."""
+    whole = _a_persons_name_read(text) or _a_name_by_its_given_name(text)
     if not named:
         return _A_NAME_WRITTEN_WHOLE if whole else _NOT_A_NAME
     if _a_role_or_a_service(text):
@@ -49261,7 +49353,19 @@ def _kept_matches(
     forced_decimal_comma: bool,
     stored_as: str,
 ) -> bool:
-    """Whether `kept` was read under every argument `spellings_read` reads under here (`_same_reading`'s settings rule)."""
+    """Whether `kept` was read under every argument `spellings_read` reads under here (`_same_reading`'s settings rule).
+
+    THE SETTINGS COMPARED AS THE READING CONSULTS THEM. `person_columns`
+    is set aside, as `_same_reading` sets it aside; so is `held_back_named`
+    (lane SCALE), which the description sets per column on a table at the
+    owner's floor (`profile._held_back_named_here`: how a column may NAME
+    its held-back levels) and the chain never does: it is read where the
+    levels are published (`_levels`, `held_back_names_published`) and
+    never by `_read_the_column`, whose missing, classified, present and
+    counted cells are all a kept reading holds (`_spellings_from`). Before,
+    no reading kept at the floor matched, and the chain read every column
+    again on every table of 20,000 rows or more.
+    """
     if (
         kept.n_rows != n_rows
         or kept.forced_code != forced_code
@@ -49270,7 +49374,9 @@ def _kept_matches(
         or kept.stored_as != stored_as
     ):
         return False
-    return dataclasses.replace(kept.settings, person_columns=()) == dataclasses.replace(settings, person_columns=())
+    return dataclasses.replace(kept.settings, person_columns=(), held_back_named="") == dataclasses.replace(
+        settings, person_columns=(), held_back_named=""
+    )
 
 
 def spellings_read(

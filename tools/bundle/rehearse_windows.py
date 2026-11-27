@@ -19,7 +19,9 @@ column; the answers written (fill_answers.py: in the questions file, or
 in the plain-text answers file where synthtwin reads one); synthtwin
 profile TABLE --answers FILE --replace --replace-description (the
 record's remedy, `ANSWERED_ROUND`); synthtwin generate --seed 7; synthtwin
-validate --twin; and, last, synthtwin generate --seed 7 once more on a
+validate --twin; synthtwin check TABLE --out-dir . (the five
+twin-versus-real checks by their one word, lane TOOLS: exit 0 or 3, the
+report beside the twin); and, last, synthtwin generate --seed 7 once more on a
 copy of the description in the folder beside, WORK-moved, where its
 inside record is not (`again` holds another system's twin to that one).
 Each command's exit status, seconds and new files are
@@ -456,12 +458,34 @@ def _commands(done: Trial, tables: pathlib.Path, stems: "tuple[str, ...]") -> No
         if done.run(["validate", f"{stem}-profile.json", "--twin", f"{stem}-twin.csv"]) != 0:
             return
         done.problems += outcome_problems(work, stem)
+        done.problems += checked(done, table, stem)
         # The twin this description builds where its inside record is not, as on any
         # other computer: `again` holds another system's twin of the same description to it.
         moved = moved_place(work)
         shutil.copyfile(work / f"{stem}-profile.json", moved / f"{stem}-profile.json")
         if done.run(["generate", f"{stem}-profile.json", "--seed", SEED], place=moved) != 0:
             return
+
+
+# THE FIVE TWIN-VERSUS-REAL CHECKS BY THEIR ONE WORD (lane TOOLS), typed as
+# the guides teach it, the folder the files stand in named with --out-dir
+# (the rehearsal's files stand beside the table, not in the folder
+# `synthtwin twin` makes). What is rehearsed is that the word reaches the
+# checks on each route: they ran and said their verdict (exit 0, every
+# check passed; 3, one failed, named in the report) and wrote the report
+# beside the twin. Which verdict a CI table's twin gets is recorded in the
+# step's screen, not judged here.
+CHECK_STATUSES = (0, 3)
+
+
+def checked(done: "Trial", table: str, stem: str) -> "list[str]":
+    """`synthtwin check TABLE --out-dir .`, run by ``done``: the problems with it, none where the word reached the checks."""
+    status = done.run(["check", table, "--out-dir", "."], expect=None)
+    if status not in CHECK_STATUSES:
+        return [f"synthtwin check {table} --out-dir . exited {status}, not 0 or 3: the word did not reach the checks"]
+    if not (done.work / f"{stem}-twin-checks.txt").is_file():
+        return [f"{stem}-twin-checks.txt was not written beside the twin"]
+    return []
 
 
 def outcome_problems(work: pathlib.Path, stem: str) -> "list[str]":

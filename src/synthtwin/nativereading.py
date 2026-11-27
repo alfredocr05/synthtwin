@@ -221,9 +221,19 @@ def _read_parquet(raw_path: str, shown: str, published: "native.NativeForm | Non
     typed: "dict[str, native.PandasColumn]" = {}
     index: "native.NativeIndex | None" = None
     zones: "dict[str, str]" = {}
+    arrow_zones: "dict[str, str]" = {}
     for key, text in footer.pairs:
         if key == native.PANDAS_KEY:
             typed, index, zones = native.pandas_fields(text)
+        elif key == native.ARROW_KEY:
+            arrow_zones = native.arrow_zones(text)
+    # A ZONE ARROW ALONE NAMED (lane TOOLS; the outside review of batch
+    # 4zz, item 11): a file Arrow wrote without pandas' block keeps each
+    # timestamp's zone in its `ARROW:schema` record alone; read there, it
+    # is published as pandas' is, so the twin's stamps read back in it.
+    for name in sorted(arrow_zones):
+        if name not in zones:
+            zones[name] = arrow_zones[name]
     names: "list[str]" = []
     columns: "list[list[str]]" = []
     forms: "list[native.NativeColumn]" = []
@@ -253,7 +263,15 @@ def _read_parquet(raw_path: str, shown: str, published: "native.NativeForm | Non
                             categories += [item]
         if len(values) != rows:
             raise errors.ProfileError(errors.native_unreadable(shown, words))
-        cells, written, fraction, places = _parquet_cells(values, leaf, shown, _given(published, place))
+        given = _given(published, place)
+        # THE TWO KINDS OF NOTHING IN A TEXT COLUMN (lane TOOLS; the outside
+        # review of batch 4zz, item 10): the cell standing for an empty text,
+        # the description's where one is handed (a twin read back is read in
+        # its description's cells), else chosen from this column's values.
+        empty_text: "str | None" = None
+        if leaf.store == native.STORE_STRING:
+            empty_text = given.empty_text if given is not None else native.empty_text_for(values)
+        cells, written, fraction, places = _parquet_cells(values, leaf, shown, given, empty_text)
         names += [leaf.name]
         columns += [cells]
         forms += [
@@ -270,6 +288,7 @@ def _read_parquet(raw_path: str, shown: str, published: "native.NativeForm | Non
                 pandas=typed[leaf.name] if leaf.name in typed else None,
                 places=places,
                 categories=tuple(categories) if categorical and categories else None,
+                empty_text=empty_text,
             )
         ]
     form = native.NativeForm(
@@ -289,9 +308,18 @@ def _read_parquet(raw_path: str, shown: str, published: "native.NativeForm | Non
 
 
 def _parquet_cells(
-    values: "list[object]", leaf: native.ParquetLeaf, shown: str, given: "native.NativeColumn | None"
+    values: "list[object]",
+    leaf: native.ParquetLeaf,
+    shown: str,
+    given: "native.NativeColumn | None",
+    empty_text: "str | None" = None,
 ) -> "tuple[list[str], str, int, int | None]":
-    """A Parquet column's values as text: (cells, how they are written, the fraction's width, the decimal places)."""
+    """A Parquet column's values as text: (cells, how they are written, the fraction's width, the decimal places).
+
+    A text column's missing value is the cell "", and its empty text the
+    cell ``empty_text`` where one is given (`native.empty_text_for`), so
+    the two are counted apart.
+    """
     memo = _Spellings(held={})
     store = leaf.store
     cells: "list[str]" = []
@@ -317,6 +345,8 @@ def _parquet_cells(
         for value in values:
             if value is None:
                 cells += [""]
+            elif value == "" and empty_text is not None:
+                cells += [empty_text]
             elif isinstance(value, str):
                 cells += [_once(memo, value)]
             else:

@@ -5787,8 +5787,10 @@ def measure(
         # obligations unevaluated. Nothing about the file may decide
         # which of its own checks run, so nothing about the file decides
         # which of these is built.
-        def described_as_the_file(one: reading.Table) -> "dict[str, object]":
-            """The file's OWN description of ``one``, as `synthtwin profile` would write it (V2.1)."""
+        def described_as_the_file(
+            one: reading.Table, kept: "dict[int, taxonomy.KeptSpellings] | None" = None
+        ) -> "dict[str, object]":
+            """The file's OWN description of ``one``, as `synthtwin profile` would write it (V2.1); its readings kept in ``kept``."""
             return profile.build_document(
                 one,
                 settings_for(description),
@@ -5830,9 +5832,18 @@ def measure(
                 names_checked_only=names_checked,
                 described_text=described_text,
                 keyed_described=keyed_described,
+                kept_spellings=kept,
             )
 
-        redescribed = described_as_the_file(table)
+        # THE FILE'S OWN READINGS KEPT FOR THE CHAIN'S LINES (lane SCALE; lane
+        # CHs, plan P4-D462): on a switched run the chain's lines read the
+        # measured file's columns again through taxonomy's whole decision
+        # (`chain_validation.lines_of`); the description of the file below
+        # keeps its own reading of each column it may hand over, bounded as
+        # the profiler's are, and the lines take a column's where it was
+        # read under every argument they read it under.
+        kept_for_the_lines: "dict[int, taxonomy.KeptSpellings] | None" = {} if chain_document is not None else None
+        redescribed = described_as_the_file(table, kept_for_the_lines)
         # THE CHAIN'S OWN-FACT DESCRIPTION HOLDS THE CALENDAR CENSUSES (lane
         # CHv, plan P4-D430; Codex's item 1 on its build). V12.3 reads RULE
         # W1 with the file's own-fact groups, and a periodic census (days
@@ -6065,7 +6076,9 @@ def measure(
         declared_measured,
         declared_commas,
         profile.stored_as_of(table, settings),
+        kept_for_the_lines,
     )
+    kept_for_the_lines = None
     if lines is None:
         return outcome
     return chain_validation.with_lines(outcome, lines)

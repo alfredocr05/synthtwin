@@ -125,6 +125,15 @@ DAY_TICKS = DAY * TICKS
 WEEK = 7
 HEAP_LINE = 0.3
 REDRAWS = 8
+# The halvings that find the stretch of a person's gap positions whose dates span what its band's real persons span
+# (lane STATS-D): over SPAN_REACH either side of no stretch on the logarithm's scale, stopped once within SPAN_CLOSE.
+SPAN_HALVINGS = 12
+SPAN_REACH = 5.0
+SPAN_CLOSE = 0.01
+# A miss no span can reach: a person none of whose tries fits its room (`_fitted_dates`).
+_NO_FIT = float("inf")
+# The points of each band's quantile function of its persons' spans (`_span_grids`).
+SPAN_GRID = 21
 MIXED_TRIES = 200
 MIXED_LEAST = 3
 MIXED_SHARE = 0.005
@@ -1376,11 +1385,13 @@ def _timeline(person: str, column: str, columns: "dict[str, list[str]]", days: "
     entry: "dict[str, object]" = {"person": person, "column": column, "calendar": whole, "calendars": by_band,
                                   "clock": _clock_entry(days, seconds, first_rows, labels) if clocked else None,
                                   "places": _places(by_person, by_band, whole, days)}
+    entry["spans"] = _longest_spans(by_person)
     middle = sorted(gaps)[len(gaps) // 2]
     minute = clocked and middle < DAY_TICKS
     values = gaps if minute else day_gaps
     keys = previous_blocks if minute else previous_weekdays
     entry["scale"] = "minute" if minute else "day"
+    entry["span_grids"] = _span_grids(by_person, minute)
     entry["grid"] = _grid(values, GAP_GRID)
     # On a day scale, where each grid's gaps land (`_landings`): a weekday's cell keeps the weekday they land on (the
     # earlier date's weekday is its key), a grid of every weekday its gaps' days past whole weeks.
@@ -1513,6 +1524,62 @@ def _places(by_person: "dict[str, list[tuple[int, int, int]]]", by_band: "dict[s
         if _kept(held, persons, PARENT_LEAST_ROWS) and held >= 0.02 * persons:
             out[band] = _per_million(found[band])
     return out
+
+
+def _span_grids(by_person: "dict[str, list[tuple[int, int, int]]]", minute: bool) -> "dict[str, list[int]]":
+    """Each band's quantile function of its persons' spans (from a person's first date to its last, in days), on
+    `SPAN_GRID` points, over the bands of their numbers of dates that hold `PARENT_LEAST_ROWS` persons of two dates or
+    more (lane STATS-D). The writer draws a person's gaps one by one from its band's gaps, so a person's span is a sum
+    of independent gaps: on the clinic visits (visits ending six years after a person's first) the persons of ten
+    visits or more spanned 4.8 to 5.0 years at the median against 5.33 and 6.8 to 7.0 at the tenth longest against
+    5.88; on the orders of five days, 2.3 days at the median against 2.8. The writer stretches each person's gaps so
+    its span takes the place its sum of gaps ranks at among its band's (`_timeline_moments`). A span is read in days,
+    in seconds on a timeline of minutes (`_span_of`). Spans are lengths of time between two moments of one person, no
+    date; they stay in the inside record."""
+    spans: "dict[str, list[int]]" = {}
+    for key in by_person:
+        ordered = sorted(by_person[key])
+        if len(ordered) < 2:
+            continue
+        band = f"{first_band_of(len(ordered))}"
+        last, first = ordered[len(ordered) - 1], ordered[0]
+        if band not in spans:
+            spans[band] = []
+        spans[band] += [(last[0] - first[0]) // TICKS if minute else last[2] - first[2]]
+    return {band: _grid(spans[band], SPAN_GRID) for band in sorted(spans) if len(spans[band]) >= PARENT_LEAST_ROWS}
+
+
+def _span_at(grid: "list[int]", share: float) -> float:
+    """A band's span at `share` of its persons, read between the grid's two nearest points."""
+    place = max(0.0, min(1.0, share)) * (len(grid) - 1)
+    low = int(place)
+    if low >= len(grid) - 1:
+        return float(grid[len(grid) - 1])
+    return grid[low] + (place - low) * (grid[low + 1] - grid[low])
+
+
+def _longest_spans(by_person: "dict[str, list[tuple[int, int, int]]]") -> "dict[str, int]":
+    """The longest span of days from a person's first date to its last, over every person of two dates or more
+    ("all") and over the persons of each band of their numbers of dates that holds `PARENT_LEAST_ROWS` of them (lane
+    STATS-D): the writer keeps a twin person's dates within its band's, as the real table's persons keep theirs.
+
+    A clinic table whose visits stop six years after a person's first (the model-utility battery's clinic visits)
+    held no person past 6.0 years, but the writer drew each person's gaps against the calendar's span alone (twelve
+    years there): its twins held persons followed 9.9 to 10.8 years, the tenth followed longest 6.0 to 6.1 against
+    5.7 to 5.8, and a mixed model of the pressure over the years read the twin's spread about each person's line low.
+    A span is a count of days between two dates of one person, no date; it stays in the inside record."""
+    longest: "dict[str, int]" = {}
+    counted: "dict[str, int]" = {}
+    for key in by_person:
+        ordered = sorted(by_person[key])
+        if len(ordered) < 2:
+            continue
+        span = ordered[len(ordered) - 1][2] - ordered[0][2]
+        band = f"{first_band_of(len(ordered))}"
+        for name in ("all", band):
+            longest[name] = max(longest[name], span) if name in longest else span
+            counted[name] = (counted[name] if name in counted else 0) + 1
+    return {name: longest[name] for name in sorted(longest) if name == "all" or counted[name] >= PARENT_LEAST_ROWS}
 
 
 def _always_before(first_days: "list[int]", first_seconds: "list[int]", second_days: "list[int]",
@@ -2386,6 +2453,8 @@ class _Line:
     bands: "dict[int, _Gaps]"
     places: "dict[str, list[int]]"
     landings: "list[list[list[int]]]"
+    spans: "dict[str, int]" = dataclasses.field(default_factory=dict)
+    span_grids: "dict[str, list[int]]" = dataclasses.field(default_factory=dict)
 
 
 def _prepared_line(timeline: "dict[str, object]", column: _Column) -> _Line:
@@ -2418,7 +2487,18 @@ def _prepared_line(timeline: "dict[str, object]", column: _Column) -> _Line:
     overall_by = timeline["landings_by"] if "landings_by" in timeline and not minute else None
     overall = (_prepared_every_weekday(timeline["landings"], overall_by) if "landings" in timeline and not minute
                else [])
-    return _Line(column.name, minute, first, firsts, _numbers(timeline["grid"]), bands, places, overall)
+    spans: "dict[str, int]" = {}
+    if "spans" in timeline:
+        held_spans = _object(timeline["spans"])
+        for key in held_spans:
+            spans[key] = int(_numbers([held_spans[key]])[0])
+    span_grids: "dict[str, list[int]]" = {}
+    if "span_grids" in timeline:
+        held_grids = _object(timeline["span_grids"])
+        for key in held_grids:
+            span_grids[key] = [int(value) for value in _numbers(held_grids[key])]
+    return _Line(column.name, minute, first, firsts, _numbers(timeline["grid"]), bands, places, overall, spans,
+                 span_grids)
 
 
 def _first_calendar(line: _Line, dates: int) -> _Calendar:
@@ -2462,10 +2542,10 @@ def _position_of(calendar: _Calendar, day: int) -> float:
 def _person_dates(line: _Line, column: _Column, members: "list[int]", start: "tuple[int, int]", shrink: float,
                   given: "dict[str, list[str]]", positions: "dict[int, float]",
                   state: "list[int]") -> "list[tuple[int, int]]":
-    """One person's dates: the first, then a gap of the person's band each (positions shrunk where they overrun)."""
+    """One person's dates: the first, then a gap of the person's band each, its position stretched (`_stretched`)."""
     moments = [start]
     for row in members[1:]:
-        u = _position(positions, row, state) * shrink
+        u = _stretched(_position(positions, row, state), shrink)
         last_day, last_second = moments[len(moments) - 1]
         if line.minute:
             begin = _instant(last_day, last_second)
@@ -2489,6 +2569,82 @@ def _person_dates(line: _Line, column: _Column, members: "list[int]", start: "tu
             second = max(second, last_second)
         moments += [(day, second)]
     return moments
+
+
+def _stretched(u: float, stretch: float) -> float:
+    """A gap's position stretched: `u` to the power 1 / `stretch`, so 1 leaves it, under 1 draws it nearer the
+    shortest gap and over 1 nearer the longest, every position kept in its order."""
+    if stretch == 1.0 or u <= 0.0:
+        return u
+    # written out (`chain_walk`'s logarithm and exponential), as the offline audit requires of a float power
+    return chain_walk.exponential(chain_walk.natural_log(u) / stretch)
+
+
+def _span_of(moments: "list[tuple[int, int]]", minute: bool) -> int:
+    """A person's span: days from its first date to its last, or seconds on a timeline of minutes."""
+    last, first = moments[len(moments) - 1], moments[0]
+    if minute:
+        return ((last[0] - first[0]) * DAY_TICKS + max(0, last[1]) - max(0, first[1])) // TICKS
+    return last[0] - first[0]
+
+
+def _kept_on_weekdays(first: "list[tuple[int, int]]", trial: "list[tuple[int, int]]",
+                      minute: bool) -> "list[tuple[int, int]]":
+    """A stretched try's gaps moved back by whole weeks (whole days on a timeline of minutes) onto the gaps of the
+    person's dates as drawn, so every date keeps the weekday and the time of day its draw gave it (lane STATS-D: the
+    stretch alone moved the cases table's starts onto weekends, its share of starts on a weekend out on 7 of 9 twins,
+    and the orders' later times of day, their share at night out on 8 of 9)."""
+    unit = DAY_TICKS if minute else WEEK
+    out = [first[0]]
+    for k in range(1, len(first)):
+        if minute:
+            drawn = _instant(first[k][0], first[k][1]) - _instant(first[k - 1][0], first[k - 1][1])
+            tried = _instant(trial[k][0], trial[k][1]) - _instant(trial[k - 1][0], trial[k - 1][1])
+        else:
+            drawn, tried = first[k][0] - first[k - 1][0], trial[k][0] - trial[k - 1][0]
+        moved = unit * int(((tried - drawn) / unit + 0.5) // 1.0)
+        if drawn + moved < 0:
+            moved = -unit * (drawn // unit)
+        last_day, last_second = out[len(out) - 1]
+        if minute:
+            at = _instant(last_day, last_second) + drawn + moved
+            day = at // DAY_TICKS
+            out += [(day, at - day * DAY_TICKS)]
+            continue
+        day, second = last_day + drawn + moved, first[k][1]
+        if day == last_day and second < last_second:
+            second = last_second
+        out += [(day, second)]
+    return out
+
+
+def _fitted_dates(line: _Line, column: _Column, members: "list[int]", start: "tuple[int, int]", target: float,
+                  room: int, given: "dict[str, list[str]]", positions: "dict[int, float]", snapshot: "list[int]",
+                  first: "list[tuple[int, int]]") -> "list[tuple[int, int]]":
+    """A person's dates whose span comes nearest `target` within `room`: its gap positions stretched by halving the
+    stretch's logarithm over `SPAN_REACH` either side, each try from the same draws (`snapshot`, the stream as the
+    person's first dates were drawn), so a longer stretch never spans shorter, each try's gaps kept on the weekdays
+    and times of day of the dates as drawn (`_kept_on_weekdays`) (lane STATS-D)."""
+    best, best_miss = first, abs(_span_of(first, line.minute) - target) if _span_of(first, line.minute) <= room else _NO_FIT
+    low, high = -SPAN_REACH, SPAN_REACH
+    for _try in range(SPAN_HALVINGS):
+        if best_miss <= max(1.0, SPAN_CLOSE * target):
+            break
+        middle = 0.5 * (low + high)
+        trial = _kept_on_weekdays(first, _person_dates(line, column, members, start, chain_walk.exponential(middle), given,
+                                                       positions, list(snapshot)), line.minute)
+        span = _span_of(trial, line.minute)
+        if span <= room and abs(span - target) < best_miss:
+            best, best_miss = trial, abs(span - target)
+        if span > target:
+            high = middle
+        else:
+            low = middle
+    if best_miss == _NO_FIT:
+        # nothing fitted the room: the shortest gaps of the person's draws
+        best = _kept_on_weekdays(first, _person_dates(line, column, members, start, chain_walk.exponential(-SPAN_REACH), given,
+                                                      positions, list(snapshot)), line.minute)
+    return best
 
 
 def _placed(line: _Line, calendar: _Calendar, last_day: int, dates: int, first_day: int, end: int, u: float,
@@ -2522,7 +2678,13 @@ def _timeline_moments(line: _Line, column: _Column, people: "list[str]", rows: i
 
     A person whose dates would pass the calendar's last month is moved earlier by whole weeks (every weekday,
     clock and gap kept) to a first date drawn again from the first dates' calendar up to the latest first date
-    that fits, so the persons of long spans start early as the real ones do and none piles up at the end.
+    that fits, so the persons of long spans start early as the real ones do and none piles up at the end. Each
+    person's span (lane STATS-D): where its band keeps its real persons' spans (`_span_grids`), the person's gaps are
+    stretched (`_fitted_dates`) so it spans what the real persons of the band span at the place its own sum of gaps
+    takes among a reference of its band's sums drawn on a stream of their own (so a person already there keeps the
+    dates its draws give); elsewhere a person whose dates would span longer than its room -- the
+    calendar's span, or the longest span of its band's real persons where shorter (`_longest_spans`) -- is drawn
+    within it.
     """
     state = _stream(seed, column.name, "timeline")
     groups: "dict[str, list[int]]" = {}
@@ -2548,17 +2710,50 @@ def _timeline_moments(line: _Line, column: _Column, people: "list[str]", rows: i
     gaps_at = _cell_positions(scores, column.name, later, later_keys, state)
     for row in gaps_at:
         positions[row] = gaps_at[row]
+    # A REFERENCE of the persons' spans as their gaps draw them, on a stream of its own, each band's sorted (lane
+    # STATS-D): a person's own span is read at its place among them, and the persons' own draws below stay the
+    # writer's as they were (a person whose span is its band's at that place keeps its dates as drawn).
+    reference: "dict[str, list[int]]" = {}
+    if line.span_grids:
+        aside = _stream(seed, column.name, "spans")
+        for key in groups:
+            members = groups[key]
+            band = f"{first_band_of(len(members))}"
+            if len(members) < 2 or band not in line.span_grids:
+                continue
+            opening = dataclasses.replace(line.first, calendar=_first_calendar(line, len(members)))
+            start = _anchored(opening, _position(positions, members[0], aside), members[0], given, aside, cache)
+            if band not in reference:
+                reference[band] = []
+            reference[band] += [
+                _span_of(_person_dates(line, column, members, start, 1.0, given, positions, aside), line.minute)]
+        for band in reference:
+            reference[band] = sorted(reference[band])
+    unit = DAY if line.minute else 1
     for key in groups:
         members = groups[key]
         opening = dataclasses.replace(line.first, calendar=_first_calendar(line, len(members)))
         start = _anchored(opening, _position(positions, members[0], state), members[0], given, state, cache)
-        shrink = 1.0
-        moments = _person_dates(line, column, members, start, shrink, given, positions, state)
-        tries = 0
-        while moments[len(moments) - 1][0] - moments[0][0] > span and tries < REDRAWS:
-            shrink = shrink * 0.7
-            moments = _person_dates(line, column, members, start, shrink, given, positions, state)
-            tries += 1
+        snapshot = list(state)
+        moments = _person_dates(line, column, members, start, 1.0, given, positions, state)
+        band = f"{first_band_of(len(members))}"
+        room = span
+        for name in (band, "all"):
+            if name in line.spans:
+                room = min(span, line.spans[name])
+                break
+        # the room in the span's unit: a person of a timeline of minutes may end on the room's last day
+        room = room * unit + (unit - 1)
+        if band in reference and len(members) >= 2:
+            ordered = reference[band]
+            own = _span_of(moments, line.minute)
+            share = (_below(ordered, own - 1) + _below(ordered, own)) / (2.0 * len(ordered))
+            share = min(1.0 - 0.5 / len(ordered), max(0.5 / len(ordered), share))
+            target = min(float(span * unit), _span_at(line.span_grids[band], share))
+            moments = _fitted_dates(line, column, members, start, target, room, given, positions, snapshot, moments)
+        elif _span_of(moments, line.minute) > room:
+            moments = _fitted_dates(line, column, members, start, float(room), room, given, positions, snapshot,
+                                    moments)
         first_day = moments[0][0]
         end = moments[len(moments) - 1][0]
         shift = _placed(line, opening.calendar, column.calendar.last_day, len(members), first_day, end,
@@ -3944,6 +4139,7 @@ def _chain_gap(days: "list[int]", ticks: "list[int]", reference_days: "list[int]
 _GAP_VALUE = "gap value"
 _GAP_SCORE = "gap score"
 _LOGISTIC_ROUNDS = 25
+_LOGISTIC_HALVINGS = 30
 
 
 def _selected(values: "list[list[float]]", response: "list[float]", forced: "list[int]") -> "list[int] | None":
@@ -3980,9 +4176,27 @@ def _selected(values: "list[list[float]]", response: "list[float]", forced: "lis
     return chosen
 
 
+def _logistic_deviance(columns: "list[list[float]]", outcome: "list[float]", beta: "list[float]") -> float:
+    """A logistic fit's deviance at ``beta`` (each row's chance kept off nought and one by its predictor's bound)."""
+    total: "list[float]" = []
+    for row in range(len(outcome)):
+        eta = math.fsum([beta[k] * columns[k][row] for k in range(len(columns))])
+        bounded = min(max(eta, -30.0), 30.0)
+        chance = 1.0 / (1.0 + chain_walk.exponential(-bounded))
+        total += [chain_walk.natural_log(chance if outcome[row] > 0.5 else 1.0 - chance)]
+    return -2.0 * math.fsum(total)
+
+
 def _logistic_fit(columns: "list[list[float]]", outcome: "list[float]") -> "list[float] | None":
     """Logistic regression by iteratively reweighted least squares (row 0 of `columns` the intercept); None where it
-    does not settle in `_LOGISTIC_ROUNDS` rounds or a step cannot be solved."""
+    does not settle in `_LOGISTIC_ROUNDS` rounds or a step cannot be solved.
+
+    A STEP THAT RAISES THE DEVIANCE IS HALVED until it does not (at most `_LOGISTIC_HALVINGS` times; lane STATS-D), as
+    the relations zone's `logistic` does. Without it the first full step from the intercept overshot a rare level
+    holding many events (the battery's cases table at one seed: 46 rows of the highest risk class in the fit, 22 of
+    them to critical care, its log odds 6.4 after one step against a maximum-likelihood 2.4), its rows' weights fell to
+    the floor, the next steps swung it between -5e8 and 4e8, and the unsettled last one was kept: the twin sent none of
+    the class's 107 patients to critical care against 36 per cent, and the class's effect read 0.43 against 0.66."""
     size = len(columns)
     rows = len(outcome)
     share = math.fsum(outcome) / rows
@@ -3990,6 +4204,7 @@ def _logistic_fit(columns: "list[list[float]]", outcome: "list[float]") -> "list
         return None
     beta = [0.0 for _k in range(size)]
     beta[0] = chain_walk.natural_log(share / (1.0 - share))
+    deviance = _logistic_deviance(columns, outcome, beta)
     for _round in range(_LOGISTIC_ROUNDS):
         eta = [math.fsum([beta[k] * columns[k][row] for k in range(size)]) for row in range(rows)]
         weights: "list[float]" = []
@@ -4006,11 +4221,22 @@ def _logistic_fit(columns: "list[list[float]]", outcome: "list[float]") -> "list
         solved = _cholesky_solved(matrix, right)
         if solved is None:
             return None
-        change = max(abs(solved[0][k] - beta[k]) for k in range(size))
-        beta = solved[0]
+        proposed = solved[0]
+        step = [proposed[k] - beta[k] for k in range(size)]
+        share_of_step = 1.0
+        reached = _logistic_deviance(columns, outcome, proposed)
+        halved = 0
+        while not reached <= deviance + 1e-9 * (1.0 + abs(deviance)) and halved < _LOGISTIC_HALVINGS:
+            share_of_step = share_of_step / 2.0
+            proposed = [beta[k] + share_of_step * step[k] for k in range(size)]
+            reached = _logistic_deviance(columns, outcome, proposed)
+            halved += 1
+        change = max(abs(value) for value in step)
+        beta = proposed
+        deviance = reached
         if change < 1e-8:
             return beta
-    return beta
+    return None
 
 
 def _gap_terms(gaps: "list[int]", keys: "list[str]", mean: float, spread: float) -> "tuple[list[float], list[float]]":

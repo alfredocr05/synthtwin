@@ -34,7 +34,9 @@ TWIN = "twin"
 HELP = "help"
 VERSION = "version"
 STATUS = "status"
-COMMANDS = (PROFILE, GENERATE, VALIDATE, DOCTOR, TWIN, HELP, VERSION, STATUS)
+# ...and the five twin-versus-real checks of a twin, in one word (lane TOOLS).
+CHECK = "check"
+COMMANDS = (PROFILE, GENERATE, VALIDATE, DOCTOR, TWIN, HELP, VERSION, STATUS, CHECK)
 
 # -- the four verdicts (part 1) ---------------------------------------
 # `no-miss`: the run reached its end, wrote every file it names and
@@ -185,6 +187,9 @@ FILE_QUALITY_REPORT = "quality-report"
 # The PRIVATE report of a switched profile run (lane ST, plan P4-D458;
 # contract 4.6b.8): its path only, in the private folder; nothing of it.
 FILE_PRIVATE_REPORT = "private-report"
+# The report of the five twin-versus-real checks `check` writes beside the
+# twin (lane TOOLS): counts, rates and verdicts, never a value.
+FILE_CHECKS_REPORT = "checks-report"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -611,7 +616,8 @@ def tier_of(fact: str, subcheck: str, judged: str) -> str:
 def exit_code(result: Result) -> int:
     """The exit status of a run, read from its command and verdict alone (part 4).
 
-    `no-miss` 0; `missed` 3 on `validate` and `twin`, 0 on `generate`
+    `no-miss` 0; `missed` 3 on `validate`, `twin` and `check` (a check
+    failed: lane TOOLS), 0 on `generate`
     (a twin that gave a fact up is written, and its report names the
     fact: 0 means both files were written, as before); `refused` 1, a
     doctor check made that failed included; `unusable` 2. These are the
@@ -621,7 +627,7 @@ def exit_code(result: Result) -> int:
     if result.verdict == NO_MISS:
         return 0
     if result.verdict == MISSED:
-        return 3 if result.command in (VALIDATE, TWIN) else 0
+        return 3 if result.command in (VALIDATE, TWIN, CHECK) else 0
     if result.verdict == UNUSABLE:
         return 2
     return 1

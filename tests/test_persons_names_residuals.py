@@ -54,7 +54,7 @@ import random
 import pytest
 
 import persons_names_forms as names
-from synthtwin import taxonomy
+from synthtwin import given_names, taxonomy
 
 
 def _hold(cells: "list[str]", name: str = "label", role: str = taxonomy.ROLE_CATEGORICAL) -> str:
@@ -70,9 +70,25 @@ def _column(values: "list[str]", rows: int = 4000) -> "list[str]":
 
 
 def _with_small_letters(count: int, small: int) -> "list[str]":
-    """``count`` names written `Family, Given` on 20 rows each, ``small`` of them written once more in small letters."""
-    whole = names.names_of(count, "comma", seed=61)
+    """``count`` names written `Family, Given` on 20 rows each, ``small`` of them written once more in small letters.
+
+    Release 37 (lane PRIVACY): a small-letter spelling holding a common given
+    name of the built-in list (`synthtwin.given_names`) is read as a name by
+    the given-name reading, as it should be, and nine of the made-up names of
+    seed 61 hold one by chance (`don`, `lin`, `ken`, `melba`); so the names
+    are drawn from those whose words the list holds none of, and the share
+    edge stays the shapes' own.
+    """
+    drawn = names.names_of(count + 100, "comma", seed=61)
+    whole = [one for one in drawn if not _a_listed_word(one)][:count]
+    assert len(whole) == count
     return [one for one in whole for _row in range(20)] + [one.lower() for one in whole[:small]]
+
+
+def _a_listed_word(name: str) -> bool:
+    """Whether a word of a made-up name is a given name of the built-in list, read as the list is read."""
+    return any(given_names.fold(word) in given_names.GIVEN_NAMES
+               for word in name.replace(",", " ").replace("-", " ").split())
 
 
 def test_the_value_arm_holds_at_half_of_the_values_read() -> None:

@@ -208,13 +208,15 @@ calls are held by what they are handed or by where they run:
   `tools/reference/make_generation_reference_vectors.py` exactly as
   its siblings do, and the floor holds for them for the same reason:
   the file each runs is one of the files this guard reads.
-- `runpy.run_module` runs twice: in `tests/test_terminal_install.py`
+- `runpy.run_module` runs three times: in `tests/test_terminal_install.py`
   (plan P4-D397), `python -m synthtwin` in the test's own process, which
   runs the committed `src/synthtwin/__main__.py`, a file this guard
   reads; and in `tools/bundle/guard_run.py` (plan P4-D483), which runs
   the same `synthtwin` package's `__main__` inside the Windows
   rehearsal once the socket calls are made to raise, so what it runs is
-  that same committed file.
+  that same committed file; and in `tests/test_check_command.py` (lane
+  TOOLS, plan P4-D547), `python -m synthtwin check` in the test's own
+  process, the Windows ready folder's route, on that same file.
 - `runpy.run_path` runs once more in `tests/reliability_battery.py` (lane
   RU-a, K-RU-01): each committed analysis file of
   `tests/reliability_scripts/`, run on a table as a person runs `python
@@ -561,6 +563,10 @@ ROUTES_THAT_RUN_SOURCE = {
     # guard runs the `synthtwin` package's `__main__` the way `python -m`
     # does, on the same committed `src/synthtwin/__main__.py`.
     ("tools/bundle/guard_run.py", "runpy.run_module"): 1,
+    # Lane TOOLS (release 37, plan P4-D547): `python -m synthtwin check`, the
+    # Windows ready folder's route, run in the test's own process on the same
+    # committed `src/synthtwin/__main__.py`, a file this guard reads.
+    ("tests/test_check_command.py", "runpy.run_module"): 1,
     # Lane RU-a (K-RU-01): the reliability battery runs each committed
     # analysis file of tests/reliability_scripts/ by path, on a table, as a
     # person runs `python file.py`; those files are ones this guard reads.

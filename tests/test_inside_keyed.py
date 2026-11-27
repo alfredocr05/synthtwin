@@ -353,19 +353,25 @@ def test_a_flag_follows_the_intervals_of_its_number(made) -> None:  # type: igno
     assert checked > 1000
 
 
-def test_a_copy_and_its_sentinel_and_none_beside_a_held_source() -> None:
-    """With no block of its source held, the numeric copy equals the reading where it is a number and the sentinel elsewhere, on every row; beside a held block it is not written (mutants: copies not applied; copies written beside a held block)."""
+def test_a_copy_and_its_sentinel_beside_a_free_and_a_held_source() -> None:
+    """With no block of its source held, the numeric copy equals the reading where it is a number and the sentinel
+    elsewhere, on every row; and (lane STATS-D, reversing lane IN-4b's hold of the whole copy) so it does where one
+    level holds its source as identifiers: on that level's rows it repeats the source's made-up cell, so it carries no
+    cell the description's twin did not write, and every other level's copy is its model-drawn reading (mutants:
+    copies not applied; the whole copy held back beside a held block)."""
     table = long_table(ROWS, 1)
     stand = _stand_in(table)
     free = inside_keyed.build_zone(table, "subject", (), DATED, {}, {}, TYPED)
     assert free is not None and free["copies"] == [{"column": "reading_num", "from": "reading", "else": SENTINEL,
                                                     "cap": 0}]
-    twin = _twin(free, stand)
-    for row in range(len(twin["item"])):
-        reading = twin["reading"][row]
-        assert twin["reading_num"][row] == (reading if _plain(reading) else SENTINEL)
+    for zone in (free, _zone()):
+        twin = _twin(zone, stand)
+        for row in range(len(twin["item"])):
+            reading = twin["reading"][row]
+            assert twin["reading_num"][row] == (reading if _plain(reading) else SENTINEL)
     held = _twin(_zone(), stand)
-    assert held["reading_num"] == stand["reading_num"]
+    made_up = [row for row in range(len(held["item"])) if held["item"][row] == "CODE"]
+    assert made_up and all(held["reading"][row] == stand["reading"][row] for row in made_up)
 
 
 def test_a_pair_is_dealt_whole_and_keeps_its_correlation(made) -> None:  # type: ignore[no-untyped-def]

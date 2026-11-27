@@ -1323,13 +1323,22 @@ categories in its file's order, each so held and admitted, or `null`),
 `missing` (SPSS's codes: `values`, at most three, and a range `low` and
 `high`, or `null`), `measure` (`nominal`, `ordinal`, `scale` or `null`) and
 `pandas` (`pandas_type`, `numpy_type` and `ordered`, pandas' own words, or
-`null`).
+`null`). One key more stands in an entry only where it says something
+(lane TOOLS), so every other entry keeps exactly the keys above:
+`empty_text`, the cell standing for an empty text in a Parquet text
+column that holds one -- `""` where the column holds no missing value,
+else the shortest run of spaces no cell of the column holds, at most 64
+(`native.empty_text_published`) -- so its empty texts and its missing
+values are counted apart and written back each as its own kind.
 
 NOTHING ELSE OF THE FILE IS READ INTO IT: not its label, notes,
 documents or characteristics, its creator, host, release or dates, a path
 it names (a Parquet file whose column chunks live in other files is
-refused), nor any pair of text a Parquet file carries; pandas' block and
-Arrow's schema record are rebuilt for the twin from the fields above. The
+refused), nor any pair of text a Parquet file carries but one string of
+Arrow's schema record, a timestamp's zone (`native.arrow_zones`), read
+where pandas' block names none and held to the rule `zone` is; pandas'
+block and Arrow's schema record are rebuilt for the twin from the fields
+above, Arrow's for a zone alone where pandas' block names no column. The
 loader holds every text to the rule that admitted it, so a hand-made
 block can put nothing into a twin this version would not have published.
 `synthtwin generate` writes the twin as a file of the same kind (a SAS

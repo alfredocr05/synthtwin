@@ -48,7 +48,18 @@ WHAT THE ZONE HOLDS, a column at a time (`entry_of`):
   sample), or, for an IPv4 address, a first number no real cell holds;
   a template with no such place is written only where its free places
   hold at least `ENTROPY_BITS` bits, and the twin checks still read
-  every twin value against every real one.
+  every twin value against every real one. A key of figures alone
+  whose every opening figure is a real key's is written at its own
+  width as a number no real key is (`ABSENT_KEY_WIDTH`).
+* FOR A COLUMN OF A PERSON'S DETAILS (`MODE_DETAIL`, lane TEXTZONE):
+  street addresses, telephone numbers, e-mail and web addresses, names
+  and record numbers holding a key, written in their real layouts with
+  only the column's layout words kept (`_detail_kept`) and every other
+  word made up from `NEUTRAL_WORDS` that no real cell writes; each value
+  exactly as long as the description's twin's and holding a piece no
+  real cell holds (`_detail_plan`): such a made-up word, a long run
+  opening off the real, or a short number no real cell of its template
+  holds there -- a telephone number's area code and exchange always.
 
 HOW THE TWIN USES IT (`write_column`): each different value of the
 description's twin's column (outside the spellings it keeps: the
@@ -82,7 +93,8 @@ MODE_TAIL = "tail"
 MODE_IDENTIFIER = "identifier"
 MODE_HELD = "held"
 MODE_CENSUS = "census"
-MODES = (MODE_FREE, MODE_TAIL, MODE_IDENTIFIER, MODE_HELD, MODE_CENSUS)
+MODE_DETAIL = "detail"
+MODES = (MODE_FREE, MODE_TAIL, MODE_IDENTIFIER, MODE_HELD, MODE_CENSUS, MODE_DETAIL)
 # A measurement column's spellings are dealt from the real census where it holds at most this many (`MODE_CENSUS`).
 CENSUS_SPELLINGS = 1000
 # The rows a column's templates are learned from: every row up to this many, else rows at an even stride.
@@ -143,6 +155,122 @@ _END = "\x07"
 _MARKS = (_SEP, _LIT, _NUM, _WORD, _DATE, _RUN, _START, _END)
 # The words a date's day, month and year may stand apart by, and the marks.
 _DATE_FILLERS = ("de", "del", "do", "da", "of", "le", "the")
+
+# A PERSON'S DETAILS (`MODE_DETAIL`): a column the twin checks read as a person's details -- street addresses, e-mail
+# addresses, telephone numbers, web addresses, record numbers holding a key -- is written in its real layouts with every
+# word that could name somebody made up from `NEUTRAL_WORDS`. A word is kept as written only where it is the column's
+# layout: a word of `DETAIL_VOCABULARY` (a street's suffix, a web scheme, a top-level domain, a unit), a label of a
+# reserved domain (`RESERVED_DOMAINS`, `RESERVED_TOP`: no person's and no employer's), or a word at least
+# `LAYOUT_SHARE` of the rows read write outside any host or mail domain (`chart` in every chart link) -- and in every
+# case at least the floor of different people write it.
+LAYOUT_SHARE = 0.5
+DETAIL_VOCABULARY = frozenset((
+    "http", "https", "ftp", "sftp", "mailto", "www",
+    "com", "org", "net", "edu", "gov", "mil", "int", "info", "biz", "io", "co", "us", "uk", "ca", "au", "de", "fr", "nl",
+    "es", "it", "ie", "nz", "in", "jp", "br", "mx", "ch", "se", "no", "dk", "fi", "be", "at", "pl", "pt",
+    "st", "street", "ave", "avenue", "av", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane", "ct",
+    "court", "place", "ter", "terrace", "way", "cir", "circle", "pkwy", "parkway", "hwy", "highway", "sq",
+    "square", "trl", "trail", "pike", "loop", "aly", "alley", "plz", "plaza", "cres", "crescent", "row", "walk",
+    "n", "s", "e", "w", "ne", "nw", "sw", "north", "south", "east", "west", "northeast", "northwest",
+    "southeast", "southwest", "apt", "apartment", "unit", "ste", "suite", "fl", "floor", "bldg", "building", "rm",
+    "room", "po", "box", "p", "o", "pob",
+))
+RESERVED_DOMAINS = (("example", "com"), ("example", "org"), ("example", "net"))
+# The marks a word of a link's path or query stands after (`_detail_entry`'s layout share).
+_LINK_MARKS = ("/", "?", "&", "=", "#")
+RESERVED_TOP = frozenset(("example", "test", "invalid", "localhost"))
+# The made-up words a person's detail is written with: everyday things, no person's or place's name (none a common
+# given name), no month, no word of `DETAIL_VOCABULARY`; a column keeps only those none of its real cells writes (`_neutral_left`).
+NEUTRAL_WORDS = (
+    "ant", "bay", "bee", "bog", "bud", "bun", "cob", "cod", "cog", "cot", "cub", "cup", "den", "dew", "dot", "eel",
+    "elk", "emu", "fen", "fig", "fir", "fob", "fox", "gem", "gnu", "gum", "hay", "hen", "hob", "hub", "hut", "ink",
+    "jar", "jet", "jib", "keg", "koi", "lea", "lid", "lob", "log", "mop", "mug", "nib", "nog", "nut", "oar", "oat",
+    "orb", "owl", "pan", "paw", "pea", "peg", "pod", "pot", "rim", "rug", "rye", "sap", "sod", "tin", "tor", "tub",
+    "urn", "vat", "vim", "wad", "wax", "web", "wok", "yak", "yam", "yew",
+    "acre", "aloe", "apex", "arch", "axle", "bark", "barn", "bass", "bead", "bean", "beet", "bell", "bolt", "bran",
+    "brew", "brim", "bulb", "buoy", "calf", "cart", "cask", "cave", "chip", "clam", "coal", "coin", "colt", "cone",
+    "cork", "crab", "crag", "crow", "cube", "cusp", "dais", "dart", "disc", "dock", "dome", "drum", "duck", "dune",
+    "dusk", "fawn", "felt", "fern", "flag", "flax", "foal", "foam", "fork", "gale", "glen", "goat", "gong", "gulf",
+    "gull", "hail", "hare", "harp", "hawk", "haze", "heap", "helm", "hemp", "hilt", "hive", "hoop", "horn", "husk",
+    "isle", "jute", "kale", "kelp", "kiln", "kiwi", "knot", "lamp", "leaf", "lens", "lime", "loam", "loft", "lute",
+    "lynx", "malt", "mane", "mast", "mesa", "mica", "mink", "mint", "mist", "moat", "mole", "moss", "moth", "mule",
+    "nest", "newt", "oboe", "orca", "oven", "palm", "peak", "pear", "plow", "plum", "pond", "puma", "quay", "rake",
+    "reed", "reef", "reel", "rind", "robe", "rope", "ruff", "rush", "sail", "salt", "sand", "seal", "seed", "shed",
+    "silk", "sill", "silt", "sink", "slab", "sled", "sloe", "slug", "snow", "sock", "soil", "soup", "spur", "stag",
+    "stem", "swan", "tack", "tank", "tarn", "teal", "tent", "thaw", "tide", "toad", "tray", "tuba", "tuft", "tusk",
+    "twig", "vane", "vase", "vine", "vole", "wasp", "weed", "wick", "wing", "wisp", "wool", "yarn", "yolk", "zinc",
+    "acorn", "agate", "alder", "anvil", "apple", "aster", "atoll", "attic", "badge", "bagel", "banjo", "basin",
+    "beach", "berry", "birch", "bison", "blaze", "bloom", "brick", "brook", "brush", "bugle", "cabin", "cairn",
+    "camel", "canal", "cedar", "cello", "chalk", "chord", "churn", "cider", "cliff", "cloud", "clove", "cocoa",
+    "comet", "crane", "cream", "creek", "crest", "crumb", "delta", "dingo", "drift", "eagle", "easel", "ember",
+    "fable", "fence", "ferry", "finch", "fjord", "flame", "flint", "flute", "frost", "fruit", "gable", "gecko",
+    "glade", "globe", "goose", "gourd", "grain", "grape", "grass", "grove", "heath", "hedge", "heron", "hinge",
+    "igloo", "inlet", "jetty", "kayak", "kazoo", "koala", "krill", "larch", "latch", "ledge", "lemon", "lemur",
+    "lilac", "linen", "llama", "lodge", "lotus", "mango", "maple", "marsh", "melon", "mocha", "moose", "nacre",
+    "oasis", "ocean", "okapi", "onion", "orbit", "otter", "panel", "pansy", "peach", "pecan", "petal", "piano",
+    "plaid", "plank", "plume", "porch", "prism", "quail", "quill", "quilt", "raven", "rhino", "ridge", "sable",
+    "scarf", "scone", "sedge", "shale", "shell", "shore", "shrub", "skiff", "skunk", "slate", "sloop", "slope",
+    "sloth", "snail", "spade", "spire", "spoon", "spray", "squid", "stalk", "steam", "stone", "stork", "storm",
+    "straw", "sugar", "swale", "tango", "tapir", "thyme", "tiger", "topaz", "torch", "tower", "trout", "tulip",
+    "tweed", "umber", "vapor", "vault", "viper", "wagon", "waltz", "whale", "wharf", "wheat", "wheel", "yeast",
+    "acacia", "almond", "anchor", "antler", "badger", "bamboo", "barley", "basalt", "beacon", "beaver", "bobcat",
+    "bonnet", "bonsai", "breeze", "bridge", "bronze", "burrow", "button", "cactus", "candle", "canopy", "canyon",
+    "carbon", "cashew", "castle", "cicada", "citrus", "clover", "cobalt", "coffee", "condor", "copper", "cotton",
+    "cougar", "coyote", "cradle", "crayon", "desert", "dinghy", "falcon", "fennel", "fiddle", "flower", "forest",
+    "fossil", "garden", "garnet", "gopher", "gravel", "guitar", "harbor", "hearth", "hollow", "iguana", "indigo",
+    "island", "jaguar", "jungle", "kettle", "lagoon", "lichen", "lizard", "locket", "lupine", "magnet", "mallow",
+    "marble", "marlin", "meadow", "meteor", "mitten", "mussel", "nectar", "nutmeg", "orchid", "oriole", "osprey",
+    "oyster", "paddle", "papaya", "parrot", "pebble", "pepper", "pigeon", "pillar", "pollen", "poplar", "puffin",
+    "quartz", "quince", "rabbit", "radish", "raisin", "ribbon", "ripple", "saddle", "salmon", "sandal", "sesame",
+    "shrimp", "sorbet", "sorrel", "sponge", "spruce", "squash", "stream", "summit", "sunset", "teapot", "thatch",
+    "timber", "tinder", "tomato", "toucan", "tunnel", "turnip", "turtle", "velvet", "walnut", "walrus", "window",
+    "wombat", "yarrow", "yogurt", "zephyr",
+    "avocado", "balloon", "biscuit", "blossom", "bramble", "buffalo", "cabbage", "cabinet", "caramel", "caravan",
+    "cassava", "catfish", "chamber", "chimney", "coconut", "compass", "cornice", "cottage", "cricket", "crystal",
+    "cypress", "diamond", "dolphin", "emerald", "feather", "firefly", "gazelle", "giraffe", "glacier", "gondola",
+    "granite", "hammock", "harvest", "hickory", "juniper", "kestrel", "lantern", "leather", "lettuce", "lobster",
+    "mammoth", "meerkat", "mustard", "oatmeal", "octopus", "orchard", "oregano", "origami", "ostrich", "pancake",
+    "panther", "paprika", "parsley", "peacock", "pelican", "penguin", "plateau", "pottery", "prairie", "pudding",
+    "pumpkin", "raccoon", "rainbow", "saffron", "sapling", "satchel", "seagull", "seaweed", "sherbet", "snapper",
+    "sparrow", "spatula", "spinach", "sunbeam", "sundial", "tadpole", "termite", "thistle", "thunder", "tractor",
+    "trellis", "trinket", "truffle", "trumpet", "vanilla", "verbena", "vintage", "warbler", "weather", "wetland",
+    "whisker",
+    "aardvark", "antelope", "blizzard", "bluebell", "bluebird", "broccoli", "bullfrog", "capybara", "cardigan",
+    "cardinal", "carousel", "chestnut", "cinnamon", "clematis", "cucumber", "daffodil", "dumpling", "eggplant",
+    "elephant", "feldspar", "fireside", "fishbowl", "flamingo", "foxglove", "gemstone", "goldfish", "hazelnut",
+    "hedgehog", "hillside", "honeybee", "kangaroo", "keyboard", "lakeside", "lavender", "lemonade", "mackerel",
+    "mandolin", "marigold", "mongoose", "moonbeam", "mosquito", "mountain", "mulberry", "nightjar", "notebook",
+    "nuthatch", "obsidian", "oleander", "overcast", "parakeet", "pheasant", "pinafore", "pinecone", "porpoise",
+    "primrose", "reindeer", "riverbed", "sandbank", "sapphire", "scorpion", "seahorse", "seashell", "snowfall",
+    "sombrero", "squirrel", "starfish", "starling", "stingray", "sunlight", "sunshine", "tamarind", "teaspoon",
+    "toboggan", "tortoise", "umbrella", "windmill", "woodland", "woodpile", "zucchini",
+    "alligator", "arrowroot", "artichoke", "asparagus", "avalanche", "blackbird", "blueberry", "bumblebee",
+    "buttercup", "butterfly", "chameleon", "chickadee", "cormorant", "crocodile", "dandelion", "dragonfly",
+    "driftwood", "evergreen", "fireplace", "flagstone", "goldfinch", "grapevine", "heartwood", "honeycomb",
+    "jellyfish", "limestone", "marmalade", "moonstone", "nectarine", "nightfall", "pineapple", "pinstripe",
+    "pistachio", "porcupine", "rainstorm", "raspberry", "sandpiper", "sandstone", "saxophone", "snowflake",
+    "starlight", "sunflower", "sweetcorn", "tangerine", "toadstool", "turquoise", "waterfall", "waterlily",
+    "whirlwind",
+    "blackberry", "bluebonnet", "bluebottle", "butterfish", "cloudberry", "cornflower", "cottonwood", "gooseberry",
+    "kingfisher", "lemongrass", "lighthouse", "meadowlark", "peppercorn", "peppermint", "riverstone", "salamander",
+    "silverfish", "starflower", "strawberry", "tumbleweed", "watercress", "wildflower", "woodpecker",
+    "bottlebrush", "candlelight", "cherrystone", "copperplate", "grasshopper", "honeysuckle", "hummingbird",
+    "marshmallow", "nightingale", "pomegranate", "rattlesnake", "silverberry", "thunderbolt", "thunderhead",
+    "butterscotch", "pumpernickel", "thunderstorm",
+)
+# A template's cells are drawn to an exact length over at most this many slots and this many characters of them.
+DETAIL_SLOTS = 16
+DETAIL_REACH = 400
+# A short whole number that keeps a template's cells off the real (a house number beside kept words alone, a telephone
+# number's area code and exchange) holds at most this many figures.
+ABSENT_WIDTH = 4
+# The longest made-up word a slot is written at, and how far from its own length a value is written where no template
+# can be that long.
+DETAIL_WORD_LONGEST = 24
+DETAIL_NEAREST = 64
+# A key of figures alone no opening figure keeps off the real is written at its own width, as a number no real key is,
+# where it holds at most this many figures (the real keys' numbers kept as a bitmap of ten to this power).
+ABSENT_KEY_WIDTH = 5
 
 
 class TextError(ValueError):
@@ -955,6 +1083,8 @@ def entry_of(cells: "list[str]", mode: str, keep: "list[str]", persons: "list[in
         return None
     if mode == MODE_CENSUS:
         return _census_entry(cells, keep)
+    if mode == MODE_DETAIL:
+        return _detail_entry(cells, keep, persons, floor)
     kept_spellings = set(keep) | {""}
     rows = len(cells)
     values: "list[int]" = []
@@ -1073,6 +1203,372 @@ def entry_of(cells: "list[str]", mode: str, keep: "list[str]", persons: "list[in
         return None
     entry["openings"] = _openings(cells, values) if _openings(cells, read) else {}
     return entry
+
+
+# -- a person's details ------------------------------------------------------------------------------------
+
+
+def _detail_entry(cells: "list[str]", keep: "list[str]", persons: "list[int] | None",
+                  floor: int) -> "dict[str, object] | None":
+    """A person's detail column's entry (`MODE_DETAIL`): its real layouts, every word that could name somebody a slot.
+
+    THE LEAK IT REPLACES THE FILLER OF (lane LEDGER, HIPAA; release 36):
+    street addresses, e-mail addresses and telephone numbers written in
+    their real templates, every word the floor's people write kept and
+    every number drawn inside the real ends, reproduced 1,548 real
+    addresses and 72 real e-mail addresses in the twin; release 36 left
+    such a column the description's filler, so code that parses it found
+    nothing. Here a word is kept as written only where it is the
+    column's layout (`_detail_kept`: a word of `DETAIL_VOCABULARY`, a
+    label of a reserved domain, a word half the rows write outside any
+    host or mail domain); every other word is a slot the twin fills from
+    the column's own `NEUTRAL_WORDS` (`_neutral_left`: those no real
+    cell writes), and every template keeps its cells off every real one
+    by a piece no real cell holds (`_detail_options`): such a made-up
+    word, a long run of figures opening with a figure no real run of its
+    width opens with, or a short number no real cell of the template
+    holds there -- a telephone number's area code and exchange always
+    (`_telephone_templates`). Cells without spaces read as keys
+    (`P0001234-03`) are written as record numbers off the real by their
+    mark (`_identifier_facts`), their layout's letters kept as above.
+    Raises TypeError for a cell that is not text; nothing else.
+    """
+    kept_spellings = set(keep) | {""}
+    rows = len(cells)
+    values: "list[int]" = []
+    present = 0
+    for row in range(rows):
+        cell = _text(cells[row])
+        if parsing.trimmed(cell):
+            present = present + 1
+            if cell not in kept_spellings:
+                values += [row]
+    if not values:
+        return None
+    read = [values[place] for place in _rows_read(len(values))]
+    style = "words"
+    spaced = 0
+    different: "set[str]" = set()
+    for row in read[:2000]:
+        for character in cells[row]:
+            if _is_space(character):
+                spaced = spaced + 1
+                break
+        different |= {cells[row]}
+    sample = [cells[row] for row in read[:2000]]
+    if spaced == 0 and len(different) * 2 >= min(2000, len(read)) and not _telephones(sample[:400]):
+        found_style = _run_style(sample)
+        if found_style != "plain" or _key_shaped(sample):
+            style = found_style
+    people: "dict[str, list[int]]" = {}
+    rows_with: "dict[str, int]" = {}
+    hosted: "set[str]" = set()
+    reserved: "set[str]" = set()
+    # ...a host's or mail domain's naming labels (every label but its last and a leading `www`, under no reserved
+    # name): never kept, a word of `DETAIL_VOCABULARY` among them (the outside review of release 37, item 1).
+    named: "set[str]" = set()
+    tokens_of: "list[list[tuple[str, str]]]" = []
+    for row in read:
+        cell = cells[row]
+        if _holds_a_mark(cell):
+            tokens_of += [[]]
+            continue
+        tokens = dated(word_tokens(cell)) if style == "words" else run_tokens(cell, style)
+        tokens_of += [tokens]
+        person = persons[row] if persons is not None and row < len(persons) else row
+        marks = _host_marks(tokens) if style == "words" else [0 for _token in tokens]
+        seen_here: "set[str]" = set()
+        for at in range(len(tokens)):
+            kind, written = tokens[at]
+            if kind != "w" and kind != "l":
+                continue
+            _people_add(people, written, person, floor)
+            # ...a word counts toward the layout share only where it stands in a link's path or query (after `/`,
+            # `?`, `&`, `=` or `#`, outside every host) or in a key: a word most rows of an address write (a street, a
+            # city) is a place, not the layout (the outside review of release 37, item 1).
+            placed = style != "words" or (marks[at] == 0 and at > 0 and tokens[at - 1][0] == "o"
+                                          and tokens[at - 1][1] in _LINK_MARKS)
+            if written not in seen_here and placed:
+                seen_here |= {written}
+                rows_with[written] = (rows_with[written] if written in rows_with else 0) + 1
+            if marks[at] == 1 or marks[at] == 3:
+                hosted |= {written}
+            elif marks[at] == 2:
+                reserved |= {written}
+            if marks[at] == 3:
+                named |= {written}
+    kept = {word for word in _detail_kept(people, rows_with, hosted, reserved, floor, len(read)) if word not in named}
+    holders: "dict[str, list[int]]" = {}
+    worn: "dict[str, int]" = {}
+    slotted: "dict[str, list[list[tuple[str, str]]]]" = {}
+    for place in range(len(read)):
+        tokens = tokens_of[place]
+        if not tokens:
+            continue
+        key, slots = _word_key(tokens, kept) if style == "words" else _run_key(tokens, kept)
+        row = read[place]
+        _people_add(holders, key, persons[row] if persons is not None and row < len(persons) else row, floor)
+        worn[key] = (worn[key] if key in worn else 0) + 1
+        if key not in slotted:
+            slotted[key] = []
+        if len(slotted[key]) < SLOT_SAMPLE:
+            slotted[key] += [slots]
+    templates: "dict[str, object]" = {}
+    for key in sorted(worn):
+        if key and len(holders[key]) >= floor:
+            templates[key] = _template(slotted[key], worn[key])
+    if not templates:
+        return None
+    entry: "dict[str, object]" = {
+        "mode": MODE_DETAIL, "style": style, "rows": rows, "values": len(values), "present": present,
+        "read": len(read), "keep": _joined(sorted(kept_spellings), _SEP), "kept": _joined(sorted(kept), _SEP),
+        "templates": templates,
+    }
+    if style != "words":
+        _identifier_facts(entry, cells, values, style, kept, floor, persons)
+        entry["longest"] = max(len(cells[row]) for row in values)
+        return entry
+    for key in sorted(templates):
+        template = typing.cast("dict[str, object]", templates[key])
+        if any(f"{slot['k']}" not in ("n", "w") for slot in typing.cast("list[dict[str, object]]", template["slots"])):
+            del templates[key]
+    if not templates:
+        return None
+    _absent_facts(typing.cast("dict[str, dict[str, object]]", templates), cells, values, kept, slotted)
+    entry["openings"] = _openings(cells, values)
+    entry["neutral"] = _neutral_left(cells)
+    entry["real_runs"] = _joined(_runs_at_lengths(cells, {len(word) for word in typing.cast("list[str]", entry["neutral"])}),
+                             _SEP)
+    return entry
+
+
+def _detail_kept(people: "dict[str, list[int]]", rows_with: "dict[str, int]", hosted: "set[str]",
+                 reserved: "set[str]", floor: int, read: int) -> "set[str]":
+    """The words a person's detail column keeps as written: each at least `floor` different people write, and a word
+    of `DETAIL_VOCABULARY`, a label of a reserved domain seen in no other host, or a word `LAYOUT_SHARE` of the rows
+    read write in a link's path or query or a key (`rows_with`), outside every host and mail domain (a host or a
+    domain names a person's employer or their own site). A host's naming labels are set aside by the caller."""
+    kept: "set[str]" = set()
+    for word in people:
+        if len(people[word]) < floor:
+            continue
+        layout = word in rows_with and rows_with[word] >= LAYOUT_SHARE * read and word not in hosted
+        if _lowered(word) in DETAIL_VOCABULARY or layout or (word in reserved and word not in hosted):
+            kept |= {word}
+    return kept
+
+
+def _host_marks(tokens: "list[tuple[str, str]]") -> "list[int]":
+    """Each token's place in a web host or a mail domain: 0 outside one, 1 inside one, 2 inside one under a reserved
+    name (`RESERVED_DOMAINS`, `RESERVED_TOP`: documentation names that are nobody's, read on each label whole), 3 in a
+    naming label of one under no reserved name (every label but the last and a leading `www`: the name of an
+    employer or a person's own site, never kept). A host opens after `://`, a mail domain after `@`, and `www.` opens
+    one where it starts a word; each runs over words, numbers, `.` and `-`."""
+    marks = [0 for _token in tokens]
+    for place in range(len(tokens)):
+        kind, written = tokens[place]
+        start = -1
+        if kind == "o" and written == "@":
+            start = place + 1
+        elif (kind == "o" and written == ":" and place + 2 < len(tokens) and tokens[place + 1] == ("o", "/")
+              and tokens[place + 2] == ("o", "/")):
+            start = place + 3
+        elif (kind == "w" and _lowered(written) == "www" and place + 1 < len(tokens) and tokens[place + 1] == ("o", ".")
+              and (place == 0 or tokens[place - 1][0] == "s")):
+            start = place
+        if start < 0:
+            continue
+        end = start
+        while end < len(tokens) and (tokens[end][0] in ("w", "n") or tokens[end] == ("o", ".")
+                                     or tokens[end] == ("o", "-")):
+            end = end + 1
+        # ...each label whole, its words, numbers and dashes together (the outside review of release 37, item 1:
+        # `example1.com` read as `example.com` by its words alone, so a real domain was kept as a reserved one).
+        labels: "list[str]" = []
+        label_of: "list[int]" = []
+        label = ""
+        for at in range(start, end):
+            if tokens[at] == ("o", "."):
+                labels += [label]
+                label = ""
+            else:
+                label = label + _lowered(tokens[at][1])
+            label_of += [len(labels)]
+        labels += [label]
+        under = bool(labels) and (labels[len(labels) - 1] in RESERVED_TOP or (
+            len(labels) >= 2 and (labels[len(labels) - 2], labels[len(labels) - 1]) in RESERVED_DOMAINS))
+        last = len(labels) - 1
+        for at in range(start, end):
+            place = label_of[at - start]
+            naming = not under and place != last and not (place == 0 and labels[0] == "www")
+            marks[at] = max(marks[at], 2 if under else (3 if naming else 1))
+    return marks
+
+
+def _telephones(cells: "list[str]") -> bool:
+    """Whether half or more of the cells read as telephone numbers to the twin checks (`taxonomy.identifier_words_form`)."""
+    from synthtwin import taxonomy
+
+    seen = 0
+    calls = 0
+    for cell in cells:
+        if not parsing.trimmed(cell):
+            continue
+        seen = seen + 1
+        if taxonomy.identifier_words_form(cell, False) == taxonomy.WORDS_TELEPHONE:
+            calls = calls + 1
+    return seen > 0 and calls * 2 >= seen
+
+
+def _whole_widths(slot: "dict[str, object]") -> "set[int]":
+    """The widths of a number slot's whole figures, over its census or its grid."""
+    widths: "set[int]" = set()
+    if "census" in slot:
+        for each, _count in typing.cast("list[list[object]]", slot["census"]):
+            widths |= {len(_number_parts(f"{each}")[1])}
+        return widths
+    key = f"{slot['key']}"
+    for value in typing.cast("list[float]", slot["grid"]):
+        widths |= {len(_number_parts(_written_number(value, key, False))[1])}
+    return widths
+
+
+def _absent_facts(templates: "dict[str, dict[str, object]]", cells: "list[str]", values: "list[int]", kept: "set[str]",
+                  slotted: "dict[str, list[list[tuple[str, str]]]]") -> None:
+    """THE SHORT NUMBERS NO REAL CELL HOLDS: for a telephone template, every whole number of three figures (its area
+    code and its exchange: they name a place and a line, so the twin writes none a real number holds); for a template
+    with no made-up word and no run of `OPENING_RUN` figures, its first whole number of at most `ABSENT_WIDTH` figures
+    (`12 North St` beside kept words alone). The numbers each holds are read over every row, kept as a bitmap."""
+    needs: "dict[str, list[int]]" = {}
+    phones = _telephone_templates(templates, slotted)
+    for key in sorted(templates):
+        template = templates[key]
+        slots = typing.cast("list[dict[str, object]]", template["slots"])
+        template["phone"] = key in phones
+        places: "list[int]" = []
+        if key in phones:
+            places = [at for at in range(len(slots)) if slots[at]["k"] == "n" and f"{slots[at]['key']}"[:2] == "0."
+                      and _whole_widths(slots[at]) == {3}]
+        elif not any(slot["k"] == "w" for slot in slots) and not any(
+                slot["k"] == "n" and max(_whole_widths(slot)) >= OPENING_RUN for slot in slots):
+            places = [at for at in range(len(slots)) if slots[at]["k"] == "n" and f"{slots[at]['key']}"[:2] == "0."
+                      and max(_whole_widths(slots[at])) <= ABSENT_WIDTH][:1]
+        if places:
+            needs[key] = places
+    if not needs:
+        return
+    # ...a telephone number's parts pooled over every telephone template of the column, by their order (the area
+    # code no real number of the column holds, whether its line number opens with a nought or not).
+    used: "dict[str, dict[int, set[int]]]" = {key: {at: set() for at in needs[key]} for key in needs}
+    pooled: "dict[int, set[int]]" = {}
+    for row in values:
+        cell = cells[row]
+        if _holds_a_mark(cell):
+            continue
+        key, slots_of = _word_key(dated(word_tokens(cell)), kept)
+        if key not in needs:
+            continue
+        for order in range(len(needs[key])):
+            at = needs[key][order]
+            _sign, whole, _after = _number_parts(slots_of[at][1])
+            if key in phones:
+                pooled[order] = (pooled[order] if order in pooled else set()) | {int(whole or "0")}
+            else:
+                used[key][at] |= {int(whole or "0")}
+    for key in needs:
+        absent: "dict[str, str]" = {}
+        for order in range(len(needs[key])):
+            at = needs[key][order]
+            held = (pooled[order] if order in pooled else set()) if key in phones else used[key][at]
+            absent[f"{at}"] = _bitmap_of(held, 10 ** ABSENT_WIDTH)
+        templates[key]["absent"] = absent
+
+
+def _telephone_templates(templates: "dict[str, dict[str, object]]",
+                         slotted: "dict[str, list[list[tuple[str, str]]]]") -> "set[str]":
+    """The templates nine in ten of whose cells read as telephone numbers to the twin checks."""
+    from synthtwin import taxonomy
+
+    found: "set[str]" = set()
+    for key in templates:
+        parts = _parts_of(key)
+        rows = slotted[key][:200]
+        calls = 0
+        for slots in rows:
+            text = ""
+            at = 0
+            for part in parts:
+                if part[:1] == _LIT:
+                    text = text + part[1:]
+                else:
+                    text = text + slots[at][1]
+                    at = at + 1
+            if taxonomy.identifier_words_form(text, False) == taxonomy.WORDS_TELEPHONE:
+                calls = calls + 1
+        if rows and calls * 10 >= len(rows) * 9:
+            found |= {key}
+    return found
+
+
+def _bitmap_of(numbers: "set[int]", size: int) -> str:
+    """The numbers below `size` as a bitmap written in hexadecimal, four numbers a character."""
+    figures = [0 for _place in range((size + 3) // 4)]
+    for number in numbers:
+        if 0 <= number < size:
+            figures[number // 4] = figures[number // 4] | (1 << (number % 4))
+    return _joined([_HEX_LOWER[figure] for figure in figures], "")
+
+
+def _in_bitmap(bitmap: str, number: int) -> bool:
+    """Whether a number is set in a bitmap of `_bitmap_of` (a number past it is not)."""
+    if not isinstance(bitmap, str):
+        raise TypeError("internal check: a bitmap is text")
+    place = number // 4
+    if number < 0 or place >= len(bitmap):
+        return False
+    return (int(bitmap[place:place + 1], 16) >> (number % 4)) & 1 == 1
+
+
+def _neutral_left(cells: "list[str]") -> "list[str]":
+    """The words of `NEUTRAL_WORDS` that no cell of the column writes as a run of letters, in any case: a twin cell
+    holding one of them as a run of its own is no real cell (every row read, not a sample)."""
+    pool = set(NEUTRAL_WORDS)
+    found: "set[str]" = set()
+    for cell in cells:
+        text = _text(cell)
+        start = -1
+        for at in range(len(text) + 1):
+            if at < len(text) and _is_letter(text[at]):
+                if start < 0:
+                    start = at
+                continue
+            if start >= 0:
+                run = parsing.folded(text[start:at])
+                if run in pool:
+                    found |= {run}
+                start = -1
+    return [word for word in NEUTRAL_WORDS if word not in found]
+
+
+def _runs_at_lengths(cells: "list[str]", lengths: "set[int]") -> "list[str]":
+    """Every run of letters a cell of the column writes, folded, whose length is NONE of `lengths` (the lengths of the
+    made-up words left to it), sorted: a word made up by running such words together and cutting it at another
+    length is drawn again where it is one of these (`_neutral_drawn`; the outside review of release 37, item 2: on
+    addresses whose street words were two letters long, 803 of 20,000 twin cells held a real street word). Kept in the
+    inside record only."""
+    found: "set[str]" = set()
+    for cell in cells:
+        text = _text(cell)
+        start = -1
+        for at in range(len(text) + 1):
+            if at < len(text) and _is_letter(text[at]):
+                if start < 0:
+                    start = at
+                continue
+            if start >= 0 and at - start not in lengths:
+                found |= {parsing.folded(text[start:at])}
+            start = -1
+    return sorted(found)
 
 
 def _split_on(text: str, mark: str) -> "list[str]":
@@ -1254,10 +1750,20 @@ def _identifier_facts(entry: "dict[str, object]", cells: "list[str]", values: "l
     # The real values of every row, read once, for each template's mark.
     openings: "dict[str, dict[int, set[str]]]" = {}
     firsts: "dict[str, set[int]]" = {}
+    # ...and every key of figures alone, read as a number, for a template no opening figure keeps off the real.
+    numbers: "set[int]" = set()
     for row in values:
         cell = cells[row]
         if _holds_a_mark(cell):
             continue
+        if cell and parsing.is_digit_text(cell):
+            # ...read as a number at any width: a real `000201` is the number 201 (the outside review of release 37,
+            # item 4: a key held only at six figures or more was left out, so a made-up `201` equalled it as read).
+            lead = 0
+            while lead < len(cell) - 1 and cell[lead:lead + 1] == "0":
+                lead = lead + 1
+            if len(cell) - lead <= ABSENT_KEY_WIDTH:
+                numbers |= {int(cell[lead:])}
         key, slots = _run_key(run_tokens(cell, style), kept)
         if key not in templates:
             continue
@@ -1279,7 +1785,7 @@ def _identifier_facts(entry: "dict[str, object]", cells: "list[str]", values: "l
         template["slots"] = [{"k": "r", "class": f"{each['k']}"} for each in learned]
     for key in templates:
         _key_template(templates[key], key, cells, values, style, kept, floor, persons,
-                      openings[key] if key in openings else {}, firsts[key] if key in firsts else set())
+                      openings[key] if key in openings else {}, firsts[key] if key in firsts else set(), numbers)
 
 
 def _class_alphabet(kind: str) -> str:
@@ -1292,7 +1798,7 @@ def _class_alphabet(kind: str) -> str:
 
 def _key_template(template: "dict[str, object]", key: str, cells: "list[str]", values: "list[int]", style: str,
                   kept: "set[str]", floor: int, persons: "list[int] | None", openings: "dict[int, set[str]]",
-                  firsts: "set[int]") -> None:
+                  firsts: "set[int]", numbers: "set[int] | None" = None) -> None:
     slots = typing.cast("list[dict[str, object]]", template["slots"])
     # Each place's characters and each short run's census, from the rows read.
     sample: "list[list[tuple[str, str]]]" = []
@@ -1377,10 +1883,64 @@ def _key_template(template: "dict[str, object]", key: str, cells: "list[str]", v
                 # figures beside 19,600 `L` keys of six: no `L` key left in the twin).
                 if not others and len(_parts_of(key)) == 1:
                     continue
+                # ...NOR WHERE THE RUN STANDS AS A WORD OF ITS OWN (lane TEXTZONE): `0567 River Ave` is the real
+                # address `567 River Ave` read as a number and a street, as `0456` is the key `456`.
+                if not others and _standing_alone(key, place):
+                    continue
                 mark = [place, 0, others if others else ["0"]]
                 break
     template["mark"] = mark
     template["room"] = _room_bits(slots, mark)
+    # A KEY OF FIGURES ALONE WHOSE EVERY OPENING FIGURE IS A REAL KEY'S (lane TEXTZONE): no mark keeps it off the real,
+    # and the room rule wrote every such key one template wider -- the encounter numbers of two to four figures of the
+    # health data zoo's `i2b2_facts` all came out five figures wide (the published count of five-figure keys missed). Of
+    # at most `ABSENT_KEY_WIDTH` figures, it is written at its own width as a number no real key of the column is,
+    # read as a number at any width (`_absent_key`): the real keys' numbers are kept as a bitmap.
+    if (not mark and numbers is not None and len(_parts_of(key)) == 1 and len(slots) == 1
+            and f"{slots[0]['class']}" == "d" and "census" not in slots[0]
+            and int(f"{slots[0]['width']}") <= ABSENT_KEY_WIDTH):
+        width = int(f"{slots[0]['width']}")
+        below = 10 ** width
+        held = {number for number in numbers if number < below}
+        if any(number not in held for number in range(10 ** (width - 1) if width > 1 else 0, below)):
+            template["absent"] = {"0": _bitmap_of(held, below)}
+
+
+def _standing_alone(key: str, place: int) -> bool:
+    """Whether a key template's slot `place` stands as a word of its own: the cell's start or a space before it, and
+    its end or a space after it (`12 Oak St`'s house number), so a nought before it reads as nothing."""
+    parts = _parts_of(key)
+    slot = -1
+    for at in range(len(parts)):
+        if parts[at][:1] == _LIT:
+            continue
+        slot = slot + 1
+        if slot != place:
+            continue
+        before = parts[at - 1][1:] if at > 0 and parts[at - 1][:1] == _LIT else ""
+        after = parts[at + 1][1:] if at + 1 < len(parts) and parts[at + 1][:1] == _LIT else ""
+        opens = at == 0 or (before != "" and _is_space(before[len(before) - 1:]))
+        closes = at == len(parts) - 1 or (after != "" and _is_space(after[:1]))
+        return opens and closes
+    return False
+
+
+def _absent_key(writer: "_Writer", template: "dict[str, object]", width: int) -> str:
+    """A key of figures alone `width` figures wide, opening with no nought (but a key of one figure), that no real key
+    of the column is as a number (`_key_template`'s bitmap); '' where none is left."""
+    bitmap = _absent_bitmap(template, 0)
+    low = 10 ** (width - 1) if width > 1 else 0
+    span = 10 ** width - low
+    for _attempt in range(64):
+        value = low + _below(writer.state, span)
+        if not _in_bitmap(bitmap, value):
+            return f"{value}"
+    start = _below(writer.state, span)
+    for step in range(span):
+        value = low + (start + step) % span
+        if not _in_bitmap(bitmap, value):
+            return f"{value}"
+    return ""
 
 
 def _joined_digits(runs: "list[tuple[str, str]]") -> str:
@@ -1514,6 +2074,11 @@ class _Writer:
     written: "set[str]"
     folded: "set[str]"
     chain: "dict[str, tuple[list[str], list[int], list[str], list[int]]]"
+    # A person's detail column (`MODE_DETAIL`): its made-up words by length, and each template's plan of lengths.
+    neutral: "dict[int, list[str]]" = dataclasses.field(default_factory=dict)
+    plans: "dict[str, object]" = dataclasses.field(default_factory=dict)
+    # ...and the real column's runs of letters at the lengths no made-up word is left at (`_runs_at_lengths`).
+    taken: "set[str]" = dataclasses.field(default_factory=set)
 
 
 def _writer_of(entry: "dict[str, object]", state: "list[int]") -> _Writer:
@@ -1521,13 +2086,22 @@ def _writer_of(entry: "dict[str, object]", state: "list[int]") -> _Writer:
     templates = typing.cast("dict[str, dict[str, object]]", entry["templates"])
     keys = sorted(key for key in templates if _off_the_real(f"{entry['style']}", templates[key]))
     parts = {key: _parts_of(key) for key in keys}
-    return _Writer(
+    writer = _Writer(
         entry=entry, state=state, style=f"{entry['style']}", mode=f"{entry['mode']}",
         kept=_spellings_of(entry["kept"]), keep=_spellings_of(entry["keep"]),
         templates=templates, keys=keys, parts=parts,
         openings=typing.cast("dict[str, str]", entry["openings"]) if "openings" in entry else {},
         loose={key: _loose_numbers(parts[key]) for key in keys}, written=set(), folded=set(), chain={},
     )
+    if writer.mode == MODE_DETAIL and writer.style == "words":
+        # ...A PERSON'S DETAIL IS WRITTEN ONLY IN A TEMPLATE THAT CAN KEEP IT OFF EVERY REAL CELL (`_detail_plan`).
+        words = entry["neutral"] if "neutral" in entry else []
+        for word in typing.cast("list[str]", words if isinstance(words, list) else []):
+            text = f"{word}"
+            writer.neutral[len(text)] = (writer.neutral[len(text)] if len(text) in writer.neutral else []) + [text]
+        writer.taken = _spellings_of(entry["real_runs"]) - {""} if "real_runs" in entry else set()
+        writer.keys = [key for key in keys if _detail_plan(writer, key) is not None]
+    return writer
 
 
 def _spellings_of(joined: object) -> "set[str]":
@@ -1543,7 +2117,7 @@ def _off_the_real(style: str, template: "dict[str, object]") -> bool:
         return True
     mark = template["mark"] if "mark" in template else []
     room = template["room"] if "room" in template else 0
-    return bool(mark) or (isinstance(room, (int, float)) and room >= ENTROPY_BITS)
+    return bool(mark) or "absent" in template or (isinstance(room, (int, float)) and room >= ENTROPY_BITS)
 
 
 def _parts_of(key: str) -> "list[str]":
@@ -1792,6 +2366,8 @@ def _key_drawn(writer: _Writer, key: str, template: "dict[str, object]", slots: 
     """One key drawn in a key template: each place from its characters, the mark off the real, the check figure computed."""
     mark = typing.cast("list[object]", template["mark"]) if "mark" in template else []
     ranges = typing.cast("list[list[int]]", template["ranges"]) if "ranges" in template else []
+    if not mark and "absent" in template:
+        return _absent_key(writer, template, int(f"{slots[0]['width']}"))
     runs: "list[str]" = []
     for place in range(len(slots)):
         slot = slots[place]
@@ -2164,6 +2740,362 @@ def _items_drawn(writer: _Writer, items: "list[str]", weights: "list[int]", size
     return picked
 
 
+def _detail_plan(writer: _Writer, key: str) -> "tuple[list[list[tuple[int, int, bool]]], list[list[list[int]]], int, int] | None":
+    """THE LENGTHS A DETAIL TEMPLATE'S CELLS MAY TAKE, EACH KEPT OFF EVERY REAL CELL: each slot's lengths
+    (`_detail_options`), and for each slot and each number of characters still to write, the weight of every way the
+    slots left may fill them -- once with a piece no real cell holds already written, once without -- so a draw at a
+    length is exact and keeps the cell off the real, or is not made. None for a template whose cells cannot be kept off
+    the real (every slot kept, no made-up word, no long run and no short number no real cell holds there), for one
+    holding a date, and past `DETAIL_SLOTS` slots."""
+    if key in writer.plans:
+        known = writer.plans[key]
+        return None if known is None else typing.cast(
+            "tuple[list[list[tuple[int, int, bool]]], list[list[list[int]]], int, int]", known)
+    slots = typing.cast("list[dict[str, object]]", writer.templates[key]["slots"])
+    plan: "tuple[list[list[tuple[int, int, bool]]], list[list[list[int]]], int, int] | None" = None
+    if len(slots) <= DETAIL_SLOTS and all(f"{slot['k']}" in ("n", "w") for slot in slots):
+        options = [_detail_options(writer, key, at) for at in range(len(slots))]
+        if all(options):
+            reach = 0
+            for each in options:
+                reach = reach + max(size for size, _weight, _off in each)
+            reach = min(DETAIL_REACH, reach)
+            count = len(options)
+            table = [[[0, 0] for _left in range(reach + 1)] for _at in range(count + 1)]
+            table[count][0][1] = 1
+            for at in range(count - 1, -1, -1):
+                for left in range(reach + 1):
+                    for done in (0, 1):
+                        total = 0
+                        for size, weight, off in options[at]:
+                            if size <= left:
+                                total = total + weight * table[at + 1][left - size][1 if (done or off) else 0]
+                        table[at][left][done] = total
+            if any(table[0][left][0] > 0 for left in range(reach + 1)):
+                literal = 0
+                for part in writer.parts[key]:
+                    if part[:1] == _LIT:
+                        literal = literal + len(part) - 1
+                plan = (options, table, literal, reach)
+    writer.plans[key] = plan
+    return plan
+
+
+def _detail_options(writer: _Writer, key: str, at: int) -> "list[tuple[int, int, bool]]":
+    """The lengths slot `at` of a detail template may be written at: (length, weight, whether a piece of that length
+    keeps the cell off every real one). A word: each length the real words of the slot take or a made-up word of the
+    column has (`NEUTRAL_WORDS` left by `_neutral_left`), off where it has one. A number: each length its real numbers
+    are written at, off where its whole figures are a run of `OPENING_RUN` or more that can open with a figure no real
+    run of its width opens with, or, for a short number held off the real (`_absent_facts`), where some number of that
+    width no real cell of the template holds there is left."""
+    template = writer.templates[key]
+    slot = typing.cast("list[dict[str, object]]", template["slots"])[at]
+    options: "list[tuple[int, int, bool]]" = []
+    if f"{slot['k']}" == "w":
+        lengths = typing.cast("dict[str, int]", slot["lengths"])
+        for size in range(1, DETAIL_WORD_LONGEST + 1):
+            real = int(f"{lengths[f'{size}']}") if f"{size}" in lengths else 0
+            off = size in writer.neutral
+            if real or off:
+                options += [(size, 1000 * min(real, 100000) + 1, off)]
+        return options
+    bitmap = _absent_bitmap(template, at)
+    spellings = _number_spellings(slot)
+    counted: "dict[int, int]" = {}
+    for written, count in spellings:
+        counted[len(written)] = (counted[len(written)] if len(written) in counted else 0) + count
+    for size in sorted(counted):
+        if bitmap:
+            off = _absent_number(writer, key, at, size, False) != ""
+        else:
+            off = all(_run_can_be_off(writer, written) for written, _count in spellings if len(written) == size)
+        options += [(size, min(counted[size], 100000), off)]
+    return options
+
+
+def _number_spellings(slot: "dict[str, object]") -> "list[tuple[str, int]]":
+    """A number slot's real spellings with their counts (its census), or its grid's points as written, one each."""
+    if "census" in slot:
+        return [(f"{each}", int(f"{count}")) for each, count in typing.cast("list[list[object]]", slot["census"])]
+    key = f"{slot['key']}"
+    plus = slot["plus"] is True
+    return [(_written_number(value, key, plus), 1) for value in typing.cast("list[float]", slot["grid"])]
+
+
+def _run_can_be_off(writer: _Writer, written: str) -> bool:
+    """Whether a number's whole figures are a run `_opened_off` keeps off every real run: `OPENING_RUN` figures or
+    more, of a width no real run has or with an opening figure no real run of its width takes."""
+    _sign, whole, _after = _number_parts(written)
+    if len(whole) < OPENING_RUN:
+        return False
+    width = f"{len(whole)}"
+    if width not in writer.openings:
+        return True
+    taken = writer.openings[width]
+    return any(figure not in taken for figure in "987654321")
+
+
+def _absent_bitmap(template: "dict[str, object]", at: int) -> str:
+    """The bitmap of the numbers the real cells of a template hold at slot `at` ('' where it keeps none)."""
+    absent = template["absent"] if "absent" in template else None
+    if not isinstance(absent, dict) or f"{at}" not in absent:
+        return ""
+    return f"{absent[f'{at}']}"
+
+
+def _absent_number(writer: _Writer, key: str, at: int, size: int, drawn: bool) -> str:
+    """A short whole number `size` characters wide that no real cell of template `key` holds at its slot `at`, in the
+    slot's padding; a telephone number's part opens with 2 to 9 and is no `N11` service number. Taken evenly from every
+    such number (counted once a template, a slot and a width) where ``drawn``, else the first (whether one is left);
+    '' where none is."""
+    template = writer.templates[key]
+    slot = typing.cast("list[dict[str, object]]", template["slots"])[at]
+    bitmap = _absent_bitmap(template, at)
+    pieces = _parts_dotted(f"{slot['key']}")
+    written_key = f"{slot['key']}"
+    padded = int(pieces[1]) if len(pieces) > 1 and pieces[1] else 0
+    phone = "phone" in template and template["phone"] is True
+    if not bitmap or (padded and padded != size):
+        return ""
+    low = 0 if padded or size == 1 else 10 ** (size - 1)
+    high = min(10 ** size, 10 ** ABSENT_WIDTH) - 1
+    if high < low:
+        return ""
+    known = _SEP + "absent" + _SEP + key + _SEP + f"{at}" + _SEP + f"{size}"
+    if known not in writer.plans:
+        writer.plans[known] = [value for value in range(low, high + 1) if _absent_allowed(bitmap, value, phone)]
+    left = typing.cast("list[int]", writer.plans[known])
+    if not left:
+        return ""
+    key = written_key
+    return _written_number(float(left[_below(writer.state, len(left)) if drawn else 0]), key, False)
+
+
+def _absent_allowed(bitmap: str, value: int, phone: bool) -> bool:
+    """Whether a short number is free of the real (not in the bitmap) and, in a telephone number, a valid part."""
+    if _in_bitmap(bitmap, value):
+        return False
+    return not phone or (value >= 200 and value % 100 != 11)
+
+
+def _detail_drawn(writer: _Writer, key: str, length: int) -> str:
+    """One cell of a detail template exactly `length` characters long, holding a piece no real cell holds (a made-up
+    word of the column, a long run opening off the real, or a short number off the real); '' where the template has
+    no such cell of that length (`_detail_plan`)."""
+    plan = _detail_plan(writer, key)
+    if plan is None:
+        return ""
+    options, table, literal, reach = plan
+    left = length - literal
+    if left < 0 or left > reach or table[0][left][0] <= 0:
+        return ""
+    sizes: "list[int]" = []
+    done = 0
+    for at in range(len(options)):
+        weights: "list[int]" = []
+        for size, weight, off in options[at]:
+            weights += [weight * table[at + 1][left - size][1 if (done or off) else 0] if size <= left else 0]
+        size, _weight, off = options[at][_weighted(writer.state, weights)]
+        sizes += [size]
+        done = 1 if (done or off) else 0
+        left = left - size
+    template = writer.templates[key]
+    slots = typing.cast("list[dict[str, object]]", template["slots"])
+    pieces: "list[str]" = []
+    at = 0
+    for part in writer.parts[key]:
+        if part[:1] == _LIT:
+            pieces += [part[1:]]
+            continue
+        slot = slots[at]
+        if f"{slot['k']}" == "w":
+            pieces += [_neutral_drawn(writer, slot, sizes[at])]
+        else:
+            # ...a short number off the real where one of that width is left; where every one is a real cell's (a
+            # column using every exchange), a number of the slot's own, the cell kept off the real by another piece.
+            absent = _absent_number(writer, key, at, sizes[at], True) if _absent_bitmap(template, at) else ""
+            pieces += [absent if absent else _number_sized(writer, key, at, sizes[at])]
+        at = at + 1
+    return _joined(pieces, "")
+
+
+def _neutral_drawn(writer: _Writer, slot: "dict[str, object]", size: int) -> str:
+    """A made-up word of `size` letters in a case the slot's real words take: one of the column's words left
+    (`_neutral_left`) where one is that long, else such words run together and cut at the length."""
+    cases = typing.cast("dict[str, int]", slot["cases"])
+    kinds = sorted(cases)
+    case = kinds[_weighted(writer.state, [int(f"{cases[each]}") for each in kinds])] if kinds else "lower"
+    if size in writer.neutral:
+        words = writer.neutral[size]
+        word = words[_below(writer.state, len(words))]
+    else:
+        pool: "list[str]" = []
+        for length in sorted(writer.neutral):
+            pool += writer.neutral[length]
+        word = ""
+        for _attempt in range(_WORD_TRIES):
+            word = ""
+            while len(word) < size:
+                word = word + (pool[_below(writer.state, len(pool))] if pool else _LOWER[_below(writer.state, 26)])
+            word = word[:size]
+            # ...never a run of letters a real cell of the column writes (`_runs_at_lengths`; one letter names nobody)
+            if size < 2 or parsing.folded(word) not in writer.taken:
+                break
+        if size >= 2 and parsing.folded(word) in writer.taken:
+            word = _word_off(writer, size)
+    written = ""
+    for place in range(len(word)):
+        character = word[place:place + 1]
+        written = written + (_capital(character) if case == "upper" or (case == "title" and place == 0) else character)
+    return written
+
+
+# How many made-up words of a length no made-up word has are drawn before the letters are walked (`_word_off`).
+_WORD_TRIES = 64
+
+
+def _word_off(writer: _Writer, size: int) -> str:
+    """A word of `size` small letters no real cell writes as a run (`writer.taken`), walked in order of the letters
+    from a drawn start: for a size of more than three letters, a drawn word whose last three letters are walked."""
+    head = ""
+    for _place in range(max(0, size - 3)):
+        head = head + _LOWER[_below(writer.state, 26)]
+    tail = min(size, 3)
+    span = 26 ** tail
+    start = _below(writer.state, span)
+    for step in range(span):
+        value = (start + step) % span
+        letters = ""
+        for _place in range(tail):
+            letters = _LOWER[value % 26] + letters
+            value = value // 26
+        word = head + letters
+        if parsing.folded(word) not in writer.taken:
+            return word
+    return head + _LOWER[0] * tail
+
+
+def _capital(character: str) -> str:
+    """A small ASCII letter as its capital; any other character as it is."""
+    if not isinstance(character, str):
+        raise TypeError("internal check: a letter is text")
+    found = _LOWER.find(character)
+    return _UPPER[found] if found >= 0 and len(character) == 1 else character
+
+
+def _number_sized(writer: _Writer, key: str, at: int, size: int) -> str:
+    """A number of template `key`'s slot `at` written in `size` characters: a census spelling of that length by its
+    count, or a value between two grid points of that length (the grid's places of each length counted once); its long
+    run opened off the real (`_opened_off`, never wider)."""
+    slot = typing.cast("list[dict[str, object]]", writer.templates[key]["slots"])[at]
+    written = ""
+    if "census" in slot:
+        found = [(each, count) for each, count in _number_spellings(slot) if len(each) == size]
+        if found:
+            written = found[_weighted(writer.state, [count for _each, count in found])][0]
+    else:
+        slot_key = f"{slot['key']}"
+        plus = slot["plus"] is True
+        grid = typing.cast("list[float]", slot["grid"])
+        known = _SEP + "grid" + _SEP + key + _SEP + f"{at}" + _SEP + f"{size}"
+        if known not in writer.plans:
+            writer.plans[known] = [place for place in range(len(grid))
+                                   if len(_written_number(grid[place], slot_key, plus)) == size]
+        places = typing.cast("list[int]", writer.plans[known])
+        if places:
+            place = places[_below(writer.state, len(places))]
+            written = _written_number(grid[place], slot_key, plus)
+            if place + 1 < len(grid):
+                between = _written_number(grid[place] + (grid[place + 1] - grid[place]) * _uniform(writer.state),
+                                          slot_key, plus)
+                if len(between) == size:
+                    written = between
+    return _opened_off(writer, written, False) if written else written
+
+
+def _detail_shape(writer: _Writer, key: str) -> "tuple[int, bool, bool]":
+    """A detail template's words (cut by spaces), whether its cells are all figures and whether of a code's alphabet."""
+    text = ""
+    for part in writer.parts[key]:
+        head = part[:1]
+        if head == _LIT:
+            text = text + part[1:]
+        elif head == _NUM:
+            text = text + ("9" if part[1:3] == "0." else "9.9")
+        else:
+            text = text + "a"
+    figures, code, words = _class_of(text)
+    return words, figures, code
+
+
+def _detail_fresh(writer: _Writer, key: str, length: int) -> str:
+    """A fresh cell of a detail template at `length` characters (`_detail_drawn`, `_fresh`), '' where none is found."""
+    for _attempt in range(TRIES):
+        drawn = _detail_drawn(writer, key, length)
+        if not drawn:
+            return ""
+        if _fresh(writer, drawn):
+            return drawn
+    return ""
+
+
+def _detail_written(writer: _Writer, counts: "dict[str, int]") -> "dict[str, str]":
+    """EACH DIFFERENT VALUE OF THE DESCRIPTION'S TWIN WRITTEN ANEW AS A PERSON'S DETAIL OF ITS OWN LENGTH.
+
+    The commonest values first, each in the template with the most rows
+    still owed (templates in proportion to the real rows each covers)
+    whose cells can be that long, hold as many words and are as often all
+    figures or of a code's alphabet; failing that, as many words; failing
+    that, any template; and only where no template can be that long, the
+    nearest length one can (at most `DETAIL_NEAREST` away). So the column
+    keeps the description's own facts of free text -- how many different
+    values, how many rows hold each, each value's length and words --
+    while every value wears a real layout with every word that could name
+    somebody made up, and is no real cell (`_detail_drawn`). A value no
+    template can write keeps the description's own made-up spelling.
+    """
+    keys = writer.keys
+    weights = [int(f"{writer.templates[key]['rows']}") for key in keys]
+    total = sum(counts[cell] for cell in counts)
+    whole = max(1, sum(weights))
+    left = [(weight * total) // whole for weight in weights]
+    shapes = [_detail_shape(writer, key) for key in keys]
+    renamed: "dict[str, str]" = {}
+    for _count, cell in sorted((-counts[cell], cell) for cell in counts):
+        wanted = _class_of(cell)
+        ranked = [at for _left, at in sorted((-left[at], at) for at in range(len(keys)))]
+        value = ""
+        chosen = -1
+        for tier in range(3):
+            for at in ranked:
+                words, figures, code = shapes[at]
+                if (tier < 2 and words != wanted[2]) or (tier < 1 and (figures != wanted[0] or code != wanted[1])):
+                    continue
+                value = _detail_fresh(writer, keys[at], len(cell))
+                if value:
+                    chosen = at
+                    break
+            if value:
+                break
+        gap = 0
+        while not value and gap < DETAIL_NEAREST:
+            gap = gap + 1
+            for near in (len(cell) - gap, len(cell) + gap):
+                for at in ranked:
+                    value = _detail_fresh(writer, keys[at], near) if near > 0 else ""
+                    if value:
+                        chosen = at
+                        break
+                if value:
+                    break
+        if value:
+            left[chosen] = left[chosen] - counts[cell]
+            renamed[cell] = _take(writer, value)
+        else:
+            renamed[cell] = cell
+    return renamed
+
+
 def write_column(zone: object, name: str, cells: "list[str]", seed: int) -> "list[str] | None":
     """A column of the description's twin written again in the real column's templates; None where the zone leaves it.
 
@@ -2177,7 +3109,8 @@ def write_column(zone: object, name: str, cells: "list[str]", seed: int) -> "lis
     record numbers is left as it is where every cell already wears a
     template and its rules (`_already_written`). A held column
     (`MODE_HELD`) has as many blank cells filled as the real column
-    held. Determinism: a function of the zone, the name, the cells and
+    held. A column of a person's details (`MODE_DETAIL`) has each value
+    written at its own length (`_detail_written`). Determinism: a function of the zone, the name, the cells and
     the seed. Raises `TextError` for a zone of another version; nothing
     else.
     """
@@ -2210,6 +3143,11 @@ def write_column(zone: object, name: str, cells: "list[str]", seed: int) -> "lis
     if "list" in writer.entry:
         listed = _listed(writer, counts)
         return [listed[cell] if cell in listed else cell for cell in cells]
+    if writer.mode == MODE_DETAIL and writer.style == "words":
+        if not writer.keys:
+            return None
+        detailed = _detail_written(writer, counts)
+        return [detailed[cell] if cell in detailed else cell for cell in cells]
     total = sum(counts[cell] for cell in counts)
     lengths = [len(cell) for cell in counts]
     words = [parsing.token_count(cell) for cell in counts]
@@ -2231,11 +3169,22 @@ def write_column(zone: object, name: str, cells: "list[str]", seed: int) -> "lis
                 anchors[cell] = (anchors[cell] if cell in anchors else ()) + (wanted_at,)
                 break
     free_lengths = typing.cast("list[int]", writer.entry["free_lengths"]) if "free_lengths" in writer.entry else []
+    worn = _worn_templates(writer, keys, order)
+    worn_places = {worn[cell] for cell in worn}
     for cell in order:
         place = 0
         for at in range(len(keys)):
             if left[at] > left[place]:
                 place = at
+        # ...A RECORD NUMBER THE DESCRIPTION'S TWIN WROTE IN A REAL TEMPLATE STAYS IN IT (lane TEXTZONE): that twin
+        # holds the published count of each layout exactly, so a value keeps its layout, and a value it wrote in no
+        # real template (wider than the real) goes to a template none of its values wears (`_worn_templates`).
+        if cell in worn:
+            place = worn[cell]
+        elif worn:
+            spare = [at for at in range(len(keys)) if at not in worn_places]
+            if spare:
+                place = sorted((-left[at], at) for at in spare)[0][1]
         key = keys[place]
         if key and not _slotted(writer, key) and _used_once(writer, key):
             others = [at for at in range(len(keys)) if keys[at] == "" or _slotted(writer, keys[at])
@@ -2321,6 +3270,22 @@ def _balanced(writer: _Writer, counts: "dict[str, int]", renamed: "dict[str, str
             renamed[cell] = _take(writer, drawn)
             gap = gap - count * step
             break
+
+
+def _worn_templates(writer: _Writer, keys: "list[str]", cells: "list[str]") -> "dict[str, int]":
+    """For a column of record numbers, each different value of the description's twin that already wears one of the
+    zone's templates (its runs read as the real cells' are), and that template's place in ``keys``; nothing for words."""
+    worn: "dict[str, int]" = {}
+    if writer.style == "words":
+        return worn
+    for cell in cells:
+        if _holds_a_mark(cell):
+            continue
+        key, _runs = _run_key(run_tokens(cell, writer.style), writer.kept)
+        for at in range(len(keys)):
+            if keys[at] == key:
+                worn[cell] = at
+    return worn
 
 
 def _slotted(writer: _Writer, key: str) -> bool:

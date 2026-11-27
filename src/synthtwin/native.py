@@ -1422,6 +1422,9 @@ COLUMN_KEYS = (
     "written_as",
     "zone",
 )
+# ...and the one key an entry carries only where it says something (lane
+# TOOLS): the cell standing for an empty text (`NativeColumn.empty_text`).
+OPTIONAL_COLUMN_KEY = "empty_text"
 MISSING_KEYS = ("high", "low", "values")
 PANDAS_KEYS = ("numpy_type", "ordered", "pandas_type")
 INDEX_KEYS = ("columns", "start", "step")
@@ -1629,6 +1632,55 @@ def zone_published(text: object) -> bool:
     return _zone_text_published(text)
 
 
+# The longest run of spaces that stands for an empty text.
+EMPTY_TEXT_MOST = 64
+
+
+def empty_text_published(text: object) -> bool:
+    """Whether a cell standing for an empty text may be published: "" or a run of spaces, at most `EMPTY_TEXT_MOST`.
+
+    Spaces alone carry no value of the table: the run is chosen as the
+    shortest one no cell of the column holds (`empty_text_for`).
+    """
+    return isinstance(text, str) and len(text) <= EMPTY_TEXT_MOST and all(character == " " for character in text)
+
+
+def empty_text_for(values: "list[object]") -> "str | None":
+    """The cell that stands for an empty text in a Parquet text column of these values (`NativeColumn.empty_text`).
+
+    None where no value is an empty text; "" where none is missing (None),
+    so every blank cell is an empty text; else the shortest run of spaces
+    that no value of the column is, so the two kinds of nothing stay
+    apart. None, too, where every run up to `EMPTY_TEXT_MOST` is taken: the
+    empty texts are then read as missing, as before. A fixed function of
+    the values; raises nothing.
+    """
+    seen_empty = False
+    seen_missing = False
+    spaces: "set[int]" = set()
+    for value in values:
+        if value is None:
+            seen_missing = True
+        elif value == "":
+            seen_empty = True
+        elif isinstance(value, str) and len(value) <= EMPTY_TEXT_MOST and all(character == " " for character in value):
+            spaces = spaces | {len(value)}
+    if not seen_empty:
+        return None
+    if not seen_missing:
+        return ""
+    for length in range(1, EMPTY_TEXT_MOST + 1):
+        if length not in spaces:
+            return " " * length
+    return None
+
+
+def _empty_text_or_refused(value: object, where: str) -> str:
+    if not empty_text_published(value):
+        raise NativeFormError(f"{where} names a cell for an empty text that is not a run of spaces")
+    return f"{value}"
+
+
 def _zone_text_published(text: str) -> bool:
     if not isinstance(text, str):
         raise TypeError("internal check: a zone's name was not text")
@@ -1781,6 +1833,17 @@ class NativeColumn:
     # (pandas' order), each one a value the description publishes; None
     # for every other column.
     categories: "tuple[str, ...] | None" = None
+    # THE CELL THAT STANDS FOR AN EMPTY TEXT (lane TOOLS; the outside
+    # review of batch 4zz, item 10). A Parquet text column holds two kinds
+    # of nothing, a missing value and an empty text, and a cell holds one
+    # spelling for both: "" for the missing value. Where the column holds
+    # empty texts, this is the cell that stands for one -- "" itself where
+    # it holds no missing value, else the shortest run of spaces no cell of
+    # the column holds (`empty_text_for`) -- so the description counts the
+    # two apart and the twin's writer writes each back as its own kind.
+    # None where the column holds no empty text, and for every column of
+    # every other system (an empty text IS Stata's and SPSS's missing text).
+    empty_text: "str | None" = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1865,6 +1928,10 @@ def document_of(form: NativeForm) -> "dict[str, object]":
                 "zone": column.zone,
             }
         ]
+        # Written only where it says something (lane TOOLS), so every
+        # description without an empty text keeps its keys and bytes.
+        if column.empty_text is not None:
+            columns[len(columns) - 1]["empty_text"] = column.empty_text
     index: "dict[str, object] | None" = None
     if form.index is not None:
         index = {
@@ -1947,7 +2014,12 @@ def form_of(value: object, width: int) -> "NativeForm | None":
     columns: "list[NativeColumn]" = []
     for place in range(len(raw_columns)):
         where = f"column {place + 1} of the native file's block"
-        entry = _exact_keys(raw_columns[place], COLUMN_KEYS, where)
+        raw_entry = raw_columns[place]
+        empty_text: "str | None" = None
+        if isinstance(raw_entry, dict) and OPTIONAL_COLUMN_KEY in raw_entry:
+            empty_text = _empty_text_or_refused(raw_entry[OPTIONAL_COLUMN_KEY], where)
+            raw_entry = {key: raw_entry[key] for key in sorted(raw_entry) if key != OPTIONAL_COLUMN_KEY}
+        entry = _exact_keys(raw_entry, COLUMN_KEYS, where)
         storage = entry["storage"]
         if storage not in stores:
             raise NativeFormError(f"{where} names a storage its format has no word for")
@@ -2057,6 +2129,7 @@ def form_of(value: object, width: int) -> "NativeForm | None":
                 pandas=pandas,
                 places=_whole_or_none(entry["places"], f"{where}'s decimal places", 0, PLACES_MOST),
                 categories=categories,
+                empty_text=empty_text,
             )
         ]
     index_raw = block["index"]
@@ -2394,7 +2467,14 @@ def arrow_schema_text(form: NativeForm, names: "tuple[str, ...]", nullable: "tup
     on its timestamps, and pandas' block rides in the schema's own pairs
     as pyarrow writes it. Determinism: a fixed function of its arguments.
     """
-    if all(column.pandas is None for column in form.columns):
+    # A ZONE STANDS ON ITS TIMESTAMPS ONLY IN THIS RECORD (lane TOOLS; the
+    # outside review of batch 4zz, item 11): a file Arrow wrote with no
+    # pandas block keeps a timestamp's zone here alone, so the record is
+    # written for it too -- every type rebuilt from the published fields,
+    # and no pandas block among its pairs.
+    with_pandas = any(column.pandas is not None for column in form.columns)
+    zoned = any(column.zone is not None and column.utc for column in form.columns)
+    if not with_pandas and not zoned:
         return ""
     fields: "list[_FbTable]" = []
     for place in range(len(form.columns)):
@@ -2426,9 +2506,141 @@ def arrow_schema_text(form: NativeForm, names: "tuple[str, ...]", nullable: "tup
                 ))),
             ]
         fields += [_FbTable(fields=tuple(parts))]
-    pairs = _FbVector(items=(_FbTable(fields=((0, "o", PANDAS_KEY), (1, "o", pandas_text))),))
-    schema = _FbTable(fields=((1, "o", _FbVector(items=tuple(fields))), (2, "o", pairs)))
+    if with_pandas:
+        pairs = _FbVector(items=(_FbTable(fields=((0, "o", PANDAS_KEY), (1, "o", pandas_text))),))
+        schema = _FbTable(fields=((1, "o", _FbVector(items=tuple(fields))), (2, "o", pairs)))
+    else:
+        schema = _FbTable(fields=((1, "o", _FbVector(items=tuple(fields))),))
     message = _FbTable(fields=((0, "h", 4), (1, "B", 1), (2, "o", schema), (3, "q", 0)))
     body = _fb_buffer(message)
     framed = b"\xff\xff\xff\xff" + little(len(body), 4) + body
     return _base64(framed)
+
+
+
+# -- Arrow's own schema, read back for the zone of each timestamp ----------
+#
+# The other half of the record above (lane TOOLS; the outside review of
+# batch 4zz, item 11): a file Arrow wrote without pandas' block names a
+# timestamp's zone only in its `ARROW:schema` record, so the reader reads
+# that one string per timestamp out of it -- the FlatBuffers `Message`, its
+# `Schema`, each `Field`'s name and, where its type is a `Timestamp`, the
+# type's `timezone` -- with the standard library alone, every offset held
+# inside the record's bytes.
+
+_BASE64_VALUES = {_BASE64[at]: at for at in range(len(_BASE64))}
+
+
+def _unbase64(text: str) -> "bytes | None":
+    """Standard base64 read back (the padding optional), or None where a character is not base64's."""
+    out = bytearray()
+    word = 0
+    held = 0
+    for character in text:
+        if character == "=":
+            break
+        if character in "\r\n":
+            continue
+        if character not in _BASE64_VALUES:
+            return None
+        word = (word << 6) | _BASE64_VALUES[character]
+        held = held + 6
+        if held >= 8:
+            held = held - 8
+            out += bytes([(word >> held) & 255])
+    return bytes(out)
+
+
+def _fb_word(data: bytes, at: int, width: int, signed: bool = False) -> "int | None":
+    """A little-endian whole number of ``width`` bytes at ``at``, or None past the end."""
+    if at < 0 or at + width > len(data):
+        return None
+    value = 0
+    for step in range(width):
+        value = value | (data[at + step] << (8 * step))
+    if signed and value >= 1 << (8 * width - 1):
+        value = value - (1 << (8 * width))
+    return value
+
+
+def _fb_field(data: bytes, table: int, slot: int) -> "int | None":
+    """Where a table's field ``slot`` stands, or None where the table does not carry it."""
+    back = _fb_word(data, table, 4, True)
+    if back is None:
+        return None
+    vtable = table - back
+    size = _fb_word(data, vtable, 2)
+    if size is None or 4 + 2 * slot + 2 > size:
+        return None
+    offset = _fb_word(data, vtable + 4 + 2 * slot, 2)
+    if not offset:
+        return None
+    return table + offset
+
+
+def _fb_target(data: bytes, at: "int | None") -> "int | None":
+    """Where the offset stored at ``at`` leads."""
+    if at is None:
+        return None
+    step = _fb_word(data, at, 4)
+    return None if step is None else at + step
+
+
+def _fb_text(data: bytes, at: "int | None") -> "str | None":
+    """The string the offset at ``at`` leads to, or None."""
+    start = _fb_target(data, at)
+    if start is None:
+        return None
+    length = _fb_word(data, start, 4)
+    if length is None or start + 4 + length > len(data):
+        return None
+    try:
+        return str(data[start + 4 : start + 4 + length], "utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def arrow_zones(text: str) -> "dict[str, str]":
+    """Each timestamp column's zone name in an `ARROW:schema` record, by the column's name; {} where none is read.
+
+    Guarantees: reads the record's bytes alone and never raises: a record
+    that is not base64, not a schema message, or whose offsets lead
+    outside its bytes gives {} or the zones read before the fault. A
+    fixed function of the text.
+    """
+    data = _unbase64(text) if isinstance(text, str) else None
+    if data is None or len(data) < 8:
+        return {}
+    start = 0
+    if _fb_word(data, 0, 4) == 0xFFFFFFFF:
+        start = 8
+    elif _fb_word(data, 0, 4) is not None:
+        start = 4
+    body = data[start:]
+    root = _fb_target(body, 0)
+    if root is None:
+        return {}
+    kind = _fb_field(body, root, 1)
+    if kind is None or kind >= len(body) or body[kind] != 1:
+        return {}
+    schema = _fb_target(body, _fb_field(body, root, 2))
+    if schema is None:
+        return {}
+    fields = _fb_target(body, _fb_field(body, schema, 1))
+    count = _fb_word(body, fields, 4) if fields is not None else None
+    if fields is None or count is None:
+        return {}
+    zones: "dict[str, str]" = {}
+    for place in range(count):
+        field = _fb_target(body, fields + 4 + 4 * place)
+        if field is None:
+            return zones
+        name = _fb_text(body, _fb_field(body, field, 0))
+        tag_at = _fb_field(body, field, 2)
+        if name is None or tag_at is None or tag_at >= len(body) or body[tag_at] != _FB_TIMESTAMP:
+            continue
+        typed = _fb_target(body, _fb_field(body, field, 3))
+        zone = _fb_text(body, _fb_field(body, typed, 1)) if typed is not None else None
+        if zone:
+            zones[name] = zone
+    return zones

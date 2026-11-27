@@ -423,7 +423,7 @@ def test_the_extended_scripts_are_catalogued_apart_from_k_ru_01_s() -> None:
 def test_every_extended_script_runs_on_its_real_table(tmp_path: pathlib.Path) -> None:
     pytest.importorskip("statsmodels")
     pytest.importorskip("sklearn")
-    for table in ("T1", "T2", "T9"):
+    for table in ("T1", "T2", "T9", "T10"):
         scripts = [s for s in B.catalogue((table,), extended=True) if s.stem in B.EXTENDED_SCRIPTS]
         assert scripts, table
         extra = {B.HOLDOUT_FILE: T.text("T1", 2500, B.holdout_seed(1))} if table == "T1" else {}
@@ -454,3 +454,248 @@ def test_the_extended_value_reads_its_families_alone(monkeypatch: pytest.MonkeyP
     assert value["extended_same_20k"] == 0.0 and value["extended_same_replicate_20k"] == 1.0
     assert value["extended_families_20k"] == {"F17": {"n": 1, "runs": 1.0, "twin": 0.0, "replicate": 1.0,
                                                       "shuffled": 0.0}}
+
+
+# -- lane STATS-C: the competing death and the analyses the battery had not tried ----------------------------------
+
+
+def test_the_competing_death_leaves_every_earlier_column_as_it_was_and_ends_follow_up_first() -> None:
+    """T9's second follow-up ends at the first of a readmission, a death from another cause and its end, every time
+    drawn from a stream of its own: every column before it is the bytes a table drawn without it held; the death draws
+    on age and diabetes and never on the treatment, the readmission on the treatment; an exit falls within the
+    follow-up (mutant: the times drawn from the table's own stream)."""
+    pandas = pytest.importorskip("pandas")
+    smf = pytest.importorskip("statsmodels.formula.api")
+    frame = _frame("T9", 12000, 5)
+    assert list(frame.columns) == T.COLUMNS["T9"] and T.COLUMNS["T9"][-2:] == ["exit_days", "exit_reason"]
+    assert set(frame["exit_reason"]) == set(T.EXIT_REASONS)
+    assert frame["exit_days"].between(1, T.T9_TRUTH["exit_censor_days"][1]).all()
+    # The columns before the exit: the bytes the table held before the exit was added (3,000 rows, seed 5, its first
+    # fifteen columns, as batch 4zz's head wrote the whole table).
+    import hashlib
+
+    before = "".join(",".join(line.split(",")[:-2]) + "\n" for line in T.text("T9", 3000, 5).splitlines())
+    assert hashlib.sha256(before.encode("utf-8")).hexdigest() == (
+        "e04cbfae5229b4dd0a0c3e9103a74a5465b37b6c764e9c8f7fb76fe20af07095")
+    data = pandas.DataFrame({"time": frame["exit_days"], "age_c": (frame["age"] - 62) / 10,
+                             "diabetes": frame["diabetes"].eq("Y").astype(int),
+                             "treated": frame["treated"].eq("Y").astype(int)})
+    for reason, truth in (("died", T.T9_TRUTH["competing_death"]), ("readmitted", T.T9_TRUTH["readmission"])):
+        status = frame["exit_reason"].eq(reason).astype(int).to_numpy()
+        fit = smf.phreg("time ~ age_c + diabetes + treated", data=data, status=status, ties="breslow").fit()
+        names = list(fit.model.exog_names)
+        for term, key, scale in (("age_c", "age", 10.0), ("treated", "treated", 1.0)):
+            at = names.index(term)
+            assert abs(fit.params[at] - scale * truth[key]) < 4 * fit.bse[at], (reason, term, fit.params[at])
+    shares = frame["exit_reason"].value_counts(normalize=True)
+    assert 0.05 < shares["died"] < 0.25 and 0.1 < shares["readmitted"] < 0.4, shares.to_dict()
+
+
+def _fine_gray_on(tmp_path: pathlib.Path, text: str) -> "dict[str, dict]":
+    folder = tmp_path / "fine-gray"
+    found = B.run_side(folder, "T9", text, [s for s in B.catalogue(("T9",), extended=True) if s.stem == "f29_fine_gray"],
+                       {})
+    run = found["f29_fine_gray"]
+    assert run.ok, run.error
+    return run.estimands
+
+
+def test_the_fine_gray_script_is_cox_s_model_where_nobody_dies_of_another_cause(tmp_path: pathlib.Path) -> None:
+    """The battery's Fine-Gray estimator, written out in the script, is checked against Cox's model where it must equal
+    it: with every death from another cause read as censored, the subdistribution's risk set is the cause's own and
+    the two agree to 1e-6; with those who died kept, the coefficients move off the cause-specific ones, and age, which
+    brings the competing death, lowers the readmission's subdistribution hazard below its cause-specific one
+    (mutant: those who died dropped from the weighted risk set)."""
+    pandas = pytest.importorskip("pandas")
+    smf = pytest.importorskip("statsmodels.formula.api")
+    text = T.text("T9", 6000, 2)
+    censored_only = text.replace(",died\n", ",censored\n")
+    frame = pandas.read_csv(io.StringIO(censored_only))
+    data = pandas.DataFrame({"time": frame["exit_days"], "status": frame["exit_reason"].eq("readmitted").astype(int),
+                             "treated": frame["treated"].eq("Y").astype(int),
+                             "age_c": (frame["age"] - 62) / 10, "diabetes": frame["diabetes"].eq("Y").astype(int)})
+    cox = smf.phreg("time ~ treated + age_c + diabetes", data=data, status=data["status"].to_numpy(),
+                    ties="breslow").fit()
+    names = list(cox.model.exog_names)
+    plain = _fine_gray_on(tmp_path, censored_only)
+    for term in ("treated", "age_c", "diabetes"):
+        assert abs(plain[f"subdistribution_{term}"]["estimate"] - cox.params[names.index(term)]) < 1e-6, term
+        assert abs(plain[f"subdistribution_{term}"]["se"] - cox.bse[names.index(term)]) < 1e-6, term
+    weighted = _fine_gray_on(tmp_path, text)
+    moved = [abs(weighted[f"subdistribution_{term}"]["estimate"] - plain[f"subdistribution_{term}"]["estimate"])
+             for term in ("treated", "age_c", "diabetes")]
+    assert max(moved) > 0.01, moved
+    # Older patients die of other causes more often, so their subdistribution hazard of a readmission is lower than
+    # their cause-specific one.
+    assert weighted["subdistribution_age_c"]["estimate"] < plain["subdistribution_age_c"]["estimate"]
+
+
+# -- lane STATS-D: T10 (operations) and the analyses of the owner's list ---------------------------------------------
+
+
+def test_t10_holds_its_crossed_surgeons_and_anaesthetists_its_zeros_and_its_missing_albumin() -> None:
+    """T10's surgeons and anaesthetists are the same in every table seed (their effects from fixed streams), so a real
+    table and its fresh sample are two draws of one hospital: a surgeon's mean minutes at one seed foretell them at
+    another; the crossed model gives back both spreads; albumin is missing more often after a complication; its bytes
+    are pinned (mutant: the effects drawn from the table's seed)."""
+    pandas = pytest.importorskip("pandas")
+    numpy = pytest.importorskip("numpy")
+    smf = pytest.importorskip("statsmodels.formula.api")
+    import hashlib
+
+    first, second = _frame("T10", 12000, 5), _frame("T10", 12000, 6)
+    assert list(first.columns) == T.COLUMNS["T10"] and T.FILES["T10"] == "operations.csv"
+    assert "T10" in T.EXTENDED_TABLES and "T10" not in T.TABLES
+    by_first = first.groupby("surgeon")["minutes"].mean()
+    by_second = second.groupby("surgeon")["minutes"].mean()
+    assert by_first.corr(by_second) > 0.8, by_first.corr(by_second)
+    data = first.assign(complication=first["complication"].eq("Y").astype(int),
+                        emergency=first["emergency"].eq("Y").astype(int),
+                        age_c=(first["age"] - 60) / 10, everyone=1)
+    fit = smf.mixedlm("minutes ~ age_c + emergency + complication", data=data, groups="everyone",
+                      vc_formula={"s": "0 + C(surgeon)", "a": "0 + C(anaesthetist)"}).fit()
+    spreads = dict(zip(fit.model.exog_vc.names, numpy.sqrt(numpy.asarray(fit.vcomp))))
+    truth = T.T10_TRUTH["minutes"]
+    assert 0.6 * truth["surgeon_sd"] < spreads["s"] < 1.4 * truth["surgeon_sd"], spreads
+    assert 0.4 * truth["anaesthetist_sd"] < spreads["a"] < 1.6 * truth["anaesthetist_sd"], spreads
+    assert abs(fit.params["complication"] - truth["complication"]) < 4 * fit.bse["complication"]
+    missing = first["albumin"].isna()
+    assert missing[data["complication"] == 1].mean() > 1.8 * missing[data["complication"] == 0].mean()
+    assert T.text("T10", 400, 3) == T.text("T10", 400, 3) != T.text("T10", 400, 4)
+    # T10's bytes as this lane wrote it (3,000 rows, seed 5): a change to its draws changes every twin measured on it.
+    assert hashlib.sha256(T.text("T10", 3000, 5).encode("utf-8")).hexdigest() == (
+        "f11e1df1fb26710d636f99489776ee990ab0a737da334fd220658f9c84057998")
+    pandas.testing.assert_series_equal(first["patient_id"], _frame("T10", 12000, 5)["patient_id"])
+
+
+def _extended_on(tmp_path: pathlib.Path, table: str, stem: str, text: str) -> "dict[str, dict]":
+    extra = {B.HOLDOUT_FILE: T.text("T1", 2500, B.holdout_seed(1))} if table == "T1" else {}
+    found = B.run_side(tmp_path / stem, table, text, [s for s in B.catalogue((table,), extended=True)
+                                                      if s.stem == stem], extra)
+    run = found[stem]
+    assert run.ok, run.error
+    return {**run.context, **run.estimands}
+
+
+def test_the_clustered_roc_area_is_the_plain_area_with_a_wider_error(tmp_path: pathlib.Path) -> None:
+    """f38's area over every visit is the Mann-Whitney area of all rows, and its Obuchowski standard error, clustered
+    by patient, is wider than the rows-as-independent one on a table of several rows a patient; with every row its own
+    patient the two agree (mutant: the clusters not read)."""
+    numpy = pytest.importorskip("numpy")
+    pytest.importorskip("scipy")
+    text = T.text("T2", 6000, 3)
+    found = _extended_on(tmp_path, "T2", "f38_repeated_roc", text)
+    frame = _frame("T2", 6000, 3)
+    y = frame["hospitalized"].eq("Y").to_numpy()
+    sbp = frame["sbp"].to_numpy(dtype=float)
+    pos, neg = sbp[y], sbp[~y]
+    plain = float(numpy.mean((pos[:, None] > neg[None, :]) + 0.5 * (pos[:, None] == neg[None, :])))
+    assert abs(found["area_pressure_all_visits"]["estimate"] - plain) < 1e-9
+    assert found["clustered_over_naive_se"]["estimate"] > 1.15, found["clustered_over_naive_se"]
+    lines = text.splitlines()
+    alone = lines[0] + "\n" + "".join(f"P{1000000 + k}," + line.split(",", 1)[1] + "\n"
+                                       for k, line in enumerate(lines[1:]))
+    separate = _extended_on(tmp_path, "T2", "f38_repeated_roc", alone)
+    assert abs(separate["clustered_over_naive_se"]["estimate"] - 1.0) < 0.02, separate["clustered_over_naive_se"]
+
+
+def test_the_frailty_script_finds_the_surgeons_frailty_and_none_where_the_surgeons_are_shuffled(
+        tmp_path: pathlib.Path) -> None:
+    """f32_shared_frailty's Weibull model with a gamma frailty by surgeon gives back the frailty's variance T10 sets (its
+    thirty surgeons' realised spread about it) and the complication's log hazard ratio; with the surgeons shuffled
+    over the rows the frailty's variance falls near nought (mutant: the frailty's term left out of the likelihood)."""
+    pytest.importorskip("scipy")
+    pytest.importorskip("statsmodels")
+    import random
+
+    text = T.text("T10", 12000, 4)
+    found = _extended_on(tmp_path, "T10", "f32_shared_frailty", text)
+    truth = T.T10_TRUTH["readmission"]
+    assert 0.15 < found["frailty_variance"]["estimate"] < 0.9, found["frailty_variance"]
+    assert abs(found["frailty_complication"]["estimate"] - truth["complication"]) < 4 * found[
+        "frailty_complication"]["se"]
+    lines = text.splitlines()
+    place = lines[0].split(",").index("surgeon")
+    surgeons = [line.split(",")[place] for line in lines[1:]]
+    random.Random(1).shuffle(surgeons)
+    shuffled = lines[0] + "\n" + "".join(",".join(line.split(",")[:place] + [surgeon] + line.split(",")[place + 1:])
+                                          + "\n" for line, surgeon in zip(lines[1:], surgeons))
+    flat = _extended_on(tmp_path, "T10", "f32_shared_frailty", shuffled)
+    assert flat["frailty_variance"]["estimate"] < 0.05, flat["frailty_variance"]
+
+
+def test_the_mediation_script_splits_the_total_effect(tmp_path: pathlib.Path) -> None:
+    """f37's indirect and direct effects add to its total, and the total is the exposure's coefficient in the outcome's
+    model without the mediator to within two of its standard errors (a binary mediator through a logistic model, so
+    not exactly); the indirect effect is
+    the complication's coefficient times the average change in its chance (mutant: the indirect effect read on the
+    log odds scale)."""
+    smf = pytest.importorskip("statsmodels.formula.api")
+    numpy = pytest.importorskip("numpy")
+    text = T.text("T1", 8000, 2)
+    found = _extended_on(tmp_path, "T1", "f37_mediation", text)
+    assert abs(found["indirect"]["estimate"] + found["direct"]["estimate"] - found["total"]["estimate"]) < 1e-12
+    frame = _frame("T1", 8000, 2)
+    data = frame.assign(log_stay=numpy.log(frame["stay_days"]), diabetes=frame["diabetes"].eq("Y").astype(int),
+                        age_c=(frame["age"] - 57) / 10)
+    reduced = smf.ols("log_stay ~ diabetes + age_c + risk_class", data=data).fit()
+    assert abs(found["total"]["estimate"] - reduced.params["diabetes"]) < 2 * found["total"]["se"], (
+        found["total"], reduced.params)
+    assert 0.0 < found["indirect"]["estimate"] < found["path_complication_to_stay"]["estimate"] * 0.2
+
+
+def test_the_zero_inflated_script_finds_the_patients_who_never_come(tmp_path: pathlib.Path) -> None:
+    """f31's zero-inflated model gives back T10's never-comers: their share falls with age and in emergencies (the
+    inflation's terms within four standard errors of T10's), and its count part the complication's effect (mutant:
+    the inflation's columns swapped for the count's)."""
+    pytest.importorskip("statsmodels")
+    found = _extended_on(tmp_path, "T10", "f31_zero_inflated_visits", T.text("T10", 12000, 4))
+    truth = T.T10_TRUTH["visits_after"]
+    for key, value in (("zinb_inflate_age_c", 10 * truth["structural_zero_age"]),
+                       ("zinb_inflate_emergency", truth["structural_zero_emergency"]),
+                       ("zinb_complication", truth["complication"])):
+        assert abs(found[key]["estimate"] - value) < 4 * found[key]["se"], (key, found[key])
+
+
+def test_the_incidence_differences_carry_a_standard_error_the_spread_of_tables_bears_out(tmp_path: pathlib.Path) -> None:
+    """f29's differences of two cumulative incidences at a year carry their delta-method standard error (Marubini and
+    Valsecchi): over sixteen independent tables its mean is the spread of the difference across them, within 0.75 to
+    1.3 times it, for the readmission and for the competing death (mutant: one group's variance read as the
+    difference's). Before lane STATS-D the differences carried none and the battery's half-split
+    yardstick, read on four splits, judged them: a fresh sample passed three runs of nine."""
+    pytest.importorskip("pandas")
+    pytest.importorskip("statsmodels")
+    import statistics
+
+    keys = ("readmitted_by_a_year_treated_minus_not", "death_by_a_year_treated_minus_not")
+    values: "dict[str, list[float]]" = {key: [] for key in keys}
+    errors: "dict[str, list[float]]" = {key: [] for key in keys}
+    for seed in range(300, 316):
+        found = _extended_on(tmp_path, "T9", "f29_cumulative_incidence", T.text("T9", 6000, seed))
+        for key in keys:
+            values[key] += [found[key]["estimate"]]
+            errors[key] += [found[key]["se"]]
+            assert found[key]["p"] is not None, key
+    for key in keys:
+        ratio = statistics.mean(errors[key]) / statistics.stdev(values[key])
+        assert 0.75 < ratio < 1.3, (key, ratio)
+
+
+def test_the_weighted_kappa_carries_a_standard_error_the_spread_of_tables_bears_out(tmp_path: pathlib.Path) -> None:
+    """f17's quadratic weighted kappa carries its large-sample standard error (Fleiss, Cohen and Everitt): over
+    sixteen independent tables its mean is the spread of the kappa across them, within 0.7 to 1.4 times it (mutant:
+    the error's centring term left out). Before lane STATS-D it carried none and the half-split yardstick, near
+    nought for so stable an estimate, judged it: twins within 0.003 of the real kappa failed it."""
+    pytest.importorskip("pandas")
+    pytest.importorskip("sklearn")
+    pytest.importorskip("statsmodels")
+    import statistics
+
+    values: "list[float]" = []
+    errors: "list[float]" = []
+    for seed in range(400, 416):
+        found = _extended_on(tmp_path, "T9", "f17_reader_agreement", T.text("T9", 6000, seed))
+        values += [found["quadratic_weighted_kappa"]["estimate"]]
+        errors += [found["quadratic_weighted_kappa"]["se"]]
+    ratio = statistics.mean(errors) / statistics.stdev(values)
+    assert 0.7 < ratio < 1.4, ratio

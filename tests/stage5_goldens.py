@@ -136,7 +136,7 @@ RECORDS = (
     ('G10.1', 'exit', 0),
     ('G10.1', 'out', 0, 'e206ab9c98b94f6b240f48970645fe3736eb5fff96e371408d78c2c695e3dd75', 3550, 60),
     ('G10.2', 'exit', 0),
-    ('G10.2', 'out', 0, 'f9c03f8224dcd1cb0b8da620a49739f9b27a99c846ff8bfcf16951f65b0b72a9', 27273, 393),
+    ('G10.2', 'out', 0, '80c870589baf5d0542b61dd9e523a9445204a5ffca7c8ba1455fc7ac0bed3ab0', 27309, 394),
     ('G10.3', 'exit', 0),
     ('G10.3', 'out', 0, '8fc63b70c7bdcd156a388de4aefae5a3f6bd65ed8e2f877685505c04df0518f7', 10, 1),
     ('G11.1', 'exit', 1),
@@ -270,4 +270,4 @@ RECORDS = (
     ('D1', 'err', 1, 'd3c27b133ea35f36d6c35ac5dfdef18e48792917a00c2521562a7c0c00e183a0', 214, 1),
     ('D1', 'out', 2, '62077995ef6d00594f93f2c19eb3dadc709517ac63da744b62087781b5098548', 693, 13),
 )
-RECORDS_DIGEST = '7724ca564b36c52aafb6aa6672c248e7414d20270509aa03a9fb7610311a6b3b'
+RECORDS_DIGEST = '42752318982e582d4e6023e191d67ad272e0a5c535227a42188c3712e3ec7253'

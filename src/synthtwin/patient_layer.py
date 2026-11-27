@@ -1354,8 +1354,17 @@ def describe(
     stored_as: "tuple[str, ...]",
     *,
     counting: bool = True,
+    kept: "dict[int, taxonomy.KeptSpellings] | None" = None,
 ) -> Layer:
     """The patient layer of a table whose settings name a person column (contract 4.6c), or why it is off.
+
+    ``kept`` holds the description's own readings, column by column
+    (`taxonomy.KeptSpellings`, lane CHs, plan P4-D462), as `chain.describe`
+    hands them: each row column's is taken by `chain.read_as_described`
+    where it reads the column as the file wrote it under every argument
+    the reading was kept under, and let go from ``kept`` as its column is
+    read (lane SCALE). The layer is the same, byte for byte, with them or
+    without them.
 
     Guarantees: reads the table through `reading.column_values` and the
     description `profile.build_document` wrote of it; returns the patient
@@ -1464,6 +1473,11 @@ def describe(
     for place in range(len(blocks)):
         block = blocks[place]
         name = names[place]
+        # The column's kept reading, taken off ``kept`` as its column is met.
+        handed: "taxonomy.KeptSpellings | None" = None
+        if kept is not None and place in kept:
+            handed = kept[place]
+            del kept[place]
         if name == person:
             classes[name] = pr.CLASS_PERSON
             continue
@@ -1478,7 +1492,13 @@ def describe(
         read, values = chain.read_as_described(
             table, place, block, settings, declared, storage, blank_rows,
             answered_units[name] if name in answered_units else 0,
+            spellings_kept=handed,
         )
+        # ...and the column's readings below take it too, where they read the
+        # file's own cells (the very list the reader hands over: no step of
+        # the description changed a cell), as `read_as_described` takes it.
+        if handed is not None and values is not reading.column_values(table, place):
+            handed = None
         if read is None or not read.agrees:
             notes += [f"the recount of column {name} disagreed with its published counts"]
             return _off(OFF_RECOUNT, notes, counts)
@@ -1497,7 +1517,7 @@ def describe(
         # visit number's block is the census under another name, however few
         # bands it merges to (departure (16) of contract 4.6c.12).
         if role in rules.NUMBER_ROLES and moments.fine(block) and _two_cells(texts, first_patients) > threshold:
-            meaning = chain.reading_of(block, values, settings, declared, storage)
+            meaning = chain.reading_of(block, values, settings, declared, storage, spellings_kept=handed)
             readings = _readings_once(texts, meaning, role, block)
             if _not_a_run(readings, first_patients) <= threshold:
                 classes[name] = pr.CLASS_POSITION
@@ -1523,7 +1543,7 @@ def describe(
             fixed_cells[name] = values
             continue
         if not readings:
-            meaning = chain.reading_of(block, values, settings, declared, storage)
+            meaning = chain.reading_of(block, values, settings, declared, storage, spellings_kept=handed)
             readings = _readings_once(texts, meaning, role, block)
             # THE CANONICAL DATES OF THE FIRST DEALT DATE COLUMN ALONE (lane W5-2M): the position (d) is the
             # first dealt date column in schema order, every date column reaching here is dealt, and only the

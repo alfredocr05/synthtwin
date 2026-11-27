@@ -2,6 +2,7 @@
 import json
 import math
 
+import numpy as np
 import pandas as pd
 from sklearn.metrics import cohen_kappa_score
 from statsmodels.stats.contingency_tables import mcnemar
@@ -30,8 +31,19 @@ expected = (table.sum(axis=1) * table.sum(axis=0)).sum() / n ** 2
 kappa = (observed - expected) / (1 - expected)
 put("kappa", kappa, math.sqrt(observed * (1 - observed) / (n * (1 - expected) ** 2)), support=int(table.sum(axis=0).min()),
     primary=True)
+# The quadratic weighted kappa with its large-sample standard error (Fleiss, Cohen and Everitt; lane STATS-D: before,
+# none was written and the half-split yardstick, near nought for so stable an estimate, judged it).
+share = table / n
+weights = 1.0 - (np.subtract.outer(np.arange(4), np.arange(4)) ** 2) / 9.0
+rows_share, columns_share = share.sum(axis=1), share.sum(axis=0)
+agreed = (weights * share).sum()
+chance = (weights * np.outer(rows_share, columns_share)).sum()
+weighted = (agreed - chance) / (1.0 - chance)
+by_row, by_column = weights @ columns_share, rows_share @ weights
+spread = ((share * (weights - np.add.outer(by_row, by_column) * (1.0 - weighted)) ** 2).sum()
+          - (weighted - chance * (1.0 - weighted)) ** 2)
 put("quadratic_weighted_kappa", cohen_kappa_score(both["first"], both["second"], weights="quadratic"),
-    support=int(table.sum(axis=0).min()))
+    math.sqrt(max(spread, 0.0) / (n * (1.0 - chance) ** 2)), support=int(table.sum(axis=0).min()))
 put("exact_agreement", observed, math.sqrt(observed * (1 - observed) / n), support=n, judged=False)
 high_first, high_second = both["first"] >= 2, both["second"] >= 2
 pairs = pd.crosstab(high_first, high_second).reindex(index=[False, True], columns=[False, True], fill_value=0)

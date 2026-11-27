@@ -182,6 +182,7 @@ def _file_column(
     holding_nothing: int,
     tabled: "tuple[bytearray, int]",
     floor: int,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "_Column | None":
     """The file's column read by the profiler's own reading for the chain (`chain.read_column`), at the PUBLISHED bands.
 
@@ -196,7 +197,9 @@ def _file_column(
     while its readings are in hand, and the readings are not kept.
     """
     published, own = blocks
-    found = chain.read_column(table, place, published, settings, declared, stored_as, holding_nothing)
+    # ...the file's own description's reading of the column taken where it matches (``spellings_kept``, lane SCALE).
+    found = chain.read_column(table, place, published, settings, declared, stored_as, holding_nothing,
+                              spellings_kept=spellings_kept)
     if found is None:
         return None
     to_l0 = _l0_of_start(scale, found.start)
@@ -747,8 +750,17 @@ def lines_of(
     declared_measured: "list[str]",
     declared_commas: "list[str]",
     stored_as: "tuple[str, ...]",
+    kept: "dict[int, taxonomy.KeptSpellings] | None" = None,
 ) -> "validation.ChainLines | None":
     """Every V12 line of the measured file against the description's chain; None where it carries none.
+
+    ``kept`` holds the measured file's own description's readings, kept
+    column by column (`taxonomy.KeptSpellings`, lane CHs; lane SCALE): a
+    column read here on the file's own cells takes its kept reading where
+    `taxonomy.spellings_read` reads it under every argument it was kept
+    under (`chain.read_column`, `chain.reading_of`), so it runs taxonomy's
+    whole decision over the column once; the lines are the same with them
+    or without them.
 
     Guarantees: `document` is a description the loader accepted with the
     chain's switch (S23 to S28 hold on it); `table` the measured file as
@@ -766,7 +778,8 @@ def lines_of(
     # stands, `statistical` is the patient chain, counted in patients, and
     # the file is read in patients and in rows by the patient lines.
     if isinstance(_get(_get(document, "relationships"), "grain"), dict):
-        return patient_lines(document, table, redescribed, settings, declared_codes, declared_measured, declared_commas, stored_as)
+        return patient_lines(document, table, redescribed, settings, declared_codes, declared_measured, declared_commas, stored_as,
+                             kept)
     floor = _whole(_get(_get(document, "settings"), "small_cell_floor"))
     published_blocks: "dict[str, dict[str, object]]" = {}
     columns_written = _get(document, "columns")
@@ -841,6 +854,7 @@ def lines_of(
             file_nothing,
             tabled_mask,
             floor,
+            kept[place] if kept is not None and place in kept else None,
         )
         if column is None:
             unchecked[name] = ANOTHER_ROLE
@@ -1138,13 +1152,18 @@ def _patient_codes(
     declared: "dict[str, bool]",
     stored_as: str,
     holding_nothing: int,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "tuple[list[int], chain_rules.Ladder] | None":
-    """Each file row's `L0` band of one column at its published ladder (0-based; -1 outside every band), and the ladder."""
+    """Each file row's `L0` band of one column at its published ladder (0-based; -1 outside every band), and the ladder.
+
+    ``spellings_kept``, the file's own description's reading of the column, is taken where it matches (lane SCALE).
+    """
     found = _published_scale(entry, block)
     if found is None:
         return None
     scale, _start = found
-    read = chain.read_column(table, place, block, settings, declared, stored_as, holding_nothing)
+    read = chain.read_column(table, place, block, settings, declared, stored_as, holding_nothing,
+                             spellings_kept=spellings_kept)
     if read is None:
         return None
     to_l0 = _l0_of_start(scale, read.start)
@@ -1200,12 +1219,16 @@ def _exact_readings(
     settings: taxonomy.Settings,
     declared: "dict[str, bool]",
     stored_as: str,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "list[object]":
-    """Each row's exact reading of one column, as V12.7 reads it (`patient_rules.reading_of`); None where its cell holds none."""
+    """Each row's exact reading of one column, as V12.7 reads it (`patient_rules.reading_of`); None where its cell holds none.
+
+    ``spellings_kept``, the file's own description's reading of the column, is taken where it matches (lane SCALE).
+    """
     from synthtwin import patient_rules
 
     values = reading.column_values(table, place)
-    meaning = chain.reading_of(block, values, settings, declared, stored_as)
+    meaning = chain.reading_of(block, values, settings, declared, stored_as, spellings_kept=spellings_kept)
     role = f"{_get(block, 'role')}"
     out: "list[object]" = []
     for text in values:
@@ -1277,8 +1300,11 @@ def patient_lines(
     declared_measured: "list[str]",
     declared_commas: "list[str]",
     stored_as: "tuple[str, ...]",
+    kept: "dict[int, taxonomy.KeptSpellings] | None" = None,
 ) -> "validation.ChainLines | None":
     """V12.7's lines of a file against a description whose `grain` stands: verdicts alone, no measured number.
+
+    ``kept``: `lines_of`'s, each column's reading taken where it matches.
 
     The file's patients are read by the published person column (its
     tabled rows sharing one value), their positions by the published
@@ -1326,9 +1352,13 @@ def patient_lines(
     def declared_of(name: str) -> "dict[str, bool]":
         return {"code": name in declared_codes, "measurement": name in declared_measured, "decimal_comma": name in declared_commas}
 
+    def kept_of(name: str) -> "taxonomy.KeptSpellings | None":
+        return kept[place_of[name]] if kept is not None and place_of[name] in kept else None
+
     def exact_readings(name: str) -> "list[object]":
         return _exact_readings(
-            table, place_of[name], blocks[name], settings, declared_of(name), stored_as[place_of[name]] if place_of[name] < len(stored_as) else ""
+            table, place_of[name], blocks[name], settings, declared_of(name), stored_as[place_of[name]] if place_of[name] < len(stored_as) else "",
+            kept_of(name),
         )
 
     position = _get(grain, "position")
@@ -1371,7 +1401,8 @@ def patient_lines(
         if name not in place_of or name not in blocks or name not in row_ladder:
             return False
         found = _patient_codes(table, place_of[name], blocks[name], row_ladder[name], settings, declared_of(name),
-                               stored_as[place_of[name]] if place_of[name] < len(stored_as) else "", file_nothing)
+                               stored_as[place_of[name]] if place_of[name] < len(stored_as) else "", file_nothing,
+                               kept_of(name))
         if found is None:
             return False
         row_codes[name], row_scales[name] = found
@@ -1426,7 +1457,8 @@ def patient_lines(
         if name not in place_of or name not in blocks:
             continue
         found = _patient_codes(table, place_of[name], blocks[name], entry, settings, declared_of(name),
-                               stored_as[place_of[name]] if place_of[name] < len(stored_as) else "", file_nothing)
+                               stored_as[place_of[name]] if place_of[name] < len(stored_as) else "", file_nothing,
+                               kept_of(name))
         if found is None:
             continue
         codes_rows, scale = found

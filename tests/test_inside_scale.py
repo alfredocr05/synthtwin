@@ -192,8 +192,9 @@ def test_the_whole_record_keeps_its_size_when_the_rows_double(two_sizes) -> None
     zones = large["record"]["zones"]
     # ...the trajectories zone among them: the table's person column repeats at the owner's floor, where the shipped
     # command draws the patient layer (lane W5-PL), and its size is held by the same bound; and the text zone of its
-    # note column (lane TYPES-24), learned from at most its sample of rows.
-    assert sorted(zones) == ["dates", "marginals", "relations", "text", "trajectories"], sorted(zones)
+    # note column (lane TYPES-24), learned from at most its sample of rows; and the order zone (lane TOOLS, release 37:
+    # this visits table stands sorted by its person, then its visit's date), column names alone, the same at any size.
+    assert sorted(zones) == ["dates", "marginals", "order", "relations", "text", "trajectories"], sorted(zones)
     assert large["bytes"] <= 1.05 * small["bytes"], f"{small['bytes']} bytes at 20,000 rows, {large['bytes']} at 40,000"
     for rows in (20_000, 40_000):
         longest = max(_lists(two_sizes[rows]["record"]))

@@ -198,6 +198,13 @@ computer.
 folder, before you use the twin: it names the columns drawn from the
 inside record and what the twin carries between columns.
 
+**Check the twin against your table** before it leaves this computer
+(section 8):
+
+```
+synthtwin check my-table.csv
+```
+
 ## 6. Long runs
 
 A table of millions of rows can take hours to describe. Before a long
@@ -279,10 +286,24 @@ and the inside record stay on the protected computer: the description
 names your columns and holds counts, labels and summaries computed from
 your real data, and the inside record is a model of your table.
 
-The five twin-versus-real checks, which read the twin against your table
-for copied rows, copied patients, real identifiers and rare dates, and
-rare combinations, have no command word in this folder yet: that is a
-known gap. Until it is closed, ask the project before a twin leaves.
+**Before the twin leaves, run the five twin-versus-real checks** in the
+synthtwin window, with the same table:
+
+```
+synthtwin check my-table.csv
+```
+
+They read the twin in `my-table-synthtwin` against your table for copied
+rows, rows closer to a real one than chance allows, copied patients,
+real identifiers and rare real dates, and combinations only one real row
+holds. The window shows counts and a verdict for each, never a value,
+and the report is kept beside the twin as `my-table-twin-checks.txt`,
+which stays on this computer. The last line is the answer: `RESULT:
+PASS`, the twin may leave once your institution approves; `RESULT:
+FAIL`, it must not leave -- make another twin with
+`synthtwin twin my-table.csv --replace --seed 2`, run
+`synthtwin check my-table.csv` again, and if the same check fails again
+keep every twin on this computer and ask the project.
 
 Every file a full run writes carries facts computed from the real
 table, so the same rules apply to each of them, on any computer. The

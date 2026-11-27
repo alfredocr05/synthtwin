@@ -150,7 +150,7 @@ import math
 import typing
 from synthtwin import calendar_clock, calendar_rules, chain_moments, chain_rules, chain_walk, contract, dialect, errors, parsing, progress, taxonomy, twinstore
 # -- 3b.R4 (P4-D384): the twelve systems that write dates as counts.
-from synthtwin import date_counts, grains, offset_rules
+from synthtwin import date_counts, grains, inside_order, offset_rules
 
 import numpy.random
 
@@ -76967,6 +76967,17 @@ INSIDE_TEXT_NOTE = (
     "inside the real column's ends, every other word made up, and a record number kept off every real one. How "
     "many different values the column holds and how many rows hold each stand as that twin had them."
 )
+# A column of a person's details the text zone writes (`inside_text.MODE_DETAIL`, lane TEXTZONE).
+INSIDE_DETAIL_NOTE = (
+    "This column holds a person's details -- addresses, telephone numbers, e-mail or web addresses, names, record "
+    "numbers -- and the description publishes none of its values; the inside record kept on this computer holds the "
+    "layouts its real cells are written in, so each different value of the description's own twin was written again "
+    "as one new value in those layouts and as long as before: only the words most of the column writes kept (a "
+    "street's suffix, a web address's scheme, a host name kept for examples), every other word made up from a list "
+    "of everyday words none of the real cells writes, a telephone number's area code and exchange none a real number "
+    "holds, and every value kept off the real ones. How many different values the column holds and how many rows hold "
+    "each stand as that twin had them."
+)
 INSIDE_CENSUS_NOTE = (
     "The inside record kept on this computer holds the real spellings of this measurement column and how many cells "
     "write each; the description's own twin's cells were sorted by their number and each took the real spelling of "
@@ -77378,6 +77389,41 @@ def _sorted_again(finished: "list[twinstore.HeldColumn]", order: "dialect.RowOrd
     return out
 
 
+def _sorted_by_the_record(finished: "list[twinstore.HeldColumn]", zone: "dict[str, object]",
+                          empty_rows: "list[bool] | None", profile: contract.Profile) -> "list[twinstore.HeldColumn]":
+    """Every column's rows moved into the order the inside record kept (`inside_order.permutation`, lane TOOLS), read
+    off the twin's own cells; the all-empty records stay where they stand and a row-sequence column is written again
+    in row order, as `_sorted_again` leaves them. No random draw: a fixed function of the twin and the zone."""
+    rows = profile.n_rows
+    free = [row for row in range(rows) if empty_rows is None or not empty_rows[row]]
+    places: "dict[str, int]" = {}
+    for place in range(len(profile.columns)):
+        places[profile.columns[place].name] = place
+    keyed: "dict[str, list[str]]" = {}
+    keys = zone["keys"]
+    assert isinstance(keys, list)
+    for key in keys:
+        assert isinstance(key, dict)
+        name = f"{key['column']}"
+        keyed[name] = twinstore.column_cells(finished[places[name]])
+    placed = inside_order.permutation(zone, keyed, free)
+    keyed = {}
+    form_columns = profile.source.dialect.columns
+    out: "list[twinstore.HeldColumn]" = []
+    for place in range(len(finished)):
+        if place < len(form_columns) and form_columns[place].sequence_start >= 0:
+            out += [twinstore.held_column(dialect.sequence_cells(form_columns[place].sequence_start, rows))]
+            continue
+        cells = twinstore.column_cells(finished[place])
+        moved = [cell for cell in cells]
+        for index in range(len(free)):
+            moved[free[index]] = cells[placed[index]]
+        del cells
+        out += [twinstore.held_column(moved)]
+        del moved
+    return out
+
+
 def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed: int) -> Twin:
     """Build the twin from the inside record (lane IN-2, plan P4-D496): the description's twin, its modelled columns drawn anew.
 
@@ -77741,7 +77787,9 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
                 del rewritten
                 held_here = name in held_text
                 census_here = inside_text.dealt_in_order(text_zone, name)
-                note = INSIDE_HELD_TEXT_NOTE if held_here else INSIDE_CENSUS_NOTE if census_here else INSIDE_TEXT_NOTE
+                detail_here = inside_text.mode_of(text_zone, name) == inside_text.MODE_DETAIL
+                note = (INSIDE_HELD_TEXT_NOTE if held_here else INSIDE_CENSUS_NOTE if census_here
+                        else INSIDE_DETAIL_NOTE if detail_here else INSIDE_TEXT_NOTE)
                 remark = Remark(column=name, subject=INSIDE_DRAWN_SUBJECT, held="inside record", note=note)
                 added = [each for each in added if each.column != name] + [remark]
                 old = outcomes[place]
@@ -77769,6 +77817,17 @@ def generate_inside(profile: contract.Profile, record: "dict[str, object]", seed
     if (order.column and order.column <= len(finished)
             and profile.columns[order.column - 1].name in (replaced | moved)):
         finished = _sorted_again(finished, order, empty_rows, profile)
+    # ...AND WHERE THE DESCRIPTION PUBLISHES NO ORDER, THE ORDER THE RECORD
+    # KEPT (lane TOOLS, `inside_order`): the column, or the person and then a
+    # column, the real rows were sorted by, read off this twin's own cells.
+    if not order.column:
+        zones = record["zones"] if "zones" in record else None
+        kept_order = inside_order.read_zone(
+            zones[inside_order.ZONE] if isinstance(zones, dict) and inside_order.ZONE in zones else None,
+            [column.name for column in profile.columns],
+        )
+        if kept_order is not None:
+            finished = _sorted_by_the_record(finished, kept_order, empty_rows, profile)
     return dataclasses.replace(
         strict,
         outcomes=tuple(outcomes),

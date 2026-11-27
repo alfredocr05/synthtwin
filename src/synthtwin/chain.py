@@ -863,8 +863,15 @@ def described_cells(
     stored_as: str,
     exact: bool = False,
     answered: int = 0,
+    spellings_kept: "taxonomy.KeptSpellings | None" = None,
 ) -> "list[str]":
     """One column's cells as its published block says the description read them (lane BT3a, plan P4-D467; 4.6b.2).
+
+    ``spellings_kept``, the description's own reading of the column (lane
+    CHs), is taken by the column's own reading of the file's cells below
+    (``exact``) where it was read under every argument that reading reads
+    under (`taxonomy.spellings_read`; lane SCALE), never by a reading of
+    cells a step changed.
 
     In `profile.build_document`'s order, each step by the taxonomy
     function that made the description: (1) DATES IN DISGUISE HELD, where
@@ -925,6 +932,7 @@ def described_cells(
         spelled = taxonomy.spellings_read(
             values, name, settings, forced_code=declared["code"], forced_measurement=declared["measurement"],
             forced_decimal_comma=comma, stored_as=stored_as,
+            kept=spellings_kept,
         )
         absent = frozenset(text for text in spelled if spelled[text][0] == "missing")
     else:
@@ -995,7 +1003,7 @@ def described_cells(
     if year:
         image = taxonomy.year_top_coded_cells(image, comma, absent, year)
     if not exact and (blanked or pooled_here):
-        return described_cells(table, place, block, settings, declared, stored_as, True, answered)
+        return described_cells(table, place, block, settings, declared, stored_as, True, answered, spellings_kept)
     if image == spellings:
         return values
     written = dict(zip(spellings, image))
@@ -1084,12 +1092,12 @@ def read_as_described(
     the cells returned alone: a second reading replaces the first.
     """
     written = reading.column_values(table, place) if spellings_kept is not None else None
-    cells = described_cells(table, place, block, settings, declared, stored_as, False, answered)
+    cells = described_cells(table, place, block, settings, declared, stored_as, False, answered, spellings_kept)
     whole = written is not None and cells is written
     found = read_column(table, place, block, settings, declared, stored_as, blank_rows, None if whole else cells, kept, spellings_kept)
     if found is not None and found.agrees:
         return found, cells
-    again = described_cells(table, place, block, settings, declared, stored_as, True, answered)
+    again = described_cells(table, place, block, settings, declared, stored_as, True, answered, spellings_kept)
     if again == cells:
         return found, cells
     if kept is not None:
@@ -3459,12 +3467,18 @@ def describe(
         # reads it (lane CHON, plan P4-D464).
         if not switch.patient_layer:
             return _off(OFF_LAYER, counts, notes, content)
-        # THE KEPT READINGS ARE THE TABLE LAYER'S (lane CHs, plan P4-D462):
-        # the patient layer reads none of them, so they are let go before it
-        # runs (batch 4q's merge of lane CHs beside lane GRa's layer).
-        if kept is not None:
-            for place in [place for place in kept]:
-                del kept[place]
+        # THE KEPT READINGS GO TO THE PATIENT LAYER TOO (lane SCALE; lane
+        # CHs, plan P4-D462). They were let go here, before the layer ran
+        # (batch 4q's merge of lane CHs beside lane GRa's layer), so on every
+        # table naming a person the layer read each of its row columns again
+        # through taxonomy's whole decision (`taxonomy.spellings_read`): a
+        # tenth of a description round at 100,000 rows by 50 columns, a fifth
+        # of a round of answers (MEASURED). The layer takes a column's kept
+        # reading only where `chain.read_as_described` reads the column as
+        # the file wrote it and `taxonomy.spellings_read` reads it under every
+        # argument it was kept under, so what it reads is what it read
+        # before; each is let go as its column is read, and what is left
+        # after the layer's columns is let go here.
         # THE PATIENT LAYER (contract 4.6c; lane GRa, plan P4-D449), its one
         # call site: a table whose settings name a person column is described
         # in patients where 4.6c.3's gate holds, else no chain is drawn.
@@ -3473,8 +3487,11 @@ def describe(
         layer = patient_layer.describe(
             table, document, settings, switch, filled, persons, identifiers,
             list(forced_codes or []), list(forced_measurements or []),
-            list(forced_decimal_commas or []), stored_as or (),
+            list(forced_decimal_commas or []), stored_as or (), kept=kept,
         )
+        if kept is not None:
+            for place in [place for place in kept]:
+                del kept[place]
         for key in layer.counts:
             counts[key] = layer.counts[key]
         if layer.statistical is None:

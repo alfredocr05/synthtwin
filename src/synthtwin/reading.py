@@ -1961,6 +1961,110 @@ def _file_size(table_path: pathlib.Path) -> int:
         return 0
 
 
+@dataclasses.dataclass(frozen=True)
+class Glance:
+    """A delimited table's size at a glance (lane SCALE): its bytes on disk, and its rows and columns as its opening suggests.
+
+    ``rows`` and ``columns`` are estimates read from the first lines alone
+    (`glance`), never a count of the file: the start-of-run check weighs
+    what a run will need from them before any hour of work.
+    """
+
+    file_bytes: int
+    rows: int
+    columns: int
+
+
+# How many characters of a file's opening `glance` reads: enough lines of
+# any ordinary table to say how long a line is, and nothing near the file.
+_GLANCE_CHARACTERS = 262_144
+
+# The delimiters `glance` counts a first line's fields by (the most
+# frequent wins); a guess for the size check alone, never the reading's.
+_GLANCE_DELIMITERS = (",", "\t", ";", "|")
+
+
+def _fields_glanced(line: str) -> int:
+    """How many fields a first line holds by its most frequent delimiter outside quotation marks (one where none)."""
+    counts = [0 for _delimiter in _GLANCE_DELIMITERS]
+    quoted = False
+    for character in line:
+        if character == '"':
+            quoted = not quoted
+            continue
+        if quoted:
+            continue
+        for at in range(len(_GLANCE_DELIMITERS)):
+            if character == _GLANCE_DELIMITERS[at]:
+                counts[at] = counts[at] + 1
+    return max(counts) + 1
+
+
+def glance(raw_path: str) -> "Glance | None":
+    """A delimited table's size from its opening and its size on disk; None where that cannot be said.
+
+    LANE SCALE: the start-of-run check (`sizing`) weighs a run's hours and
+    memory before the table is read. Only the file's first lines are read
+    (at most `_GLANCE_CHARACTERS` characters, as Latin-1, whose characters
+    are the file's bytes one for one, so a line's length is its bytes);
+    the rows are the bytes after the first record over the mean length of
+    the records read after it, rounded up, and the columns are the first
+    record's fields by its most frequent delimiter (`_fields_glanced`). A
+    RECORD, NOT A LINE (the outside review of release 37, item 13): a line
+    ends a record only where the quotation marks read so far are paired,
+    so a quoted cell spanning lines (a note of many lines) is one record;
+    counted by lines, a table of 20,000 rows each holding a note of a
+    thousand lines read as 19,999,707 rows and was refused on 8 GB.
+
+    Guarantees: the path passes the locality gate before anything is
+    opened; nothing of a cell is kept or returned. None where the path is
+    refused, the file is not there or cannot be opened, is a workbook or a
+    file of another system (whose size on disk does not say how large its
+    table is), or holds no line after its first in the characters read.
+    Raises nothing.
+    """
+    try:
+        validated = validate_local_path(raw_path, purpose="input")
+        table_path = pathlib.Path(validated)
+        if not table_path.is_file():
+            return None
+        if native.kind_of(_native_opening(table_path)) != native.KIND_NONE:
+            return None
+        if workbook.kind_of(_opening_of(table_path)) != workbook.KIND_OTHER:
+            return None
+        file_bytes = _file_size(table_path)
+        run = _Pass()
+        first = ""
+        first_ended = False
+        quoted = False
+        later = 0
+        characters = 0
+        # ...the file closed as `_opening_of` leaves it: the reader's own
+        # generator, let go when the loop is left, ends its `with`.
+        for line in _opened_lines(table_path, "latin-1", run):
+            for character in line:
+                if character == '"':
+                    quoted = not quoted
+            if not first_ended:
+                first = first + line
+                first_ended = not quoted
+                if not first_ended and len(first) >= _GLANCE_CHARACTERS:
+                    # ...a first record still open past the opening: no size can be said.
+                    return None
+                continue
+            characters = characters + len(line)
+            if not quoted:
+                later = later + 1
+            if len(first) + characters >= _GLANCE_CHARACTERS:
+                break
+    except (ValueError, OSError):
+        return None
+    if not first or not later or not characters:
+        return None
+    rows = -((len(first) - file_bytes) * later // characters)
+    return Glance(file_bytes, max(rows, later), _fields_glanced(first))
+
+
 def opened_workbook(table_path: str, shown: str) -> "dict[str, bytes]":
     """Every member of a workbook package, expanded under the caps.
 

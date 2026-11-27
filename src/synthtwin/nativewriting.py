@@ -251,6 +251,14 @@ def _parquet_values(cells: "list[str]", column: native.NativeColumn, name: str) 
     present: "list[bool]" = []
     values: "list[object]" = []
     for cell in cells:
+        # THE CELL STANDING FOR AN EMPTY TEXT IS WRITTEN AS ONE (lane TOOLS;
+        # the outside review of batch 4zz, item 10): "" itself where the
+        # source held no missing text, else its run of spaces; the cell ""
+        # is then a missing text, as it always was.
+        if column.written_as == native.WRITTEN_TEXT and column.empty_text is not None and cell == column.empty_text:
+            present += [True]
+            values += [""]
+            continue
         if cell == "" and column.written_as != native.WRITTEN_TEXT:
             present += [False]
             continue
@@ -659,8 +667,12 @@ def _parquet(
         native.T(3, native.I64, n_rows),
     )
     pairs: "list[tuple[native.T, ...]]" = []
-    if any(column.pandas is not None for column in form.columns):
-        pandas_text = native.pandas_block(form, names, n_rows)
+    with_pandas = any(column.pandas is not None for column in form.columns)
+    # A zone Arrow alone kept rides in Arrow's record, with no pandas block
+    # (lane TOOLS; `native.arrow_schema_text`).
+    zoned = any(column.zone is not None and column.utc for column in form.columns)
+    if with_pandas or zoned:
+        pandas_text = native.pandas_block(form, names, n_rows) if with_pandas else ""
         written_form = native.NativeForm(
             system=form.system,
             version=form.version,
@@ -676,12 +688,13 @@ def _parquet(
         arrow = native.arrow_schema_text(written_form, names, tuple(nullable), pandas_text)
         if arrow:
             pairs += [(native.T(1, native.BINARY, native.ARROW_KEY), native.T(2, native.BINARY, arrow))]
-        pairs += [
-            (
-                native.T(1, native.BINARY, native.PANDAS_KEY),
-                native.T(2, native.BINARY, pandas_text),
-            )
-        ]
+        if with_pandas:
+            pairs += [
+                (
+                    native.T(1, native.BINARY, native.PANDAS_KEY),
+                    native.T(2, native.BINARY, pandas_text),
+                )
+            ]
     fields: "list[native.T]" = [
         native.T(1, native.I32, 1),
         native.T(2, native.LIST, native.TList(native.STRUCT, tuple(schema))),

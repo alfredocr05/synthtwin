@@ -138,7 +138,8 @@ table, `my-table-synthtwin`:
 
 The inside record is written in your account's own private folder, not
 beside the table; the screen names its place and size and never shows
-what it holds.
+what it holds. The screen ends with the command that checks the twin
+against your table before it leaves (section 6).
 
 A large table can keep the screen still for hours: that is normal. Do
 not click inside a Windows window while it works (a click pauses it;
@@ -155,15 +156,24 @@ synthtwin twin my-table.csv --replace --seed 2
 Some things your values cannot settle: whether a column of numbers is a
 measurement or a code, whether a column names a person, whether a
 five-figure number is a ZIP code. synthtwin puts every such question on
-the screen in one round, before it writes anything, grouped by kind:
+the screen in one round, before it writes anything, grouped by kind.
+`synthtwin profile`, typed at a keyboard, asks the same round.
 
-1. **Who each row is about.** Where your table may hold several rows a
-   patient, it asks whether one person can stand on more than one row.
-   Type the name of the column that says which patient a row belongs to,
-   exactly as the first row of your table writes it, and press Enter.
-   Enter alone means "not sure": the table is described, but nothing
-   that links two columns is published, and the twin keeps nothing about
-   each patient's rows.
+While it reads the table it may first list the **columns that look like
+record numbers** (`COLUMN(S) LOOK LIKE RECORD NUMBERS`). Enter keeps
+every one of them hidden; if one is really a measurement or a code,
+type its name and the word, for example `patient_id code`. Then the
+questions, each headed `QUESTION 1 OF 3` and so on:
+
+1. **Who each row is about.** The screen asks: "Can one person (a
+   patient, a participant or another subject) stand on more than one row
+   of this table?" and offers `[1] no: every row describes a different
+   person` and `[2] yes, but no column says whose rows they are`. Where a
+   column says which patient a row belongs to, type that column's name
+   instead, exactly as the first row of your table writes it (for example
+   `patient_id`), and press Enter. Enter alone means "not sure": the
+   table is described, but nothing that links two columns is published,
+   and the twin keeps nothing about each patient's rows.
 2. **Columns that may name a person, a place or a date**, the
    identifiers of the Safe Harbor rule of 45 CFR 164.514(b)(2).
 3. **Ages over 89.**
@@ -181,32 +191,50 @@ written.
 To end your answers early, press Ctrl+Z then Enter on Windows, or
 Ctrl+D on a Mac or Linux computer. Your answers stay in
 `my-table-questions.json` in the folder; to change one, write another
-of the offered answers beside `your_answer` there, save it, and run the
-same command again with `--replace`.
+of the offered answers beside `your_answer` there (for example `code`
+where the question offers `measurement`, `code` and `identifier`), save
+it, and run the same command again with `--replace`
+(`synthtwin twin my-table.csv --replace`). Nothing is asked again: the
+run reads your edited answer and writes every file anew. If synthtwin
+says instead that this table was described before, add
+`--replace-description` to the same command, as its message says.
 
 ## 6. What may leave the protected computer
 
 **Only the twin and its report, and only after your institution's
 approval.** Read the report first: it says what the twin carries.
 
-The description, the summary, the questions file, the quality report and
-the inside record stay on the protected computer. The table itself, and
+The description, the summary, the questions file, the quality report,
+the checks' report and the inside record stay on the protected computer. The table itself, and
 any part, sample or copy of it, never leaves.
 
-Before the twin leaves, run the five twin-versus-real checks. They read
-the twin against your table, on the protected computer, for copied
-rows, rows too close to a real one, copied patients, real identifiers
-and rare real dates, and combinations only one real row holds, and print
-counts and a verdict, never a value. On a Mac or Linux bundle install,
-with its environment switched on:
+**Before the twin leaves, run the five twin-versus-real checks**, with
+the same table you gave `synthtwin twin`:
 
 ```
-python -m synthtwin.twin_checks my-table.csv my-table-synthtwin/my-table-twin.csv
+synthtwin check my-table.csv
 ```
 
-The Windows ready folder has no command word for them yet. That is a
-known gap: until it is closed, ask the project before a twin leaves a
-Windows computer.
+They read the twin in `my-table-synthtwin` against your table, on the
+protected computer, for copied rows, rows closer to a real one than
+chance allows, copied patients, real identifiers (and ages past 90, and
+rare real dates), and combinations only one real row holds. The screen
+shows counts and a verdict for each check, never a value of either
+table, and the same report is written beside the twin as
+`my-table-twin-checks.txt` (it stays on the protected computer). The
+last line is the answer:
+
+- `RESULT: PASS` -- all five checks passed; the twin may leave once
+  your institution approves.
+- `RESULT: FAIL` -- do not let the twin leave. Make another twin with
+  another seed (`synthtwin twin my-table.csv --replace --seed 2`) and
+  run `synthtwin check my-table.csv` again. If the same check fails
+  again, keep every twin of this table on the protected computer and
+  ask the project, naming the check that failed.
+
+It works the same in the Windows ready folder's window and in an
+ordinary install. If you made the twin with `--out-dir`, give the check
+the same `--out-dir`; `--twin` names a twin file of your own choosing.
 
 ## 7. Write the code on the twin, run it unchanged on the real table
 

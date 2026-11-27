@@ -1884,14 +1884,24 @@ def walk_peak(rows: int, listed: bool = False, ending: str = "lf") -> "tuple[int
     return peak - before, len(text)
 
 
+def _kept_readings_small(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The number readings kept by their texts (lane SCALE, release 37: process-wide, at most `parsing._KEPT_MOST` texts
+    a reading) held to a few and started empty: filled by the first walk measured and found full by the next, they
+    put about 1.6 MB on the first walk's peak alone, so the listed walk read lower than the walk it is compared with."""
+    monkeypatch.setattr(parsing, "_KEPT_MOST", 64)
+    monkeypatch.setattr(parsing._Kept, "numbers", {})
+    monkeypatch.setattr(parsing._Kept, "classes", {})
+
+
 def test_the_walk_holds_a_line_and_not_a_list_of_them(monkeypatch: pytest.MonkeyPatch) -> None:
     """The survey's peak above its text: a list of every line less than the walk that cut them first."""
+    _kept_readings_small(monkeypatch)
     ours, size = walk_peak(20_000)
     theirs, _size = walk_peak(20_000, listed=True)
     assert theirs - ours > size, (ours, theirs, size)
 
 
-def test_the_walk_holds_a_line_and_not_a_list_of_them_whatever_ends_the_lines() -> None:
+def test_the_walk_holds_a_line_and_not_a_list_of_them_whatever_ends_the_lines(monkeypatch: pytest.MonkeyPatch) -> None:
     """The survey's peak above its text with lines ended by carriage returns alone, the pair, or mixed, as by line feeds.
 
     The Codex review of plan P4-D387 (item 2): on 9fa2008 a file of
@@ -1903,6 +1913,7 @@ def test_the_walk_holds_a_line_and_not_a_list_of_them_whatever_ends_the_lines() 
     handed every line first is required to hold more than the text
     above it with that ending, so the measure is known to see the list.
     """
+    _kept_readings_small(monkeypatch)
     lines_fed, size = walk_peak(20_000)
     for ending in ("cr", "crlf", "mixed"):
         ours, _size = walk_peak(20_000, ending=ending)

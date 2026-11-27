@@ -142,6 +142,28 @@ SUFFIXES = ("Jr.", "Jr", "Sr.", "II", "III", "IV")
 INNER = ("Mc", "Mac", "De", "Le", "Di", "La")
 TITLES = ("Dr.", "Dr", "Mr.", "Mrs.", "Ms", "Prof.")
 DEGREES = ("MD", "M.D.", "DO", "RN", "NP", "PhD", "CRNA")
+# RELEASE 37, LANE PRIVACY: common given names, written here apart from the
+# product's list (`synthtwin.given_names`) and never read from it, each as a
+# table writes it; the family names beside them stay made up. 162 names of
+# several origins, eight with a mark (`José`).
+COMMON_GIVEN = (
+    "James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph", "Thomas", "Charles",
+    "Christopher", "Daniel", "Matthew", "Anthony", "Donald", "Steven", "Paul", "Andrew", "Joshua", "Kenneth",
+    "Kevin", "Brian", "George", "Edward", "Ronald", "Timothy", "Jason", "Jeffrey", "Ryan", "Jacob", "Gary",
+    "Nicholas", "Eric", "Jonathan", "Stephen", "Larry", "Justin", "Scott", "Brandon", "Benjamin", "Samuel",
+    "Gregory", "Alexander", "Patrick", "Dennis", "Tyler", "Aaron", "Henry", "Douglas", "Peter", "Walter",
+    "Ethan", "Harold", "Carl", "Arthur", "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan",
+    "Jessica", "Sarah", "Karen", "Lisa", "Nancy", "Betty", "Margaret", "Sandra", "Ashley", "Kimberly", "Emily",
+    "Donna", "Michelle", "Carol", "Amanda", "Dorothy", "Melissa", "Deborah", "Stephanie", "Rebecca", "Sharon",
+    "Laura", "Cynthia", "Kathleen", "Amy", "Angela", "Shirley", "Anna", "Brenda", "Pamela", "Emma", "Nicole",
+    "Helen", "Samantha", "Katherine", "Christine", "Debra", "Rachel", "Carolyn", "Janet", "Catherine", "Maria",
+    "Diane", "Ruth", "Julie", "Olivia", "Joyce", "Victoria", "Kelly", "Lauren", "Christina", "Joan", "Evelyn",
+    "Judith", "Megan", "Andrea", "Cheryl", "Hannah", "Martha", "Gloria", "Teresa", "Sara", "Frances", "Kathryn",
+    "Jose", "Juan", "Luis", "Carlos", "Jorge", "Miguel", "Pedro", "Manuel", "Francisco", "Antonio", "Guadalupe",
+    "Rosa", "Carmen", "Ana", "Mohammed", "Ahmed", "Fatima", "Aisha", "Wei", "Mei", "Minh", "Linh", "Priya",
+    "Rahul", "Kwame", "Ngozi", "Hiroshi", "Yuki", "José", "María", "Zoë", "Chloé", "Renée", "Inés", "Raúl",
+    "Héctor",
+)
 
 
 def made_up_word(draw: random.Random, syllables: int) -> str:
@@ -434,10 +456,37 @@ def names_of(count: int, shape: str, seed: int = SEED) -> "list[str]":
             mark = INSIDE_MARKS[len(made) % len(INSIDE_MARKS)]
             cut = f"{last[:len(last) // 2]}{mark}{last[len(last) // 2:]}"
             name = f"{cut}, {given}" if len(made) % 2 else f"{given} {cut}"
+        elif shape in GIVEN_SHAPES:
+            # ...release 37, lane PRIVACY: a common given name (`COMMON_GIVEN`)
+            # beside a made-up family name, in small letters or capitals.
+            common = draw.choice(COMMON_GIVEN)
+            name = {
+                "given_small": f"{last.lower()}, {common.lower()}",
+                "given_first_small": f"{common.lower()} {last.lower()}",
+                "given_initial_small": f"{common.lower()} {last[:1].lower()}.",
+                "given_capitals_no_comma": f"{last.upper()} {common.upper()}",
+                "given_small_particle": f"{draw.choice(('de la', 'van der', 'al-', 'o')).rstrip('-')} {last.lower()}, "
+                                        f"{common.lower()}",
+            }[shape]
         else:
             name = _spelling(draw.choice(FAMILIES_READ), draw)
         made[name] = True
     return list(made)
+
+
+# RELEASE 37, LANE PRIVACY: the shapes of names that carry a common given
+# name but no capital the reader's shapes read (`names_of`), each one a
+# person; and the given name alone, which people share (`given_alone_cells`).
+GIVEN_SHAPES = ("given_small", "given_first_small", "given_initial_small", "given_capitals_no_comma",
+                "given_small_particle")
+
+
+def given_alone_cells(rows: int, small: bool, seed: int = SEED) -> "list[str]":
+    """Each person's given name alone on each of their rows (`ROWS_A_PERSON`), drawn from `COMMON_GIVEN`, written as the list writes it or in small letters: names people share, as a column of first names holds them."""
+    persons = _persons("alone", rows, seed)
+    draw = random.Random(f"{seed}:given_alone")
+    given = [draw.choice(COMMON_GIVEN) for _person in range(max(persons) + 1)]
+    return [given[person].lower() if small else given[person] for person in persons]
 
 
 LAYOUTS = ("alone", "beside", "heading", "surname", "clinician", "one_a_row", "uneven", "staff", "person_name", "era",
@@ -467,7 +516,11 @@ LAYOUTS = ("alone", "beside", "heading", "surname", "clinician", "one_a_row", "u
            # (`crna_beside`); and its repair 2: 1,000 emergency contacts
            # written `Family, Relation` beside a case number
            # (`relation_beside`).
-           "many_rows", "crna_beside", "relation_beside")
+           "many_rows", "crna_beside", "relation_beside",
+           # ...and release 37's lane PRIVACY: each person's common given name
+           # alone, as the list writes it and in small letters
+           # (`given_alone_cells`).
+           "given_alone", "given_alone_small")
 # Each layout's names column: `staff` is the clinicians' layout under a
 # neutral name (fewer names than `taxonomy.NAMES_AT_LEAST`: a stated limit),
 # `unlisted_role` under a staff heading outside the reader's closed list,
@@ -493,6 +546,7 @@ COLUMN = {
     "relation_no_mark": "emergency_contact_name", "relation_dash": "next_of_kin", "surnames_kept_as_roles": "surgeon",
     "older_role_kin": "next_of_kin", "older_role_contact": "emergency_contact", "older_role_witness": "witness",
     "older_role_reviewer": "reviewer",
+    "given_alone": "patient_label", "given_alone_small": "patient_label",
 }
 # THE STAFF HEADINGS OF LANE CZ-G-b (plan P4-D494 item 4), each with the
 # group of its control: 40 ordinary labels such a column could hold. Those
@@ -912,6 +966,9 @@ def _beside_a_case(layout: str, shape: str, rows: int, seed: int) -> "tuple[list
 def table(layout: str, shape: str, rows: int, seed: int = SEED) -> "tuple[list[str], list[list[str]], str, list[str]]":
     """One table: its header, its rows, the names column and that column's different real names."""
     column = COLUMN[layout]
+    if layout in ("given_alone", "given_alone_small"):
+        cells = given_alone_cells(rows, layout == "given_alone_small", seed)
+        return [column], [[cell] for cell in cells], column, sorted(set(cells))
     if layout in ("era", "share_edge", "blocks"):
         cells = (_era_cells(seed) if layout == "era" else _share_edge_cells(rows, seed) if layout == "share_edge"
                  else _block_cells(seed))

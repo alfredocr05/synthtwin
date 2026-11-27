@@ -19,7 +19,8 @@ resolution, never as data:
   normal score a patient keeps (its pace), the gaps' serial correlation,
   and the pace's correlation with the patient's number of rows;
 * `numbers`: for each repeated number column, on its scale (standardized
-  where its skew is small, else the normal scores of its mid-ranks) and
+  where its skew is small, or where what a first fit of its fixed part
+  leaves is -- lane STATS-C --, else the normal scores of its mid-ranks) and
   its time axis (positions, or years since the patient's first dated row,
   whichever each patient's own line leaves less on), the fixed part by
   least squares with errors robust to the patients, each term but the
@@ -1439,14 +1440,15 @@ def _axis_choice(values: "list[float | None]", ordered: "list[list[int]]", posit
     return AXIS_YEARS if left[AXIS_YEARS] < left[AXIS_POSITION] else AXIS_POSITION
 
 
-def _scaled(values: "list[float | None]") -> "tuple[list[float | None], str, float, float, list[float]]":
-    """A column's readings on its scale, the scale's name, the centre and spread, and its quantile grid."""
+def _scaled(values: "list[float | None]", linear: bool = False) -> "tuple[list[float | None], str, float, float, list[float]]":
+    """A column's readings on its scale, the scale's name, the centre and spread, and its quantile grid (the linear
+    scale where its skew is under `SKEW_CUT` or ``linear`` asks for it)."""
     known = [value for value in values if value is not None]
     centre = _mean(known)
     spread = max(_spread(known), 1e-12)
     grid = _quantile_grid(known, SHAPE_GRID)
     out: "list[float | None]" = [None for _value in values]
-    if abs(_skew(known)) < SKEW_CUT:
+    if linear or abs(_skew(known)) < SKEW_CUT:
         for row in range(len(values)):
             value = values[row]
             if value is not None:
@@ -1594,6 +1596,20 @@ def _number_entry(
             rows_read += [row]
     if len(response) < 3 * len(names):
         return None
+    if scale == SCALE_NORMAL:
+        # THE SCALE READ ON WHAT IS LEFT OF THE FIXED PART (lane STATS-C). A column skewed only by its trends -- the
+        # visits table's pressure, skewed to -0.36 by one arm's long patients falling over their visits, its
+        # residuals 0.02 -- was read on its normal scores, which press the long patients' late values together: the
+        # twin's random slopes came back 8 per cent short in spread, its levels 2 per cent wide, its first two visits'
+        # correlation 0.867 against 0.856 and its intraclass correlation 0.741 against 0.723. The linear scale is
+        # kept where the residuals of a first fit of the fixed part on it are skewed under `SKEW_CUT`.
+        linear = _scaled(values, True)[0]
+        trial = [typing.cast(float, linear[row]) for row in rows_read]
+        first = least_squares(design, trial, clusters)
+        if first is not None:
+            left = [trial[at] - fitted_value(tuple(first[0]), design[at]) for at in range(len(design))]
+            if abs(_skew(left)) < SKEW_CUT:
+                scale, response = SCALE_LINEAR, trial
     fit = gated_fit(design, response, clusters, names, False)
     if fit is None:
         return None

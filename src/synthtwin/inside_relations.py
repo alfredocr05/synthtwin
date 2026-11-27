@@ -1,18 +1,23 @@
 """THE INSIDE RECORD'S RELATIONS ZONE (lane IN-2, plan P4-D496): fitted responses, and the twin drawn from them.
 
 WHAT IT CARRIES. The joint structure of a real table at fine resolution,
-as FITTED RESPONSES: each modelled column, in the table's own order, is a
-response fitted on the real table inside the protected computer to the
-modelled columns before it. A number is fitted on its normal score (its
+as FITTED RESPONSES: each modelled column, in the table's own order (but a
+count's observed time, fitted just before its count: `exposures_first`,
+lane STATS-C), is a response fitted on the real table inside the
+protected computer to the modelled columns before it. A number is fitted on its normal score (its
 rank among the column's numbers, read through the normal quantile) by
-least squares, with a residual shape of `RESIDUAL_POINTS` quantiles; a
+least squares, with a residual shape of `RESIDUAL_POINTS` quantiles (a number of few values, its terms fitted
+again by maximum likelihood on the latent scale its ties stand for, its residual normal: `_tied_refit`; and an
+event's time on its cumulative hazard's logarithm: `event_times`, lane STATS-D); a
 label, and a number's presence (a number, an empty cell, another word),
 by one logistic fit a level against the commonest level (baseline-category
 log odds fitted level by level). The terms a fit may use are each earlier
 column's main block (a number's score and its presence states; a label's
 levels), a CURVE block (a restricted cubic spline of a number's score,
-knots at `KNOTS`) and INTERACTION blocks (a label's levels times a
-number's score or another label's levels; two numbers' scores), so an
+knots at `KNOTS`), for a label's fit a number's STEPS (whether it stands
+at or above each of its tenths, lane STATS-C) and INTERACTION blocks (a
+label's levels times a number's score or another label's levels; two
+numbers' scores), so an
 interaction such as one yes/no column changing another's effect, a curved
 effect, and a step at a class's cut point are carried as they stand, not
 folded into inflated main effects as a Gaussian copula folds them. A block
@@ -86,8 +91,12 @@ LEVEL_CAP = 30
 MIN_ROWS = 20
 # A carried label's rest spellings kept with their counts (lane IN-7), the marginals zone's own cap.
 OTHERS_CAP = 1000
-# A label parent's indicator terms at most; an interaction's degrees of freedom at most.
-INDICATOR_CAP = 24
+# A label parent's indicator terms at most; an interaction's degrees of freedom at most. Every modelled level but the
+# commonest takes one (lane STATS-D): at 24, a label of 30 modelled levels -- the battery's operations table's thirty
+# surgeons -- folded its five rarest into the commonest, and the twin's spread of the surgeons' effects on an
+# operation's minutes came back 13.6 to 13.8 against a real 14.5 (a fresh sample's 14.3 to 14.6), the lost spread
+# moved into the residual (25.4 to 25.7 against 25.1).
+INDICATOR_CAP = LEVEL_CAP - 1
 INTERACTION_DF_CAP = 8
 # A label response fits its levels' interactions only up to this many levels.
 EXTRA_LEVELS_CAP = 6
@@ -783,6 +792,303 @@ def encode(spec: ColumnSpec, cells: "list[str]", rows: "list[int]", persons: "Pe
     return found
 
 
+# -- a count and the time it was counted over (lane STATS-C) -------------------------------------------
+
+# THE COUNTS OVER AN OBSERVED TIME. Each column is fitted on the columns before it, so a count written before the
+# time it was counted over (admissions, then the days each patient was followed) was fitted without that time and the
+# time was fitted on the count: the twin's admissions a year fell with the time followed (0.99 on the fifth followed
+# shortest, 0.59 on the middle fifth, against a real 0.65 to 0.68 on every fifth) and the treatment's rate ratio was
+# short (-0.22 against -0.31 on the battery's methods table). A number is read as a count's OBSERVED TIME where the
+# count is a count of events -- whole numbers from nought, nought among them -- the time is above nought on every row
+# both hold a number, and the count grows as a power of the time within `EXPOSURE_POWER` (a Poisson fit of the count
+# on the logarithm of the time, its robust z at least `EXPOSURE_Z`): the count of a rate. Such a time is fitted just
+# before its count, so the count is fitted on it. Two readings of one measure (a pressure by two methods, whole
+# numbers, one about the other's size) grow as the power one too, but take no nought: they keep their order.
+EXPOSURE_POWER = (0.7, 1.3)
+EXPOSURE_Z = 3.29
+EXPOSURE_ROWS = 200
+# The rows a pair is read on, spread over the fit's rows: a first look at most `EXPOSURE_SCREEN` (the correlation of
+# the count with the time's logarithm, which must reach `EXPOSURE_Z`), then the fit on at most `EXPOSURE_FIT`.
+EXPOSURE_SCREEN = 2_000
+EXPOSURE_FIT = 20_000
+_EXPOSURE_STEPS = 25
+_NUMBERED = (PRESENT, LOW, HIGH)
+
+
+def _counted(column: Encoded) -> "list[float | None] | None":
+    """A count's values on the fit rows (None on a row holding no number), or None where it is not whole numbers of
+    nought or more, nought among them, taking three values or more."""
+    out: "list[float | None]" = []
+    seen: "dict[float, bool]" = {}
+    for row in range(len(column.states)):
+        if column.states[row] not in _NUMBERED:
+            out += [None]
+            continue
+        value = column.positions[row]
+        if value < 0.0 or value != float(int(value)):
+            return None
+        seen[value] = True
+        out += [value]
+    return out if len(seen) >= 3 and 0.0 in seen else None
+
+
+@dataclasses.dataclass
+class _Time:
+    """A time's values on the fit rows (None on a row holding no number), its logarithms made once a row as read."""
+
+    values: "list[float | None]"
+    logs: "dict[int, float]"
+
+
+def _timed(column: Encoded) -> "_Time | None":
+    """A time's values on the fit rows, or None where a number is nought or less."""
+    out: "list[float | None]" = []
+    for row in range(len(column.states)):
+        if column.states[row] not in _NUMBERED:
+            out += [None]
+            continue
+        value = column.positions[row]
+        if value <= 0.0:
+            return None
+        out += [value]
+    return _Time(out, {})
+
+
+def _log_at(time: _Time, row: int) -> float:
+    if row not in time.logs:
+        time.logs[row] = chain_walk.natural_log(typing.cast(float, time.values[row]))
+    return time.logs[row]
+
+
+def _spread_rows(rows: "list[int]", most: int) -> "list[int]":
+    """At most ``most`` of ``rows``, spread evenly over them (every row where they are fewer)."""
+    if len(rows) <= most:
+        return rows
+    return [rows[(at * len(rows)) // most] for at in range(most)]
+
+
+def _poisson_sums(shifted: "list[float]", alpha: float,
+                  beta: float) -> "tuple[list[float], float, float, float]":
+    rates = [chain_walk.exponential(min(_ETA_CAP, alpha + beta * x)) for x in shifted]
+    s0 = math.fsum(rates)
+    s1 = math.fsum([rate * x for rate, x in zip(rates, shifted)])
+    s2 = math.fsum([rate * x * x for rate, x in zip(rates, shifted)])
+    return rates, s0, s1, s2
+
+
+def exposure_power(counts_of: "list[float | None]", time: _Time) -> "tuple[float, float] | None":
+    """The power of a time a count grows by, and its robust z: a Poisson fit of the count on 1 and the time's
+    logarithm (`_counted`'s and `_timed`'s readings of two encodings).
+
+    Read on the fit rows where both hold a number, at most `EXPOSURE_FIT` of them spread over the rest, after a first
+    look on at most `EXPOSURE_SCREEN`: None where fewer than `EXPOSURE_ROWS` rows stand, where the count's
+    correlation with the logarithm does not reach `EXPOSURE_Z` there, or where the fit does not settle. A fixed
+    function of its arguments: binary64 arithmetic in the order written, `chain_walk`'s logarithm and exponential,
+    sums by `math.fsum`.
+    """
+    both = [row for row in range(min(len(counts_of), len(time.values)))
+            if counts_of[row] is not None and time.values[row] is not None]
+    if len(both) < EXPOSURE_ROWS:
+        return None
+    look = _spread_rows(both, EXPOSURE_SCREEN)
+    first = [typing.cast(float, counts_of[row]) for row in look]
+    second = [_log_at(time, row) for row in look]
+    m1 = math.fsum(first) / len(first)
+    m2 = math.fsum(second) / len(second)
+    sxy = math.fsum([(a - m1) * (b - m2) for a, b in zip(first, second)])
+    sxx = math.fsum([(a - m1) * (a - m1) for a in first])
+    syy = math.fsum([(b - m2) * (b - m2) for b in second])
+    if sxx <= 0.0 or syy <= 0.0 or sxy / math.sqrt(sxx * syy) * math.sqrt(len(look)) < EXPOSURE_Z:
+        return None
+    fitted = _spread_rows(both, EXPOSURE_FIT)
+    counts = [typing.cast(float, counts_of[row]) for row in fitted]
+    logs = [_log_at(time, row) for row in fitted]
+    mean = math.fsum(counts) / len(counts)
+    if mean <= 0.0:
+        return None
+    centre = math.fsum(logs) / len(logs)
+    shifted = [value - centre for value in logs]
+    alpha, beta = chain_walk.natural_log(mean), 0.0
+    for _step in range(_EXPOSURE_STEPS):
+        rates, s0, s1, s2 = _poisson_sums(shifted, alpha, beta)
+        g0 = math.fsum([y - rate for y, rate in zip(counts, rates)])
+        g1 = math.fsum([(y - rate) * x for y, rate, x in zip(counts, rates, shifted)])
+        det = s0 * s2 - s1 * s1
+        if det <= 0.0:
+            return None
+        step0 = (s2 * g0 - s1 * g1) / det
+        step1 = (s0 * g1 - s1 * g0) / det
+        alpha, beta = alpha + step0, beta + step1
+        if abs(step0) + abs(step1) < 1e-10:
+            break
+    rates, s0, s1, s2 = _poisson_sums(shifted, alpha, beta)
+    det = s0 * s2 - s1 * s1
+    if det <= 0.0:
+        return None
+    # The robust variance of the power: A^-1 B A^-1, B the sum of the rows' scores' outer products.
+    b00 = math.fsum([(y - rate) * (y - rate) for y, rate in zip(counts, rates)])
+    b01 = math.fsum([(y - rate) * (y - rate) * x for y, rate, x in zip(counts, rates, shifted)])
+    b11 = math.fsum([(y - rate) * (y - rate) * x * x for y, rate, x in zip(counts, rates, shifted)])
+    i10, i11 = -s1 / det, s0 / det
+    variance = i10 * (b00 * i10 + b01 * i11) + i11 * (b01 * i10 + b11 * i11)
+    if variance <= 0.0:
+        return None
+    return beta, beta / math.sqrt(variance)
+
+
+def _level_of_entry(column: Encoded) -> str:
+    return _text(column.entry["level"]) if "level" in column.entry else ROW
+
+
+def exposures_first(encoded: "list[Encoded]") -> "list[Encoded]":
+    """The columns in the order the zone fits them: the table's, each count's observed time moved to just before it.
+
+    A number after a count, of the count's level (row, or once a person), is the count's observed time where
+    `exposure_power` reads its power within `EXPOSURE_POWER` and its z at least `EXPOSURE_Z`; of several, the one
+    whose power is nearest one. Each count takes at most one time and a time moves once, before the first count it
+    is the time of. Every other column keeps its place. A fixed function of the encodings.
+    """
+    counts: "dict[int, list[float | None]]" = {}
+    times: "dict[int, _Time]" = {}
+    for place in range(len(encoded)):
+        column = encoded[place]
+        if _text(column.entry["kind"]) != NUMBER or _level_of_entry(column) == SEQUENCE:
+            continue
+        counted = _counted(column)
+        if counted is not None:
+            counts[place] = counted
+        timed = _timed(column)
+        if timed is not None:
+            times[place] = timed
+    before: "dict[int, int]" = {}
+    taken: "dict[int, bool]" = {}
+    for first in range(len(encoded)):
+        if first in taken or first not in counts:
+            continue
+        best_distance = 0.0
+        best = -1
+        for later in range(first + 1, len(encoded)):
+            if later in taken or later not in times or _level_of_entry(encoded[later]) != _level_of_entry(encoded[first]):
+                continue
+            read = exposure_power(counts[first], times[later])
+            if read is None:
+                continue
+            power, z = read
+            if EXPOSURE_POWER[0] <= power <= EXPOSURE_POWER[1] and z >= EXPOSURE_Z:
+                distance = abs(power - 1.0)
+                if best < 0 or distance < best_distance:
+                    best_distance, best = distance, later
+        if best >= 0:
+            taken[best] = True
+            before[first] = best
+    order: "list[Encoded]" = []
+    for place in range(len(encoded)):
+        if place in taken:
+            continue
+        if place in before:
+            order += [encoded[before[place]]]
+        order += [encoded[place]]
+    return order
+
+
+# -- an event and the time it was followed to (lane STATS-D) ----------------------------------------------------------
+
+# THE TIME OF AN EVENT, READ ON ITS HAZARD'S SCALE. A table writes an event and the time each patient was followed to
+# (died and the days followed: the death's day where it happened, the last day seen where it did not). Each number is
+# fitted on its normal scores by a shift of the linear predictor and one residual shape, and a shift of a normal score
+# cannot carry a hazard ratio: on the battery's cohort, keeping the real table's own outcomes and columns and drawing
+# only the days followed again from such a fit read the complication's log hazard ratio 0.635 (0.664 with the
+# residuals of each event's rows apart) against 0.767, and every twin read it 0.06 to 0.07 short. Drawn again from the
+# same fit on the LOGARITHM OF THE CUMULATIVE HAZARD of the times, log(-log(1 - share)) -- the scale on which a shift is
+# a proportional change of hazard -- it read 0.736. A number of whole units above nought on every row, of at least
+# `EVENT_VALUES` different values (a count of days, hours or minutes followed), is read as an EVENT'S TIME where a
+# two-level label of its level stands next to it in the order the zone fits them and that label's event rows hold
+# lower logarithms of it by `EVENT_Z` or more (the event cuts its follow-up short); its event level is the spelling a
+# yes reads as, else the rarer. Such a number's response is its hazard scores; as a parent of later columns it is read
+# by its normal scores as every number is, and its draw ranks onto its grid as before, so every published fact stands.
+EVENT_Z = 3.29
+EVENT_SCREEN = 2_000
+EVENT_VALUES = 30
+_EVENT_WORDS = ("y", "yes", "true", "1", "positive", "pos", "t", "dead", "died", "death", "event")
+
+
+def _event_level(column: Encoded) -> int:
+    """A two-level label's event level: its code whose spelling a yes reads as, else the rarer's."""
+    levels = [f"{_bare(level)}".lower() for level in typing.cast("list[str]", column.entry["levels"])]
+    for code in range(len(levels)):
+        if levels[code] in _EVENT_WORDS:
+            return code
+    counts = typing.cast("list[int]", column.entry["counts"])
+    return 0 if counts[0] < counts[1] else 1
+
+
+def event_shortens(label: Encoded, time: _Time) -> bool:
+    """Whether a two-level label's event rows hold lower logarithms of a time than its other rows, by `EVENT_Z` or more,
+    on at most `EVENT_SCREEN` fit rows spread over those holding both (a fixed function of its arguments: binary64
+    arithmetic in the order written, `chain_walk`'s logarithm, sums by `math.fsum`)."""
+    levels = typing.cast("list[str]", label.entry["levels"])
+    if len(levels) != 2 or _int(label.entry["rest"]) > 0:
+        return False
+    event = _event_level(label)
+    both = [row for row in range(min(len(label.codes), len(time.values)))
+            if label.codes[row] in (0, 1) and time.values[row] is not None]
+    look = _spread_rows(both, EVENT_SCREEN)
+    sides: "list[list[float]]" = [[], []]
+    for row in look:
+        sides[1 if label.codes[row] == event else 0] += [_log_at(time, row)]
+    if len(sides[0]) < MIN_ROWS or len(sides[1]) < MIN_ROWS:
+        return False
+    means = [math.fsum(side) / len(side) for side in sides]
+    spreads = [math.fsum([(value - means[k]) * (value - means[k]) for value in sides[k]]) / (len(sides[k]) - 1)
+               for k in (0, 1)]
+    error = math.sqrt(spreads[0] / len(sides[0]) + spreads[1] / len(sides[1]))
+    return error > 0.0 and (means[1] - means[0]) / error <= -EVENT_Z
+
+
+def event_times(encoded: "list[Encoded]") -> "set[str]":
+    """The numbers of the zone, in the order it fits them, that are an event's time: whole units above nought, of at
+    least `EVENT_VALUES` values, and shortened by the event of a two-level label next to the number on either side
+    (`event_shortens`), both at the row's level. A fixed function of the encodings."""
+    found: "set[str]" = set()
+    for place in range(len(encoded)):
+        number = encoded[place]
+        if _text(number.entry["kind"]) != NUMBER or _level_of_entry(number) != ROW:
+            continue
+        timed = _timed(number)
+        if timed is None:
+            continue
+        values = [value for value in timed.values if value is not None]
+        if len(set(values)) < EVENT_VALUES or any(value != float(int(value)) for value in values):
+            continue
+        for near in (place - 1, place + 1):
+            if not 0 <= near < len(encoded):
+                continue
+            label = encoded[near]
+            if _text(label.entry["kind"]) == LABEL and _level_of_entry(label) == ROW and event_shortens(label, timed):
+                found |= {f"{_text(number.entry['name'])}"}
+                break
+    return found
+
+
+def hazard_scores(states: "list[int]", positions: "list[float]") -> "list[float]":
+    """Each present row's score on its column's cumulative hazard scale, log(-log(1 - share)) at its mid-rank share
+    among the present rows (ties one score); 0.0 on every other row."""
+    present = sorted((positions[row], row) for row in range(len(states)) if states[row] == PRESENT)
+    out = [0.0 for _row in range(len(states))]
+    count = len(present)
+    start = 0
+    while start < count:
+        end = start
+        while end + 1 < count and present[end + 1][0] == present[start][0]:
+            end += 1
+        share = (start + end + 1) / (2 * count)
+        score = chain_walk.natural_log(-chain_walk.natural_log(1.0 - share))
+        for at in range(start, end + 1):
+            out[present[at][1]] = score
+        start = end + 1
+    return out
+
+
 # -- normal scores and terms -------------------------------------------------------------------------
 
 
@@ -919,6 +1225,9 @@ def term_values(term: object, frames: "dict[str, Frame]", rows: int) -> "list[fl
     if head == "s":
         which = _int(parts[2])
         return [spline(score, which) if state in NUMBER_STATES else 0.0 for score, state in zip(frame.scores, frame.states)]
+    if head == "band":
+        cut = _band_cut(_int(parts[2]))
+        return [1.0 if state in NUMBER_STATES and score >= cut else 0.0 for score, state in zip(frame.scores, frame.states)]
     if head == "state":
         wanted = _int(parts[2])
         return [1.0 if state == wanted else 0.0 for state in frame.states]
@@ -1315,6 +1624,27 @@ def _curve_block(name: str, frame: Frame) -> "Block | None":
     if frame.kind != NUMBER or len(set(frame.scores)) < 10:
         return None
     return Block((["s", name, 0], ["s", name, 1]), name, "curve")
+
+
+# THE STEPS OF A NUMBER (lane STATS-C). A label that changes at a threshold of a number -- more patients dying past
+# 65, a complication above a creatinine of 1.3 -- was offered only the number's straight score and its smooth
+# curve, whose knots stand at fixed shares: the twin of K-S6-01's table drew the old-young difference in dying
+# 0.37 to 0.38 against the real 0.49 on the shipped route. A label's fit is offered, beside each number parent's
+# curve, its STEPS: whether the number stands at or above each of its tenths (`BANDS` - 1 indicators of its normal
+# score at the cut of each tenth), a curve that may break anywhere a tenth begins. It enters as any extra does, by its
+# score statistic at the gate.
+BANDS = 10
+
+
+def _band_cut(which: int) -> float:
+    """The normal score at which the `which`-th tenth of a number begins (1 to `BANDS` - 1)."""
+    return chain_walk.normal_score(which / BANDS)
+
+
+def _band_block(name: str, frame: Frame) -> "Block | None":
+    if frame.kind != NUMBER or len(set(frame.scores)) < 2 * BANDS:
+        return None
+    return Block(tuple(["band", name, which] for which in range(1, BANDS)), name, "steps")
 
 
 def _interactions(first: Block, second: Block, frames: "dict[str, Frame]") -> "Block | None":
@@ -1919,6 +2249,9 @@ def _refine(target: Target, chosen: "list[Block]", frames: "dict[str, Frame]", r
         curve = _curve_block(block.parent, frames[block.parent])
         if curve is not None:
             extras += [curve]
+        steps = _band_block(block.parent, frames[block.parent]) if target.kind == LABEL else None
+        if steps is not None:
+            extras += [steps]
     if target.kind == LABEL and target.levels > EXTRA_LEVELS_CAP:
         return chosen, fits
     for a in range(len(chosen)):
@@ -2066,7 +2399,7 @@ def fit_number(target: Target, candidates: "list[Block]", frames: "dict[str, Fra
     """
     if kept is None or keys is None:
         chosen, fits = select(target, candidates, frames, rows)
-        return _number_model(target, chosen, fits, owners)
+        return _number_model(target, chosen, _tied_refit(target, chosen, fits, frames, rows, owners), owners)
     picked, design, screen_fits = _screen(target, candidates, frames, rows, kept, target_key, keys)
     picked, design, screen_fits = _conditional(target, candidates, picked, frames, rows, design, screen_fits, kept,
                                                target_key, keys)
@@ -2075,9 +2408,144 @@ def fit_number(target: Target, candidates: "list[Block]", frames: "dict[str, Fra
     if held is not None:
         return held
     chosen, fits = _refine(target, picked, frames, rows, design, screen_fits)
-    model = _number_model(target, chosen, fits, owners)
+    model = _number_model(target, chosen, _tied_refit(target, chosen, fits, frames, rows, owners), owners)
     _keep_model(kept, key, model)
     return model
+
+
+# A FEW-VALUED NUMBER READ ON ITS LATENT SCALE (lane STATS-D). A number fitted on its normal scores by least squares
+# reads every tie as one score: a count of admissions whose ones are half its rows, a score of nought to ten. Least
+# squares on such coarse scores reads each parent's relation short, by the share of the latent spread the ties hide,
+# and the twin, drawn on those slopes and the residuals' lumpy shape, flattened it: on the battery's methods table the
+# admissions of the patients with any grew with the days they were followed 1.47 to 2.09 (by fifth of the days)
+# against a real 1.30 to 2.17, so the counts after a short follow-up ran high. Where a number's commonest present
+# value holds `TIED_SHARE` of its present rows or more (and it takes three values or more), its chosen terms are
+# fitted again by MAXIMUM LIKELIHOOD on the scale its ties stand for: each row's latent normal score lies somewhere in
+# its value's band (the normal quantiles of the shares of the rows below and through it), the latent a linear
+# predictor plus a normal residual; the fit by expectation and maximisation (`interval_fit`, on at most
+# `INTERVAL_ROWS` rows spread over the target's, `INTERVAL_STEPS` steps), the residual's shape the normal's. The draw
+# is unchanged: it ranks the drawn scores onto the column's grid, so every published count stands.
+TIED_SHARE = 0.10
+INTERVAL_ROWS = 20_000
+INTERVAL_STEPS = 40
+INTERVAL_SETTLED = 1e-7
+_INTERVAL_EDGE = 8.0
+_ROOT_TWO_PI = 2.5066282746310002
+
+
+def _cdf(z: float) -> float:
+    """The normal distribution function by Abramowitz and Stegun 26.2.17 (error under 7.5e-8); 0 and 1 past 8."""
+    if z <= -_INTERVAL_EDGE:
+        return 0.0
+    if z >= _INTERVAL_EDGE:
+        return 1.0
+    x = -z if z < 0.0 else z
+    t = 1.0 / (1.0 + 0.2316419 * x)
+    poly = ((((1.330274429 * t - 1.821255978) * t + 1.781477937) * t - 0.356563782) * t + 0.319381530) * t
+    upper = _pdf(x) * poly
+    return upper if z < 0.0 else 1.0 - upper
+
+
+def _pdf(z: float) -> float:
+    if z <= -_INTERVAL_EDGE or z >= _INTERVAL_EDGE:
+        return 0.0
+    return chain_walk.exponential(-0.5 * z * z) / _ROOT_TWO_PI
+
+
+def tied_bands(response: "list[float]") -> "list[tuple[float, float]] | None":
+    """Each row's band of latent normal scores where its value is one of few (`TIED_SHARE`), else None.
+
+    ``response`` holds the rows' normal scores at mid-ranks, so equal values share a score: the bands are the normal
+    quantiles of the shares of the rows below and through each value, the outer ends -8 and 8 (where the fit's normal
+    function is nought or one). A fixed function of its argument.
+    """
+    count = len(response)
+    if count == 0:
+        return None
+    tally: "dict[float, int]" = {}
+    for score in response:
+        tally[score] = (tally[score] if score in tally else 0) + 1
+    if len(tally) < 3 or max([tally[score] for score in tally]) < TIED_SHARE * count:
+        return None
+    band_of: "dict[float, tuple[float, float]]" = {}
+    below = 0
+    for score in sorted(tally):
+        through = below + tally[score]
+        low = -_INTERVAL_EDGE if below == 0 else max(-_INTERVAL_EDGE, chain_walk.normal_score(below / count))
+        high = _INTERVAL_EDGE if through == count else min(_INTERVAL_EDGE, chain_walk.normal_score(through / count))
+        band_of[score] = (low, high)
+        below = through
+    return [band_of[score] for score in response]
+
+
+def interval_fit(columns: "list[list[float]]", bands: "list[tuple[float, float]]", start: "list[float]",
+                 spread: float) -> "tuple[list[float], float]":
+    """A linear predictor and a normal residual's spread for latent scores known to lie in their bands, by maximum
+    likelihood (expectation and maximisation from ``start`` and ``spread``): each step reads every row's expected
+    latent and its variance given its band, then solves the least-squares equations on the expected latents (the Gram
+    matrix's factor made once) and reads the spread from the variances and the misfit. At most `INTERVAL_STEPS`
+    steps, stopping where nothing moves by `INTERVAL_SETTLED`. Binary64 arithmetic in the order written, sums by
+    `math.fsum`, `chain_walk`'s exponential: a fixed function of its arguments."""
+    rows = len(bands)
+    lower, dropped = _cholesky(_ridged(_gram(columns, None)))
+    beta = list(start)
+    sigma = max(spread, 1e-6)
+    for _step in range(INTERVAL_STEPS):
+        eta = _predictor(columns, beta, rows)
+        expected: "list[float]" = []
+        spreads: "list[float]" = []
+        for row in range(rows):
+            low, high = bands[row]
+            mean = eta[row]
+            a = (low - mean) / sigma
+            b = (high - mean) / sigma
+            mass = _cdf(b) - _cdf(a)
+            if mass < 1e-12:
+                middle = 0.5 * (low + high)
+                expected += [middle]
+                spreads += [0.0]
+                continue
+            pa = _pdf(a)
+            pb = _pdf(b)
+            ratio = (pa - pb) / mass
+            expected += [mean + sigma * ratio]
+            spreads += [sigma * sigma * max(0.0, 1.0 + (a * pa - b * pb) / mass - ratio * ratio)]
+        moved = _solve(lower, dropped, [0.0 if dropped[k] else _dot(columns[k], expected) for k in range(len(columns))])
+        fitted = _predictor(columns, moved, rows)
+        variance = math.fsum([spreads[row] + (expected[row] - fitted[row]) * (expected[row] - fitted[row])
+                              for row in range(rows)]) / max(1, rows)
+        new_sigma = math.sqrt(max(variance, 1e-12))
+        change = abs(new_sigma - sigma)
+        for k in range(len(beta)):
+            change = max(change, abs(moved[k] - beta[k]))
+        beta, sigma = moved, new_sigma
+        if change < INTERVAL_SETTLED:
+            break
+    return beta, sigma
+
+
+def _normal_shape() -> "list[float]":
+    """The standard normal's quantiles at shares (k + 1/2) / `RESIDUAL_POINTS`: a latent residual's shape."""
+    return [chain_walk.normal_score((2 * k + 1) / (2 * RESIDUAL_POINTS)) for k in range(RESIDUAL_POINTS)]
+
+
+def _tied_refit(target: Target, chosen: "list[Block]", fits: "list[Fit | None]", frames: "dict[str, Frame]",
+                rows: int, owners: "list[int] | None") -> "list[Fit | None]":
+    """The fits of a number response, its chosen terms fitted again on its latent scale where its values are few
+    (`tied_bands`); as they were elsewhere, and where a person column repeats (`owners`: the person's share is read
+    from the least-squares residuals)."""
+    fit = fits[0] if fits else None
+    if fit is None or owners is not None or target.kind != NUMBER:
+        return fits
+    bands = tied_bands(target.response)
+    if bands is None:
+        return fits
+    places = _spread_rows(list(range(len(target.rows))), INTERVAL_ROWS)
+    design = _design(target, chosen, frames, rows)[0]
+    columns = [[column[at] for at in places] for column in design]
+    beta, sigma = interval_fit(columns, [bands[at] for at in places], fit.beta, math.sqrt(fit.scale))
+    shape = _normal_shape()
+    return [Fit(beta, [], [sigma * value for value in shape], fit.lower, fit.dropped, sigma * sigma)]
 
 
 def _number_model(target: Target, chosen: "list[Block]", fits: "list[Fit | None]",
@@ -2112,8 +2580,11 @@ def _number_model(target: Target, chosen: "list[Block]", fits: "list[Fit | None]
 # the same and makes the rest: the zone is the same bytes as a round that
 # kept nothing. The keys are FNV-1a digests of the inputs' exact
 # spellings (`repr` of each float, which reads back to the same
-# binary64). Version 2: the conditional pass entered every model.
-FITS_VERSION = 2
+# binary64). Version 2: the conditional pass entered every model. Version 3 (lane STATS-C): a label's fit may take a
+# number's steps, and a count's observed time is fitted before it. Version 4 (lane STATS-D): a few-valued number's
+# terms are fitted again on its latent scale (`_tied_refit`). Version 5 (lane STATS-D): an event's time read on its
+# hazard's scale (`event_times`).
+FITS_VERSION = 5
 
 
 @dataclasses.dataclass
@@ -2237,7 +2708,14 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
     statistic and model is taken from it where its key is held (the same
     value, for the key digests every input of it) and made otherwise, so
     the zone's bytes do not depend on it either.
+
+    THE ORDER (lane STATS-C): the table's, but each count's observed time
+    fitted just before its count (`exposures_first`), so a rate's count is
+    fitted on the time it was counted over; the zone's columns stand in
+    the order they are fitted, which is the order the twin draws them in.
     """
+    encoded = exposures_first(encoded)
+    timed_events = event_times(encoded)
     first: "list[bool] | None" = None
     if owners is not None:
         seen: "dict[int, bool]" = {}
@@ -2288,11 +2766,16 @@ def fit_zone(encoded: "list[Encoded]", sample: int, rows: int, owners: "list[int
             for row in fitted:
                 keep[row] = True
             masked = [states[row] if keep[row] else EMPTY for row in range(sample)]
-            middle = normal_scores(masked, column.positions, (PRESENT,))
+            middle = (hazard_scores(masked, column.positions) if name in timed_events
+                      else normal_scores(masked, column.positions, (PRESENT,)))
             present = [row for row in fitted if states[row] == PRESENT]
             value = Target(NUMBER, [middle[row] for row in present], present, [], 0)
+            # ...its key names the scale its response is read on (the outside review of release 37, item 8): an event's
+            # time is fitted on hazard scores, and a round that holds or lets go the event label beside it changes the
+            # scale while the column stays the same, so a fit kept under the other scale is never taken.
+            scale = ["hazard"] if name in timed_events else []
             entry["value"] = fit_number(value, candidates, frames, sample, None if held_once else owners, kept,
-                                        _key_of(["value", held_word, own]), kept_keys)
+                                        _key_of(["value", held_word] + scale + [own]), kept_keys)
             frames[name] = Frame(NUMBER, normal_scores(states, column.positions), states, [])
             # ...and the column's numbers let go once its frame holds their scores (lane W5-302): nothing reads them
             # again, and a wide table held them all through its whole fit (8 bytes a row and a float each).

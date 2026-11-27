@@ -716,6 +716,86 @@ def out_of_memory_while_describing(path: str) -> str:
     )
 
 
+def _about(count: int) -> str:
+    """A count read from a glance, as a person reads an estimate: three figures kept, the rest noughts (1,234,567 -> 1,230,000)."""
+    if count < 1000:
+        return f"{count:,}"
+    places = len(f"{count}") - 3
+    return f"{(count // 10 ** places) * 10 ** places:,}"
+
+
+def _sized(path: str, rows: int, columns: int, glanced: bool) -> str:
+    """The opening sentence of the start-of-run check's words: the table's size, said as an estimate where it was glanced at."""
+    if glanced:
+        return (
+            f"The table {path} holds about {_about(rows)} rows and {_about(columns)} columns "
+            f"(read from its first lines and its size on disk)."
+        )
+    return f"The description {path} is of a table of {rows:,} rows and {columns:,} columns."
+
+
+def too_large_for_this_computer(
+    path: str, rows: int, columns: int, glanced: bool, doing: str,
+    needed: str, installed: str, budget: str, least: str, written: str,
+) -> str:
+    """Message for a run whose predicted memory passes this computer's limit, before any work (lane SCALE).
+
+    WHAT HAPPENED, THE SIZES, WHAT TO DO. The start-of-run check
+    (`sizing`) predicts a step's peak memory from the table's rows and
+    columns and stops a run whose step would pass the share of this
+    computer's installed memory one step may take, before the hours of
+    work rather than after them. ``path`` is the path as `cli._shown`
+    shows it; ``glanced`` says the rows and columns were read from the
+    file's first lines and its size on disk (so they are said as
+    estimates), otherwise they are the description's; ``doing`` is the
+    step in words; ``needed``, ``installed``, ``budget`` and ``least``
+    are sizes in words (`sizing.gigabytes`); ``written`` says what stands
+    on disk. It carries no cell of the table: a path the person typed,
+    and counts.
+    """
+    if not isinstance(doing, str):
+        raise TypeError("internal check: a step's words were not text")
+    return (
+        f"{_sized(path, rows, columns, glanced)} {doing[:1].upper()}{doing[1:]} would need "
+        f"about {needed} of memory at its peak, and this computer has {installed} in all, of "
+        f"which synthtwin lets one step take at most {budget}, leaving the rest to the "
+        f"computer itself. So it stops here, before the work starts, rather than run for "
+        f"hours and fail. {written} Please run it on a computer with at least {least} of "
+        f"memory; or keep only the columns your analysis needs, saved as a table of their "
+        f"own, and describe that; or describe a random sample of the rows -- not the first "
+        f"rows, which describe only one part of a sorted table -- knowing that the twin "
+        f"then has the sample's number of rows."
+    )
+
+
+def what_this_run_needs(
+    path: str, rows: int, columns: int, glanced: bool, steps: "list[tuple[str, str, str]]",
+    unread: str,
+) -> str:
+    """The words a terminal shows before a long run (lane SCALE): each step's time and peak memory, predicted.
+
+    ``path`` is shown as `cli._shown` shows it; ``steps`` holds each
+    step's words, its time and its peak memory in words (`sizing.hours`,
+    `sizing.gigabytes`); ``unread`` is '' where this computer's memory
+    was read, else the memory to compare it with: the person is then
+    asked to stop a run their computer cannot hold.
+    """
+    parts = ""
+    for words, time, memory in steps:
+        parts = parts + ("; " if parts else "") + f"{words}, {time} and up to {memory} of memory"
+    said = (
+        f"{_sized(path, rows, columns, glanced)} Expected on a computer as fast as the one "
+        f"synthtwin was measured on (a slower one takes longer): {parts}. Please leave this "
+        f"window open until the run ends."
+    )
+    if unread:
+        said = (
+            f"{said} This computer's memory could not be read: if it has less than "
+            f"{unread}, stop now (press Ctrl+C) and use a computer with more."
+        )
+    return said
+
+
 def stopped_nested_too_deep(path: str) -> str:
     """Message for a run that one of synthtwin's own steps stopped from too deep inside.
 
@@ -2746,6 +2826,37 @@ def twin_folder_taken(path: str) -> str:
         f"synthtwin twin writes this table's six files into. Nothing was read "
         f"and nothing was written. Move or rename what is there, or give "
         f"--out-dir a folder to write into, then run the command again."
+    )
+
+
+def no_twin_to_check(twin: str) -> str:
+    """Message for `synthtwin check` finding no twin where `synthtwin twin` writes one (lane TOOLS)."""
+    return (
+        f"There is no twin at {twin} to check, which is where synthtwin "
+        f"twin writes the twin of this table. Nothing was read and nothing "
+        f"was written. Make the twin first with synthtwin twin and your "
+        f"table's file; if you made it into a folder of your own, add "
+        f"--out-dir and that folder, or add --twin and the twin's own file, "
+        f"and run the command again."
+    )
+
+
+def checks_out_of_memory(path: str) -> str:
+    """Message for `synthtwin check` running out of memory while it reads the table and the twin (lane TOOLS)."""
+    return (
+        f"There was not enough memory to check the twin against {path}. "
+        f"Nothing was written. Close other programs and run the command "
+        f"again, or run it on a computer with more memory."
+    )
+
+
+def checks_report_over_an_input(report: str) -> str:
+    """Message for `synthtwin check` whose report would be written over the table or the twin (lane TOOLS)."""
+    return (
+        f"The checks' report would be written at {report}, which is your "
+        f"table or the twin itself, or a link to one of them. Nothing was "
+        f"read and nothing was written. Move or rename what stands at that "
+        f"name, then run the command again."
     )
 
 

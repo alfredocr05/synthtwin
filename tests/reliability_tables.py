@@ -51,8 +51,13 @@ script reads its table by that name and nothing else):
   pressure of one patient (the cuff reading higher by a bias, a proportional
   part and the body-mass index); two readers' grades of one finding; a
   risk score; an outcome in time whose hazard the treatment lowers less in
-  the older (an interaction), censored; and admissions over an observed
-  time of its own length.
+  the older (an interaction), censored; admissions over an observed time of
+  its own length; and (lane STATS-C) a second follow-up with a competing
+  death: the days to the first of a readmission for the treated condition
+  (its hazard lowered by the treatment, raised with age and diabetes), a
+  death from another cause (more often in the older and the diabetic,
+  never moved by the treatment) and the end of that follow-up, and which of
+  the three it was.
 * T7 `accounts.csv`, identifiers of other people: a guarantor shared by
   several accounts, a subscriber who is the patient exactly where the
   relationship is `Self`, the staff member who registered the account,
@@ -87,7 +92,7 @@ from typing import Iterator
 TABLES = ("T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8")
 # THE EXTENDED BATTERY'S OWN TABLE (lane STATS-B): read only by the further analysis families of
 # `reliability_battery.EXTENDED_SCRIPTS`, never by K-RU-01's.
-EXTENDED_TABLES = ("T9",)
+EXTENDED_TABLES = ("T9", "T10")
 ALL_TABLES = TABLES + EXTENDED_TABLES
 FILES = {
     "T1": "cohort.csv",
@@ -99,6 +104,7 @@ FILES = {
     "T7": "accounts.csv",
     "T8": "attributes.csv",
     "T9": "methods.csv",
+    "T10": "operations.csv",
 }
 NAMES = {
     "T1": "cohort, one row a patient",
@@ -110,9 +116,10 @@ NAMES = {
     "T7": "accounts with identifiers of other people",
     "T8": "the null table: ten unrelated columns (a control)",
     "T9": "methods, a cohort with two measuring methods, two readers, a treatment and an outcome in time",
+    "T10": "operations, a surgeon and an anaesthetist crossed, eight markers, counts with many zeros, a frailty",
 }
 PERSON = {"T1": "", "T2": "patient_id", "T3": "patient_id", "T4": "patient_id",
-          "T5": "patient_id", "T6": "patient_id", "T7": "patient_id", "T8": "", "T9": ""}
+          "T5": "patient_id", "T6": "patient_id", "T7": "patient_id", "T8": "", "T9": "", "T10": ""}
 SENTINEL = 9999999
 UTC_OFFSET_MINUTES = 360
 STUDY_START = datetime.date(2019, 1, 1)
@@ -135,7 +142,8 @@ NULL_COLUMNS = ("plan_type", "region", "paperless", "contact_pref", "language", 
                 "risk_score", "copay", "opened")
 T8_COLUMNS = ["patient_id", *NULL_COLUMNS]
 T9_COLUMNS = ["patient_id", "age", "gender", "body_mass_index", "diabetes", "treated", "arterial_sbp", "cuff_sbp", "grade_first",
-              "grade_second", "score", "outcome", "outcome_days", "admissions", "exposure_days"]
+              "grade_second", "score", "outcome", "outcome_days", "admissions", "exposure_days", "exit_days",
+              "exit_reason"]
 COLUMNS = {"T1": T1_COLUMNS, "T2": T2_COLUMNS, "T3": T3_COLUMNS, "T4": T4_COLUMNS, "T5": T5_COLUMNS,
            "T6": T6_COLUMNS, "T7": T7_COLUMNS, "T8": T8_COLUMNS, "T9": T9_COLUMNS}
 
@@ -163,11 +171,16 @@ KNOWS = {
            "balance": "measurement", "copay": "measurement"},
     "T9": {"patient_id": "identifier", "age": "measurement", "body_mass_index": "measurement", "arterial_sbp": "measurement",
            "cuff_sbp": "measurement", "score": "measurement", "outcome_days": "measurement",
-           "admissions": "measurement", "exposure_days": "measurement"},
+           "admissions": "measurement", "exposure_days": "measurement", "exit_days": "measurement"},
+    "T10": {"patient_id": "identifier", "surgeon": "code", "anaesthetist": "code", "age": "measurement",
+            "albumin": "measurement", "crp": "measurement", "hemoglobin": "measurement", "lactate": "measurement",
+            "sodium": "measurement", "platelets": "measurement", "glucose": "measurement", "bilirubin": "measurement",
+            "minutes": "measurement", "visits_after": "measurement", "followup_days": "measurement"},
 }
 # The age columns, whose Safe Harbor question the person answers `yes`
 # (ages past 89 are pooled at 90 by Safe Harbor's own rule).
-AGES = {"T1": ("age",), "T2": ("age",), "T3": (), "T4": (), "T5": (), "T6": (), "T7": (), "T8": (), "T9": ("age",)}
+AGES = {"T1": ("age",), "T2": ("age",), "T3": (), "T4": (), "T5": (), "T6": (), "T7": (), "T8": (), "T9": ("age",),
+        "T10": ("age",)}
 
 
 def _logistic(x: float) -> float:
@@ -718,6 +731,7 @@ def _account_rows(n: int, seed: int) -> "Iterator[list[str]]":
 # -- T9: two measuring methods, two readers, a treatment and an outcome in time (lane STATS-B) ----------------------
 
 GRADES = ("none", "mild", "moderate", "severe")
+EXIT_REASONS = ("readmitted", "died", "censored")
 T9_TRUTH = {
     "treated": {"intercept": -0.3, "age": 0.03, "mass_index": 0.08, "diabetes": 0.6},
     "arterial_sbp": {"mean": 128.0, "age": 0.4, "diabetes": 5.0, "sd": 16.0},
@@ -728,6 +742,13 @@ T9_TRUTH = {
                    "weibull_shape": 1.1, "scale_days": 2600.0, "censor_days": [90, 1095]},
     "admissions_log_rate_a_year": {"intercept": -0.4, "age": 0.02, "diabetes": 0.5, "treated": -0.3,
                                    "gamma_shape": 1.5, "exposure_days": [30, 730]},
+    # The second follow-up with a competing death (lane STATS-C): every time drawn from a stream of its own, so every
+    # column above is the same bytes as before; the exit is the first of the readmission, the death and the end.
+    "readmission": {"treated": -0.5, "age": 0.03, "diabetes": 0.4, "weibull_shape": 1.0, "scale_days": 2200.0},
+    "competing_death": {"age": 0.06, "diabetes": 0.5, "mass_index": 0.02, "treated": 0.0, "weibull_shape": 1.3,
+                        "scale_days": 4200.0},
+    "exit_censor_days": [90, 1095],
+    "exit_reasons": list(EXIT_REASONS),
 }
 
 
@@ -735,6 +756,7 @@ def _method_rows(n: int, seed: int) -> "Iterator[list[str]]":
     """T9's rows, one a patient: each patient's draws from one stream, so a row depends on the seed and its place alone."""
     r = random.Random(f"T9-{seed}")
     ids = _ids(random.Random(f"T9-ids-{seed}"), n, "P", 7)
+    compete = random.Random(f"T9-compete-{seed}")
     t = T9_TRUTH
     for i in range(n):
         age = int(min(90.0, max(18.0, r.gauss(62.0, 14.0))))
@@ -766,15 +788,129 @@ def _method_rows(n: int, seed: int) -> "Iterator[list[str]]":
         exposure = r.randint(*m["exposure_days"])
         rate = math.exp(m["intercept"] + m["age"] * (age - 62) + m["diabetes"] * diabetes + m["treated"] * treated)
         admissions = _negbin(r, rate * exposure / 365.0, m["gamma_shape"])
+        q = t["readmission"]
+        eta_back = q["treated"] * treated + q["age"] * (age - 62) + q["diabetes"] * diabetes
+        back = q["scale_days"] * (-math.log(max(1e-12, compete.random())) / math.exp(eta_back)) ** (
+            1.0 / q["weibull_shape"])
+        d = t["competing_death"]
+        eta_death = (d["age"] * (age - 62) + d["diabetes"] * diabetes + d["mass_index"] * (mass - 28.0)
+                     + d["treated"] * treated)
+        death = d["scale_days"] * (-math.log(max(1e-12, compete.random())) / math.exp(eta_death)) ** (
+            1.0 / d["weibull_shape"])
+        end = compete.uniform(*t["exit_censor_days"])
+        leaving = min(back, death, end)
+        reason = EXIT_REASONS[0] if leaving == back else (EXIT_REASONS[1] if leaving == death else EXIT_REASONS[2])
         yield [ids[i], str(age), "F" if female else "M", f"{mass:.1f}", "Y" if diabetes else "N",
                "Y" if treated else "N", str(arterial), str(cuff), GRADES[first], GRADES[second], str(score),
-               "Y" if happened else "N", str(max(1, int(min(event, censor)))), str(admissions), str(exposure)]
+               "Y" if happened else "N", str(max(1, int(min(event, censor)))), str(admissions), str(exposure),
+               str(max(1, int(leaving))), reason]
+
+
+# -- T10: operations, a surgeon and an anaesthetist crossed (lane STATS-D) ----------------------------------------------
+
+T10_SURGEONS = 30
+T10_ANAESTHETISTS = 20
+T10_MARKERS = ("albumin", "crp", "hemoglobin", "lactate", "sodium", "platelets", "glucose", "bilirubin")
+# Each marker as written: its centre, its spread, its decimals, and its loadings on the two shared factors (an
+# inflammation axis and a metabolic one); albumin and haemoglobin fall as the first rises, C-reactive protein and
+# lactate are skewed (log-normal about their centres, the spread on the log scale).
+T10_SKEWED = ("crp", "lactate")
+T10_MARKER_FORMS = {"albumin": (3.8, 0.55, 1, (-0.7, 0.0)), "crp": (12.0, 0.6, 1, (0.7, 0.0)),
+                    "hemoglobin": (12.8, 1.7, 1, (-0.5, 0.0)), "lactate": (1.5, 0.35, 1, (0.6, 0.0)),
+                    "sodium": (139.0, 3.2, 0, (0.0, 0.55)), "platelets": (240.0, 60.0, 0, (0.0, 0.55)),
+                    "glucose": (118.0, 28.0, 0, (0.0, 0.55)), "bilirubin": (0.8, 0.3, 1, (0.3, 0.3))}
+T10_TRUTH = {
+    "markers": {"forms": {k: list(v[:3]) + [list(v[3])] for k, v in T10_MARKER_FORMS.items()},
+                "age_on_crp_z": 0.012, "age_on_albumin_z": -0.01},
+    "complication": {"intercept": -2.0, "age": 0.02, "emergency": 0.5, "albumin_z": -0.5, "crp_z": 0.4,
+                     "lactate_z": 0.35, "surgeon_sd": 0.4},
+    "minutes": {"intercept": 110.0, "age": 0.4, "emergency": 25.0, "complication": 12.0, "surgeon_sd": 15.0,
+                "anaesthetist_sd": 7.0, "sd": 25.0, "least": 20},
+    "albumin_missing": {"intercept": -2.2, "complication": 1.0, "emergency": 0.6, "age": 0.015},
+    "visits_after": {"structural_zero_intercept": 0.8, "structural_zero_age": -0.03, "structural_zero_emergency": -0.6,
+                     "log_mean_intercept": -0.3, "complication": 0.7, "crp_z": 0.25, "gamma_shape": 1.5},
+    "readmission": {"complication": 0.6, "age": 0.02, "emergency": 0.3, "frailty_variance": 0.4,
+                    "weibull_shape": 1.0, "scale_days": 900.0, "censor_days": [30, 730]},
+    # The surgeons' and the anaesthetists' effects are drawn ONCE from fixed streams (not the table's seed), so a real
+    # table and its fresh sample are two draws of one hospital's operations, as ST7's clinics are.
+    "effects_streams": ["T10-surgeons", "T10-anaesthetists"],
+}
+T10_COLUMNS = ["patient_id", "surgeon", "anaesthetist", "age", "gender", "emergency", *T10_MARKERS, "complication",
+               "minutes", "visits_after", "followup_days", "readmitted"]
+COLUMNS["T10"] = T10_COLUMNS
+
+
+def _t10_effects() -> "tuple[list[float], list[float], list[float], list[float], list[list[int]]]":
+    """The surgeons' effects (a complication's log odds, the minutes, the readmission's frailty), the anaesthetists'
+    minutes and each surgeon's three preferred anaesthetists, from fixed streams: the same in every table seed."""
+    r = random.Random("T10-surgeons")
+    t = T10_TRUTH
+    on_complication = [r.gauss(0.0, t["complication"]["surgeon_sd"]) for _ in range(T10_SURGEONS)]
+    on_minutes = [r.gauss(0.0, t["minutes"]["surgeon_sd"]) for _ in range(T10_SURGEONS)]
+    theta = t["readmission"]["frailty_variance"]
+    frailty = [r.gammavariate(1.0 / theta, theta) for _ in range(T10_SURGEONS)]
+    preferred = [r.sample(range(T10_ANAESTHETISTS), 3) for _ in range(T10_SURGEONS)]
+    a = random.Random("T10-anaesthetists")
+    by_anaesthetist = [a.gauss(0.0, t["minutes"]["anaesthetist_sd"]) for _ in range(T10_ANAESTHETISTS)]
+    return on_complication, on_minutes, frailty, by_anaesthetist, preferred
+
+
+def _operation_rows(n: int, seed: int) -> "Iterator[list[str]]":
+    """T10's rows, one a patient: each patient's draws from one stream, so a row depends on the seed and its place alone."""
+    r = random.Random(f"T10-{seed}")
+    ids = _ids(random.Random(f"T10-ids-{seed}"), n, "P", 7)
+    on_complication, on_minutes, frailty, by_anaesthetist, preferred = _t10_effects()
+    surgeon_weights = [1.0 / math.sqrt(k + 1) for k in range(T10_SURGEONS)]
+    t = T10_TRUTH
+    for i in range(n):
+        surgeon = r.choices(range(T10_SURGEONS), surgeon_weights)[0]
+        anaesthetist = preferred[surgeon][r.randrange(3)] if r.random() < 0.5 else r.randrange(T10_ANAESTHETISTS)
+        age = int(min(90.0, max(18.0, r.gauss(60.0, 14.0))))
+        female = r.random() < 0.5
+        emergency = r.random() < 0.2
+        shared = (r.gauss(0.0, 1.0), r.gauss(0.0, 1.0))
+        z: "dict[str, float]" = {}
+        for name in T10_MARKERS:
+            loads = T10_MARKER_FORMS[name][3]
+            own = math.sqrt(1.0 - loads[0] ** 2 - loads[1] ** 2)
+            z[name] = loads[0] * shared[0] + loads[1] * shared[1] + own * r.gauss(0.0, 1.0)
+        z["albumin"] += t["markers"]["age_on_albumin_z"] * (age - 60)
+        z["crp"] += t["markers"]["age_on_crp_z"] * (age - 60)
+        c = t["complication"]
+        risk = (c["intercept"] + c["age"] * (age - 60) + c["emergency"] * emergency + c["albumin_z"] * z["albumin"]
+                + c["crp_z"] * z["crp"] + c["lactate_z"] * z["lactate"] + on_complication[surgeon])
+        complication = r.random() < _logistic(risk)
+        m = t["minutes"]
+        minutes = max(m["least"], int(round(r.gauss(
+            m["intercept"] + m["age"] * (age - 60) + m["emergency"] * emergency + m["complication"] * complication
+            + on_minutes[surgeon] + by_anaesthetist[anaesthetist], m["sd"]))))
+        g = t["albumin_missing"]
+        albumin_missing = r.random() < _logistic(g["intercept"] + g["complication"] * complication
+                                                 + g["emergency"] * emergency + g["age"] * (age - 60))
+        v = t["visits_after"]
+        never = r.random() < _logistic(v["structural_zero_intercept"] + v["structural_zero_age"] * (age - 60)
+                                       + v["structural_zero_emergency"] * emergency)
+        visits = 0 if never else _negbin(r, math.exp(v["log_mean_intercept"] + v["complication"] * complication
+                                                     + v["crp_z"] * z["crp"]), v["gamma_shape"])
+        h = t["readmission"]
+        eta = h["complication"] * complication + h["age"] * (age - 60) + h["emergency"] * emergency
+        event = h["scale_days"] * (-math.log(max(1e-12, r.random())) / (frailty[surgeon] * math.exp(eta))) ** (
+            1.0 / h["weibull_shape"])
+        censor = r.uniform(*h["censor_days"])
+        cells = []
+        for name in T10_MARKERS:
+            centre, spread, places, _loads = T10_MARKER_FORMS[name]
+            value = centre * math.exp(spread * z[name]) if name in T10_SKEWED else max(0.0, centre + spread * z[name])
+            cells += ["" if (name == "albumin" and albumin_missing) else f"{value:.{places}f}"]
+        yield [ids[i], f"S{surgeon + 1:02d}", f"A{anaesthetist + 1:02d}", str(age), "F" if female else "M",
+               "Y" if emergency else "N", *cells, "Y" if complication else "N", str(minutes), str(visits),
+               str(max(1, int(min(event, censor)))), "Y" if event <= censor else "N"]
 
 
 _ROWS = {"T1": _cohort_rows, "T2": _visit_rows, "T3": _charting_rows, "T4": _case_rows, "T5": _order_rows,
-         "T6": _lab_rows, "T7": _account_rows, "T8": _attribute_rows, "T9": _method_rows}
+         "T6": _lab_rows, "T7": _account_rows, "T8": _attribute_rows, "T9": _method_rows, "T10": _operation_rows}
 TRUTHS = {"T1": T1_TRUTH, "T2": T2_TRUTH, "T3": T3_TRUTH, "T4": T4_TRUTH, "T5": T5_TRUTH, "T6": T6_TRUTH,
-          "T7": T7_TRUTH, "T8": T8_TRUTH, "T9": T9_TRUTH}
+          "T7": T7_TRUTH, "T8": T8_TRUTH, "T9": T9_TRUTH, "T10": T10_TRUTH}
 
 
 def header_rows(table: str, n: int, seed: int) -> "tuple[list[str], Iterator[list[str]]]":

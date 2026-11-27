@@ -219,4 +219,21 @@ def _the_small_table_refusal_off_in_process_runs() -> "Iterator[None]":
     with pytest.MonkeyPatch.context() as own:
         own.setitem(defaults, "small_tables_refused", False)
         own.setitem(run_defaults, "small_tables_refused", False)
+        # THE ROUNDS AFTER THE FILES FOR `profile` AT A KEYBOARD (lane TOOLS):
+        # since that lane `profile` puts its questions in the one round, as
+        # `twin` does; the suite's cases that put a person at `profile`'s
+        # keyboard (twenty files, tests/keyboard.py's helpers among them) pin
+        # the rounds after the files, still the path of an entry a later
+        # description raises, and tests/test_profile_one_round.py turns the
+        # one round back on for its own cases.
+        own.setattr(cli, "_PROFILE_ONE_ROUND", False)
+        # THE NUMBER READINGS KEPT BY THEIR TEXTS (lane SCALE, release 37):
+        # a process-wide cache, so a case measuring memory saw it filled or
+        # not by whichever cases ran before it in the same process (release
+        # 37's landing: one passed in the suite and failed alone). Every case
+        # starts with it empty; what is kept is never an answer's source.
+        from synthtwin import parsing
+
+        own.setattr(parsing._Kept, "numbers", {})
+        own.setattr(parsing._Kept, "classes", {})
         yield

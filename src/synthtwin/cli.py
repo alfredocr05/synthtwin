@@ -10,9 +10,9 @@ at all. `synthtwin validate <profile>` reads that profile and one CSV
 file, measures the file against it, and writes the quality report: which
 obligations the file met, which it missed, and which no CSV could ever
 evidence either way. One more word, `synthtwin doctor`, is no step of a
-run: it checks this computer before the first one -- Python, the four
-libraries it needs (numpy, pandas, pyarrow and scipy, each with its
-version), the output folder, the memory against a named table's size --
+run: it checks this computer before the first one -- Python, the five
+libraries it needs (numpy, pandas, pyarrow, scipy and pyreadstat, each
+with its version), the output folder, the memory against a named table's size --
 and reads no table (plans P4-D397 and P4-D410). And `synthtwin twin
 <table>` runs the three in one command and one folder, the questions on
 screen before any file is written, while `synthtwin help` shows one page
@@ -224,6 +224,13 @@ _DOCTOR = "doctor"
 # and one folder. And `help` shows one command's page, or the examples.
 _TWIN = "twin"
 _HELP_WORD = "help"
+# ...AND THE FIVE TWIN-VERSUS-REAL CHECKS IN ONE WORD (lane TOOLS): `check`
+# runs `synthtwin.twin_checks` on the twin `twin` wrote, from the one word
+# every install has -- the Windows ready folder's window binds `synthtwin`
+# and nothing else, so `python -m synthtwin.twin_checks` was out of reach
+# there. Taken by the parser as `twin` and `help` are, without a place on
+# the whole-tool page (G10.2).
+_CHECK = "check"
 # The words `help` takes after it: a command's page, or the examples page.
 _EXAMPLES = "examples"
 # THE COMMAND WORDS THE PARSER SHOWS, as the base showed them: the
@@ -434,6 +441,15 @@ _READ_BY = {
     _VALIDATE: ("--twin", "--out-dir", "--sheet", "--replace"),
     _DOCTOR: ("--out-dir",),
     _TWIN: ("--out-dir", "--replace", "--seed") + _PROFILE_DECLARATIONS + _RECORD_OPTIONS,
+    _CHECK: ("--out-dir", "--twin", "--person", "--identifier", "--first-row"),
+}
+# THE LINES AN OPTION READS OTHERWISE ON ONE COMMAND'S PAGE (lane TOOLS):
+# `check` reads four options other commands read, each for its own purpose.
+_SHORT_HELP_ON = {
+    (_CHECK, "--out-dir"): ("FOLDER", "the folder synthtwin twin wrote the twin into"),
+    (_CHECK, "--twin"): ("PATH", "the twin to check (default: the twin there)"),
+    (_CHECK, "--person"): ("COLUMN", "the person column, where the folder does not say"),
+    (_CHECK, "--identifier"): ("COLUMN", "record numbers: checked for real ones"),
 }
 
 # Each option's line: what is typed after it, and what it does, short.
@@ -511,10 +527,22 @@ _PAGE_HEADS = {
     ),
     _DOCTOR: (
         "usage: synthtwin doctor [TABLE] [options]",
-        "Check this computer before a first run: Python, the four libraries "
-        "synthtwin needs (numpy, pandas, pyarrow and scipy), the output "
+        "Check this computer before a first run: Python, the five libraries "
+        "synthtwin needs (numpy, pandas, pyarrow, scipy, and pyreadstat for "
+        "SAS, Stata and SPSS files), the output "
         "folder and the memory, and weigh TABLE's size against that memory "
         "when you name one. It never opens TABLE.",
+    ),
+    _CHECK: (
+        "usage: synthtwin check TABLE [options]",
+        "Run the five twin-versus-real checks before a twin leaves this "
+        "computer: copied rows, rows closer to a real one than chance allows, "
+        "copied patients, real identifiers and rare real dates, and "
+        "combinations only one real row holds. TABLE is your real table; the "
+        "twin checked is the one synthtwin twin wrote into TABLE-synthtwin "
+        "beside it. It reads both, prints counts and a verdict, never a "
+        "value, and writes the report beside the twin (TABLE-twin-checks.txt), "
+        "again on each check.",
     ),
     _TWIN: (
         "usage: synthtwin twin TABLE [options]",
@@ -559,6 +587,11 @@ _PROSE_NAMES = (
 )
 # ...and what it says last, its exit statuses where they differ.
 _PAGE_FEET = {
+    _CHECK: (
+        "Exit status: 0 every check passed; 3 a check failed, and the twin "
+        "must not leave this computer; 1 the checks could not run; 2 the "
+        "command line could not be used.",
+    ),
     _TWIN: (
         "Exit status: 0 every step ran and nothing was missed; 3 a step missed "
         "something its report names; 1 a step could not run; 2 the command "
@@ -581,8 +614,12 @@ The same three steps one at a time, each printing the next:
 Before a first run, check this computer:
   synthtwin doctor my-table.csv
 
+Before the twin leaves this computer, check it against your table:
+  synthtwin check my-table.csv
+
 One page for each command:
   synthtwin help twin
+  synthtwin help check
   synthtwin help profile
   synthtwin help generate
   synthtwin help validate
@@ -639,6 +676,10 @@ _EXAMPLES_PAGE = """examples:
   synthtwin doctor data.csv
       check this computer before a first run, and weigh the size of
       data.csv against its memory without opening the file
+
+  synthtwin check data.csv
+      run the five twin-versus-real checks on the twin in data-synthtwin
+      against data.csv, before the twin leaves this computer
 """
 
 
@@ -670,9 +711,9 @@ def _wrapped(text: str, indent: str, width: int = _PAGE_WIDTH) -> str:
     return lines
 
 
-def _option_line(option: str) -> str:
-    """One option's lines on a command's page: its name, what follows it, what it does."""
-    metavar, said = _SHORT_HELP[option]
+def _option_line(option: str, command: str = "") -> str:
+    """One option's lines on a command's page: its name, what follows it, what it does (as that command reads it)."""
+    metavar, said = _SHORT_HELP_ON[(command, option)] if (command, option) in _SHORT_HELP_ON else _SHORT_HELP[option]
     named = option if not metavar else f"{option} {metavar}"
     if option in _LONG_HELP:
         return f"  {named}\n" + _wrapped(_LONG_HELP[option], "    ")
@@ -703,7 +744,7 @@ def command_page(command: str) -> str:
         if (option in _LONG_HELP or (prose and option in _PROSE_NAMES) or option in _RECORD_OPTIONS
                 or option in sentence_names):
             continue
-        page = page + _option_line(option)
+        page = page + _option_line(option, command)
     if any(option in _RECORD_OPTIONS for option in _READ_BY[command]):
         page = page + _wrapped(_RECORD_SENTENCES[command] if command in _RECORD_SENTENCES else _RECORD_SENTENCE, "  ")
     if prose:
@@ -1099,6 +1140,10 @@ class _Session:
     round_keys: "list[tuple[str, str, str, str]]" = dataclasses.field(default_factory=list)
     # ...and the columns whose first question its rule answered (decision 3).
     decided_first: "tuple[str, ...]" = ()
+    # THE START-OF-RUN CHECK (lane SCALE): whether this run's table was
+    # weighed against this computer's memory, so a later round of the same
+    # run (its answers) does not weigh and say it again.
+    weighed: bool = False
 
 
 @dataclasses.dataclass
@@ -2242,9 +2287,9 @@ def _refused_as_argparse_refuses(help_page: str, message: str) -> "typing.NoRetu
 
 
 def _commands_read(argv: "list[str] | None") -> "list[str]":
-    """The command words the parser takes for this line: the base's four, and `twin` and `help` where the line names one (skeptic 1's item 4)."""
-    if _command_word(argv) in (_TWIN, results.HELP):
-        return [_PROFILE, _GENERATE, _VALIDATE, _DOCTOR, _TWIN, _HELP_WORD]
+    """The command words the parser takes for this line: the base's four, and `twin`, `help` and `check` where the line names one (skeptic 1's item 4)."""
+    if _command_word(argv) in (_TWIN, results.HELP, _CHECK):
+        return [_PROFILE, _GENERATE, _VALIDATE, _DOCTOR, _TWIN, _HELP_WORD, _CHECK]
     return [_PROFILE, _GENERATE, _VALIDATE, _DOCTOR]
 
 
@@ -2324,7 +2369,7 @@ def _parse_arguments(
             "file against that description and writes the quality "
             "report, and 'doctor' checks this computer before a first "
             "run -- Python, the libraries it needs (numpy, pandas, "
-            "pyarrow and scipy), the output folder and the memory -- and "
+            "pyarrow, scipy and pyreadstat), the output folder and the memory -- and "
             "weighs a table's size against that memory when you name "
             "one, without opening it"
         ),
@@ -2896,6 +2941,11 @@ def _parse_arguments(
         _refuse_the_command_line(
             "Please say which table to make a twin of, for example: "
             "synthtwin twin my-table.csv"
+        )
+    if args.command == _CHECK and args.path is None:
+        _refuse_the_command_line(
+            "Please say which table the twin was made from, for example: "
+            "synthtwin check my-table.csv"
         )
     if args.command == _GENERATE and args.path is None:
         _refuse_the_command_line(
@@ -7740,6 +7790,29 @@ def _record_without_keyed_zone(record: "dict[str, object]") -> "dict[str, object
     return out
 
 
+def _publishes_no_row_order(published: "dict[str, object]") -> bool:
+    """Whether a description publishes no row order (`source.dialect.row_order` null), the one case the record keeps one (lane TOOLS)."""
+    source = published["source"] if "source" in published else None
+    form = source["dialect"] if isinstance(source, dict) and "dialect" in source else None
+    return isinstance(form, dict) and "row_order" in form and form["row_order"] is None
+
+
+def _row_sequences_of(published: "dict[str, object]") -> "tuple[str, ...]":
+    """The columns a description publishes as the row sequence (`sequence_start` 0 or more), by name (lane TOOLS)."""
+    source = published["source"] if "source" in published else None
+    form = source["dialect"] if isinstance(source, dict) and "dialect" in source else None
+    forms = form["columns"] if isinstance(form, dict) and "columns" in form else None
+    blocks = published["columns"] if "columns" in published else None
+    found: "list[str]" = []
+    if isinstance(forms, list) and isinstance(blocks, list):
+        for place in range(min(len(forms), len(blocks))):
+            entry, block = forms[place], blocks[place]
+            start = entry["sequence_start"] if isinstance(entry, dict) and "sequence_start" in entry else -1
+            if isinstance(start, int) and start >= 0 and isinstance(block, dict) and "name" in block:
+                found += [f"{block['name']}"]
+    return tuple(found)
+
+
 def _inside_record_written(read: object, published: "dict[str, object]", written: pathlib.Path,
                            rows_described: "dict[str, object] | None" = None) -> None:
     """Write the inside record of a table just described (lane IN-2, plan P4-D496): its marginals and its relations.
@@ -7863,12 +7936,25 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
     text_floor = _text_zone_floor(settings_block)
     text_held = _inside_dated_held(published)
     text_keys = _keys_of_keyed_columns(blocks)
+    # THE ORDER THE ROWS STAND IN (lane TOOLS, `inside_order`), read in the
+    # same pass where the description publishes none: the column (or the
+    # two) the real rows are sorted by, kept in the record, never a value.
+    from synthtwin import inside_order
+
+    order_finder = (
+        inside_order.Finder(person, _row_sequences_of(published)) if _publishes_no_row_order(published) else None
+    )
     try:
         for place, name in enumerate(read.column_names):
             if specs[place].name != name:
                 return
             names += [name]
             cells = reading.column_values(read, place)
+            if order_finder is not None:
+                try:
+                    inside_order.see(order_finder, name, cells)
+                except (ValueError, ArithmeticError, IndexError, KeyError, TypeError, MemoryError):
+                    order_finder = None
             if link_key and name == link_key:
                 key_cells = cells
             marginals[name] = inside.column_entry(cells, specs[place].why_kept in inside_relations.RECORD_NUMBERS)
@@ -7910,7 +7996,10 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
             if text_mode == inside_text.MODE_CENSUS and not _census_allowed(name, cells, text_keep):
                 text_mode = ""
             if text_mode in _TEXT_ZONE_WORDED and _names_a_person(name, cells):
-                text_mode = ""
+                # ...A PERSON'S DETAILS (lane TEXTZONE): free text naming a person is written in its real layouts with
+                # every word that could name somebody made up and every cell off the real (`inside_text.MODE_DETAIL`);
+                # a label's tail and a measurement's census naming one keep the description's twin's cells.
+                text_mode = inside_text.MODE_DETAIL if text_mode == inside_text.MODE_FREE else ""
             if text_mode:
                 # ...an addition: an entry that cannot be read leaves the column the description's twin's.
                 try:
@@ -8038,6 +8127,10 @@ def _inside_record_written(read: object, published: "dict[str, object]", written
         record["zones"]["keyed"] = keyed_zone  # type: ignore[index]
     if identities:
         record["zones"][inside_relations.IDENTITIES] = {"version": 1, "rules": identities}  # type: ignore[index]
+    order_zone = inside_order.finished(order_finder) if order_finder is not None else None
+    order_finder = None
+    if order_zone is not None:
+        record["zones"][inside_order.ZONE] = order_zone  # type: ignore[index]
     # THE LINKS ZONE (lane W5-F14): how this table joins the study's other
     # table `--linked-to` named, fitted on both real tables here.
     links_zone: "dict[str, object] | None" = None
@@ -8398,7 +8491,8 @@ _TEXT_ZONE_NUMBERS = ("count", "continuous", "affixed_number", "numbers_with_lab
 # hold ages: its census is not dealt (an age past 89 is a Safe Harbor element; the description's own twin keeps it).
 _CENSUS_AGE_MOST = 125
 # THE MODES THAT WRITE A REAL COLUMN'S OWN WORDS AND NUMBERS INTO THE TWIN (free text and a label's tail by their kept
-# words, a measurement by its census), which a column naming a person never takes (`_names_a_person`; lane LEDGER).
+# words, a measurement by its census), which a column naming a person never takes (`_names_a_person`; lane LEDGER):
+# its free text is written as a person's details instead (`inside_text.MODE_DETAIL`, lane TEXTZONE).
 _TEXT_ZONE_WORDED = ("free", "tail", "census")
 # The different present cells `_names_a_person` reads, and the share of them (in thousandths) that names a person.
 _PERSON_CELLS_READ = 400
@@ -8420,9 +8514,13 @@ def _names_a_person(name: str, cells: "list[str]") -> bool:
     names, a line of an address, a place, a coordinate, a device), or
     whose different present cells read as a person's details
     (`twin_checks.a_persons_detail`) or as e-mail addresses at half or
-    more of the first `_PERSON_CELLS_READ` read, keeps the description's
-    own twin's cells. Guarantees: a fixed function of the two. Raises
-    TypeError for a name or a cell that is not text. No I/O.
+    more of the first `_PERSON_CELLS_READ` read, is never written in its
+    real words: its free text is written as a person's details (lane
+    TEXTZONE, `inside_text.MODE_DETAIL`: real layouts, made-up words,
+    every cell off the real), a label's tail or a measurement's census
+    keeps the description's own twin's cells. Guarantees: a fixed
+    function of the two. Raises TypeError for a name or a cell that is
+    not text. No I/O.
     """
     from synthtwin import twin_checks
 
@@ -9191,6 +9289,99 @@ def _profile_outputs_taken(
     written = [_shown(target) for target in targets]
     taken = [_shown(target) for target in targets if _already_there(target)]
     return (written, taken)
+
+
+# THE START-OF-RUN CHECK (lane SCALE; LANE I4m RULINGS 26 (5)): a run whose
+# steps together are predicted to take this long or more says, at a
+# terminal, what each step will take before it starts.
+_LONG_RUN_SECONDS = 3600.0
+
+# The steps `profile` weighs: the whole journey, since a description whose
+# twin this computer cannot build costs its hours for nothing.
+_JOURNEY_STEPS = ("profile", "generate", "validate", "checks")
+
+
+def _weighed_before_starting(
+    path: str, rows: int, columns: int, glanced: bool, steps: "tuple[str, ...]"
+) -> bool:
+    """THE START-OF-RUN CHECK (lane SCALE): whether a run may start, weighed against this computer's memory.
+
+    Each step named in ``steps`` is predicted from the table's ``rows`` and
+    ``columns`` (`sizing.needs_of`; ``glanced``: read from the file's
+    opening, `reading.glance`, rather than a description). Where one
+    step's predicted peak passes this computer's limit
+    (`sizing.first_over`, from `computer.installed_memory`), the run is
+    refused here, before any of its work, in plain words that name the
+    step, the sizes and what to do (`errors.too_large_for_this_computer`),
+    and the result's step is `memory`. Otherwise, where the steps
+    together are predicted to take `_LONG_RUN_SECONDS` or more and the
+    screen is a terminal, one line says what each step will take
+    (`errors.what_this_run_needs`), and asks the person to compare the
+    need with their computer's memory where it could not be read
+    (Windows). It never changes what the run does: a run it lets start is
+    the run it was. Returns False where it refused. Raises nothing of its
+    own; no file is read or written.
+    """
+    from synthtwin import sizing
+
+    needs = tuple(one for one in sizing.needs_of(rows, columns) if one.step.name in steps)
+    if not needs:
+        return True
+    memory = _total_memory()
+    over = sizing.first_over(needs, memory)
+    if over is not None and memory is not None:
+        budget = sizing.budget_of(memory)
+        least = -(-over.peak_bytes * sizing.BUDGET_SHARE_DENOMINATOR // sizing.BUDGET_SHARE_NUMERATOR)
+        _warn(
+            errors.too_large_for_this_computer(
+                _shown(path), rows, columns, glanced, over.step.words,
+                sizing.gigabytes(over.peak_bytes), sizing.gigabytes(memory),
+                sizing.gigabytes(budget if budget is not None else memory), sizing.gigabytes(least),
+                "Nothing was written.",
+            ),
+            step=results.STEP_MEMORY,
+        )
+        return False
+    total = 0.0
+    highest = 0
+    for one in needs:
+        total = total + one.seconds
+        highest = max(highest, one.peak_bytes)
+    if total >= _LONG_RUN_SECONDS and _progress_at_a_terminal():
+        unread = ""
+        if memory is None:
+            unread = sizing.gigabytes(
+                -(-highest * sizing.BUDGET_SHARE_DENOMINATOR // sizing.BUDGET_SHARE_NUMERATOR))
+        _say(
+            errors.what_this_run_needs(
+                _shown(path), rows, columns, glanced,
+                [(one.step.words, sizing.hours(one.seconds), sizing.gigabytes(one.peak_bytes)) for one in needs],
+                unread,
+            )
+        )
+    return True
+
+
+def _profile_weighed(table: str) -> bool:
+    """`_weighed_before_starting` for `synthtwin profile`: the table glanced at once a run, before it is read.
+
+    The rows and columns come from the file's opening and its size on
+    disk (`reading.glance`); a workbook, a file of another system or a
+    file that cannot be glanced at is not weighed, and the run goes on to
+    the reader as before. Weighed once a run (`_Session.weighed`), so a
+    later round of answers is neither weighed nor said again.
+    """
+    from synthtwin import reading
+
+    session = _current()
+    if session is not None:
+        if session.weighed:
+            return True
+        session.weighed = True
+    glanced = reading.glance(table)
+    if glanced is None:
+        return True
+    return _weighed_before_starting(table, glanced.rows, glanced.columns, True, _JOURNEY_STEPS)
 
 
 def _run_profile(
@@ -11240,15 +11431,30 @@ def _the_one_round(
 
 
 def _the_one_round_on() -> bool:
-    """Whether this run puts its questions in the one round: the profile step of `synthtwin twin` with somebody at the keyboard.
+    """Whether this run puts its questions in the one round: a description with somebody at the keyboard.
 
     The twin is the command the person who holds the table runs (lane
-    Q-REVIEW measured it); `synthtwin profile` at a keyboard keeps its
-    rounds after the files, each judged against the ledger as the run
-    found it (step 1).
+    Q-REVIEW measured it), and since lane TOOLS `synthtwin profile` at a
+    keyboard puts its questions the same way: one round, grouped by kind,
+    before anything is written, so `twin` and `profile` ask alike. Nobody at
+    the keyboard -- a script, a pipe, a library run handed no reader --
+    nothing is asked and the one description is the whole run, as before.
     """
     session = _current()
-    return session is not None and session.twin_step and session.ask is not None
+    return (
+        session is not None
+        and session.ask is not None
+        and (session.twin_step or (session.command == results.PROFILE and _PROFILE_ONE_ROUND))
+    )
+
+
+# THE ONE ROUND FOR `profile` AT A KEYBOARD (lane TOOLS), on for every typed
+# command. The suite's conftest turns it off for the cases that put a
+# person at `profile`'s keyboard to pin the rounds after the files -- still
+# the path of an entry a later description raises -- and the cases of the
+# one round turn it back on (tests/test_profile_one_round.py), as
+# `_PATIENT_LAYER_SHIPPED` and `_KEYED_ZONE_SHIPPED` are switched there.
+_PROFILE_ONE_ROUND = True
 
 
 def _hold_the_screen() -> None:
@@ -12523,6 +12729,10 @@ def _run_profile_body(
                 step=results.STEP_OUTPUTS,
             )
             return results.REFUSED
+    # THE START-OF-RUN CHECK (lane SCALE): the table glanced at and weighed
+    # against this computer's memory once a run, before it is read.
+    if not _profile_weighed(table):
+        return results.REFUSED
     read = reading.read_table(
         table, first_row, sheet=sheet, metadata_rows=metadata_rows,
         # ...and whether the person confirmed a declaration the file
@@ -15795,6 +16005,10 @@ def _run_generate(
         loaded.settings.small_cell_floor, least_floor, description, True
     ):
         return results.REFUSED
+    # THE START-OF-RUN CHECK (lane SCALE): the twin's rows and columns, as
+    # the description gives them, weighed against this computer's memory.
+    if not _weighed_before_starting(description, loaded.n_rows, len(loaded.columns), False, ("generate",)):
+        return results.REFUSED
     _at(results.STEP_OUTPUTS)
     # A WORKBOOK'S TWIN IS A WORKBOOK, AND IT IS WRITTEN AS ONE (plan
     # P4-D79, which supersedes P4-D78's refusal). The description says
@@ -16240,6 +16454,10 @@ def _run_validate(
         loaded.settings.small_cell_floor, least_floor, description, False
     ):
         return results.REFUSED
+    # THE START-OF-RUN CHECK (lane SCALE): the checked file weighed as the
+    # description gives its rows and columns, against this computer's memory.
+    if not _weighed_before_starting(description, loaded.n_rows, len(loaded.columns), False, ("validate",)):
+        return results.REFUSED
     _at(results.STEP_OUTPUTS)
     measured = _measured_path(
         description, twin_given, loaded.source.workbook is not None,
@@ -16518,7 +16736,12 @@ def _library_version(package: str) -> str:
         return importlib.metadata.version(package)
     except Exception:  # noqa: BLE001 -- as in _version: the allowlist
         # (plan D6.2) permits only importlib.metadata.version.
-        return "of no recorded version"
+        return _NO_RECORDED_VERSION
+
+
+# What `_library_version` says of a library whose metadata this computer
+# does not hold.
+_NO_RECORDED_VERSION = "of no recorded version"
 
 
 def _check_numpy() -> _Check:
@@ -16565,6 +16788,45 @@ def _check_scipy() -> _Check:
     except Exception:  # noqa: BLE001 -- as in _check_numpy
         return _not_loaded("scipy", "check what is published")
     return _passed(f"scipy {_library_version('scipy')} can be loaded")
+
+
+# THE FIFTH LIBRARY (lane TOOLS): pyreadstat reads a SAS, Stata or SPSS
+# file, beside pyarrow's Parquet reader, and both are admitted in the one
+# module that reads a file from another system (lane FORMATS), so the
+# check loads that module rather than naming either library here. Only
+# such a file needs them: a CSV file or a workbook is read without them,
+# and the line says so, so a person whose table is a CSV knows what the
+# PROBLEM costs them.
+_STATISTICS_FILES = "a Parquet, SAS, Stata or SPSS file"
+
+
+def _check_pyreadstat() -> _Check:
+    # The same plain load as the other four, of the module that holds the
+    # readers; a load that fails is said in words that name what is
+    # missing: pyreadstat itself where this computer holds no copy of it,
+    # else the readers as a whole (pyreadstat is there, but it, or the
+    # Parquet reader beside it, does not load).
+    try:
+        import synthtwin.nativereading  # noqa: F401
+    except Exception:  # noqa: BLE001 -- as in _check_numpy
+        version = _library_version("pyreadstat")
+        if version == _NO_RECORDED_VERSION:
+            return _failed(
+                f"pyreadstat is missing from this computer, and synthtwin "
+                f"needs it to read {_STATISTICS_FILES} (a CSV file or a "
+                f"workbook is read without it). To put it in place, "
+                f"{_INSTALL_AGAIN}."
+            )
+        return _failed(
+            f"pyreadstat {version} is on this computer but the readers of "
+            f"{_STATISTICS_FILES} could not be loaded (a CSV file or a "
+            f"workbook is read without them). To put them in place, "
+            f"{_INSTALL_AGAIN}."
+        )
+    return _passed(
+        f"pyreadstat {_library_version('pyreadstat')} can be loaded "
+        f"(it reads SAS, Stata and SPSS files)"
+    )
 
 
 def _total_memory() -> "int | None":
@@ -16783,6 +17045,7 @@ _DOCTOR_CHECK_KEYS = (
     "pandas",
     "pyarrow",
     "scipy",
+    "pyreadstat",
     "output-folder",
     "memory",
     "table",
@@ -16802,6 +17065,7 @@ def _doctor_checks(table: "str | None", out_dir: "str | None") -> "list[_Check]"
         _check_pandas(),
         _check_pyarrow(),
         _check_scipy(),
+        _check_pyreadstat(),
     ]
     if out_dir is not None:
         folder = out_dir
@@ -17716,6 +17980,18 @@ def _twin_ended(
                     f"\n  {line}{_quoting_said(line)}"
                 )
             _say(said)
+    # THE CHECKS BEFORE THE TWIN LEAVES (lane TOOLS): the one word that runs
+    # the five twin-versus-real checks on this twin, taught last, on the
+    # person's own folder; it is no next command of the run (the run's next
+    # command stays the one that answers what is open).
+    check = ["synthtwin", _CHECK, table if table[:1] != "-" else os.path.join(".", table)]
+    if options.out_dir is not None:
+        check += _option_words("--out-dir", options.out_dir)
+    check_line = _typed_words(check)
+    _say(
+        f"Before the twin leaves this computer, run the five twin-versus-real "
+        f"checks on it:\n  {check_line}{_quoting_said(check_line)}"
+    )
     return deciding.verdict
 
 
@@ -18102,6 +18378,11 @@ def _dispatch(
     # LANE W5-F14: the study's other table (profile) or its description (generate).
     session.linked_to = "" if options.linked_to is None or validating else f"{options.linked_to}"
     try:
+        # THE FIVE TWIN-VERSUS-REAL CHECKS (lane TOOLS), whose refusals are
+        # shown as every command's are.
+        if options.command == _CHECK:
+            session.command = results.CHECK
+            return _run_check(options, small_tables_refused)
         if generating:
             return _run_generate(
                 named,
@@ -18236,6 +18517,174 @@ def _name_refusal(name: str) -> str:
     return ""
 
 
+# -- the five twin-versus-real checks in one word (lane TOOLS) -------------
+#
+# `synthtwin check TABLE` runs `synthtwin.twin_checks` on the twin
+# `synthtwin twin TABLE` wrote: the same five checks, the same report and
+# the same counts, never a value; then what the person does next, in
+# plain words. The twin is found where `twin` writes it (TABLE-synthtwin
+# beside the table, or `--out-dir`, named as `twin`'s own steps name it),
+# unless `--twin` names it; the person column is the one that twin was
+# built with, read from the description and questions file `twin` left in
+# that folder (`twin_checks.person_answered`), unless `--person` names it;
+# and the place answers of that questions file are read as the checks
+# read the one beside a table. The report is written beside the twin,
+# again on each check, as `python -m synthtwin.twin_checks` writes it.
+
+# Each check in the words a person reads, in the report's order.
+_CHECKS_SAID = (
+    ("C1", "no twin row is a copy of a real row"),
+    ("C2", "no twin row is closer to a real row than chance allows"),
+    ("C3", "no twin patient's readings or dates are a real patient's"),
+    ("C4", "no real identifier, age past 90 or rare real date is in the twin"),
+    ("C5", "no twin row holds a combination only one real row holds"),
+)
+
+
+def _check_said(code: str) -> str:
+    """One check's plain words, by its code (`_CHECKS_SAID`); the code itself for one it does not name."""
+    for named, said in _CHECKS_SAID:
+        if named == code:
+            return said
+    return code
+
+
+def _run_check(options: _Options, small_tables_refused: bool = True) -> str:
+    """`synthtwin check TABLE`: the five twin-versus-real checks of the twin `synthtwin twin TABLE` wrote (lane TOOLS).
+
+    Guarantees: reads the table, the twin, and the description and
+    questions file in the twin's folder; writes one file, the checks'
+    report beside the twin (`twin_checks.report_name`); shows the report's
+    counts, rates and verdicts and never a value of either table (the
+    report's own guarantee). Returns `no-miss` (exit 0) when every check
+    passed, `missed` (exit 3) when one failed, and raises ProfileError,
+    in words, where the table or the twin is not there or the report's
+    place is an input (the dispatch shows it and answers `refused`, exit
+    1); PathValidationError for a path that is not a plain local one.
+    The twin is never moved or changed. No network, subprocess, native or
+    dynamic-code operation. ``small_tables_refused`` is `main`'s INTERNAL
+    keyword of that name, handed to `twin_checks.run_checks`: True for
+    every typed command, so a table under the floor is refused as
+    `profile` refuses it.
+    """
+    from synthtwin import profile, reading, twin_checks
+
+    session = _current()
+    table = f"{options.given}"
+    source = pathlib.Path(validate_local_path(table, purpose="input"))
+    if not source.is_file():
+        raise errors.ProfileError(errors.file_missing(_shown(source)))
+    if len(options.persons) > 1:
+        _refuse_the_command_line(
+            "synthtwin check reads one person column: give --person once, "
+            "with the column that says which person each row is about."
+        )
+    if options.out_dir is not None:
+        folder = pathlib.Path(validate_local_path(options.out_dir, purpose="output folder"))
+    else:
+        folder = pathlib.Path(
+            validate_local_path(
+                f"{source.parent / (profile.table_stem(source.name) + _TWIN_FOLDER_MARK)}",
+                purpose="output folder",
+            )
+        )
+    stem = profile.table_stem(source.name)
+    description = folder / (stem + _PROFILE_MARK + ".json")
+    questions = folder / (stem + twin_checks.QUESTIONS_SUFFIX)
+    if options.twin is not None:
+        twin = pathlib.Path(validate_local_path(options.twin, purpose="input"))
+    else:
+        # Named as the twin's own generate step names it (`_twin_paths`):
+        # a workbook's twin a workbook, a file from another system's a file
+        # of that system, read off the table's opening bytes.
+        twin = pathlib.Path(
+            _twin_paths(description, None, reading.opens_as_a_workbook(table), reading.native_system_of(table))[0]
+        )
+    if not twin.is_file():
+        raise errors.ProfileError(errors.no_twin_to_check(_shown(twin)))
+    try:
+        report = twin_checks.report_place(table, f"{twin}")
+    except ValueError as refused:
+        raise errors.ProfileError(
+            errors.checks_report_over_an_input(_shown(pathlib.Path(f"{twin.parent}", twin_checks.report_name(twin.name))))
+        ) from refused
+    person = options.persons[0] if options.persons else twin_checks.person_answered(
+        f"{questions}", f"{description}", source.name
+    )
+    first_row = reading.FIRST_ROW_DATA if options.first_row == reading.FIRST_ROW_DATA else reading.FIRST_ROW_NAMES
+    _say(
+        f"synthtwin {_version()}: checking the twin {_shown(twin)} against your "
+        f"table {_shown(source)}, on this computer. Both are read; for a large "
+        f"table this takes a while."
+    )
+    try:
+        outcome = twin_checks.run_checks(
+            f"{source}",
+            f"{twin}",
+            person=person,
+            identifiers=tuple(f"{name}" for name in options.identifiers),
+            first_row=first_row,
+            small_tables_refused=small_tables_refused,
+            questions=f"{questions}",
+        )
+    except MemoryError:
+        if session is not None:
+            session.step = results.STEP_MEMORY
+        raise errors.ProfileError(errors.checks_out_of_memory(_shown(source))) from None
+    text = twin_checks.report_text(outcome)
+    try:
+        pathlib.Path(f"{report}").write_text(text, encoding="utf-8", newline="\n")
+    except OSError as error:
+        raise errors.ProfileError(errors.output_not_writable(_shown(report), _shown(error))) from error
+    _wrote((results.FILE_CHECKS_REPORT, pathlib.Path(f"{report}")))
+    _say("")
+    _say(text, "")
+    failed = [check.code for check in outcome.checks if not check.passed]
+    passed = len(outcome.checks) - len(failed)
+    if session is not None:
+        session.tally = (("checks", len(outcome.checks)), ("passed", passed), ("failed", len(failed)))
+    _say("\nThe five checks, in short:")
+    for check in outcome.checks:
+        mark = "PASS" if check.passed else "FAIL"
+        if not check.measured:
+            mark = "n/a "
+        _say(f"  {mark}  {check.code}: {_check_said(check.code)}")
+    if any(not check.measured for check in outcome.checks):
+        _say("  (n/a: nothing on this table for that check to measure; the report says why. It counts as passed.)")
+    _say(f"The report is in {_shown(report)}.")
+    if not failed:
+        _say(
+            "\nRESULT: PASS. The twin passed all five checks. It may leave this "
+            "computer once your institution approves; only the twin and its "
+            "report leave, and the table, the description, the questions file "
+            "and this report stay."
+        )
+        return results.NO_MISS
+    listed = ""
+    for code in failed:
+        listed = code if not listed else listed + ", " + code
+    again = ["synthtwin", _TWIN, table if table[:1] != "-" else os.path.join(".", table)]
+    if options.out_dir is not None:
+        again += _option_words("--out-dir", options.out_dir)
+    again += ["--replace"] + _option_words("--seed", "2")
+    check_again = ["synthtwin", _CHECK, table if table[:1] != "-" else os.path.join(".", table)]
+    if options.out_dir is not None:
+        check_again += _option_words("--out-dir", options.out_dir)
+    if options.twin is not None:
+        check_again += _option_words("--twin", options.twin)
+    _next(results.PURPOSE_TWIN, *again)
+    _say(
+        f"\nRESULT: FAIL ({listed}). Do not let this twin leave this computer.\n"
+        f"Make another twin with another seed (any whole number not used "
+        f"before), then check it again:\n"
+        f"  {_typed_words(again)}\n"
+        f"  {_typed_words(check_again)}\n"
+        f"If the same check fails again, keep every twin of this table on "
+        f"this computer and ask the project, naming the check that failed."
+    )
+    return results.MISSED
+
+
 def _run_help(topic: "str | None") -> str:
     """Show `synthtwin help [TOPIC]`: the index, one command's page, or the examples (lane TT, plan P4-D460).
 
@@ -18254,9 +18703,9 @@ def _run_help(topic: "str | None") -> str:
     _warn(
         f"synthtwin has no help page called {_shown(topic)}. Type one of  "
         f"synthtwin help twin  ,  synthtwin help profile  ,  synthtwin help "
-        f"generate  ,  synthtwin help validate  ,  synthtwin help doctor  or  "
-        f"synthtwin help examples  , or  synthtwin --help  for every option "
-        f"in full."
+        f"generate  ,  synthtwin help validate  ,  synthtwin help doctor  ,  "
+        f"synthtwin help check  or  synthtwin help examples  , or  synthtwin "
+        f"--help  for every option in full."
     )
     return results.UNUSABLE
 
@@ -18264,14 +18713,14 @@ def _run_help(topic: "str | None") -> str:
 def _command_word(argv: "list[str] | None") -> str:
     """The command a command line names, read before it is parsed, or "".
 
-    The first of `profile`, `generate`, `validate`, `doctor`, `twin` and
-    `help` among the words, so a command line refused before its command
-    ran still says which command it was for; the branch that runs sets it
-    again.
+    The first of `profile`, `generate`, `validate`, `doctor`, `twin`,
+    `help` and `check` among the words, so a command line refused before
+    its command ran still says which command it was for; the branch that
+    runs sets it again.
     """
     words = sys.argv[1:] if argv is None else argv
     for word in words:
-        if word in (_PROFILE, _GENERATE, _VALIDATE, _DOCTOR, _TWIN):
+        if word in (_PROFILE, _GENERATE, _VALIDATE, _DOCTOR, _TWIN, _CHECK):
             return f"{word}"
         if word == _HELP_WORD:
             return results.HELP

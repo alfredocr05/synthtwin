@@ -1007,7 +1007,7 @@ def test_every_example_parses_and_help_refuses_a_page_it_lacks(tmp_path: pathlib
             words = line.split()
             if line.startswith("  synthtwin ") and "--help" not in words:
                 options = cli._parse_arguments(words[1:], None)
-                assert options.command in ("profile", "generate", "validate", "doctor", "twin", "help"), line
+                assert options.command in ("profile", "generate", "validate", "doctor", "twin", "help", "check"), line
     refused = cli.run(["help", "nothing-here"], screen=[])
     assert refused.verdict == results.UNUSABLE and results.exit_code(refused) == 2
     assert parsing.visible_lines("x") == "x"

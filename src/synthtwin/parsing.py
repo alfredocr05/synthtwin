@@ -5642,7 +5642,55 @@ def _outside_number_alphabet(body: str) -> bool:
     return False
 
 
+# THE READINGS KEPT (lane SCALE). A column of 2,000,000 numbers written to
+# one decimal holds about a thousand different cells, and the twin's writer
+# and the validator read each of its cells as a number some twenty times
+# over (measured on the invented dense table: `parse_number` about a sixth
+# of `synthtwin generate`'s time at 100,000 rows). Each reading below is a
+# fixed function of the text alone, so its answer is kept by the text it
+# was read from, the same answer every time (a text compares and hashes
+# by its characters: the one subclass of `str` in this package,
+# `taxonomy.Note`, changes neither), and at most `_KEPT_MOST` texts a
+# reading, the kept answers let go all at once when that is reached, so a
+# column of all-different values costs one look and one entry a cell and
+# never more memory than the bound; a text longer than `_KEPT_LONGEST`
+# characters (a note, never a number a column repeats) is read afresh and
+# never kept, so the bound holds in bytes too. No answer, and so no byte of
+# any output, depends on what is kept.
+_KEPT_MOST = 65_536
+_KEPT_LONGEST = 64
+
+
+class _Kept:
+    """The readings kept by their texts: `parse_number`'s and `classify_number`'s (one holder for the process)."""
+
+    numbers: "dict[str, float | None]" = {}
+    classes: "dict[str, str]" = {}
+
+
 def parse_number(text: str) -> "float | None":
+    """`number_read` of ``text``, kept by the text (`_Kept`; lane SCALE): the same answer, read once a text.
+
+    Guarantees: those of `number_read`, whose answer this returns for
+    every text; raises TypeError if handed anything that is not a string
+    instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(text) > _KEPT_LONGEST:
+        return number_read(text)
+    kept = _Kept.numbers
+    if text in kept:
+        return kept[text]
+    found = number_read(text)
+    if len(kept) >= _KEPT_MOST:
+        kept = {}
+        _Kept.numbers = kept
+    kept[text] = found
+    return found
+
+
+def number_read(text: str) -> "float | None":
     """Read ``text`` as a number, or return None if it is not one.
 
     Accepted forms (plan P1-D4): a plain decimal number, optionally
@@ -5920,6 +5968,28 @@ def is_padded(text: str) -> bool:
 
 
 def classify_number(text: str) -> str:
+    """`number_class` of ``text``, kept by the text (`_Kept`; lane SCALE): the same answer, read once a text.
+
+    Guarantees: those of `number_class`, whose answer this returns for
+    every text; raises TypeError if handed anything that is not a string
+    instance. No I/O of any kind.
+    """
+    if not isinstance(text, str):
+        raise TypeError(_NOT_TEXT)
+    if len(text) > _KEPT_LONGEST:
+        return number_class(text)
+    kept = _Kept.classes
+    if text in kept:
+        return kept[text]
+    found = number_class(text)
+    if len(kept) >= _KEPT_MOST:
+        kept = {}
+        _Kept.classes = kept
+    kept[text] = found
+    return found
+
+
+def number_class(text: str) -> str:
     """Say, once, what a cell is numerically.
 
     Returns NUMBER for a value this format can hold;

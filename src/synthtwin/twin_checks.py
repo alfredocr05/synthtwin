@@ -29,14 +29,18 @@ THE FIVE CHECKS.
 - C3, patient copy: twin patients of five rows or more whose readings,
   or whose dates, are a real patient's (each patient's rows taken as a
   set, so a copy in another order, or with its rows written twice,
-  still counts).
+  still counts), against the halves and against what chance makes of
+  the real table's own rows dealt again among its patients
+  (`_dealt_again`).
 - C4, identifiers and dates: a twin cell of an identifier column equal
   to a real one of that column, read as one key (`parsing.merged_key`),
   a short list of persons' names among them (`a_listed_detail`); an
   age past 90 in a column named as an age; a text cell holding a
   person's details (the product's readers of names, telephone numbers,
-  record numbers and addresses) equal to a real cell, or holding one of
-  its names or numbers in other words (`elements`); and rare real dates
+  record numbers and addresses) equal to a real cell that 1 to 10
+  people hold (a whole value eleven people share is what a description
+  may publish: release 37), or holding one of the names or numbers of
+  any such real cell in other words (`elements`); and rare real dates
   (held by 1 to 10 people) written into the twin more often than a
   fresh draw writes them (a made-up day landing on a real calendar day
   by chance is the fresh draw's too), a date read at its calendar day
@@ -57,8 +61,16 @@ lies in one half and is counted there. The allowance over the fresh
 rate is 1 per 10,000 rows plus three standard errors of the two rates;
 C1 drops the 1 per 10,000 where a column of numbers is written with
 more than two decimals, as a table of measurements is, where chance
-makes no exact copy. C2's yardstick is the real table itself: each real
-row's nearest other real row. C4's identifiers, ages and details allow
+makes no exact copy. C3 allows no more than the halves' own rate and
+its spread, or, where it is wider, what chance makes of the real
+table's own rows dealt again among its patients (`_dealt_again`,
+release 37's lane PRIVACY: a FRESH REAL SAMPLE of the type battery's
+clinical and flowsheet tables, drawn again from their grammar at six
+other seeds and read as the twin, failed the halves' rule alone 8 times
+in 12 -- a patient's five common readings, `59 %` to `72 %`, are
+another's by chance, and the halves, each against a reference of half
+the table, see too few pairs to meet one). C2's yardstick is the real
+table itself: each real row's nearest other real row. C4's identifiers, ages and details allow
 none.
 
 THE SEAM FOR THE INSIDE RECORD. Which column is the person, which are
@@ -128,6 +140,15 @@ DETAILS_SHARE = 500
 DETAILS_SAMPLE = 400
 # C3 reads patients of at least this many rows.
 PATIENT_ROWS_LEAST = 5
+# C3's chance yardstick (`_dealt_again`, release 37): the rounds in which the
+# real patients' rows are dealt again among them, and the salt of the mix.
+SHUFFLE_ROUNDS = 8
+_SHUFFLE_SALT = 0x5C3A11D
+# The one-sided tail a chance count is read at (`_chance_count_at_most`): the
+# normal law's past `NOISE_ERRORS` standard errors, and a bound on the count.
+_CHANCE_TAIL = 0.00135
+_CHANCE_POISSON_MOST = 100.0
+_CHANCE_TERMS_MOST = 1000
 # C4: an age above this, in a column named as an age, is past the top
 # code (the product writes an age past 89 as 90).
 AGE_TOP = 90
@@ -1274,18 +1295,36 @@ def _fresh_dates(
     return tally
 
 
-def _details_held(cells: "list[str]", read: _Cells) -> "set[int]":
-    """The digests of the different text cells that hold a person's details."""
-    seen: "set[int]" = set()
-    held: "set[int]" = set()
+def _details_held(cells: "list[str]", read: _Cells, units: "list[int]") -> "tuple[set[int], set[int]]":
+    """The digests of the different text cells that hold a person's details, and of those that 1 to `RARE_HOLDERS_MOST` people hold (a person counted once a value; each row its own person where no column names one).
+
+    A TWIN CELL EQUAL TO A REAL ONE IS COUNTED ONLY WHERE FEW PEOPLE HOLD IT
+    (release 37, lane PRIVACY): a whole cell eleven people or more share is
+    a value the description may publish and the twin write, as the floor of
+    every other reading has it. The type battery's clinical table holds 36
+    months of a year with the day unknown (`UNK-03-2022`), each on about 120
+    patients' rows, which the readers of a person's details read as one; C4
+    counted the twin's 3,994 such cells as copies and failed the twin. The
+    names and numbers inside a real cell (`elements`) are still read from
+    every cell holding a person's details, however many share it: a
+    relative's name in other words is counted wherever it stands (the batch
+    4w review's item 4).
+    """
+    seen: "dict[int, bool]" = {}
+    holders: "dict[int, set[int]]" = {}
     for row in range(len(cells)):
         digest = read.digests[row]
-        if digest == _MISSING_DIGEST or digest in seen:
+        if digest == _MISSING_DIGEST:
             continue
-        seen |= {digest}
-        if a_persons_detail(cells[row]):
-            held |= {digest}
-    return held
+        if digest not in seen:
+            seen[digest] = a_persons_detail(cells[row])
+        if seen[digest]:
+            if digest not in holders:
+                holders[digest] = set()
+            if len(holders[digest]) <= RARE_HOLDERS_MOST:
+                holders[digest] |= {units[row]}
+    every = set(holders)
+    return every, {digest for digest in every if len(holders[digest]) <= RARE_HOLDERS_MOST}
 
 
 def _element_digests(cell: str, held: bool, memo: "dict[str, frozenset[int]]") -> "frozenset[int]":
@@ -1435,9 +1474,9 @@ def _walk_real(table: reading.Table, plan: "Plan | None", person: str, seed: int
             if column.kind == KIND_IDENTIFIER:
                 real.identifier_sets[at] = set(digest for digest in read.digests if digest != _MISSING_DIGEST)
             if column.kind == KIND_TEXT:
-                details = _details_held(cells, read)
-                real.detail_sets[at] = details
-                real.element_sets[at] = _held_elements(cells, read, details)
+                every_detail, rare_details = _details_held(cells, read, side.unit)
+                real.detail_sets[at] = rare_details
+                real.element_sets[at] = _held_elements(cells, read, every_detail)
             columns += [column]
     real.plan = Plan(tuple(columns), person_at, real.plan.source)
     _side_held(side)
@@ -1512,7 +1551,8 @@ def _allowed_rate(tally: _Tally, strict: bool) -> "tuple[float, float, float]":
     over the real table's people (`_design_effect`).
 
     STRICT (C1 where a column of numbers is written with more than two
-    decimals, and C3): the allowance is the fresh rate and
+    decimals, and C3, beside its own yardstick `_dealt_again`): the
+    allowance is the fresh rate and
     `NOISE_ERRORS` standard errors of the fresh halves' own rates, and
     nothing for the twin's: where no fresh half matches the other, no
     twin match is allowed. OTHERWISE (C1 of other tables, the dates of
@@ -1637,8 +1677,8 @@ def _patients(side: _Side, words: "list[int] | bytearray", present: bytearray) -
     }
 
 
-def _patient_tally(real_side: _Side, real: _Real, twin_side: _Side, readings: bool) -> _Tally:
-    """C3's counts on readings or on dates: twin patients equal to a patient of each half, and each half's against the other."""
+def _patient_tally(real_side: _Side, real: _Real, twin_side: _Side, readings: bool) -> "tuple[_Tally, list[set[int]]]":
+    """C3's counts on readings or on dates: twin patients equal to a patient of each half, and each half's against the other; and the sets of each half's patients."""
     real_digests = real_side.reading_digest if readings else real_side.date_digest
     real_present = real_side.reading_present if readings else real_side.date_present
     twin_digests = twin_side.reading_digest if readings else twin_side.date_digest
@@ -1665,25 +1705,106 @@ def _patient_tally(real_side: _Side, real: _Real, twin_side: _Side, readings: bo
         tally.twin_total += 1
         tally.twin_in_first += 1 if signature in sets[0] else 0
         tally.twin_in_second += 1 if signature in sets[1] else 0
-    return tally
+    return tally, sets
 
 
-def _check_patients(real_side: _Side, real: _Real, twin_side: _Side) -> Check:
-    """C3: twin patients holding a real patient's readings, or dates, against each half's patients against the other's."""
+def _dealt_again(real_side: _Side, readings: bool, sets: "list[set[int]]", seed: int) -> "tuple[int, int]":
+    """C3'S CHANCE YARDSTICK AT THE TWIN'S OWN SIZE (release 37, lane PRIVACY): the rows of the real patients C3 reads (`PATIENT_ROWS_LEAST` rows or more, a value present) dealt again among them at random -- a fixed mix of the seed (`_mix`), `SHUFFLE_ROUNDS` rounds -- each pseudo-patient keeping a real patient's number of rows; returns how many of the pseudo-patients' sets are a real patient's of each half (summed, as the twin's are) and how many pseudo-patients were dealt.
+
+    A pseudo-patient is no person: its rows are the real table's, one
+    person's history broken up, so a set it holds that a real patient
+    holds is one CHANCE makes from the values the table holds. Where the
+    values are few and coarse -- five saturations of a common range -- it
+    makes some; where a history is a long list of exact values or dates,
+    none. The halves alone, each half the table against the other, see
+    too few pairs to tell the two apart.
+    """
+    digests = _words_listed(real_side.reading_digest if readings else real_side.date_digest)
+    present = real_side.reading_present if readings else real_side.date_present
+    rows_of: "dict[int, list[int]]" = {}
+    shown: "set[int]" = set()
+    for row in range(real_side.rows):
+        unit = real_side.unit[row]
+        if unit in rows_of:
+            rows_of[unit] += [row]
+        else:
+            rows_of[unit] = [row]
+        if present[row]:
+            shown |= {unit}
+    units = [unit for unit in sorted(rows_of) if len(rows_of[unit]) >= PATIENT_ROWS_LEAST and unit in shown]
+    pool = [digests[row] for unit in units for row in rows_of[unit]]
+    matched = 0
+    dealt = 0
+    for round_ in range(SHUFFLE_ROUNDS):
+        # ...dealt by a Fisher-Yates walk whose draws are a fixed mix of the seed and the round.
+        salt = _mix(seed * SHUFFLE_ROUNDS + round_ + _SHUFFLE_SALT)
+        for place in range(len(pool) - 1, 0, -1):
+            other = _mix(salt + place) % (place + 1)
+            pool[place], pool[other] = pool[other], pool[place]
+        at = 0
+        for unit in units:
+            size = len(rows_of[unit])
+            signature = hash(tuple(sorted(set(pool[at:at + size]))))
+            at += size
+            dealt += 1
+            matched += (1 if signature in sets[0] else 0) + (1 if signature in sets[1] else 0)
+    return matched, dealt
+
+
+def _chance_count_at_most(expected: float) -> int:
+    """The most matches a count with this expectation reaches by chance: the least whole number a Poisson count of that mean passes with a probability no greater than `_CHANCE_TAIL`, the one-sided tail past `NOISE_ERRORS` standard errors -- its terms summed in turn and read against their whole sum (no exponential function), or, past a mean of `_CHANCE_POISSON_MOST`, the normal law's `NOISE_ERRORS` standard errors over the mean. Raises nothing."""
+    if expected > _CHANCE_POISSON_MOST:
+        return int(expected + NOISE_ERRORS * math.sqrt(expected)) + 1
+    terms = [1.0]
+    while len(terms) < _CHANCE_TERMS_MOST and (len(terms) <= expected or terms[-1] > terms[0] * 1e-18):
+        terms += [terms[-1] * expected / len(terms)]
+    whole = math.fsum(terms)
+    below = 0.0
+    for count in range(len(terms)):
+        below = below + terms[count]
+        if 1.0 - below / whole <= _CHANCE_TAIL:
+            return count
+    return len(terms)
+
+
+def _patient_rate_check(what: str, tally: _Tally, chance: "tuple[int, int]") -> "tuple[bool, tuple[str, ...]]":
+    """C3's rule: the STRICT allowance of the fresh halves (`_allowed_rate`), or, where it is wider and the real table's own rows dealt again among its patients (`_dealt_again`) met a real patient's set at all, the most matches a twin of its size reaches by chance at that yardstick's rate read one match high (its count plus one over the pseudo-patients dealt: a rate read from a few matches is read at its upper side; `_chance_count_at_most`); its two lines. Where the dealt rows met no real patient's set, the halves' strict allowance stands: no chance copy was seen, so none is allowed."""
+    twin, fresh, allowed = _allowed_rate(tally, True)
+    matched, dealt = chance
+    shuffled = matched / dealt if dealt else 0.0
+    if matched and dealt and tally.twin_total:
+        expected = (matched + 1) / dealt * tally.twin_total
+        allowed = max(allowed, _chance_count_at_most(expected) / tally.twin_total)
+    found = tally.twin_in_first + tally.twin_in_second
+    lines = (
+        f"{found} of {tally.twin_total} twin {what} match ({_ten_thousandths(twin)} per 10,000).",
+        f"A fresh half of the real table against the other: {_ten_thousandths(fresh)} per 10,000; the real "
+        f"table's own rows dealt again among its patients: {_ten_thousandths(shuffled)} per 10,000; allowed up to "
+        f"{_ten_thousandths(allowed)} per 10,000.",
+    )
+    return twin <= allowed, lines
+
+
+def _check_patients(real_side: _Side, real: _Real, twin_side: _Side, seed: int = DEFAULT_SEED) -> Check:
+    """C3: twin patients holding a real patient's readings, or dates, against each half's patients against the other's, and against the real table's own rows dealt again among its patients (`_dealt_again`, release 37)."""
     if real.plan.person < 0:
         return Check("C3", "patient copy", False, True, ("No person column: the rows are the people, and C1 and C2 read them.",))
     lines: "list[str]" = []
     passed = True
     measured = False
     for readings, what in ((True, "readings"), (False, "dates")):
-        tally = _patient_tally(real_side, real, twin_side, readings)
+        tally, sets = _patient_tally(real_side, real, twin_side, readings)
         if tally.first_total == 0 or tally.second_total == 0 or tally.twin_total == 0:
             lines += [f"On {what}: no patient of {PATIENT_ROWS_LEAST} rows or more holds any; not measured."]
             continue
         measured = True
-        one, said = _rate_check(f"patients' {what} matches against each half", tally, True)
+        one, said = _patient_rate_check(f"patients' {what} matches against each half", tally,
+                                        _dealt_again(real_side, readings, sets, seed))
         passed = passed and one
         lines += [f"On {what}: {line}" for line in said]
+    if measured:
+        lines += ["Allowance: what chance gives, read on the real table's own rows dealt again among its patients "
+                  "and on its halves; none where neither meets a real patient's set."]
     return Check("C3", "patient copy", measured, passed, tuple(lines))
 
 
@@ -2010,7 +2131,7 @@ def _read(raw_path: str, first_row: str) -> reading.Table:
 QUESTIONS_SUFFIX = "-questions.json"
 
 
-def place_names_answered(real_path: str, names: "list[str]") -> "tuple[str, ...]":
+def place_names_answered(real_path: str, names: "list[str]", questions: str = "") -> "tuple[str, ...]":
     """The columns named as places that the questions file beside the real table answers a code, a measurement or `no`.
 
     The questions file `synthtwin profile` writes beside the table
@@ -2035,11 +2156,16 @@ def place_names_answered(real_path: str, names: "list[str]") -> "tuple[str, ...]
     `{"arbitrary": [{"column": "zip_code", "your_answer": "no"}]}` turned
     C4 green on a twin holding the real table's 20,000 ZIP codes. A file
     that is not synthtwin's, names another table, or cannot be checked
-    frees nothing. Guarantees: reads that one file, writes nothing,
-    raises nothing.
+    frees nothing. ``questions``, where given, is the questions file to
+    read in place of the one beside the table: `synthtwin check` hands the
+    one `synthtwin twin` wrote into the twin's own folder (lane TOOLS),
+    held to the same rules. Guarantees: reads that one file, writes
+    nothing, raises nothing.
     """
     beside = pathlib.Path(f"{real_path}")
     target = f"{pathlib.Path(f'{beside.parent}', f'{beside.stem}{QUESTIONS_SUFFIX}')}"
+    if questions:
+        target = f"{questions}"
     try:
         checked = validate_local_path(target, purpose="questions file")
         if not os.path.isfile(f"{checked}"):
@@ -2059,6 +2185,49 @@ def place_names_answered(real_path: str, names: "list[str]") -> "tuple[str, ...]
     return tuple(found)
 
 
+def _own_file(path: str) -> "dict[str, object] | None":
+    """A JSON document at a local path, or None where it is not there, cannot be read, or is no document."""
+    try:
+        checked = validate_local_path(path, purpose="questions file")
+        if not os.path.isfile(f"{checked}"):
+            return None
+        document = json.loads(pathlib.Path(f"{checked}").read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(document, dict):
+        return None
+    return document
+
+
+def person_answered(questions: str, description: str, table_name: str) -> str:
+    """The person column the twin of a table was built with, read from the files `synthtwin twin` left in its folder (lane TOOLS).
+
+    THE TWO FILES ARE TRUSTED ONLY TOGETHER AND ONLY ABOUT THIS TABLE.
+    The questions file must be synthtwin's own about the table named
+    ``table_name`` (its `table` names that file); then the description
+    written beside it by the same run gives the person column its
+    settings were written under (`settings.person_columns`, a typed
+    `--person` or an answer), where it names exactly one; else the
+    questions file's answer to who each row is about
+    (`asking.rows_per_person_answer`), where that names a column. "" where
+    neither says, where the questions file is another table's or is not
+    there, or where a file cannot be read: the checks then read the person
+    column from the names and the cells, as they always did.
+    Guarantees: reads those two files at most, writes nothing, raises
+    nothing; returns a column NAME, never a value of the table.
+    """
+    document = _own_file(questions)
+    if document is None or "table" not in document or document["table"] != table_name:
+        return ""
+    described = _own_file(description)
+    settings = described["settings"] if described is not None and "settings" in described else None
+    persons = settings["person_columns"] if isinstance(settings, dict) and "person_columns" in settings else None
+    if isinstance(persons, list) and len(persons) == 1 and isinstance(persons[0], str) and persons[0]:
+        return f"{persons[0]}"
+    answer, column = asking.rows_per_person_answer(document)
+    return f"{column}" if answer and column else ""
+
+
 def run_checks(
     real_path: str,
     twin_path: str,
@@ -2070,6 +2239,7 @@ def run_checks(
     plan: "Plan | None" = None,
     first_row: str = reading.FIRST_ROW_NAMES,
     small_tables_refused: bool = True,
+    questions: str = "",
 ) -> Outcome:
     """The five checks of a twin against its real table.
 
@@ -2096,9 +2266,11 @@ def run_checks(
     the real table's, a person column the real table does not hold, or
     a table under the floor; PathValidationError for a path that is not
     a local file. Reads the two files, and where no ``plan`` is given the
-    questions file beside the real table, whose answers free a column
-    named as a place that the person answered a code and that no answer
-    of this run names (`place_names_answered`); writes nothing.
+    questions file beside the real table -- or the one ``questions``
+    names, where given (lane TOOLS: `synthtwin check` names the one in the
+    twin's folder) -- whose answers free a column named as a place that
+    the person answered a code and that no answer of this run names
+    (`place_names_answered`); writes nothing.
     """
     names: "dict[str, str]" = {}
     for name in identifiers:
@@ -2115,7 +2287,7 @@ def run_checks(
     # of its 20,000 twin codes as a copied identifier, every one the
     # published code it is.
     if plan is None:
-        for name in place_names_answered(real_path, real_table.column_names):
+        for name in place_names_answered(real_path, real_table.column_names, questions):
             if name not in names:
                 names[name] = ROLE_NOT_IDENTIFIER
     if plan is None and names:
@@ -2156,7 +2328,7 @@ def run_checks(
     checks = (
         _check_rows(real_side, real, twin_side),
         _check_distances(real_side, real, twin_side, twin, chosen, seed),
-        _check_patients(real_side, real, twin_side),
+        _check_patients(real_side, real, twin_side, seed),
         _check_identifiers(real, twin),
         _check_combinations(real_side, real, twin_side),
     )

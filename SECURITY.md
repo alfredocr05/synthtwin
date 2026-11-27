@@ -422,12 +422,13 @@ Stated here so that no reader has to discover them independently:
   published, because the twin carries relations fitted on the real
   rows; what bounds the twin instead is that every Safe Harbor rule is
   applied to it, its identifiers are made up, and the five
-  twin-versus-real checks (`python -m synthtwin.twin_checks REAL TWIN`:
-  exact row copies, nearest-record distance, patient copies,
-  identifiers and rare dates, rare combinations) read the twin against
-  the real table on that computer. They are a separate step a person
-  runs before the twin leaves, not part of `synthtwin twin`, and the
-  Windows ready folder gives them no command word yet.
+  twin-versus-real checks (`synthtwin check TABLE`, or `python -m
+  synthtwin.twin_checks REAL TWIN`: exact row copies, nearest-record
+  distance, patient copies, identifiers and rare dates, rare
+  combinations) read the twin against the real table on that computer.
+  They are a separate step a person runs before the twin leaves, not
+  part of `synthtwin twin`; the one word works in the Windows ready
+  folder's window as in any install.
   The other half bounds what a researcher may conclude: the relations
   are approximate and the twin can show one the table does not have, so
   any effect the twin shows is checked on the real table, which is why

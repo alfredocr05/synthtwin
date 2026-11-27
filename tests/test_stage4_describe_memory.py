@@ -782,6 +782,14 @@ def _h3_values(shape: str, rows: int) -> "list[str]":
     return made
 
 
+def _kept_readings_held(monkeypatch: pytest.MonkeyPatch, most: int) -> None:
+    """The number readings kept by their texts (lane SCALE: `parsing._Kept`, process-wide, at most `_KEPT_MOST` texts a
+    reading) held to ``most`` texts and started empty, as the spelling and layout memos are held here."""
+    monkeypatch.setattr(parsing, "_KEPT_MOST", most)
+    monkeypatch.setattr(parsing._Kept, "numbers", {})
+    monkeypatch.setattr(parsing._Kept, "classes", {})
+
+
 def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> float:
     """The most `tracemalloc` sees held above the column's own cells while it is described, a row.
 
@@ -794,6 +802,10 @@ def _h3_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch) -> fl
     monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", 1_024)
     monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", 128)
     monkeypatch.setattr(taxonomy, "LAYOUT_MEMO_TEXTS", 1_024)
+    # ...and the number readings kept by their texts (lane SCALE, release 37), held as these memos are: at most
+    # `parsing._KEPT_MOST` texts a reading whatever the rows, so at 20,000 rows of all-different values they were
+    # counted a row (record numbers 525, numbers 316 traced bytes a row on the merged head).
+    _kept_readings_held(monkeypatch, 1_024)
     taxonomy.profile_column("warm", 1, values[:200], 200, _SETTINGS)
     gc.collect()
     tracemalloc.start()
@@ -1050,6 +1062,7 @@ def _h3_repair_traced_a_row(values: "list[str]", monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(parsing, "SPELLING_MEMO_TEXTS", memo)
     monkeypatch.setattr(parsing, "SPELLING_MEMO_NOTED", max(8, memo // 8))
     monkeypatch.setattr(taxonomy, "LAYOUT_MEMO_TEXTS", memo)
+    _kept_readings_held(monkeypatch, memo)
     taxonomy.profile_column("warm", 1, values[:200], 200, _SETTINGS)
     gc.collect()
     tracemalloc.start()
@@ -1503,7 +1516,11 @@ def test_a_value_its_cells_write_as_one_exact_number_is_counted_by_its_run() -> 
 
 # Measured, Python 3.11, 20,000 rows, the shipped memos: 130.3 traced bytes a
 # row (4682d6ad 248.7, 6d4cb0b2 307.2).
-def test_numbers_each_written_twice_hold_under_two_hundred_bytes_a_row() -> None:
+def test_numbers_each_written_twice_hold_under_two_hundred_bytes_a_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    # ...lane SCALE's number readings kept by their texts (release 37) started empty and held small: a process-wide
+    # cache of at most `parsing._KEPT_MOST` texts a reading whatever the rows, it read 209 traced bytes a row here
+    # when it started empty at its shipped bound and passed where an earlier case of the process had filled it.
+    _kept_readings_held(monkeypatch, 1_024)
     values = [f"{100001 + k}" for k in range(10_000)] * 2
     taxonomy.profile_column("warm", 1, values[:200], 200, _SETTINGS, forced_measurement=True)
     gc.collect()

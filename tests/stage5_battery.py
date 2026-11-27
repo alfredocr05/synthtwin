@@ -905,7 +905,8 @@ TWIN_CASES: "tuple[Case, ...]" = (
 )
 # THE CASES `K-S5-01` ALONE RUNS (part 5): the reader that ends input at
 # its first prompt (Q1), the two injected faults (I1, I2), the doctor's
-# three memory readings (DR1 to DR3, the reading fixed by the test), and a
+# three memory readings (DR1 to DR3, the reading fixed by the test; nine
+# checks since lane TOOLS added pyreadstat's line), and a
 # floor of 5 carried from profile to validate through the internal
 # setting, which no command line reaches since plan P4-D426 (G9i, G11i),
 # and the good generate run the table floor took from G2 (G1n, G2n).
@@ -990,7 +991,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         recorded=False, fault="memory-16-GiB",
         expect=Expect(
             "no-miss", command="doctor", exit=0,
-            tally=(("checks", 8), ("passed", 8), ("failed", 0), ("not-made", 0)),
+            tally=(("checks", 9), ("passed", 9), ("failed", 0), ("not-made", 0)),
             next_words=("synthtwin", "profile", "t.csv", "--out-dir", "out"),
             next_purpose="profile", carried=(),
         ),
@@ -1000,7 +1001,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         recorded=False, fault="memory-unread",
         expect=Expect(
             "no-miss", command="doctor", exit=0,
-            tally=(("checks", 8), ("passed", 6), ("failed", 0), ("not-made", 2)),
+            tally=(("checks", 9), ("passed", 7), ("failed", 0), ("not-made", 2)),
             next_words=("synthtwin", "profile", "t.csv", "--out-dir", "out"),
             next_purpose="profile", carried=(),
         ),
@@ -1010,7 +1011,7 @@ UNRECORDED: "tuple[Case, ...]" = (
         recorded=False, fault="memory-100000-bytes",
         expect=Expect(
             "refused", command="doctor", exit=1, step="environment",
-            tally=(("checks", 8), ("passed", 7), ("failed", 1), ("not-made", 0)),
+            tally=(("checks", 9), ("passed", 8), ("failed", 1), ("not-made", 0)),
             next_words=("synthtwin", "doctor", "t.csv", "--out-dir", "out"),
             next_purpose="doctor", carried=(),
         ),

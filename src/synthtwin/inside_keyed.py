@@ -2375,20 +2375,25 @@ def _gaps_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", out:
 def _copies_written(zone: "dict[str, object]", cells: "dict[str, list[str]]", out: "dict[str, list[str]]") -> None:
     """Each copy by its rule: the source's cell where it is a plain number (never past the copy's top code, the
     whole column's or its row's key level's), its sentinel elsewhere; a row whose two cells are both empty stays
-    so. A copy whose source a level holds as identifiers is not written (its made-up cells would land in a published
-    column), nor one any of whose own key blocks the description holds (batch 4y's fix round), nor one whose
-    sentinel the description's twin does not write. A copy whose source a level writes under a top code IS written
-    by its rule (lane STATS-B, reversing lane IN-4c's hold): its cells on that level's rows are the source's, so
-    never past the source's top code, and a copy is never more than its source shows. Held back, the copy was the
+    so. A copy any of whose own key blocks the description holds is not written (batch 4y's fix round), nor one
+    whose sentinel the description's twin does not write. A copy whose source a level writes under a top code IS
+    written by its rule (lane STATS-B, reversing lane IN-4c's hold): its cells on that level's rows are the source's,
+    so never past the source's top code, and a copy is never more than its source shows. Held back, the copy was the
     description's twin's own column, its sentinel on about one row in twelve of every test and its numbers no
     test's, so an analysis reading the copy (a potassium mean, the sentinel filtered out) read 25,927 against the
     real 4.1; written, the copy's own facts the cap moves (its numbers above 90 on the capped levels' rows) are the
-    price."""
+    price. AND A COPY WHOSE SOURCE ONE LEVEL HOLDS AS IDENTIFIERS IS WRITTEN TOO (lane STATS-D, reversing lane
+    IN-4b's hold of the whole copy): one held level -- the battery's laboratory table at one seed, its C-reactive
+    protein held until a question is answered -- left every other level's copy unwritten, and the potassium mean
+    read from the copy came back 30,985 against 4.1 on all three twins. On every other level's rows the copy is its
+    source's model-drawn cell; on the held level's rows it repeats the source's made-up cell, so no cell of the copy
+    is ever a real one there either, and the rule the table keeps (the copy is its text where that is a number, the
+    sentinel elsewhere) holds on every row."""
     for rule_entry in _list(zone["copies"]):
         rule = _object(rule_entry)
         origin = _text(rule["from"])
         copy_name = _text(rule["column"])
-        if held_anywhere(zone, origin) or ("held" in rule and rule["held"] is True):
+        if "held" in rule and rule["held"] is True:
             continue
         source = _current(out, cells, origin)
         current = _current(out, cells, copy_name)

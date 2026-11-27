@@ -868,6 +868,9 @@ _NATIVE_CODE = "a-native-code-or-nothing"
 _NATIVE_FLAG = "a-truth-value-or-nothing"
 _NATIVE_MEASURE = "a-measure-or-nothing"
 _NATIVE_ZONE = "a-time-zone-name-or-nothing"
+# The cell standing for an empty text in a Parquet text column (lane
+# TOOLS): "" or a run of spaces, at most `native.EMPTY_TEXT_MOST`, or nothing.
+_NATIVE_EMPTY_TEXT = "a-run-of-spaces-for-an-empty-text-or-nothing"
 _FLAG = "flag"
 _NOTHING = "nothing"
 _SENTENCE = "sentence"
@@ -1284,6 +1287,7 @@ _STATED_RULES: "dict[tuple[str, ...], str]" = {
     ("source", "native", "columns", _EACH, "categories"): _MAYBE_ARRAY,
     ("source", "native", "columns", _EACH, "categories", _EACH): _NATIVE_LABEL,
     ("source", "native", "columns", _EACH, "display"): _NATIVE_FORMAT,
+    ("source", "native", "columns", _EACH, "empty_text"): _NATIVE_EMPTY_TEXT,
     ("source", "native", "columns", _EACH, "fraction"): _COUNT,
     ("source", "native", "columns", _EACH, "label"): _NATIVE_COLUMN_LABEL,
     ("source", "native", "columns", _EACH, "label_set"): _NATIVE_NAME,
@@ -2950,6 +2954,8 @@ def _leaf_is_published(
         return value is None or value in native.MEASURES
     if kind == _NATIVE_ZONE:
         return value is None or native.zone_published(value)
+    if kind == _NATIVE_EMPTY_TEXT:
+        return value is None or native.empty_text_published(value)
     if kind == _CENTURY_PART:
         if isinstance(value, str):
             return value in context.names
@@ -4477,6 +4483,11 @@ def _published_native(
             else None
         )
         zone = column.zone if column.zone is not None and native.zone_published(column.zone) else None
+        empty_text = (
+            column.empty_text
+            if column.empty_text is not None and native.empty_text_published(column.empty_text)
+            else None
+        )
         # A categorical's categories, in its file's order: each a value
         # its column publishes, held to the same floor and reading a value
         # label is (a category is a cell of the column).
@@ -4505,6 +4516,7 @@ def _published_native(
                 missing=missing,
                 zone=zone,
                 categories=categories,
+                empty_text=empty_text,
             )
         ]
     index = form.index

@@ -182,28 +182,31 @@ def test_doctor_passes_on_this_computer_with_one_line_per_check(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Seven checks without a table, eight with one, each one line, exit 0.
+    """Eight checks without a table, nine with one, each one line, exit 0.
 
-    Python, then the four runtime libraries each with its version (plan
-    P4-D410), then the output folder and the memory.
+    Python, then the five runtime libraries each with its version (plan
+    P4-D410; pyreadstat since lane TOOLS), then the output folder and the
+    memory.
     """
     monkeypatch.chdir(tmp_path)
     code, lines = _doctor(capsys)
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
-    assert len(checks) == 7, lines
+    assert len(checks) == 8, lines
     # Windows has no os.sysconf, so there the memory line is a note and
     # the closing line claims only what was checked (lane TI's tripwire,
     # item 1): the same assertions hold on every system.
     memory_read = cli._total_memory() is not None
     memory_mark = "  ok   " if memory_read else "  note "
-    assert [line[:7] for line in checks] == ["  ok   "] * 6 + [memory_mark]
+    assert [line[:7] for line in checks] == ["  ok   "] * 7 + [memory_mark]
     assert re.search(r"Python \d+\.\d+\.\d+", checks[0])
     for line, library in zip(checks[1:5], ("numpy", "pandas", "pyarrow", "scipy")):
         version = importlib.metadata.version(library)
         assert line == f"  ok       {library} {version} can be loaded", line
-    assert "output folder" in checks[5]
-    assert "memory" in checks[6]
+    version = importlib.metadata.version("pyreadstat")
+    assert checks[5] == f"  ok       pyreadstat {version} can be loaded (it reads SAS, Stata and SPSS files)"
+    assert "output folder" in checks[6]
+    assert "memory" in checks[7]
     closing = "Every check passed." if memory_read else "Every check that could be made passed."
     assert lines[-2] == f"{closing} Next, describe your table:"
     assert lines[-1] == "  synthtwin profile my-table.csv", "the next command ends it"
@@ -217,8 +220,8 @@ def test_doctor_passes_on_this_computer_with_one_line_per_check(
     code, lines = _doctor(capsys, str(table))
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
-    assert len(checks) == 8
-    assert "The table is" in checks[7]
+    assert len(checks) == 9
+    assert "The table is" in checks[8]
     taught = _taught(cli._teaching_profile(str(table)))
     assert lines[-len(taught) :] == taught
 
@@ -234,8 +237,8 @@ def test_doctor_passes_where_memory_cannot_be_read_as_on_windows(
     code, lines = _doctor(capsys)
     assert code == 0, "\n".join(lines)
     checks = _check_lines(lines)
-    assert [line[:7] for line in checks] == ["  ok   "] * 6 + ["  note "]
-    assert "could not be read" in checks[6]
+    assert [line[:7] for line in checks] == ["  ok   "] * 7 + ["  note "]
+    assert "could not be read" in checks[7]
     assert lines[-2] == "Every check that could be made passed. Next, describe your table:"
     assert lines[-1] == "  synthtwin profile my-table.csv"
 
@@ -302,6 +305,66 @@ def test_doctor_fails_when_a_package_cannot_be_loaded(
     assert "scripts/install.sh" in failed[0] and "install.bat" in failed[0]
 
 
+def _without_the_native_reader(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The readers of files from other systems unloaded, so the next load imports them afresh."""
+    import synthtwin
+
+    monkeypatch.delitem(sys.modules, "synthtwin.nativereading", raising=False)
+    if hasattr(synthtwin, "nativereading"):
+        monkeypatch.delattr(synthtwin, "nativereading")
+
+
+def test_doctor_says_plainly_that_pyreadstat_is_missing(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Lane TOOLS: doctor checks the fifth library, pyreadstat, and says plainly what is missing and what it costs.
+
+    pyreadstat refused by the import system with no copy recorded on the
+    computer: one PROBLEM line naming pyreadstat as missing, the files it
+    reads, that a CSV file or a workbook is read without it, and the
+    install script. Installed but not loading: the line says it is there
+    and that the readers could not be loaded. Every other check still runs.
+    """
+    monkeypatch.chdir(tmp_path)
+    _without_the_native_reader(monkeypatch)
+    monkeypatch.setitem(sys.modules, "pyreadstat", None)
+    real_version = cli._library_version
+    monkeypatch.setattr(
+        cli, "_library_version",
+        lambda package: cli._NO_RECORDED_VERSION if package == "pyreadstat" else real_version(package),
+    )
+    code, lines = _doctor(capsys)
+    assert code == 1
+    assert len(_check_lines(lines)) == 8, "every check still runs"
+    failed = _problems(lines)
+    assert len(failed) == 1, failed
+    said = failed[0]
+    assert "pyreadstat is missing from this computer" in said
+    assert "a Parquet, SAS, Stata or SPSS file" in said
+    assert "a CSV file or a workbook is read without it" in said
+    assert "scripts/install.sh" in said and "install.bat" in said
+    assert "synthtwin doctor" in lines[-1]
+
+    # Installed (a version on record) but not loading: said as such.
+    monkeypatch.setattr(
+        cli, "_library_version", lambda package: "1.3.6" if package == "pyreadstat" else real_version(package)
+    )
+    _without_the_native_reader(monkeypatch)
+    code, lines = _doctor(capsys)
+    assert code == 1
+    failed = _problems(lines)
+    assert len(failed) == 1 and "pyreadstat 1.3.6 is on this computer but the readers of" in failed[0]
+
+    # THE MUTANT: a doctor that checks only the four libraries it checked
+    # before lane TOOLS passes on this same computer with pyreadstat gone.
+    monkeypatch.setattr(cli, "_check_pyreadstat", lambda: cli._passed("(the check left out)"))
+    _without_the_native_reader(monkeypatch)
+    code, lines = _doctor(capsys)
+    assert code == 0 and _problems(lines) == [], "the check is what turns a missing pyreadstat into a PROBLEM"
+
+
 def test_doctor_reports_a_package_whose_load_raises_another_exception(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -323,7 +386,7 @@ def test_doctor_reports_a_package_whose_load_raises_another_exception(
     monkeypatch.setattr(builtins, "__import__", refusing)
     code, lines = _doctor(capsys)
     assert code == 1
-    assert len(_check_lines(lines)) == 7, "every check still runs"
+    assert len(_check_lines(lines)) == 8, "every check still runs"
     failed = _problems(lines)
     assert len(failed) == 1 and "pandas could not be loaded" in failed[0]
 
@@ -542,8 +605,8 @@ def test_doctor_says_plainly_when_memory_cannot_be_read(
     checks = _check_lines(lines)
     # A note, neither ok nor PROBLEM, and the closing line claims only
     # what was checked (lane TI's skeptic, item 5).
-    assert checks[6].startswith("  note ") and "could not be read" in checks[6]
-    assert checks[7].startswith("  note ") and "could not be weighed" in checks[7]
+    assert checks[7].startswith("  note ") and "could not be read" in checks[7]
+    assert checks[8].startswith("  note ") and "could not be weighed" in checks[8]
     assert "Every check that could be made passed." in "\n".join(lines)
     assert "Every check passed." not in "\n".join(lines)
     monkeypatch.setattr(cli.sys, "platform", "win32")

@@ -108,7 +108,10 @@ THE COMMANDS (type them in that window)
 7. Everything is written into the folder my-table-synthtwin beside
    your table, with your answers, so a later run there asks nothing.
    Read my-table-twin-report.txt there before you use the twin: it
-   says what the twin carries between columns.
+   says what the twin carries between columns. Before the twin leaves
+   this computer, check it against your table:
+
+       synthtwin check my-table.csv
 
 8. While synthtwin works, do not click inside the window: a click
    pauses it. If the window's title begins with the word Select, press
@@ -121,10 +124,27 @@ WHAT MAY LEAVE THIS COMPUTER
 
 Only the twin, my-table-twin.csv in my-table-synthtwin, with its
 report my-table-twin-report.txt, and only after your institution's
-approval. The description, the questions file, the quality report and
-the inside record (a model of your table) stay on this computer. The
-five twin-versus-real checks have no command word in this folder yet:
-ask the project before a twin leaves. Every file a full run writes
+approval. The description, the questions file, the quality report, the
+checks' report and the inside record (a model of your table) stay on
+this computer.
+
+Before the twin leaves, run the five twin-versus-real checks in the
+synthtwin window, with the same table:
+
+    synthtwin check my-table.csv
+
+They read the twin against your table for copied rows, rows too close
+to a real one, copied patients, real identifiers and rare real dates,
+and combinations only one real row holds, and show counts and a
+verdict, never a value. The last line is the answer. RESULT: PASS, the
+twin may leave once your institution approves. RESULT: FAIL, it must
+not leave: make another twin with
+synthtwin twin my-table.csv --replace --seed 2, run the check again,
+and if the same check fails again keep every twin on this computer and
+ask the project. The report stays beside the twin as
+my-table-twin-checks.txt.
+
+Every file a full run writes
 carries facts computed from the real table, so the same rules apply to
 each of them. The table itself, and any part or copy of it, never
 leaves. Do not build a twin on another computer from the description:

@@ -173,8 +173,10 @@ def test_the_cells_taken_are_worked_on_once_and_the_columns_are_the_same(wide) -
 
 # The sha256 of `applied`'s columns and order on the wide fixture (six repeated numbers dealt together) at seed 3,
 # on the public head e4d2e95b (lane W5-2M, before its change); moved by lane STATS-B alone, whose draw reads each
-# patient's level and slope at the shares their shape holds its points at (7ed510c6... before it).
-WIDE_APPLIED_SHA = "9dae08352e3b2e824a9c7389f04a0f2ca13b87324fcd6caff9855e5670bd4b5d"
+# patient's level and slope at the shares their shape holds its points at (7ed510c6... before it); moved again by lane
+# STATS-C alone, whose repeated numbers skewed only by their trends are read on their linear scale (9dae0835... before
+# it; measured on its branch, 2026-11-25).
+WIDE_APPLIED_SHA = "b59d3094eed00f938007043cbd0d82e04b1b0d512cbe13654de5f8eed668374f"
 
 
 def test_the_numbers_dealt_together_are_the_public_heads(wide) -> None:  # type: ignore[no-untyped-def]
@@ -255,8 +257,14 @@ def test_each_number_column_dealt_adds_a_few_bytes_a_row_to_what_the_dealing_hol
 # them): its tree with the zone's entries switched off writes 3ecaa3b8... still, and with them 624dff3c... (measured
 # 2026-11-23), so nothing else of that lane moves the route's twin. LANE IN-5's dates zone (every twin date kept inside
 # its column's real months) moves it too: its branch alone writes 5f98408e..., and lane STATS-A's on top of it the
-# same. THE BATCH 4ZZ LINE, with all three, writes 018fce2f... (measured on the merged tree, 2026-11-23).
-T2_TWIN_SHA = "018fce2ff2510f1153daa5fa0de7601ef83264d44016fc66dec84693d217b20a"
+# same. THE BATCH 4ZZ LINE, with all three, writes 018fce2f... (measured on the merged tree, 2026-11-23). LANE STATS-C
+# moves it on purpose (the visits table's pressure, skewed only by its trends, read on its linear scale, and a label's
+# fit offered a number's steps): its branch on 8cebca0f writes 252b4a27... (measured 2026-11-25). LANE STATS-D moves
+# it on purpose (a few-valued number read on its latent scale, every modelled level of a label its indicator, a
+# person's span of dates matched to its band's real persons' spans, an event's time read on its hazard's scale): its
+# branch on stats-c 0be35634 writes 6dbe05ba... (measured on its final tree eb196e35, 2026-11-26; which of its changes
+# move the visits table's twin was not measured one by one).
+T2_TWIN_SHA = "6dbe05ba5f5fa5c11740aa130dc2d68d3c5c39345fe3e0608e174966ab1bfb22"
 
 
 def test_the_shipped_commands_write_the_twin_the_public_head_wrote(tmp_path: pathlib.Path,
@@ -493,8 +501,12 @@ def test_a_cell_list_held_once_is_the_same_cells() -> None:
 # -- the five twin-versus-real checks: each walk's running digests held as words ------------------------------------
 
 # The sha256 of the checks' two reports on tests/test_twin_checks.py's own tables (a clean twin; a twin holding a
-# real patient's readings and stamps in another order) on the public head e4d2e95b (lane W5-2M, before its change).
-CHECKS_REPORTS_SHA = "a87c7acb5f7c2b68d829e10560360da26ee0ad7e9d13cb592fb8b90b18c1d7fd"
+# real patient's readings and stamps in another order) on the public head e4d2e95b (lane W5-2M, before its change)
+# (a87c7acb... until release 37). MOVED BY LANE PRIVACY ALONE (release 37, plan P4-D545): its branch writes
+# bb4c9bea..., and so does the merged line; the two reports differ from release 36's in C3's lines alone -- each
+# names the real table's own rows dealt again among its patients beside the fresh half, and one line says what the
+# allowance reads -- every verdict, count and allowance the same (diffed on both trees, release 37's landing).
+CHECKS_REPORTS_SHA = "bb4c9bea7d640b37395e733ccc294eccccef3bbb581a168b4e7eede45a6bd2b2"
 
 
 def test_the_checks_hold_each_walks_digests_as_words_and_report_as_the_public_head(tmp_path: pathlib.Path) -> None:

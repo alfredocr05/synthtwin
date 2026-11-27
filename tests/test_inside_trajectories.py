@@ -477,3 +477,37 @@ def _inside_record_switched_on() -> "typing.Iterator[None]":
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("synthtwin.cli._INSIDE_RECORD_SHIPPED", True)
         yield
+
+
+def _skew_of(values: "list[float]") -> float:
+    centre = statistics.fmean(values)
+    spread = statistics.pstdev(values)
+    return statistics.fmean([((value - centre) / spread) ** 3 for value in values])
+
+
+def _first_two_correlation(columns: "dict[str, list[str]]") -> float:
+    first: "dict[str, float]" = {}
+    second: "dict[str, float]" = {}
+    for key, visit, cell in zip(columns[PERSON], columns["visit"], columns["sbp"]):
+        if visit == "1":
+            first[key] = float(cell)
+        elif visit == "2":
+            second[key] = float(cell)
+    both = [key for key in first if key in second]
+    return statistics.correlation([first[key] for key in both], [second[key] for key in both])
+
+
+def test_a_number_skewed_only_by_its_trends_is_read_on_its_linear_scale() -> None:
+    """Lane STATS-C. A pressure whose one arm falls over many visits is skewed as a column (past `SKEW_CUT`) while what
+    the trends leave is not: it is read on its linear scale, and the twin keeps the first two visits' correlation and
+    the spread of a patient's change between them (mutant: the scale read on the column's own skew, the normal
+    scores pressing the long patients' late values together)."""
+    real = _visits(1400, 21, long_tail=True)
+    assert abs(_skew_of([float(cell) for cell in real["sbp"]])) >= I.SKEW_CUT
+    made = I.zone_from_columns(real, PERSON, (PERSON,))
+    assert made is not None
+    entry = {e["column"]: e for e in made["numbers"]}["sbp"]
+    assert entry["scale"] == I.SCALE_LINEAR, entry["scale"]
+    twin = _apply(made, _shuffled_within_column(real, ("sbp", "event"), 13))
+    assert abs(_first_two_correlation(twin) - _first_two_correlation(real)) < 0.03, (
+        _first_two_correlation(twin), _first_two_correlation(real))

@@ -298,3 +298,31 @@ def test_a_parent_the_others_mask_enters_the_fit() -> None:
     parents = {term[1] for term in outcome["value"]["terms"] if isinstance(term, list) and len(term) > 1}
     assert "treated" in parents and "age" in parents, outcome["value"]["terms"]
     assert "noise" not in parents
+
+
+def test_a_dependent_s_logistic_halves_a_step_that_overshoots_a_rare_level() -> None:
+    """Lane STATS-D: the logistic fit of a label the gap places reaches the maximum of its likelihood where a rare level
+    holds many events. Rows in three groups only -- 46 rows of a rare level, 22 of them events; a fifth of the rest at
+    17 per cent; the others at 4 per cent -- so the maximum is each group's own log odds, which the fit gives back to
+    1e-6; the first full step from the intercept overshot the rare level, and without halving the fit swung between
+    -5e8 and 4e8 and kept its last unsettled step (mutant: no step halved)."""
+    rows = 8000
+    rare = [1.0 if row % 174 == 0 else 0.0 for row in range(rows)]
+    middle = [1.0 if row % 5 == 1 and row % 174 != 0 else 0.0 for row in range(rows)]
+    outcome: "list[float]" = []
+    seen = [0, 0, 0]
+    for row in range(rows):
+        group = 0 if rare[row] else (1 if middle[row] else 2)
+        share = (22, 46) if group == 0 else ((17, 100) if group == 1 else (4, 100))
+        outcome += [1.0 if seen[group] % share[1] < share[0] else 0.0]
+        seen[group] += 1
+
+    def log_odds(group: int) -> float:
+        members = [y for y, r, m in zip(outcome, rare, middle) if (0 if r else (1 if m else 2)) == group]
+        share = sum(members) / len(members)
+        return math.log(share / (1.0 - share))
+
+    beta = inside_dates._logistic_fit([[1.0] * rows, rare, middle], outcome)
+    assert beta is not None
+    expected = [log_odds(2), log_odds(0) - log_odds(2), log_odds(1) - log_odds(2)]
+    assert all(abs(found - want) < 1e-6 for found, want in zip(beta, expected)), (beta, expected)

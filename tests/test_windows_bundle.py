@@ -744,6 +744,10 @@ _GUIDE_NEEDED = (
     "FIRST, CHECK THE ZIP (before you unzip it)",
     "Get-FileHash -Algorithm SHA256 .\\synthtwin-*-windows-ready.zip",
     "The trusted start.",
+    # The five twin-versus-real checks have a word of their own (lane TOOLS).
+    "synthtwin check my-table.csv",
+    "RESULT: PASS",
+    "RESULT: FAIL",
 )
 _GUIDE_GONE = (
     "up to a minute",
@@ -751,6 +755,8 @@ _GUIDE_GONE = (
     "Only the description",
     "writes only beside the table",
     "at least 16 GB",
+    "no command word",
+    "ask the project before a twin leaves",
 )
 _HOW_TO_NEEDED = (
     "Windows refuses file paths of 260 characters or more",
@@ -769,12 +775,16 @@ _HOW_TO_NEEDED = (
     "It keeps no history of what you type (not yet measured on Windows)",
     "START-HERE takes no file",
     "Unzip synthtwin's zip first",
+    "synthtwin check my-table.csv",
+    "`RESULT: PASS`",
+    "`RESULT: FAIL`",
 )
 _HOW_TO_GONE = (
     "longer than 260", "up to 100 characters", "up to a minute", "under the same approval",
     "leaves nothing behind", "Nothing else was changed", "nothing else on the computer changes",
     "Only the description", "writes only beside the table", "at least 16 GB",
     "the one file the twin is built from", "build the twin from the description:",
+    "no command word", "Until it is closed, ask the project before a twin leaves",
 )
 
 
@@ -821,6 +831,19 @@ def test_the_windows_guides_check_would_see_the_old_leaving_rule() -> None:
     old_route = page.replace("Do not build a twin on another computer from the description",
                              "Build the twin from the description:")
     assert _unmet(old_route, _HOW_TO_NEEDED, _HOW_TO_GONE) != []
+    # Lane TOOLS: the gap the checks had in this folder, put back, is refused in each guide.
+    old_gap = guide.replace("Before the twin leaves, run the five twin-versus-real checks in the",
+                            "The five twin-versus-real checks have no command word in this folder yet: ask the "
+                            "project before a twin leaves. Before the twin leaves, run the five twin-versus-real "
+                            "checks in the")
+    assert "retired: no command word" in _unmet(old_gap, _GUIDE_NEEDED, _GUIDE_GONE)
+    no_word = guide.replace("synthtwin check my-table.csv", "python -m synthtwin.twin_checks my-table.csv")
+    assert "missing: synthtwin check my-table.csv" in _unmet(no_word, _GUIDE_NEEDED, _GUIDE_GONE)
+    old_page_gap = page.replace("**Before the twin leaves, run the five twin-versus-real checks**",
+                                "The checks have no command word in this folder yet: that is a known gap. Until it "
+                                "is closed, ask the project before a twin leaves. **Before the twin leaves, run the "
+                                "five twin-versus-real checks**")
+    assert "retired: no command word" in _unmet(old_page_gap, _HOW_TO_NEEDED, _HOW_TO_GONE)
 
 
 def _decision(number: str) -> str:
@@ -1187,6 +1210,36 @@ def test_the_rules_refusal_is_read_by_its_windows_code_too(capsys) -> None:
 # -- rehearse_windows.py ---------------------------------------------------------------
 
 
+def test_the_rehearsal_types_the_checks_one_word_on_each_route(tmp_path: pathlib.Path) -> None:
+    """Lane TOOLS: after validate, each route types `synthtwin check TABLE --out-dir .`; the word reaching the checks is
+    what is held -- exit 0 or 3 with the report beside the twin -- and anything else is a problem the run is refused for.
+
+    Run once for real with this python as the route (`python -m synthtwin`, what the ready folder's `synthtwin.bat`
+    runs) where no table stands: the checks cannot run (exit 1), a problem. Then each status the step can end with,
+    the run stood in for: 0 and 3 with the report beside the twin are the word working; 3 with no report, and 2, are
+    problems. Red on: `checked` judging only exit 0, or not reading the report's place.
+    """
+    work = tmp_path / "work"
+    work.mkdir()
+    route = REHEARSE.Route("direct", python=sys.executable)
+    done = REHEARSE.Trial(route, work, {"XDG_DATA_HOME": str(tmp_path / "data"), "LOCALAPPDATA": str(tmp_path / "data"),
+                                        "PYTHONPATH": str(REPO / "src")})
+    assert REHEARSE.checked(done, "visits.csv", "visits") == [
+        "synthtwin check visits.csv --out-dir . exited 1, not 0 or 3: the word did not reach the checks"
+    ], "no table: the checks could not run"
+    assert done.steps[-1]["typed"] == "synthtwin check visits.csv --out-dir ."
+    assert REHEARSE.CHECK_STATUSES == (0, 3)
+    for status, report, problems in ((0, True, 0), (3, True, 0), (3, False, 1), (2, True, 1)):
+        stand_in = REHEARSE.Trial(route, work)
+        stand_in.run = lambda words, into=None, expect=0, place=None, status=status: status  # type: ignore[method-assign]
+        checks_report = work / "visits-twin-checks.txt"
+        if report:
+            checks_report.write_text("VERDICT\n", encoding="utf-8", newline="\n")
+        elif checks_report.exists():
+            checks_report.unlink()
+        assert len(REHEARSE.checked(stand_in, "visits.csv", "visits")) == problems, (status, report)
+
+
 def test_each_route_types_what_a_person_types(tmp_path: pathlib.Path) -> None:
     folder = tmp_path / "Dr O'Brien files" / "synthtwin-0.0.1-win"
     (folder / "scripts").mkdir(parents=True)
@@ -1400,6 +1453,9 @@ def _person(
         elif verb == "validate":
             (place / f"{stem}-twin-quality.txt").write_bytes(b"     309  HELD -- met\n       0  MISSED -- set by the description\n")
             (place / f"{stem}-twin-report.txt").write_bytes(b"the report")
+        elif verb == "check":
+            # The five checks by their one word (lane TOOLS): the report beside the twin, every check passed.
+            (place / f"{stem}-twin-checks.txt").write_bytes(b"VERDICT: PASS. Every check passed.\n")
         return subprocess.CompletedProcess(command, 0, b"", b"")
 
     monkeypatch.setattr(REHEARSE.subprocess, "run", run)
@@ -1418,8 +1474,8 @@ def test_a_full_trial_on_the_stand_in_passes(tmp_path: pathlib.Path, monkeypatch
     calls = _person(monkeypatch)
     work = tmp_path / "work"
     done = REHEARSE.trial(REHEARSE.Route("direct", python="py"), work, _tables(tmp_path), ("visits",))
-    assert done.problems == [] and [step["exit"] for step in done.steps] == [0] * 7
-    verbs = ["--version", "doctor", "profile", "profile", "generate", "validate", "generate"]
+    assert done.problems == [] and [step["exit"] for step in done.steps] == [0] * 8
+    verbs = ["--version", "doctor", "profile", "profile", "generate", "validate", "check", "generate"]
     assert [str(step["typed"]).split()[1] for step in done.steps] == verbs
     # The answered round types the record's remedy, as its refusal teaches (batch 4y's fix round; mutant: the round
     # typed without it, the bundle trial refused at the first answered round with the patient layer on).
@@ -1428,8 +1484,10 @@ def test_a_full_trial_on_the_stand_in_passes(tmp_path: pathlib.Path, monkeypatch
     # The last generate builds the twin of a copy of the description in WORK-moved, where its inside record is not
     # (plan P4-D515; `again` holds another system's twin to it): typed as the first, run there.
     moved = REHEARSE.moved_place(work)
-    assert moved == tmp_path / "work-moved" and str(done.steps[6]["typed"]).endswith("--seed 7  (in work-moved)")
-    assert calls[6]["present"] == ["visits-profile.json"], calls[6]["present"]
+    assert moved == tmp_path / "work-moved" and str(done.steps[7]["typed"]).endswith("--seed 7  (in work-moved)")
+    assert calls[7]["present"] == ["visits-profile.json"], calls[7]["present"]
+    # The checks' one word, typed after validate, on the folder the files stand in (lane TOOLS).
+    assert done.steps[6]["typed"] == "synthtwin check visits.csv --out-dir ."
     assert (moved / "visits-profile.json").read_bytes() == (work / "visits-profile.json").read_bytes()
     assert (moved / "visits-twin.csv").is_file()
 

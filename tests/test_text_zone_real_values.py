@@ -13,7 +13,9 @@ WHAT IT HOLDS (each clause red on its mutant):
   (mutant: the nought mark kept);
 * a column named as an identifier element, or whose cells read as a person's details or as e-mail addresses, is not
   written in its real words (`cli._names_a_person`; mutants: the name not read; the e-mail reader withdrawn), while
-  ordinary structured text still is.
+  ordinary structured text still is;
+* through the commands, the registry's addresses, telephone numbers and e-mail addresses read as such again, made up
+  (lane TEXTZONE, `inside_text.MODE_DETAIL`; mutant: such a column left the description's filler).
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ import csv
 import io
 import pathlib
 import random
+import re
 
 import pytest
 
@@ -99,6 +102,18 @@ def test_the_registrys_addresses_and_e_mails_reach_the_twin_as_no_real_one(tmp_p
     report = (out / "registry-twin-report.txt").read_text(encoding="utf-8")
     assert report.startswith(cli._INSIDE_REPORT_HEAD)
     twin = list(csv.DictReader(open(out / "registry-twin.csv", encoding="utf-8", newline="")))
-    for at, name in ((2, "street_address"), (4, "email")):
+    for at, name in ((2, "street_address"), (3, "phone"), (4, "email")):
         real = {row[at] for row in rows}
         assert not [row[name] for row in twin if row[name] in real], name
+    # ...AND THEY READ AS ADDRESSES, TELEPHONE NUMBERS AND E-MAIL ADDRESSES AGAIN (lane TEXTZONE): the analyst's own
+    # patterns hold on every cell, the words made up, the area codes and exchanges none a real number holds (mutant:
+    # the column left the description's filler, release 36's cost).
+    layouts = {"street_address": r"\d{1,4} [A-Z][a-z]+ (St|Ave|Rd|Blvd|Ln)", "phone": r"\(\d{3}\) \d{3}-\d{4}",
+               "email": r"[a-z]+\.[a-z]+\d*@example\.org"}
+    for name, layout in layouts.items():
+        misfits = [row[name] for row in twin if not re.fullmatch(layout, row[name])]
+        assert not misfits, (name, len(misfits))
+    streets = {row[2].split(" ")[1] for row in rows}
+    assert not {row["street_address"].split(" ")[1] for row in twin} & streets
+    assert not {row["phone"][1:4] for row in twin} & {row[3][1:4] for row in rows}
+    assert not {row["phone"][6:9] for row in twin} & {row[3][6:9] for row in rows}

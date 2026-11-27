@@ -808,6 +808,7 @@ jobs:
           wheel required synthtwin/errors.py
           wheel required synthtwin/asking.py
           wheel required synthtwin/generation.py
+          wheel required synthtwin/given_names.py
           wheel required synthtwin/grains.py
           wheel required synthtwin/inside.py
           wheel required synthtwin/inside_relations.py
@@ -817,6 +818,7 @@ jobs:
           wheel required synthtwin/inside_holds.py
           wheel required synthtwin/inside_keyed.py
           wheel required synthtwin/inside_links.py
+          wheel required synthtwin/inside_order.py
           wheel required synthtwin/inside_text.py
           wheel required synthtwin/installation.py
           wheel required synthtwin/native.py
@@ -838,6 +840,7 @@ jobs:
           wheel required synthtwin/results.py
           wheel required synthtwin/roles.py
           wheel required synthtwin/sheetwriting.py
+          wheel required synthtwin/sizing.py
           wheel required synthtwin/summary.py
           wheel required synthtwin/taxonomy.py
           wheel required synthtwin/twin_checks.py
@@ -880,6 +883,7 @@ jobs:
           sdist required ROOT/src/synthtwin/errors.py
           sdist required ROOT/src/synthtwin/asking.py
           sdist required ROOT/src/synthtwin/generation.py
+          sdist required ROOT/src/synthtwin/given_names.py
           sdist required ROOT/src/synthtwin/grains.py
           sdist required ROOT/src/synthtwin/inside.py
           sdist required ROOT/src/synthtwin/inside_relations.py
@@ -889,6 +893,7 @@ jobs:
           sdist required ROOT/src/synthtwin/inside_holds.py
           sdist required ROOT/src/synthtwin/inside_keyed.py
           sdist required ROOT/src/synthtwin/inside_links.py
+          sdist required ROOT/src/synthtwin/inside_order.py
           sdist required ROOT/src/synthtwin/inside_text.py
           sdist required ROOT/src/synthtwin/installation.py
           sdist required ROOT/src/synthtwin/native.py
@@ -910,6 +915,7 @@ jobs:
           sdist required ROOT/src/synthtwin/results.py
           sdist required ROOT/src/synthtwin/roles.py
           sdist required ROOT/src/synthtwin/sheetwriting.py
+          sdist required ROOT/src/synthtwin/sizing.py
           sdist required ROOT/src/synthtwin/summary.py
           sdist required ROOT/src/synthtwin/taxonomy.py
           sdist required ROOT/src/synthtwin/twin_checks.py

@@ -341,13 +341,13 @@ questions (`Question 7`) are labels, not read in a text file, except
 that a number alone answers a question about the file; where two
 questions about one column take the same answer, answer them at the
 keyboard or in the questions file itself. At a keyboard you need
-neither: `synthtwin twin` asks them all before anything is written (see
-above), and `synthtwin profile`, after the files are written,
-puts on the screen every question no prompt of the run put,
-writes your answers into that file and describes the table again with
-them, and the line that repeats the run names the questions file
-wherever an answer no option repeats stands (a Safe Harbor answer, a
-`keep`).
+neither: `synthtwin twin` and `synthtwin profile` alike ask them all in
+one round, grouped by kind, before anything is written (see above), and
+write the files once with your answers; the line that repeats the run
+names the questions file wherever an answer no option repeats stands (a
+Safe Harbor answer, a `keep`). Run with nobody at the keyboard -- from a
+script, or with `--answers` -- `profile` asks nothing and writes what it
+always wrote.
 
 `--identifier` names a column whose values are record numbers or codes
 rather than measurements, so that none of them are published anywhere in
@@ -740,7 +740,10 @@ anything else went wrong.
   carries, and what it does not" above).
 - **[built]** `synthtwin twin` - the whole journey in one command, every
   question your values cannot settle put in one round before anything
-  is written.
+  is written (and `synthtwin profile`, at a keyboard, asks the same way).
+- **[built]** `synthtwin check` - the five twin-versus-real checks of a
+  twin against its table in one word, before the twin leaves the
+  protected computer.
 - **[planned]** The release: signed, reproducible, attested offline
   bundles, one per kind of computer, which CI already builds and tests
   (plan P4-D416). It is never published on PyPI: the owner decided on
@@ -1046,8 +1049,10 @@ printed `'Crohn''s disease'`, type `"Crohn's disease"`.
 ### Checking the computer: `synthtwin doctor`
 
 `synthtwin doctor` prints one line per check: that Python is 3.11 or
-later, that numpy, pandas, pyarrow and scipy can be loaded, each with
-the version installed, that the output folder takes a file, and this
+later, that numpy, pandas, pyarrow, scipy and pyreadstat (which reads
+SAS, Stata and SPSS files) can be loaded, each with the version
+installed -- a library that is missing is named as missing, with what it
+costs and how to put it back -- that the output folder takes a file, and this
 computer's total memory. Named a table, as in
 `synthtwin doctor my-table.csv`, it also weighs the file against that
 memory: a table of plain text takes roughly ten times its size to read,

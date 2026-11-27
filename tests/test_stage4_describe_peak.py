@@ -56,7 +56,7 @@ import tracemalloc
 import pytest
 
 import stage4_as_built
-from synthtwin import date_counts, grains, profile, taxonomy
+from synthtwin import date_counts, grains, parsing, profile, taxonomy
 
 _OLD_WALK, _OLD_NAMES = stage4_as_built.compiled(profile, stage4_as_built.GRAIN_WALK, "_grain_walk")
 _OLD_CELLS_AT = _OLD_NAMES["_cells_at"]
@@ -529,6 +529,12 @@ def test_the_count_in_people_holds_nothing_a_row(monkeypatch: pytest.MonkeyPatch
     map of every subject's first text, asked whether the column is attached).
     """
     monkeypatch.setattr(profile, "_PEOPLE_MEMO_TEXTS", 1_024)
+    # ...and the number readings kept by their texts (lane SCALE, release 37) bounded here as the memo above is: a
+    # process-wide cache of at most `parsing._KEPT_MOST` texts a reading, whatever the rows (its own bound is held by
+    # tests/test_readings_kept.py); at 20,000 different stamps it held 35 traced bytes a row of this measure.
+    monkeypatch.setattr(parsing, "_KEPT_MOST", 64)
+    monkeypatch.setattr(parsing._Kept, "numbers", {})
+    monkeypatch.setattr(parsing._Kept, "classes", {})
     rows = 20_000
     draw = random.Random("counted")
     cells = _stamps(draw, rows, "%Y-%m-%dT%H:%M:%S", datetime.datetime(2019, 1, 1), 2 * 365 * 86_400)

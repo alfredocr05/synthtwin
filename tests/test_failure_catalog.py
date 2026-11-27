@@ -182,6 +182,12 @@ CASES: "dict[str, tuple[object, ...]]" = {
     "output_would_replace_the_table": ("/data/table.csv",),
     "unknown_column_named": ("holding record numbers", "agee", ["age", "site"]),
     "out_of_memory_while_describing": ("/data/table.csv",),
+    # The start-of-run check's refusal and its line before a long run (lane
+    # SCALE), driven through the commands in `tests/test_start_check.py`.
+    "too_large_for_this_computer": ("/data/table.csv", 51_234_567, 50, True, "describing the table", "9.0 GB",
+                                    "8.0 GB", "6.0 GB", "12.0 GB", "Nothing was written."),
+    "what_this_run_needs": ("/data/table.csv", 2_000_000, 50, False,
+                            [("describing the table", "about 3.6 hours", "2.9 GB")], "4.0 GB"),
     # Any step nesting past Python's own limit (plan P4-D380), on the
     # file the person typed; driven through the command in
     # `tests/test_stage3b_full_precision.py`.
@@ -278,6 +284,11 @@ CASES: "dict[str, tuple[object, ...]]" = {
     ),
     "twin_folder_missing": ("/data/reports",),
     "twin_folder_taken": ("/data/clinic-synthtwin",),
+    # `synthtwin check` (lane TOOLS): the twin it would check, and the
+    # report's place, each a path.
+    "no_twin_to_check": ("/data/clinic-synthtwin/clinic-twin.csv",),
+    "checks_out_of_memory": ("/data/clinic.csv",),
+    "checks_report_over_an_input": ("/data/clinic-synthtwin/clinic-twin-checks.txt",),
     # ...and, from lane TT's repair, a name of the twin's folder that
     # leads back to the table (Codex's item 1): the name, then the table.
     "twin_output_would_replace_the_table": (
