@@ -8,32 +8,47 @@ construct that initiates network I/O, no subprocess execution, no native
 calls, and no dynamic code loading (see SECURITY.md for the boundary
 statement and how to verify it).
 
-WHAT THE TWIN DOES NOT CARRY, STATED BEFORE ANYTHING ELSE CLAIMS MORE
-(plan P2-D11, residual R-P2-3). This version builds every column on its
-own and carries no cross-column structure at all: no correlation
-between two columns, no formula tying one column to another, no shared
-pattern of which cells are empty, and no ordering between two event
-columns. Rows are treated as independent and the grain is undescribed —
-the description never says what one row of the real table is — so the
-twin of a repeated-measures table misdescribes the subject-level truth
-even where every column of it is right on its own. Analysis code
-developed on the twin RUNS, which is what the twin is for; a number
-that code computes from two columns of the twin says nothing about the
-real table. Cross-column structure arrives in a later phase (Phase 5),
-and the report written beside every twin states both limits on every
-run.
+WHAT THE TWIN CARRIES BETWEEN COLUMNS, AND WHAT IT DOES NOT (plan
+P2-D11, residual R-P2-3, restated once the inside record shipped). The
+relations between columns come from the inside record: a model of the
+table fitted on its rows, holding none of them, that `synthtwin
+profile` writes in a private folder on the computer that holds the
+table and never prints, and that `synthtwin generate` draws the twin
+from there. A twin drawn from it carries how a number or a label depends
+on the columns before it, which cells are empty together and, where a
+column names the person, each person's rows in order with their dates
+as one timeline and their repeated readings' own level and slope; each
+date it draws keeps the real month, weekday and time of day, with the
+day of the month made up. Record numbers, names, places and other
+identifiers are made up and carry no relation to anything. The
+relations are approximate and the twin can show one the real table does
+not have, so any effect the twin shows is checked on the real table and
+no negative finding is read from it. A twin built from the description
+alone -- where no inside record stands beside it -- carries nothing
+between columns beyond the tables of counts the description publishes.
+Analysis code developed on the twin is meant to run unchanged on the
+real table, and nothing here guarantees that it will: a step that
+depends on more than the twin holds, such as a cut into quartiles, can
+succeed on the twin and fail on the real table. The report written
+beside every twin states what it carries between columns on every run.
 
 THE RECORD CLAIM, AND WHY IT IS QUALIFIED (plan P2-D11). Generation
 reads no source table and samples or copies no row of one: every twin
-cell is derived from the profile and the seed. That states where the
+cell is derived from the profile, the inside record where one stands
+beside it, and the seed. That states where the
 twin's values come from. It does NOT state that a twin row can never
 equal a real row, and the categorical wording this package used to
 carry — a flat assertion that a twin holds nothing of the user's —
 said exactly that and was wrong. Allocating
-published counts exactly can force a twin row to match a real one: an
-11-row single-column table whose one label clears the disclosure floor
-publishes that label with the count 11, so the twin holds it in all 11
-rows. Nothing was copied; the arithmetic left no other answer. synthtwin
+published counts exactly can force a twin row to match a real one: a
+single-column table of 100 rows whose one label is shared by all 100
+publishes that label with the count 100, so the twin holds it in all
+100 rows. Nothing was copied; the arithmetic left no other answer. The
+example is stated at 100 rows because it is the shortest true one;
+`synthtwin profile` refuses any table under 20,000 rows that hold a
+value, or under 1,000 people where one person has several rows (plan
+P4-D425), and the same arithmetic holds there for any column whose
+published facts pin it completely. synthtwin
 offers no formal privacy guarantee, and all six files a full run
 produces — the profile, the plain-language summary beside it, the
 questions file, the twin, the twin's report and the quality report —
@@ -41,11 +56,14 @@ carry facts computed from real data and are handled under the
 institution's rules for real-derived material, never the profile
 alone.
 
-Status: all three commands are built. `synthtwin profile <table>` reads
-a local CSV table and writes the description the twin is built from,
+Status: all three commands are built, and `synthtwin twin <table>` runs
+them in one. `synthtwin profile <table>` reads
+a local table (CSV, a workbook, or a Parquet, SAS, Stata or SPSS file)
+and writes the description the twin is built from,
 together with a plain-language summary of what was found and what of the
-real table the description carries. `synthtwin generate <description>`
-builds the twin from that description and a seed and from nothing else,
+real table the description carries, and the inside record beside it.
+`synthtwin generate <description>`
+builds the twin from that description, the inside record and a seed,
 and writes it beside a report naming which published facts the twin
 holds exactly, which it holds only approximately with the achieved value
 beside the published one, and which it does not hold at all. `synthtwin
@@ -60,8 +78,8 @@ true width: `synthtwin.reading` is the only module that opens a CSV
 table, and GENERATION never reaches it. The profiler reads the user's
 table; the validator reads the file it was asked to check, because
 measuring a file means describing it with the profiler's own producer;
-the generator reads a description and nothing else, and never the
-validator's modules either. That boundary is visible in the import graph
+the generator reads a description, the inside record beside it where
+one stands, and nothing else, and never the validator's modules either. That boundary is visible in the import graph
 rather than promised in prose: each command's modules are imported
 inside its own branch of the command line.
 """

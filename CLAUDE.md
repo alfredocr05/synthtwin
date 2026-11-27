@@ -36,17 +36,24 @@ assistance on the twin, freely and quickly, then run the finished code
 on the real data inside their compliant environment.
 
 **What the twin carries today, stated before any other sentence claims
-more.** The twin reproduces the facts the profile publishes about each
-column ON ITS OWN. It carries no cross-column structure at all: no
-correlation between two columns, no formula tying one column to
-another, no shared pattern of which cells are empty, and no ordering
-between two event columns. Rows are treated as independent and the
-grain is undescribed - the profile never says what one row of the real
-table is - so the twin of a repeated-measures table misdescribes the
-subject-level truth even where every column of it is right on its own.
-Cross-column structure arrives in a later phase (Phase 5). Until it
-does, no sentence in this repository may say or imply that the twin
-preserves it.
+more or less.** The twin reproduces the facts the profile publishes
+about each column, and the relations between columns come from the
+inside record: a model of the table fitted on its rows, holding none of
+them, that `synthtwin profile` writes in a private folder on the
+computer that holds the table and that `synthtwin generate` draws the
+twin from there (plans P4-D495 to P4-D504). A twin drawn from it carries
+how a number or a label depends on the columns before it, which cells
+are empty together and, where a column names the person, each person's
+rows in order with their dates as one timeline and their repeated
+readings' own level and slope; each date it draws keeps the real month,
+weekday and time of day, with the day of the month made up. Identifiers
+are made up and carry no relation. The relations are approximate and
+the twin can show one the real table does not have, so any effect the
+twin shows is checked on the real table. A twin built from the
+description alone - where no inside record stands beside it - carries
+nothing between columns beyond the floored tables of counts the profile
+publishes (the chain). No sentence in this repository may say or imply
+more than this, or less.
 
 What the goal sentence may and may not claim about rows is fixed under
 "Honest limits" below: it is a claim about where the twin's values come
@@ -67,9 +74,16 @@ from, not a promise that no twin row can equal a real one.
    require reading source, and every message written for a human.
 3. **Secure by architecture, fully offline.** The product code contains
    no construct that initiates network I/O, no subprocess execution, no
-   native-code calls, no dynamic code loading; it accepts only local
-   filesystem paths and is fully functional air-gapped. This is enforced
-   by the layered checks in the Phase 0 plan (D6), not merely promised.
+   native-code call of its own (no ctypes, no cffi), and no dynamic code
+   loading or code generated at run time - except the one audited
+   module, the polish kernel, which numba compiles in memory from that
+   module's own source under the CI gate of plan P4-D409 part 4. The
+   libraries' own compiled code enters only under the dependency
+   protocol below, pinned by exact version and hash in the offline
+   bundle. The product accepts only local filesystem paths and is fully
+   functional air-gapped. This is enforced by the layered checks in the
+   Phase 0 plan (D6) and the offline scanner's zones and argument rules
+   (P4-D409, P4-D410), not merely promised.
 4. **Decontaminated.** No trace of the private prototype study's
    vocabulary, enforced by the hashed decontamination manifest in
    `tools/decontamination` and the process in the Phase 0 plan. Do not
@@ -92,12 +106,14 @@ from, not a promise that no twin row can equal a real one.
 
 ## The outputs, and which of them exist today
 
-Built now, by the three commands that exist:
+Built now, by the three commands that exist (and `synthtwin twin`, which
+runs those three in one command and one folder, plan P4-D460):
 
 1. **The synthetic twin table** - same shape and the same published
-   behaviour column by column, every cell derived from the profile and
-   the seed rather than taken from the table. Written by
-   `synthtwin generate`.
+   behaviour column by column, with the relations between columns the
+   inside record carries, every cell derived from the profile, the
+   inside record and the seed rather than taken from the table. Written
+   by `synthtwin generate`.
 2. **The schema description** - columns, detected types, and how each
    was handled: the profile document itself and the plain-language
    summary beside it. Written by `synthtwin profile`.
@@ -132,40 +148,43 @@ Built now, by the three commands that exist:
 Not built. This is named here as roadmap and is never written about as
 though it existed:
 
-5. **The relationship summary** - which columns move together, and what
-   a twin would then have to do about it. None of it exists: the
-   profile's relationship manifest is eight reserved slots, every one
-   empty, and the loader refuses a profile that fills any of them. It
-   arrives with Phase 5. Nothing the quality report checks is a
-   cross-column fact, because the profile publishes none.
+5. **The relationship summary** - a page a person reads naming which
+   columns move together and how closely the twin follows them. The
+   relations themselves are built (above); this page is not. The
+   quality report checks between columns only the chain's published
+   tables, because the inside record's relations are published
+   nowhere.
 
 ## Honest limits
 
 - Numbers computed on the twin are not scientific results. The twin is
   for developing code; conclusions come from running that code on the
   real data.
-- Fidelity is bounded, and today the bound is one column wide. What is
-  preserved is what the profile publishes about each column on its own.
-  No cross-column structure is preserved at all - not a correlation,
-  not a formula between two columns, not a shared pattern of empty
-  cells, not the order of two event dates - and rows are treated as
-  independent while the grain is undescribed, so a table holding
-  several rows per subject yields a twin that misdescribes the
-  subject-level truth. Cross-column structure arrives in a later phase
-  (Phase 5). Structure that was never modeled is never guaranteed.
+- Fidelity is bounded and measured, never promised. Each column holds
+  what the profile publishes about it; the relations between columns
+  hold as far as the inside record's fit reaches, approximately, and a
+  twin built from the description alone carries none beyond the
+  chain's published tables. A drawn date's day of the month is made up,
+  so analyses of the exact calendar day cannot match. Any effect the
+  twin shows is checked on the real table, and no negative finding is
+  read from it. Structure that was never modeled is never guaranteed.
 - **The record claim is a claim about provenance, and it is qualified**
   (plan P2-D11). Generation reads no source table and samples or copies
-  no row of one: every twin cell is derived from the profile and the
-  seed. That says where the twin's values come from. It does not say
+  no row of one: every twin cell is derived from the profile, the inside
+  record where one stands beside it, and the seed. That says where the twin's values come from. It does not say
   that no twin row can equal a real one, and any wording that says so is
   a defect in this repository, not a nuance. Allocating published counts
-  exactly can force a twin row to match a real one: an 11-row
-  single-column table whose one label clears the disclosure floor
-  publishes that label with the count 11, so the twin holds it in all 11
-  rows, and each of those rows is a row the real table has. Nothing was
-  copied; the arithmetic left no other answer. The categorical form of
-  this claim is retired everywhere, and a test asserts its absence on
-  every public surface.
+  exactly can force a twin row to match a real one: a single-column
+  table of 100 rows whose one label is shared by all 100 publishes that
+  label with the count 100, so the twin holds it in all 100 rows, and
+  each of those rows is a row the real table has. Nothing was copied;
+  the arithmetic left no other answer. The example is stated at 100
+  rows because it is the shortest true example; `synthtwin profile`
+  refuses any table under 20,000 rows that hold a value, or under 1,000
+  people where one person has several rows, and writes nothing (plan
+  P4-D425, amending P4-D341).
+  The categorical form of this claim is retired everywhere, and a test
+  asserts its absence on every public surface.
 - synthtwin is not a formal privacy mechanism, claims no
   differential-privacy property, and offers no formal privacy guarantee.
   All six files a full run leaves behind - the profile, the
@@ -189,9 +208,11 @@ though it existed:
   table never has to leave the environment that already holds it and
   never has to reach an assistant. What it does NOT buy is a finding
   about anybody's obligations. The six files above carry facts
-  computed from real data, and at the default floor of one a column
-  whose role publishes values names every one of them with the rows
-  that held it, while the roles that publish none still publish counts
+  computed from real data, and at the default floor of eleven a column
+  whose role publishes values names every value eleven or more rows
+  held, with how many did - a floor `--smallest-group` may raise and
+  never lower (plan P4-D426) - while the roles that publish none still
+  publish counts
   and shapes measured from real cells - so whether a privacy rule, an
   institution's own rules, or a study's approval is satisfied is a
   question for the people who set
@@ -201,6 +222,23 @@ though it existed:
   obligation is a defect and not a shorthand, and the seventh family of
   the claim inventory in `tests/test_claim_inventory.py` turns the
   suite red on it.
+- A reader can rebuild some or all of a column's OWN values from its
+  description on the shapes the KPI ledger names - from a tail's own
+  published pair, which can give back that tail's outer values
+  (`K-S3-18`; since plan P4-D375, under the owner's principle of
+  2026-10-01, every pair binary64 holds is published), through the exact
+  skew and kurtosis beside a published tail pair (`K-S3-17`), by
+  subtraction from the exact mean and spread beside a published pair
+  or a tail that lists its values (`K-S3-21`, `K-S3-23`), and from the
+  whole description where the count of different values, the mode's
+  count, the sign counts and the rungs pin the column (`K-S3-24`) -
+  but never anything about another column, and never which row holds
+  one except on a table sorted by that column, whose description
+  publishes the order (`row_order`), so row k holds the k-th value; the
+  owner accepted each of these limits on 2026-09-25 and 2026-09-26,
+  `K-S3-23` and `K-S3-24` on a question that said "never which row
+  holds them", and, told of the sorted table on 2026-09-30, answered
+  "Yes, it stands".
 - The offline guarantee is a property of the code, verified by source
   audit and scans - it is not an OS-level sandbox. Institutions that
   require enforcement run the tool inside their own network-isolated
@@ -225,7 +263,9 @@ though it existed:
 ## Rules of the road
 
 - **The profile/generator boundary.** The generator never reads a
-  table at all - it consumes only the profile file, and the module that
+  table at all - it consumes only the profile file and, where one stands
+  beside it, the inside record (a model the profiler fitted on the table,
+  holding none of its rows), and the module that
   opens a CSV is not in its import graph at any instant. Two code paths
   DO open a CSV, and stating it at that width is owner decision 6 of
   the Phase 3 plan: the profiler reads the user's real table, and the
@@ -235,16 +275,49 @@ though it existed:
   inherit the planner's own defects and synthtwin's own random number
   generator is out of its reach. It does NOT follow that no random
   source is in the process, and this brief said otherwise for a while
-  and was wrong: the validator reads a file, so it loads pandas, so it
-  loads `numpy.random`. What is enforced is that no synthtwin module on
+  and was wrong: the validator reads a file, so it loads the reader's
+  libraries, and pandas alone loads `numpy.random`. What is enforced is that no synthtwin module on
   the validate path imports a random source and that a validate run
   draws from none (plan amendment A-P3-4). No debugging convenience,
   test helper, or one-time exception crosses any of those lines, ever.
 - **Determinism.** One RNG, created once from the user's seed, threaded
   explicitly through every consumer. No module-level randomness; sorted
   iteration wherever randomness is consumed; output column order a
-  fixed function of the schema. Same profile, seed, version, and locked
-  environment produce the same bytes on the same platform (plan D12).
+  fixed function of the schema. Same profile, inside record, seed,
+  version, and locked environment produce the same bytes on the same
+  platform (plan D12).
+  Across platforms, equality is a tested result of the CI matrix's
+  reference vectors - Ubuntu and Windows under Python 3.11 to 3.14,
+  macOS under Python 3.14 - and is never promised beyond the cells it
+  tests. THE ZONES (plan P4-D409 part 2, enforced by the
+  offline scanner, P4-D410): every product module is in one zone. In
+  zone G, generation, nothing but Python integers, numpy integer
+  arrays, elementwise + - * / and sqrt in a fixed order and the one
+  seeded `integers` stream decide a byte of the twin (numpy's array
+  operations only through the one audited array helper,
+  `synthtwin.arrays`, its ten names admitted by plan P4-D466 and no
+  array leaving it) - no float
+  reduction, transcendental, BLAS or LAPACK, scipy, threaded kernel or
+  numba setting beyond the audited kernel's. In zone D, description and
+  shared report, a published byte comes only from integer-exact
+  arithmetic, `math.fsum` or an order written out, and a solver only
+  searches: whatever it exhibits is re-checked in Python integers.
+  Platform floats (library fits, solver tolerances) live in zone P, the
+  private report, the self-test and the tests, and decide nothing
+  generated or published. Zone R reads the person's file with a library
+  only beside the standard-library reading it is compared with, and
+  zone W writes with the standard library.
+- **The dependency protocol.** A library enters only by a plan decision
+  that measures it better than what it replaces (the owner, 2026-10-19:
+  any offline Python library is allowed and must be used where it is
+  better; no AI service), names the zones it may run in, pins it
+  exactly and by hash in the three locks and the offline bundle, and
+  enters each name the product uses in the offline scanner one at a
+  time, with its capability audit and a mutation case red without it
+  (plan P4-D409 part 7). Its floor is repeated in every requirement
+  file, and `tests/test_dependencies.py` fails on any drift and on any
+  library outside the set the plan adopted. Test-only libraries stay in
+  the development lock; `src` never imports them.
 - **Built-in validation.** The tool measures its own output and reports
   the result plainly. A check that cannot fail is a defect; a passing
   report must mean what it says.
@@ -273,7 +346,7 @@ private prototype only behind a ratified public method specification
 with frozen neutral reference vectors, checked by the reviewer before
 the implementation they anchor exists.
 
-**The current phase is Phase 5.** Each entry below carries its own
+**The current phase is Phase 4, reopened 2026-09-12.** Each entry below carries its own
 state, so no reader has to work out from a date which of them is
 running.
 
@@ -282,7 +355,7 @@ running.
   guarantee. *Complete*; see `docs/plans/phase-0-public-skeleton.md`.
 - **Phase 1 - the profiler:** read a local table, emit the profile;
   first runtime dependencies enter under the reviewed dependency
-  protocol. *Complete*; see `docs/plans/phase-1-profiler.md`.
+  protocol (written down under "Rules of the road" since plan P4-D410). *Complete*; see `docs/plans/phase-1-profiler.md`.
 - **Phase 2 - the generator:** build the twin from the profile alone;
   the public method specification and frozen reference vectors were a
   blocking deliverable here. *Complete - closed by owner decision
@@ -313,13 +386,18 @@ running.
   is UNMET and named**: the reference vectors for the width pass and
   the empty-bin pass were not written, so those two branches are
   pinned by tests rather than by a frozen case with a mutant.
+  *Reopened by owner decision 2026-09-12*, because silent defects
+  inside its own charter were still live: the ordered landings in
+  `docs/STATE.md`, the plan of record, repair them before Phase 5
+  starts.
 - **Phase 5 - relationships and fidelity depth:** cross-column
-  structure and the quality report at full strength. *Current, and not
-  started* - this is the phase the twin's one-column-wide bound waits
-  on, and it inherits sixty-six carried register entries from Phase 4,
-  grouped by what a reader would do about them in that plan's closure
-  section. Nothing in this brief's "what the twin carries today" may
-  soften until this phase builds what it names.
+  structure and the quality report at full strength. *Next, and not
+  started: it waits on reopened Phase 4*, and it inherits sixty-six
+  carried register entries from Phase 4, grouped by what a reader would
+  do about them in that plan's closure section. The relations between
+  columns it was to carry were built inside reopened Phase 4 (the chain,
+  the patient layer and the inside record; `docs/STATE.md`, row 6), and
+  "what the twin carries today" above states them.
 - **Phase 6 - standalone build:** hardened, fully offline distribution
   for institutional machines. *Not started.*
 - **Phase 7 - the interface:** a screen a researcher can use without
@@ -345,6 +423,6 @@ running.
   decides which comes first, and says so.
 
   What it does NOT do: it makes no analysis easier to trust. A screen
-  makes the twin easier to reach, which makes the one-column-wide bound
-  easier to walk into - so it must state that bound where a person
+  makes the twin easier to reach, which makes the bounds of what it
+  carries easier to walk into - so it must state them where a person
   meets the twin, not only in a document they may never open.

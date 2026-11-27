@@ -65,8 +65,11 @@ def _described(
     table = fixtures.write(
         folder, "thing.csv", fixtures.single_column_table("thing", values)
     )
+    chosen = settings or taxonomy.Settings()
     document = profile.build_document(
-        reading.read_table(f"{table}"), settings or taxonomy.Settings(), []
+        reading.read_table(f"{table}", small_cell_floor=chosen.small_cell_floor),
+        chosen,
+        [],
     )
     written = fixtures.write_profile(folder, "thing.json", document)
     return document, contract.load_profile(f"{written}"), folder
@@ -127,15 +130,22 @@ def test_two_numbers_that_round_together_are_still_two() -> None:
 
 
 def test_the_tie_goes_to_the_smallest() -> None:
-    """Where several numbers share the largest count, the smallest wins."""
-    values = ["5", "5", "3", "3", "9", "9"] + [str(v) for v in range(10, 30)]
+    """Where several numbers share the largest count, the smallest wins.
+
+    Each held ELEVEN times, so the pair reaches the default floor of 11
+    (plan P4-D316); held twice, as this was written at a floor of one,
+    the mode is withheld whatever the tie rule says.
+    """
+    values = ["5"] * 11 + ["3"] * 11 + ["9"] * 11 + [
+        str(v) for v in range(10, 30)
+    ]
     document, _loaded, _folder = _described(values)
     column = document["columns"][0]
     assert column["mode"] == 3.0, (
-        "three, five and nine are each held twice, and the rule is the "
-        "smallest of them"
+        "three, five and nine are each held eleven times, and the rule is "
+        "the smallest of them"
     )
-    assert column["mode_count"] == 2
+    assert column["mode_count"] == 11
 
 
 def test_a_mode_held_by_one_cell_is_withheld() -> None:

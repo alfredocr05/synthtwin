@@ -34,6 +34,16 @@ before.
 Every table here is built by the seeded neutral builders in
 `fixtures.py` (plan D13: no data-format file is ever committed), and
 every description by the REAL producer.
+
+SINCE PLAN P4-D426 NO PERSON REACHES ANY OF THIS. The owner answered on
+2026-10-23 that the floor of 11 is a minimum: `--smallest-group` under
+11 is refused writing nothing, and `generate` and `validate` refuse a
+description recorded under 11 (`tests/test_floor_is_a_minimum.py`).
+The floors below 11 these checks run at are reached through
+`cli.main`'s internal keyword `lowered_floor`, by way of
+`tests/lowered_floor.py`; what this file holds is what such a run
+still writes, byte for byte, for the suite and the measurement drivers
+that keep those floors.
 """
 
 import json
@@ -46,6 +56,7 @@ from synthtwin import (
     contract,
     errors,
     generation,
+    parsing,
     profile,
     quality,
     reading,
@@ -53,7 +64,7 @@ from synthtwin import (
     taxonomy,
     validation,
 )
-from synthtwin.cli import main
+import lowered_floor  # a floor under 11 (plan P4-D426)
 
 # Two floors below eleven, and they are different cases. Two is an
 # ordinary lowering. One is the boundary the contract now stops at, and
@@ -64,16 +75,12 @@ _LOWERED = (2, 1)
 
 _DEFAULT = taxonomy.Settings().small_cell_floor
 
-# ELEVEN IS NO LONGER THE DEFAULT (owner ruling, plan amendment
-# A-P4-37): the default floor is 1, and at 1 nothing is held back at
-# all. Eleven is still the protective floor a review board or a
-# data-use agreement asks for -- it is the number `--smallest-group`'s
-# own help names as the one to raise to -- so it is still the floor a
-# lowered floor is lowered FROM, and it is the floor every scenario in
-# this file was written against. The tests below whose subject is what
-# a description WITHHOLDS therefore say eleven out loud, rather than
-# inheriting a default that now withholds nothing and would leave them
-# comparing a description with itself.
+# ELEVEN, SAID OUT LOUD. It was not the default from 2026-08-25 (plan
+# amendment A-P4-37) to 2026-09-22, when the owner returned the default
+# to 11 (plan P4-D316). It is the floor a lowered floor is lowered FROM
+# and the floor every scenario in this file was written against, so the
+# tests below whose subject is what a description WITHHOLDS say eleven
+# rather than inherit a default that could move again.
 _STRICT = 11
 
 
@@ -91,7 +98,7 @@ def _table(folder: pathlib.Path) -> pathlib.Path:
 def _described(folder: pathlib.Path, floor: int) -> pathlib.Path:
     """Describe the table at ``floor`` with the real producer."""
     table_path = _table(folder)
-    table = reading.read_table(f"{table_path}")
+    table = reading.read_table(f"{table_path}", small_cell_floor=floor)
     document = profile.build_document(
         table, taxonomy.Settings(small_cell_floor=floor), []
     )
@@ -122,19 +129,19 @@ def test_profile_generate_and_validate_all_run_at_a_lowered_floor(
     the person to do what they had just done.
     """
     table = _table(tmp_path)
-    assert main(
+    assert lowered_floor.main(
         ["profile", f"{table}", "--smallest-group", f"{floor}"]
     ) == 0, "profile refused a floor it accepted before the twin existed"
     capsys.readouterr()
 
     description = tmp_path / "clinic-profile.json"
-    assert main(["generate", f"{description}"]) == 0, (
+    assert lowered_floor.main(["generate", f"{description}"]) == 0, (
         "generate refused the description profile had just written -- "
         "which is the whole defect amendment A-P3-11 closes"
     )
     capsys.readouterr()
 
-    assert main(["validate", f"{description}"]) == 0, (
+    assert lowered_floor.main(["validate", f"{description}"]) == 0, (
         "validate refused the description, or the twin missed an "
         "obligation, at a lowered floor"
     )
@@ -198,7 +205,7 @@ def test_at_a_floor_of_one_nothing_is_held_back_at_all(
     for block in document["columns"]:
         where = block["name"]
         assert block.get("suppressed_levels", 0) == 0, where
-        assert block.get("suppressed_level_counts", []) == [], where
+        assert "suppressed_level_counts" not in block, where
         assert block.get("suppressed_rows", 0) == 0, where
         for entry in block.get("levels", []):
             assert entry["variants_withheld"] == {}, where
@@ -218,7 +225,7 @@ def test_a_floor_of_zero_is_still_refused(tmp_path: pathlib.Path) -> None:
     the loader refuses it in a document.
     """
     table = _table(tmp_path)
-    assert main(["profile", f"{table}", "--smallest-group", "0"]) == 2
+    assert lowered_floor.main(["profile", f"{table}", "--smallest-group", "0"]) == 2
 
     document = json.loads(
         _described(tmp_path, 1).read_text(encoding="utf-8")
@@ -282,11 +289,13 @@ def test_the_two_defaults_cannot_drift(tmp_path: pathlib.Path) -> None:
     """The reports compare against the producer's own default.
 
     `contract.DEFAULT_SMALL_CELL_FLOOR` exists because the generation
-    and validation paths may not import the profiler's taxonomy. Two
-    modules holding one number is the arrangement; this is the
-    comparison that keeps it honest.
+    and validation paths may not import the profiler's taxonomy. Both
+    read the one place the number is written, `parsing`, since plan
+    P4-D316; this is the comparison that keeps them reading it, and the
+    number itself is the owner's of 2026-09-22.
     """
     assert contract.DEFAULT_SMALL_CELL_FLOOR == _DEFAULT
+    assert _DEFAULT == parsing.DEFAULT_SMALL_CELL_FLOOR == 11
 
 
 # -- 3. the cost is visible, one file at a time -----------------------
@@ -469,7 +478,7 @@ def test_the_profile_command_warns_before_either_file_exists(
     profile.write_both_files = refuse  # type: ignore[assignment]
     try:
         with pytest.raises(KeyboardInterrupt):
-            main(["profile", f"{table}", "--smallest-group", "2"])
+            lowered_floor.main(["profile", f"{table}", "--smallest-group", "2"])
     finally:
         profile.write_both_files = real  # type: ignore[assignment]
 

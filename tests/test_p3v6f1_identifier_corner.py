@@ -77,6 +77,11 @@ def _letters() -> "list[str]":
     return upper + lower
 
 
+def _interleaved(cells: "list[str]") -> "list[str]":
+    """The even places, then the odd: the same cells, in no order."""
+    return cells[0::2] + cells[1::2]
+
+
 def _figures(low: int, high: int) -> "list[str]":
     """The whole numbers from ``low`` to ``high``, written in figures."""
     return [f"{number}" for number in range(low, high + 1)]
@@ -112,9 +117,16 @@ _BATTERY: "tuple[tuple[str, list[str]], ...]" = (
     ("wide-at-the-line", _outside_the_code_alphabet(25)),
     ("wide-over-the-line", _outside_the_code_alphabet(26)),
     # Boundary 2 -- whole numbers in figures alone open with a figure
-    # that is not zero (G9.6), so one character spells nine and not ten.
-    ("figures-at-the-line", _figures(1, 9)),
-    ("figures-over-the-line", _figures(0, 9)),
+    # that is not zero wherever they are longer than one figure (G9.6),
+    # and the lone figure 0 is one of the ten one-figure values (plan
+    # P4-D155): so one and two characters spell a hundred, and a
+    # hundred-and-first value that reads as a whole number in figures
+    # alone -- `00` -- is one past the line.
+    # Interleaved: in order, a column of 0..99 is the row sequence (plan
+    # P4-D86) and is written exactly, whatever its corner. The order of a
+    # column's cells is none of the facts a corner reads.
+    ("figures-at-the-line", _interleaved(_figures(0, 99))),
+    ("figures-over-the-line", _interleaved(_figures(0, 99)) + ["00"]),
     # Boundary 3 -- the same rule two characters wide.
     ("padded-at-the-line", _padded(10, 99)),
     ("padded-over-the-line", _padded(0, 99)),
@@ -151,6 +163,12 @@ _BOUNDARIES = (
 # -- one whole run, as the three commands build one --------------------
 
 
+# FLOOR ONE (plan P4-D316). The corner is a count of record numbers held
+# once each, and the census that pins it is published only at a floor
+# that names groups of one; the default of 11 withholds it.
+_FLOOR_ONE = 1
+
+
 def _describe(
     folder: pathlib.Path, values: "list[str]", stem: str
 ) -> contract.Profile:
@@ -158,8 +176,10 @@ def _describe(
     table = fixtures.write(
         folder, f"{stem}.csv", fixtures.single_column_table(_NAME, values)
     )
-    read = reading.read_table(str(table))
-    document = profile.build_document(read, taxonomy.Settings(), [_NAME])
+    read = reading.read_table(str(table), small_cell_floor=_FLOOR_ONE)
+    document = profile.build_document(
+        read, taxonomy.Settings(small_cell_floor=_FLOOR_ONE), [_NAME]
+    )
     written = fixtures.write_profile(folder, f"{stem}-profile.json", document)
     return contract.load_profile(str(written))
 
@@ -396,25 +416,32 @@ def test_a_column_that_truly_runs_out_still_reaches_owner_decision_six(
 ) -> None:
     """The lesser outcome is still granted where the plan grants it.
 
-    Ten one-character whole numbers. Figures alone open with a figure
-    that is not zero (G9.6), so one character spells nine values and the
-    shipped generator writes nine where ten are published -- the corner
-    owner decision 6 names. Its twin therefore validates with nothing
+    A hundred and one whole numbers one and two figures wide: 0 to 99
+    and `00`. Figures alone open with a figure that is not zero wherever
+    they are longer than one figure (G9.6, plan P4-D155), so one and two
+    characters spell a hundred values and the shipped generator writes a
+    hundred where a hundred and one are published -- the corner owner
+    decision 6 names. (Ten one-character values were this witness until
+    the lone figure 0 was written; they are now answered exactly.) Its twin therefore validates with nothing
     missed, and the three facts appear as listings rather than as
     checks: the achieved value is named beside the published one and no
     verdict pretends to have been passed.
     """
     folder = tmp_path / "figures"
     folder.mkdir()
-    described = _describe(folder, _figures(0, 9), "figures-ten")
+    # Interleaved, as the battery's own witnesses are: in order the ten
+    # figures are the row sequence (plan P4-D86) and are written exactly.
+    described = _describe(
+        folder, _interleaved(_figures(0, 99)) + ["00"], "figures-ten"
+    )
     column = described.columns[0]
     facts = column.facts
     assert isinstance(facts, contract.IdentifierFacts)
     assert facts.all_whole_numbers
-    assert (facts.min_length, facts.max_length) == (1, 1)
-    assert column.n_distinct == 10
+    assert (facts.min_length, facts.max_length) == (1, 2)
+    assert column.n_distinct == 101
     twin = _twin(described)
-    assert _distinct_present(twin) == 9
+    assert _distinct_present(twin) == 100
     assert _has_corner(described)
     outcome = _measure(
         folder, described, rendering.twin_csv(twin), "figures-twin.csv"
@@ -447,12 +474,13 @@ def test_the_band_capacities_are_the_numbers_the_method_counts_out(
     # formula leader it holds.
     assert validation._capacity_at(validation._BAND_CODE, 1) == 53
     assert validation._capacity_at(validation._BAND_DIGITS, 1) == 10
-    # G9.6's whole-number families. Figures alone lose the leading zero;
+    # G9.6's whole-number families. Figures alone lose the leading zero
+    # past one figure, and keep the lone figure 0 (plan P4-D155);
     # `<digits>e0` has nothing to write below three characters except
     # the ten spellings that open with a sign, which owner decision 9
     # permits at two; `<digits>.` has nothing to write at one.
     whole = validation._identifier_capacity_at
-    assert whole(validation._BAND_DIGITS, 1, True) == 9
+    assert whole(validation._BAND_DIGITS, 1, True) == 10
     assert whole(validation._BAND_DIGITS, 2, True) == 90
     assert whole(validation._BAND_CODE, 1, True) == 0
     assert whole(validation._BAND_CODE, 2, True) == 10

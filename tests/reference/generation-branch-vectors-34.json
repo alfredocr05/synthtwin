@@ -1,0 +1,998 @@
+{
+  "cases": {
+    "l0_cells_listed_pain": {
+      "answer": {
+        "counts": [
+          [
+            "-99",
+            1647
+          ],
+          [
+            "1",
+            3515
+          ],
+          [
+            "2",
+            3382
+          ],
+          [
+            "3",
+            3379
+          ],
+          [
+            "4",
+            3434
+          ],
+          [
+            "5",
+            4643
+          ]
+        ]
+      },
+      "bands": [
+        [
+          [
+            null,
+            "p10"
+          ]
+        ],
+        [
+          [
+            "p10",
+            "p30"
+          ]
+        ],
+        [
+          [
+            "p30",
+            "p50"
+          ]
+        ],
+        [
+          [
+            "p50",
+            "p60"
+          ]
+        ],
+        [
+          [
+            "p60",
+            "p80"
+          ]
+        ],
+        [
+          [
+            "p80",
+            null
+          ]
+        ]
+      ],
+      "column": {
+        "bin_groups": [
+          {
+            "count": 1447,
+            "first": 0,
+            "last": 0
+          },
+          {
+            "count": 3515,
+            "first": 1,
+            "last": 30
+          },
+          {
+            "count": 14638,
+            "first": 31,
+            "last": 31
+          }
+        ],
+        "decimal_plus": {},
+        "detection_evidence": "20000 of the 20000 values are written as numbers",
+        "empty_bins": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29
+        ],
+        "empty_edges": [
+          [
+            -99.0,
+            1.0
+          ]
+        ],
+        "few_values": [
+          "-99",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+        ],
+        "field_widths": {
+          "1": 18353,
+          "2": 1647
+        },
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": 10.183705555023227,
+        "mean": -5.2843,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "mode": 5.0,
+        "mode_count": 4643,
+        "n_contradictory": 0,
+        "n_distinct": 6,
+        "n_distinct_folded": 6,
+        "n_distinct_values": 6,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 1647,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 20000,
+        "n_out_of_range": 0,
+        "n_present": 20000,
+        "n_rows": 20000,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 20000,
+        "n_zero": 0,
+        "name": "pain_score",
+        "negative_form": "minus",
+        "negative_notations": {
+          "minus": 1647
+        },
+        "numeric_share": 1.0,
+        "numeric_styles": {
+          "plain": 20000
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": 5.0,
+          "min": -99.0,
+          "p01": -99.0,
+          "p05": -99.0,
+          "p10": 1.0,
+          "p25": 1.0,
+          "p50": 3.0,
+          "p75": 4.0,
+          "p90": 5.0,
+          "p95": 5.0,
+          "p99": 5.0
+        },
+        "percentiles_between": {
+          "p02": -99.0,
+          "p03": -99.0,
+          "p04": -99.0,
+          "p06": -99.0,
+          "p07": -99.0,
+          "p08": -99.0,
+          "p09": 1.0,
+          "p11": 1.0,
+          "p12": 1.0,
+          "p13": 1.0,
+          "p14": 1.0,
+          "p15": 1.0,
+          "p16": 1.0,
+          "p17": 1.0,
+          "p18": 1.0,
+          "p19": 1.0,
+          "p20": 1.0,
+          "p21": 1.0,
+          "p22": 1.0,
+          "p23": 1.0,
+          "p24": 1.0,
+          "p26": 2.0,
+          "p27": 2.0,
+          "p28": 2.0,
+          "p29": 2.0,
+          "p30": 2.0,
+          "p31": 2.0,
+          "p32": 2.0,
+          "p33": 2.0,
+          "p34": 2.0,
+          "p35": 2.0,
+          "p36": 2.0,
+          "p37": 2.0,
+          "p38": 2.0,
+          "p39": 2.0,
+          "p40": 2.0,
+          "p41": 2.0,
+          "p42": 2.0,
+          "p43": 3.0,
+          "p44": 3.0,
+          "p45": 3.0,
+          "p46": 3.0,
+          "p47": 3.0,
+          "p48": 3.0,
+          "p49": 3.0,
+          "p51": 3.0,
+          "p52": 3.0,
+          "p53": 3.0,
+          "p54": 3.0,
+          "p55": 3.0,
+          "p56": 3.0,
+          "p57": 3.0,
+          "p58": 3.0,
+          "p59": 3.0,
+          "p60": 4.0,
+          "p61": 4.0,
+          "p62": 4.0,
+          "p63": 4.0,
+          "p64": 4.0,
+          "p65": 4.0,
+          "p66": 4.0,
+          "p67": 4.0,
+          "p68": 4.0,
+          "p69": 4.0,
+          "p70": 4.0,
+          "p71": 4.0,
+          "p72": 4.0,
+          "p73": 4.0,
+          "p74": 4.0,
+          "p76": 4.0,
+          "p77": 5.0,
+          "p78": 5.0,
+          "p79": 5.0,
+          "p80": 5.0,
+          "p81": 5.0,
+          "p82": 5.0,
+          "p83": 5.0,
+          "p84": 5.0,
+          "p85": 5.0,
+          "p86": 5.0,
+          "p87": 5.0,
+          "p88": 5.0,
+          "p89": 5.0,
+          "p91": 5.0,
+          "p92": 5.0,
+          "p93": 5.0,
+          "p94": 5.0,
+          "p96": 5.0,
+          "p97": 5.0,
+          "p98": 5.0
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [],
+        "skew": -3.0250916078652885,
+        "statistical_type": "continuous",
+        "std": 28.109636801176475,
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "tails": {
+          "high": {
+            "mean_distance": 0.0,
+            "percent": 99,
+            "rms_distance": 0.0,
+            "rows": 200,
+            "values": [
+              5.0
+            ]
+          },
+          "low": {
+            "mean_distance": 0.0,
+            "percent": 1,
+            "rms_distance": 0.0,
+            "rows": 200,
+            "values": [
+              -99.0
+            ]
+          }
+        },
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
+      },
+      "rows": 20000,
+      "rule": "cells",
+      "seed": 0,
+      "totals": [
+        1647,
+        3515,
+        3382,
+        3379,
+        3434,
+        4643
+      ],
+      "why": "G6.9 step 0 (lane BT3b): a score of 1 to 5 beside the code -99 at 20,000 cells, chained: each band's published count is a cut rank the listed census meets before every other fact, so every band holds its count (the census alone wrote 3,649 cells in a band of 3,651 on the zoo's survey, which generate refused)."
+    },
+    "l0_cells_listed_sum": {
+      "answer": {
+        "counts": [
+          [
+            "10",
+            508
+          ],
+          [
+            "2",
+            232
+          ],
+          [
+            "3",
+            934
+          ],
+          [
+            "4",
+            2148
+          ],
+          [
+            "5",
+            3143
+          ],
+          [
+            "6",
+            3573
+          ],
+          [
+            "7",
+            3462
+          ],
+          [
+            "8",
+            2920
+          ],
+          [
+            "9",
+            1788
+          ],
+          [
+            "999",
+            1292
+          ]
+        ]
+      },
+      "bands": [
+        [
+          [
+            null,
+            "p10"
+          ]
+        ],
+        [
+          [
+            "p10",
+            "p20"
+          ]
+        ],
+        [
+          [
+            "p20",
+            "p40"
+          ]
+        ],
+        [
+          [
+            "p40",
+            "p60"
+          ]
+        ],
+        [
+          [
+            "p60",
+            "p70"
+          ]
+        ],
+        [
+          [
+            "p70",
+            "p90"
+          ]
+        ],
+        [
+          [
+            "p90",
+            null
+          ]
+        ]
+      ],
+      "column": {
+        "bin_groups": [
+          {
+            "count": 18508,
+            "first": 0,
+            "last": 0
+          },
+          {
+            "count": 1092,
+            "first": 1,
+            "last": 31
+          }
+        ],
+        "decimal_plus": {},
+        "detection_evidence": "all 20000 numeric values are whole and none is negative, so this column counts things",
+        "empty_bins": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30
+        ],
+        "empty_edges": [
+          [
+            10.0,
+            999.0
+          ]
+        ],
+        "few_values": [
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "999"
+        ],
+        "field_widths": {
+          "1": 18200,
+          "2": 508,
+          "3": 1292
+        },
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": 13.547557951480966,
+        "mean": 70.42425,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "mode": 6.0,
+        "mode_count": 3573,
+        "n_contradictory": 0,
+        "n_distinct": 10,
+        "n_distinct_folded": 10,
+        "n_distinct_values": 10,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 0,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 20000,
+        "n_out_of_range": 0,
+        "n_present": 20000,
+        "n_rows": 20000,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 20000,
+        "n_zero": 0,
+        "name": "scale_sum",
+        "negative_form": "minus",
+        "negative_notations": {},
+        "number_spellings": {},
+        "numeric_share": 1.0,
+        "numeric_styles": {
+          "plain": 20000
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": 999.0,
+          "min": 2.0,
+          "p01": 2.0,
+          "p05": 3.0,
+          "p10": 4.0,
+          "p25": 5.0,
+          "p50": 6.0,
+          "p75": 8.0,
+          "p90": 9.0,
+          "p95": 999.0,
+          "p99": 999.0
+        },
+        "percentiles_between": {
+          "p02": 3.0,
+          "p03": 3.0,
+          "p04": 3.0,
+          "p06": 4.0,
+          "p07": 4.0,
+          "p08": 4.0,
+          "p09": 4.0,
+          "p11": 4.0,
+          "p12": 4.0,
+          "p13": 4.0,
+          "p14": 4.0,
+          "p15": 4.0,
+          "p16": 4.0,
+          "p17": 5.0,
+          "p18": 5.0,
+          "p19": 5.0,
+          "p20": 5.0,
+          "p21": 5.0,
+          "p22": 5.0,
+          "p23": 5.0,
+          "p24": 5.0,
+          "p26": 5.0,
+          "p27": 5.0,
+          "p28": 5.0,
+          "p29": 5.0,
+          "p30": 5.0,
+          "p31": 5.0,
+          "p32": 5.0,
+          "p33": 6.0,
+          "p34": 6.0,
+          "p35": 6.0,
+          "p36": 6.0,
+          "p37": 6.0,
+          "p38": 6.0,
+          "p39": 6.0,
+          "p40": 6.0,
+          "p41": 6.0,
+          "p42": 6.0,
+          "p43": 6.0,
+          "p44": 6.0,
+          "p45": 6.0,
+          "p46": 6.0,
+          "p47": 6.0,
+          "p48": 6.0,
+          "p49": 6.0,
+          "p51": 7.0,
+          "p52": 7.0,
+          "p53": 7.0,
+          "p54": 7.0,
+          "p55": 7.0,
+          "p56": 7.0,
+          "p57": 7.0,
+          "p58": 7.0,
+          "p59": 7.0,
+          "p60": 7.0,
+          "p61": 7.0,
+          "p62": 7.0,
+          "p63": 7.0,
+          "p64": 7.0,
+          "p65": 7.0,
+          "p66": 7.0,
+          "p67": 7.0,
+          "p68": 8.0,
+          "p69": 8.0,
+          "p70": 8.0,
+          "p71": 8.0,
+          "p72": 8.0,
+          "p73": 8.0,
+          "p74": 8.0,
+          "p76": 8.0,
+          "p77": 8.0,
+          "p78": 8.0,
+          "p79": 8.0,
+          "p80": 8.0,
+          "p81": 8.0,
+          "p82": 8.0,
+          "p83": 9.0,
+          "p84": 9.0,
+          "p85": 9.0,
+          "p86": 9.0,
+          "p87": 9.0,
+          "p88": 9.0,
+          "p89": 9.0,
+          "p91": 9.09,
+          "p92": 10.0,
+          "p93": 10.0,
+          "p94": 999.0,
+          "p96": 999.0,
+          "p97": 999.0,
+          "p98": 999.0
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "count",
+        "sentinel_verdicts": [],
+        "skew": 3.5421324333689794,
+        "statistical_type": "count",
+        "std": 244.03774274265783,
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "tails": {
+          "high": {
+            "mean_distance": 0.0,
+            "percent": 99,
+            "rms_distance": 0.0,
+            "rows": 200,
+            "values": [
+              999.0
+            ]
+          },
+          "low": {
+            "mean_distance": 0.0,
+            "percent": 1,
+            "rms_distance": 0.0,
+            "rows": 200,
+            "values": [
+              2.0
+            ]
+          }
+        },
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
+      },
+      "rows": 20000,
+      "rule": "cells",
+      "seed": 0,
+      "totals": [
+        1166,
+        2148,
+        3143,
+        3573,
+        3462,
+        2920,
+        3588
+      ],
+      "why": "G6.9 step 0 (lane BT3b): the sum of two scores, 2 to 10 beside the code 999, at 20,000 cells: seven bands, each at its published count."
+    },
+    "l0_room_listed": {
+      "answer": {
+        "laid": false
+      },
+      "bands": [
+        [
+          [
+            null,
+            "p10"
+          ]
+        ],
+        [
+          [
+            "p10",
+            "p20"
+          ]
+        ],
+        [
+          [
+            "p20",
+            "p40"
+          ]
+        ],
+        [
+          [
+            "p40",
+            "p70"
+          ]
+        ],
+        [
+          [
+            "p70",
+            null
+          ]
+        ]
+      ],
+      "column": {
+        "bin_groups": [
+          {
+            "count": 768,
+            "first": 0,
+            "last": 0
+          },
+          {
+            "count": 1216,
+            "first": 1,
+            "last": 30
+          },
+          {
+            "count": 17616,
+            "first": 31,
+            "last": 31
+          }
+        ],
+        "decimal_plus": {},
+        "detection_evidence": "20000 of the 20000 values are written as numbers",
+        "empty_bins": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29
+        ],
+        "empty_edges": [
+          [
+            -99.0,
+            1.0
+          ]
+        ],
+        "few_values": [
+          "-99",
+          "1",
+          "3",
+          "4",
+          "5"
+        ],
+        "field_widths": {
+          "1": 19032,
+          "2": 968
+        },
+        "fraction_widths": {},
+        "group_separator": "",
+        "integer_valued": true,
+        "kurtosis": 18.628762848417786,
+        "mean": -1.7692,
+        "missing_by_class": {
+          "(blank)": 0,
+          "(date-sentinel)": 0,
+          "(declared-missing)": 0,
+          "(numeric-sentinel)": 0,
+          "(text-code)": 0,
+          "(withheld)": 0
+        },
+        "missing_by_source": {},
+        "mode": 3.0,
+        "mode_count": 6277,
+        "n_contradictory": 0,
+        "n_distinct": 6,
+        "n_distinct_folded": 6,
+        "n_distinct_values": 6,
+        "n_left_out_of_statistics": 0,
+        "n_missing": 0,
+        "n_missing_blank": 0,
+        "n_missing_withheld": 0,
+        "n_negative": 968,
+        "n_negative_unrepresentable": 0,
+        "n_not_numeric": 0,
+        "n_numeric": 20000,
+        "n_out_of_range": 0,
+        "n_present": 20000,
+        "n_rows": 20000,
+        "n_sentinel_candidates_unpublished": 0,
+        "n_used_in_statistics": 20000,
+        "n_zero": 0,
+        "name": "sleep_score",
+        "negative_form": "minus",
+        "negative_notations": {
+          "minus": 968
+        },
+        "numeric_share": 1.0,
+        "numeric_styles": {
+          "plain": 20000
+        },
+        "pad_widths": {},
+        "percentiles": {
+          "max": 5.0,
+          "min": -99.0,
+          "p01": -99.0,
+          "p05": 1.0,
+          "p10": 1.0,
+          "p25": 2.0,
+          "p50": 3.0,
+          "p75": 4.0,
+          "p90": 4.0,
+          "p95": 5.0,
+          "p99": 5.0
+        },
+        "percentiles_between": {
+          "p02": -99.0,
+          "p03": -99.0,
+          "p04": -99.0,
+          "p06": 1.0,
+          "p07": 1.0,
+          "p08": 1.0,
+          "p09": 1.0,
+          "p11": 2.0,
+          "p12": 2.0,
+          "p13": 2.0,
+          "p14": 2.0,
+          "p15": 2.0,
+          "p16": 2.0,
+          "p17": 2.0,
+          "p18": 2.0,
+          "p19": 2.0,
+          "p20": 2.0,
+          "p21": 2.0,
+          "p22": 2.0,
+          "p23": 2.0,
+          "p24": 2.0,
+          "p26": 2.0,
+          "p27": 2.0,
+          "p28": 2.0,
+          "p29": 2.0,
+          "p30": 2.0,
+          "p31": 3.0,
+          "p32": 3.0,
+          "p33": 3.0,
+          "p34": 3.0,
+          "p35": 3.0,
+          "p36": 3.0,
+          "p37": 3.0,
+          "p38": 3.0,
+          "p39": 3.0,
+          "p40": 3.0,
+          "p41": 3.0,
+          "p42": 3.0,
+          "p43": 3.0,
+          "p44": 3.0,
+          "p45": 3.0,
+          "p46": 3.0,
+          "p47": 3.0,
+          "p48": 3.0,
+          "p49": 3.0,
+          "p51": 3.0,
+          "p52": 3.0,
+          "p53": 3.0,
+          "p54": 3.0,
+          "p55": 3.0,
+          "p56": 3.0,
+          "p57": 3.0,
+          "p58": 3.0,
+          "p59": 3.0,
+          "p60": 3.0,
+          "p61": 3.0,
+          "p62": 4.0,
+          "p63": 4.0,
+          "p64": 4.0,
+          "p65": 4.0,
+          "p66": 4.0,
+          "p67": 4.0,
+          "p68": 4.0,
+          "p69": 4.0,
+          "p70": 4.0,
+          "p71": 4.0,
+          "p72": 4.0,
+          "p73": 4.0,
+          "p74": 4.0,
+          "p76": 4.0,
+          "p77": 4.0,
+          "p78": 4.0,
+          "p79": 4.0,
+          "p80": 4.0,
+          "p81": 4.0,
+          "p82": 4.0,
+          "p83": 4.0,
+          "p84": 4.0,
+          "p85": 4.0,
+          "p86": 4.0,
+          "p87": 4.0,
+          "p88": 4.0,
+          "p89": 4.0,
+          "p91": 5.0,
+          "p92": 5.0,
+          "p93": 5.0,
+          "p94": 5.0,
+          "p96": 5.0,
+          "p97": 5.0,
+          "p98": 5.0
+        },
+        "position": 1,
+        "quality_state": "ok",
+        "remarks": [],
+        "role": "continuous",
+        "sentinel_verdicts": [],
+        "skew": -4.192898927988013,
+        "statistical_type": "continuous",
+        "std": 21.95322364850839,
+        "std_unrepresentable": false,
+        "structural_role": "data",
+        "tails": {
+          "high": {
+            "mean_distance": 0.0,
+            "percent": 99,
+            "rms_distance": 0.0,
+            "rows": 200,
+            "values": [
+              5.0
+            ]
+          },
+          "low": {
+            "mean_distance": 0.0,
+            "percent": 1,
+            "rms_distance": 0.0,
+            "rows": 200,
+            "values": [
+              -99.0
+            ]
+          }
+        },
+        "thousands_marks": {},
+        "value_histogram": {},
+        "wide_runs": "none"
+      },
+      "rows": 20000,
+      "rule": "room",
+      "seed": 0,
+      "totals": [
+        968,
+        1216,
+        3849,
+        6277,
+        7690
+      ],
+      "why": "G5.7a's (P6) (lane BT3b): the second score's list with the value 2 taken off, so the band [2, 3) holds 3,849 cells and no listed value: the column is made without its band totals (rule B3), never refused."
+    }
+  },
+  "generated_by": "tools/reference/make_generation_reference_vectors.py",
+  "method": "docs/spec/generation-method-v1.md",
+  "never_imports": [
+    "synthtwin",
+    "numpy",
+    "pandas"
+  ],
+  "what": "Layer L0's leftovers (lane BT3b, plan P4-D467; method G5.7a and G6.9): a column written as its listed values meets its L0 bands' cut ranks first (G6.9 step 0), two invented chained columns' counts at each value, and G5.7a's (P6) on a list that leaves a band no value, each with the answer this file computes from the method's text."
+}

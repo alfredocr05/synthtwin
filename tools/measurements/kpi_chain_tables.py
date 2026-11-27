@@ -1,0 +1,202 @@
+"""K-S6-08, the chain's tables part: no count of 1 to 10 any description of the draw can publish fixes or bounds (plan P4-D418).
+
+Lane CHa's stamp of `K-S6-08` on the fixtures of the design's section 2.7
+(contract 4.6b.10), by exact enumeration at the floor of 11
+(`tests/chain_enumeration.py`):
+
+- THE MARGIN-SET SCAN: every 2 x 2 x 2 table of the design's 24 margin sets
+  (n from 100 to 124, every one-way total of the value 1 at least 2f,
+  `n3d.py`'s seed 3), every description the draw can publish from each
+  (every eligible option of every step, the product's RULES W3, NE, the
+  floor and W1), its preimage streamed: `descriptions_leaking`, target 0;
+- RULE W1'S PART C recast as the product's filter: `part_c_leaking`, target
+  0; its mutant, the version 2.2 merge after the draw, must leak
+  (`part_c_mutant_leaking` above 0, the case's discrimination);
+- RULE W1'S OWN-FACT SOURCES (repair 1, skeptic 1's item 1): a 1 % slice of
+  six rows between two published rungs of 600 all-different ages, the
+  one row a clock census leaves of its band [p25, p50), and (repair 2,
+  the combined verify's item 1) the five-row slices of [p75, p90) on 501
+  ages all different but a published mode, or nought; every root option
+  the draw can take on each (two columns: the chain is its root pair) is
+  read by RULE W1 in full with the true group: `own_fact_confining`, target
+  0, over `own_fact_options`; the mutant, the groups read on the column's
+  own values left out (on the heap fixtures, the single values a published
+  count names left unread), confines (`own_fact_mutant_confining` above 0);
+- RULE ONE_BAND'S READING (lane CHa2, plan P4-D451): a count column whose
+  median is its lowest value, nought on 56 rows, one on 14 and two or more on
+  20 of which six are one published value, read by the product's own merge
+  to `L2` at the lowest `L1` cut, beside a yes-or-no column: every table of
+  its fixture and every description: `one_band_leaking`, target 0; the mutant,
+  RULE W1 reading the level the rule replaced, leaks
+  (`one_band_mutant_leaking` above 0);
+- THE MIRROR: on `MIRROR_TABLES` tables sampled across the sets, the
+  producer's own search reaches exactly the scan's descriptions
+  (`mirror_mismatches`, target 0);
+- THE PATIENT CASES (lane GRa, plan P4-D449; contract 4.6c.10), by exact
+  enumeration (`tests/patient_enumeration.py`): every census of 11 to 20
+  patients of 1 to 5 rows, none eligible with 1 to 10 extra rows; PWIT in
+  every cell of one `r` and the floored split in every cell of two values
+  of `r` at `f = 3`, their passes leaking no union of types; the class
+  witness on the first skeptic's fixture at `f = 11`, refusing every one
+  of the descriptions the class makes leak (its PWIT-only mutant leaks);
+  and, at the owner's table floor, four invented long tables (heavy-tailed
+  rows a patient, the same with a visit number written twice on a few
+  patients, and complete follow-up with and without a heap) described
+  behind the switch:
+  every count of the layer floored, the loader's S23 to S33 met, no trend
+  on complete follow-up; the fifteen visit-trend fixtures under the
+  product's SWING, its passes leaking no union of types; the design's own
+  fixtures ported, R*'s one tie over two families whose cuts of the top band
+  cross, the trend beside the column's exact mean, spread and one heap with a
+  band of one code in the ladder, and `ST2` and `ST2-AGE` at the floor size with
+  change over visits published. The moments' `MF1` to `MF5` are the page's
+  stated limit, cited, never passed;
+- THE STATED LIMITS, reported and never passed: two descriptions of one
+  table (`two_key_pairs_leaking` of `two_key_pairs`, on the scan's second
+  to fourth sets), and two different tables under one name (the design check's
+  figure, cited: the product's keyed run of it is owed). Two tables under
+  DIFFERENT names draw independent words, so a pair's preimage is the
+  product of the two single ones and leaks exactly where a single
+  description does: `different_names_leaking` equals 0 where
+  `descriptions_leaking` does.
+
+- THE MOMENT FIXTURES UNDER THE OWNER'S RULE B (contract 4.6d.0 and
+  4.6d.7, plan P4-D455; lane MPp, restating the strict-proof fixtures
+  this list once named): by exhaustive enumeration through the product's
+  own `chain_moments` functions at `f` = 3 and `f` = 11
+  (`tests/moment_rule_b_enumeration.py`), every two-band split of a binary
+  and of a number, every two-band split with a band holding an own-fact
+  group (RULE W1), every `L2` reading of three `L1` bands, every presence
+  table of two numbers (both, the first alone, the second alone, neither) and
+  every binary: `moment_leaking_f3` and `moment_leaking_f11`, target 0 (no
+  published moment implies a count of 1 to `f - 1` directly, a column's
+  own unread count beside a complete column standing as its own fact),
+  over `moment_published_f3` and `moment_published_f11`
+  (`moment_coarser_f3` and `_f11` of them read on the `L2` bands); each of
+  the six mutants (one direct count's check, RULE W1 or the neither
+  cell's check dropped) leaks (`moment_mutants_leaking_f3` and `_f11`
+  equal `moment_mutants_f3` and `_f11`, 6); and every presence table the
+  product publishes, the loader's S41 reads back in both pair orders
+  (`moment_loader_refused_f3` and `_f11`, target 0; lane MPp repair 2). A
+  count worked out by combining several published statistics is the
+  residual the owner accepted with rule B, never read here.
+
+    PYTHONPATH=src:tests python tools/measurements/kpi_chain_tables.py --kpi
+
+About 15 to 25 minutes on the reference machine; one process, a few tens of
+megabytes.
+"""
+
+import json
+import pathlib
+import random
+import sys
+import time
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tests"))
+
+import chain_enumeration as enumeration  # noqa: E402
+import moment_rule_b_enumeration as moment_enumeration  # noqa: E402
+import patient_enumeration as patients  # noqa: E402
+
+SETS = 24
+SEED = 3
+MIRROR_TABLES = 200
+SAME_NAME = "136 of 29,018 targeted pairs (design check V23-repair, out/named-keys-seed3.json, cited)"
+
+
+def measure() -> "dict[str, object]":
+    started = time.time()
+    sets = enumeration.scan_sets(100, 124, SETS, SEED)
+    # The two-keys pairs on the second to fourth sets of the scan's order
+    # (79,619, 92,189 and 66,920 tables); the first holds 396,405.
+    ordered = sets[1:4] + sets[:1] + sets[4:]
+    scan = enumeration.margin_scan(ordered, pairs_on=3)
+    own_facts = enumeration.own_fact_sources()
+    part_c = enumeration.part_c("filter")
+    mutant = enumeration.part_c("merge")
+    one_band = enumeration.one_band("filter")
+    one_band_mutant = enumeration.one_band("old_level")
+    draw = random.Random(SEED)
+    mismatches = 0
+    for _sample in range(MIRROR_TABLES):
+        n, a1, b1, c1 = sets[draw.randrange(len(sets))]
+        tables = enumeration.tables_with_margins(n, a1, b1, c1)
+        table = tables[draw.randrange(len(tables))]
+        scales = [enumeration.binary_scale("a", n - a1, a1), enumeration.binary_scale("b", n - b1, b1), enumeration.binary_scale("c", n - c1, c1)]
+        if not enumeration.mirror_agrees(table, scales):
+            mismatches += 1
+    moments = moment_enumeration.measure()
+    # THE PATIENT CASES (lane GRa, plan P4-D449; contract 4.6c.10): the
+    # census, PWIT, the floored split and the class witness by exact
+    # enumeration, and the layer at the owner's table floor.
+    patient = patients.patient_cases()
+    at_floor = patients.floor_size_checks()
+    trend = patients.trend_fixtures()
+    design: "dict[str, int]" = {}
+    for found in (patients.crossing_cuts(), patients.fixed_rows_readings(), patients.scale_attack(), patients.page_cases(), patients.moment_fixtures(), patients.st2_tables()):
+        design.update(found)
+    # THE RULE CLAUSE (contract 4.6b.7, MR.6 (f); lane RO, plan P4-D459): a derived order rule's
+    # every table of 12 rows at f = 3 and limit 4, its level, class and eligibility decided by the
+    # product's own functions, with its two mutants (the exact count under f; rule 3 off).
+    ruled = enumeration.rules_derived_leg(n=12, f=3, limit=4)
+    exact = enumeration.rules_derived_leg(n=12, f=3, limit=4, mutant="exact")
+    third = enumeration.rules_derived_leg(n=12, f=3, limit=4, mutant="rule3")
+    # MR.2's table of number forms, one fixture a form (`42.` + 1 written `43.` among them; lane RO's
+    # repair 2): the product's writer against the oracle's frozen vectors, with its mutant (the point dropped).
+    vectors = json.loads((ROOT / "tests" / "reference" / "chain-oracle-vectors.json").read_text(encoding="utf-8"))
+    forms = enumeration.rules_forms_leg(vectors)
+    forms_mutant = enumeration.rules_forms_leg(vectors, point=False)
+    return {
+        **moments,
+        **patient,
+        **at_floor,
+        **trend,
+        **design,
+        "rules_forms_checked": forms["checked"],
+        "rules_forms_off": forms["off"],
+        "rules_forms_mutant_point_off": forms_mutant["off"],
+        "rules_tables": ruled["tables"],
+        "rules_descriptions": ruled["descriptions"],
+        "rules_unions": ruled["unions"],
+        "rules_leaking": ruled["leaking"],
+        "rules_mutant_exact_leaking": exact["leaking"],
+        "rules_mutant_rule3_leaking": third["leaking"],
+        "descriptions_leaking": scan["descriptions_leaking"],
+        "descriptions": scan["descriptions"],
+        "tables": scan["tables"],
+        "margin_sets": scan["margin_sets"],
+        "part_c_leaking": part_c["descriptions_leaking"],
+        "part_c_descriptions": part_c["descriptions"],
+        "part_c_mutant_leaking": mutant["descriptions_leaking"],
+        "one_band_tables": one_band["tables"],
+        "one_band_descriptions": one_band["descriptions"],
+        "one_band_leaking": one_band["descriptions_leaking"],
+        "one_band_mutant_leaking": one_band_mutant["descriptions_leaking"],
+        "own_fact_options": own_facts["own_fact_options"],
+        "own_fact_confining": own_facts["own_fact_confining"],
+        "own_fact_mutant_confining": own_facts["own_fact_mutant_confining"],
+        "mirror_tables": MIRROR_TABLES,
+        "mirror_mismatches": mismatches,
+        "different_names_leaking": scan["descriptions_leaking"],
+        "two_key_sets": scan["two_key_sets"],
+        "two_key_pairs": scan["two_key_pairs"],
+        "two_key_pairs_leaking": scan["two_key_pairs_leaking"],
+        "same_name": SAME_NAME,
+        "seconds": round(time.time() - started, 1),
+    }
+
+
+def main() -> int:
+    value = measure()
+    if "--kpi" in sys.argv:
+        print("KPI " + json.dumps({"id": "K-S6-08", "value": value, "detail": "the chain's tables part (lane CHa)"}, sort_keys=True))
+    else:
+        print(json.dumps(value, indent=1, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

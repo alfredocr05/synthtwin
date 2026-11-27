@@ -44,3 +44,196 @@ class _GuardedSocket(_ORIGINALS["socket"]):  # type: ignore[misc]
 
 socket.socket = _GuardedSocket  # type: ignore[misc,assignment]
 socket.create_connection = _blocked  # type: ignore[assignment]
+
+
+# THE TABLE FLOOR IS OFF FOR THE SUITE'S IN-PROCESS RUNS (plan P4-D425).
+# `synthtwin profile` refuses a table under `parsing.TABLE_ROW_FLOOR`
+# rows that hold a value, or, where a declared or answered person column
+# repeats, under `parsing.TABLE_PEOPLE_FLOOR` people -- the owner's rule
+# of 2026-10-22 -- and the suite runs the command on hundreds of small
+# tables whose checks are about reading, roles and publication, not size.
+# `cli.main` takes an INTERNAL keyword, `small_tables_refused`, which no
+# command-line option sets; this fixture makes False its default for
+# every test, on the function object itself, so a test that imported
+# `main` by name gets the same default as one that calls `cli.main`. A
+# test of the floor passes `small_tables_refused=True` (tests/test_table_floor.py),
+# and a run in a fresh interpreter -- the installed command -- has the
+# floor on, which that file checks too. The measurement drivers run
+# outside pytest and pass the keyword themselves.
+import os  # noqa: E402
+import pathlib  # noqa: E402
+
+import pytest  # noqa: E402
+from collections.abc import Iterator  # noqa: E402
+
+# THE INSTALLATION'S DATA FOLDER, ONE FOR EACH TEST (lane CHON, plan
+# P4-D464; contract 4.6b.4). Every shipped `synthtwin profile` run opens the
+# installation's data folder -- its private key, its record of earlier
+# descriptions, its lock and its private reports -- which the platform
+# places from XDG_DATA_HOME (POSIX) or LOCALAPPDATA (Windows). A test must
+# never read or write the account's own folder, and no test's lock may meet
+# another's, so each test gets a folder of its own holding the fixed test
+# key (`bytes(range(32))`, the oracle's) and an empty record: a run's chain
+# is then the same on every machine, and the screen says nothing about a
+# key made or a record started. Written with the standard library alone:
+# CI's static jobs run without the package installed. A test that names
+# its own folder (`monkeypatch.setenv`) keeps it; a test that asks for
+# `installation_folder` by name is handed its own data folder.
+#
+# AND ONE FOR EACH MODULE AND FOR THE SESSION (lane CHON's repair 1, from
+# the whole suite of its build head): pytest makes a fixture of a wider
+# scope BEFORE a test's own autouse fixtures, so a fixture of a module (a
+# table described once for many cases) ran its shipped command with the
+# account's own data folder in the environment -- on macOS the account's
+# Library/Application Support/synthtwin -- and a later run of the same
+# table met that folder's record. The same folder is made at the session's
+# start and at each module's (autouse fixtures come first within their
+# scope), so no fixture of any scope reaches the account's folder.
+TEST_KEY = bytes(range(32))
+_DATA_FOLDER = "synthtwin"
+_KEY_FILE = "chain-key"
+_LEDGER_FILE = "chain-ledger"
+_EMPTY_LEDGER = '{\n  "tables": [],\n  "version": 1\n}\n'
+
+
+def _fresh_installation(place: pathlib.Path) -> pathlib.Path:
+    """A data folder under `place` holding the fixed test key and an empty record; its path."""
+    data = place / _DATA_FOLDER
+    data.mkdir(mode=0o700)
+    key = data / _KEY_FILE
+    key.touch(mode=0o600)
+    if os.name != "nt":
+        data.chmod(0o700)
+        key.chmod(0o600)
+    key.write_bytes(TEST_KEY)
+    ledger = data / _LEDGER_FILE
+    ledger.touch(mode=0o600)
+    if os.name != "nt":
+        ledger.chmod(0o600)
+    ledger.write_text(_EMPTY_LEDGER, encoding="utf-8", newline="\n")
+    return data
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _installation_folder_of_the_session(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[pathlib.Path]":
+    place = tmp_path_factory.mktemp("installation-session")
+    data = _fresh_installation(place)
+    with pytest.MonkeyPatch.context() as own:
+        own.setenv("XDG_DATA_HOME", str(place))
+        own.setenv("LOCALAPPDATA", str(place))
+        yield data
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _installation_folder_of_the_module(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[pathlib.Path]":
+    place = tmp_path_factory.mktemp("installation-module")
+    data = _fresh_installation(place)
+    with pytest.MonkeyPatch.context() as own:
+        own.setenv("XDG_DATA_HOME", str(place))
+        own.setenv("LOCALAPPDATA", str(place))
+        yield data
+
+
+@pytest.fixture(autouse=True)
+def installation_folder(tmp_path_factory: pytest.TempPathFactory) -> "Iterator[pathlib.Path]":
+    place = tmp_path_factory.mktemp("installation")
+    data = _fresh_installation(place)
+    with pytest.MonkeyPatch.context() as own:
+        own.setenv("XDG_DATA_HOME", str(place))
+        own.setenv("LOCALAPPDATA", str(place))
+        yield data
+
+
+# THE INSIDE RECORD STAYS OUT OF THE SUITE'S OWN FOLDERS, ON EVERY MACHINE
+# (batch 4x, plan P4-D503). The record's guard (`synthtwin.inside.place_refusal`)
+# refuses a temporary folder by its fixed roots (`/tmp`, `/var/folders`, a
+# Windows account's `AppData\Local\Temp` and the rest) and says nothing
+# there. pytest's base folder lies under one of them on every CI runner, so
+# an ordinary test's `synthtwin profile` writes no record and its twin is the
+# description's own; but under a TMPDIR or a `--basetemp` elsewhere the same
+# test wrote a record and drew its twin from it, and the suite's verdicts hung
+# on where it ran. So the session's base folder, and the folder the
+# standard library's `tempfile` makes folders in (where the measurement
+# helpers' own data folders go, `kpi_rules.fresh_data_folder`), are two more
+# temporary roots of this computer's default places
+# (`inside.default_places()` asked with no argument), on every machine. A
+# test of the record or of a twin drawn from it names its own places, as the
+# inside gate files do (a private folder and no temporary root); a rehearsal
+# of another computer's places, which passes its own arguments, is
+# untouched. The product's guard is not changed.
+@pytest.fixture(autouse=True, scope="session")
+def _the_suite_s_folders_are_temporary_for_the_inside_record(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> "Iterator[None]":
+    try:
+        from synthtwin import inside
+    except ModuleNotFoundError as missing:
+        # CI's static jobs run their test files without the package installed.
+        if missing.name != "synthtwin":
+            raise
+        yield
+        return
+
+    import dataclasses
+    import tempfile
+
+    roots = (tmp_path_factory.getbasetemp(), pathlib.Path(tempfile.gettempdir()))
+    real = inside.default_places
+
+    def places(
+        os_name: "str | None" = None, variables: "dict[str, str] | None" = None, home: "str | None" = None
+    ) -> "inside.Places":
+        found = real(os_name, variables, home)
+        if os_name is None and variables is None and home is None:
+            return dataclasses.replace(found, temporary=found.temporary + roots)
+        return found
+
+    with pytest.MonkeyPatch.context() as own:
+        own.setattr(inside, "default_places", places)
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _the_small_table_refusal_off_in_process_runs() -> "Iterator[None]":
+    # Its OWN MonkeyPatch, never the test's `monkeypatch`: a test that
+    # calls `monkeypatch.undo()` part way (46 calls in tests/) would
+    # otherwise undo this default too and turn the refusal back on for
+    # the rest of that test (skeptic 1 of lane POP, item 1 (b)).
+    try:
+        from synthtwin import cli
+    except ModuleNotFoundError as missing:
+        # CI's static jobs (the offline scan, provenance, decontamination)
+        # run their test files without the package installed; they call
+        # no command, so there is no default to set for them.
+        if missing.name != "synthtwin":
+            raise
+        yield
+        return
+
+    defaults = cli.main.__kwdefaults__
+    assert defaults is not None and "small_tables_refused" in defaults
+    # ...and on `cli.run` too, the entry point `main` runs through (plan
+    # P4-D437): a test calling it directly meets the suite's default.
+    run_defaults = cli.run.__kwdefaults__
+    assert run_defaults is not None and "small_tables_refused" in run_defaults
+    with pytest.MonkeyPatch.context() as own:
+        own.setitem(defaults, "small_tables_refused", False)
+        own.setitem(run_defaults, "small_tables_refused", False)
+        # THE ROUNDS AFTER THE FILES FOR `profile` AT A KEYBOARD (lane TOOLS):
+        # since that lane `profile` puts its questions in the one round, as
+        # `twin` does; the suite's cases that put a person at `profile`'s
+        # keyboard (twenty files, tests/keyboard.py's helpers among them) pin
+        # the rounds after the files, still the path of an entry a later
+        # description raises, and tests/test_profile_one_round.py turns the
+        # one round back on for its own cases.
+        own.setattr(cli, "_PROFILE_ONE_ROUND", False)
+        # THE NUMBER READINGS KEPT BY THEIR TEXTS (lane SCALE, release 37):
+        # a process-wide cache, so a case measuring memory saw it filled or
+        # not by whichever cases ran before it in the same process (release
+        # 37's landing: one passed in the suite and failed alone). Every case
+        # starts with it empty; what is kept is never an answer's source.
+        from synthtwin import parsing
+
+        own.setattr(parsing._Kept, "numbers", {})
+        own.setattr(parsing._Kept, "classes", {})
+        yield

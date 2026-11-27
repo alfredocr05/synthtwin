@@ -18,6 +18,12 @@
 # Maintainer-private material (defense in depth; lives outside the repo)
 planning-notes/
 
+# An inside record describes a real table and stays on the computer it
+# was made on (plan P4-D495); CI also fails on any file that starts with
+# its marker (tools/hooks/check_inside_records.py).
+*.synthtwin-inside
+*.synthtwin-inside.new
+
 # Python
 __pycache__/
 *.pyc
@@ -25,11 +31,24 @@ __pycache__/
 dist/
 build/
 wheelhouse/
+# The offline bundle's built files (plan P4-D416): wheels are binary and
+# the notices quote licence texts the decontamination scanner matches.
+*.whl
+THIRD-PARTY-NOTICES*
+SHA256SUMS
 .venv/
 venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# What the sharded CI steps write into the checkout root, and what
+# anyone reproducing one of those steps locally writes there too
+# (CONTRIBUTING.md documents the tool). They are output of a run, never
+# repository content, and the landing checklist starts with `git add
+# -A`.
+shard-files.txt
+collected.txt
 
 # OS noise
 .DS_Store

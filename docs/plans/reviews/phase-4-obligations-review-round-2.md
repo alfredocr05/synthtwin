@@ -67,17 +67,17 @@ I reproduced seven blocking failures. Several round-1 paths remain open, and the
 
 1. **SEVERITY: blocking — ordinary back-references still defeat the carry.**
 
-   **CONCRETE FAILURE SCENARIO:** Add “A privacy rule governs the source table. It does not apply to the synthetic twin.” The second statement uses the ordinary singular pronoun deliberately excluded from [_REFERS_BACK](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6444>), and the matcher returns no offender.
+   **CONCRETE FAILURE SCENARIO:** Add “A privacy rule governs the source table. It does not apply to the synthetic twin.” The second statement uses the ordinary singular pronoun deliberately excluded from [_REFERS_BACK](<../../../tests/test_claim_inventory.py#L6444>), and the matcher returns no offender.
 
    It also misses “This does not apply,” “The agreement does not apply,” and “For synthetic twins, the rules do not apply.” A bridge defeats the next-statement limit: “Privacy rules govern source data. Synthetic output is treated differently. Those rules do not apply.”
 
 2. **SEVERITY: blocking — directionality was not applied to carried exemptions.**
 
-   **CONCRETE FAILURE SCENARIO:** Add “Privacy rules govern source tables. They still apply to the source, but do not apply to synthetic twins.” [_carried_exemption](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6477>) returns no claim whenever any cure marker appears, without comparing positions. The directional check later in `_grants_an_exemption` is never reached for this carried form.
+   **CONCRETE FAILURE SCENARIO:** Add “Privacy rules govern source tables. They still apply to the source, but do not apply to synthetic twins.” [_carried_exemption](<../../../tests/test_claim_inventory.py#L6477>) returns no claim whenever any cure marker appears, without comparing positions. The directional check later in `_grants_an_exemption` is never reached for this carried form.
 
 3. **SEVERITY: blocking — a different regime still cures the banned claim.**
 
-   **CONCRETE FAILURE SCENARIO:** Add “The twin is exempt from data-use agreements. Privacy rules still apply.” [_cured_after](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6501>) asks only whether the later sentence names some obligation. It does not retain the earlier regime. The matcher returns no offender, so preserving privacy rules erases a separate exemption from data-use agreements.
+   **CONCRETE FAILURE SCENARIO:** Add “The twin is exempt from data-use agreements. Privacy rules still apply.” [_cured_after](<../../../tests/test_claim_inventory.py#L6501>) asks only whether the later sentence names some obligation. It does not retain the earlier regime. The matcher returns no offender, so preserving privacy rules erases a separate exemption from data-use agreements.
 
 4. **SEVERITY: blocking — the expanded phrase inventory still misses ordinary prose, including one apparently added shape.**
 
@@ -90,7 +90,7 @@ I reproduced seven blocking failures. Several round-1 paths remain open, and the
    - “Using synthetic data obviates the need for ethics approval.”
    - “Synthetic output is beyond the review board’s jurisdiction.”
 
-   In particular, [_OBLIGATION_NAMES](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6350>) recognizes “approval is not required,” but no exemption pattern recognizes that word order. The added shape is inert unless another exemption phrase stands nearby.
+   In particular, [_OBLIGATION_NAMES](<../../../tests/test_claim_inventory.py#L6350>) recognizes “approval is not required,” but no exemption pattern recognizes that word order. The added shape is inert unless another exemption phrase stands nearby.
 
 5. **SEVERITY: serious — the widened “does not cover” shape has a scoped false positive.**
 
@@ -100,35 +100,35 @@ I reproduced seven blocking failures. Several round-1 paths remain open, and the
 
 6. **SEVERITY: blocking — round-1 item 8 remains unresolved in the governing record.**
 
-   **CONCRETE FAILURE SCENARIO:** [STATE](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/STATE.md:56>) cites A-P4-41 and says R-P4-23 closes by ruling. A-P4-41 does not exist elsewhere, `phase-4-columns.md` has no repair diff, and the [live residual](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/plans/phase-4-columns.md:5531>) still says the proper repair is a version bump, the choice belongs to the owner, and the residual is not closed.
+   **CONCRETE FAILURE SCENARIO:** [STATE](<../../../docs/STATE.md#L56>) cites A-P4-41 and says R-P4-23 closes by ruling. A-P4-41 does not exist elsewhere, `phase-4-columns.md` has no repair diff, and the [live residual](<../../../docs/plans/phase-4-columns.md#L5531>) still says the proper repair is a version bump, the choice belongs to the owner, and the residual is not closed.
 
    A maintainer following STATE again treats an unresolved choice as settled; an older version-6 description still receives the generic missing-key refusal recorded by the residual.
 
 7. **SEVERITY: blocking — the new clauses were not propagated into the governing argument-class rules or the two main censuses.**
 
-   **CONCRETE FAILURE SCENARIO:** An independent consumer implements [C6-119](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:1045>). It admits nineteen package words and permits bound affix strings only at the affixed remark’s two positions. It therefore refuses NF46’s clock words and NF47/NF48’s three new bound positions.
+   **CONCRETE FAILURE SCENARIO:** An independent consumer implements [C6-119](<../../../docs/spec/profile-contract-v6.md#L1045>). It admits nineteen package words and permits bound affix strings only at the affixed remark’s two positions. It therefore refuses NF46’s clock words and NF47/NF48’s three new bound positions.
 
-   The [4.5.1 census](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:1115>) still says 44 forms and 65 positions. The [14.8 heading](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:8357>) repeats 44 and 65, while section 12.2 says 48 and 79. The moved totals—48 forms, 79 positions, 66 whole numbers, 4 package words, 4 nested forms, and 5 bound strings—are arithmetically right; the contract states both grammars.
+   The [4.5.1 census](<../../../docs/spec/profile-contract-v6.md#L1115>) still says 44 forms and 65 positions. The [14.8 heading](<../../../docs/spec/profile-contract-v6.md#L8357>) repeats 44 and 65, while section 12.2 says 48 and 79. The moved totals—48 forms, 79 positions, 66 whole numbers, 4 package words, 4 nested forms, and 5 bound strings—are arithmetically right; the contract states both grammars.
 
 8. **SEVERITY: blocking — NF47 codifies a false rendering.**
 
-   **CONCRETE FAILURE SCENARIO:** Profile a forced-measurement column of repeated `1:1.5` cells. [`splits_into_wholes`](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/taxonomy.py:5088>) accepts the decimal part explicitly, but [`EVIDENCE_JOINED`](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/src/synthtwin/taxonomy.py:1116>) renders “2 whole numbers.” [NF47](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/docs/spec/profile-contract-v6.md:1305>) repeats that claim. `1.5` is not whole, so the profile publishes plausible but false detection evidence while the arity-only guard remains green.
+   **CONCRETE FAILURE SCENARIO:** Profile a forced-measurement column of repeated `1:1.5` cells. [`splits_into_wholes`](<../../../src/synthtwin/taxonomy.py#L5088>) accepts the decimal part explicitly, but [`EVIDENCE_JOINED`](<../../../src/synthtwin/taxonomy.py#L1116>) renders “2 whole numbers.” [NF47](<../../../docs/spec/profile-contract-v6.md#L1305>) repeats that claim. `1.5` is not whole, so the profile publishes plausible but false detection evidence while the arity-only guard remains green.
 
 9. **SEVERITY: serious — the defining-clause parser can omit clauses while all new checks remain green.**
 
-   **CONCRETE FAILURE SCENARIO:** Add a second exact-syntax clause defining `evidence_clock_times` with arity 4. [`_defining()`](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_p4d27_note_grammar_matches_the_code.py:90>) uses `setdefault`, so the earlier arity 3 silently wins. My in-memory mutation left the 48-entry dictionary unchanged.
+   **CONCRETE FAILURE SCENARIO:** Add a second exact-syntax clause defining `evidence_clock_times` with arity 4. [`_defining()`](<../../../tests/test_p4d27_note_grammar_matches_the_code.py#L90>) uses `setdefault`, so the earlier arity 3 silently wins. My in-memory mutation left the 48-entry dictionary unchanged.
 
    A new clause using “takes 1 argument” rather than “arity 1” is not matched at all and likewise leaves the dictionary unchanged. `_APPENDIX` also collapses duplicate names into a dictionary. The guard compares name-to-arity maps; it does not check clause completeness, unique numbering, renderings, argument classes, or totals.
 
 10. **SEVERITY: minor — the freshness floor does not identify a whole-suite run.**
 
-    **CONCRETE FAILURE SCENARIO:** Run a legitimate subset whose `session.testscollected` is 3,100 and which includes this module. Because 3,100 exceeds the [literal floor](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6719>), the check compares the subset with 3,907 and fails falsely. Conversely, if a future cleanup reduces the whole suite below 3,000, the check always skips.
+    **CONCRETE FAILURE SCENARIO:** Run a legitimate subset whose `session.testscollected` is 3,100 and which includes this module. Because 3,100 exceeds the [literal floor](<../../../tests/test_claim_inventory.py#L6719>), the check compares the subset with 3,907 and fails falsely. Conversely, if a future cleanup reduces the whole suite below 3,000, the check always skips.
 
     The current number itself is right: 3,851 passed plus 48 skipped was 3,899 collected; three new claim tests plus five grammar tests produce 3,907.
 
 11. **SEVERITY: minor — the family repair proves a substring, not a functioning family test.**
 
-    **CONCRETE FAILURE SCENARIO:** During a refactor, remove a family’s guard and behavioral tests but leave an unrelated placeholder test below its banner. The [raw search](</Users/alfredowork/Library/CloudStorage/OneDrive-UniversityofIowa/Research/0- Synthetic dataset/synthtwin/tests/test_claim_inventory.py:6686>) sees `def test_` and passes.
+    **CONCRETE FAILURE SCENARIO:** During a refactor, remove a family’s guard and behavioral tests but leave an unrelated placeholder test below its banner. The [raw search](<../../../tests/test_claim_inventory.py#L6686>) sees `def test_` and passes.
 
     The current five banner regions each contain at least one real test, so the narrow stated condition holds now.
 
